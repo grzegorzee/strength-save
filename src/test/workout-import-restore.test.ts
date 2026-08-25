@@ -135,3 +135,76 @@ describe('importData — planCycles przez sanitizer (bug 14)', () => {
     expect(workoutSets).toHaveLength(1);
   });
 });
+
+// Bug 44 (X30): importData pisał training_plans.days prosto z pliku, omijając
+// niezmiennik Z151 (dni planu wyrównane do id dni PIERWSZEGO aktywnego cyklu).
+// Stary backup (era cyklu A / format day-N) przy żywym cyklu B rozjeżdżał parę
+// plan/cykl aż do najbliższej ręcznej edycji planu.
+describe('importData — training_plans.days wyrównane do aktywnego cyklu (bug 44)', () => {
+  const planSetCall = () => {
+    const calls = (setDocMock.mock.calls as Array<[FirestoreRefToken, Record<string, unknown>, { merge?: boolean }]>)
+      .filter(([ref]) => ref.__coll === 'training_plans');
+    expect(calls).toHaveLength(1);
+    return calls[0];
+  };
+
+  it('backup z obcymi id dni (day-N) przy aktywnym cyklu: dni adoptują id cyklu', async () => {
+    const state = buildCanonicalState('active-plan');
+    const cycle = state.cycles[0];
+    getDocsMock.mockResolvedValue({
+      docs: [{ data: () => ({ days: cycle.days, startDate: cycle.startDate, status: 'active' }) }],
+    });
+    // Backup sprzed startu cyklu: te same dni, ale w formacie default day-N.
+    const foreignDays = state.plan!.days.map((day, i) => ({ ...day, id: `day-${i + 1}` }));
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.importData(JSON.stringify({
+        trainingPlan: { days: foreignDays, durationWeeks: 8, startDate: cycle.startDate },
+      }));
+    });
+
+    const [ref, payload, opts] = planSetCall();
+    expect(ref.__id).toBe(CANONICAL_UID);
+    expect(opts).toEqual({ merge: true });
+    expect((payload.days as Array<{ id: string }>).map((d) => d.id))
+      .toEqual(cycle.days.map((d) => d.id));
+    // Treść dni z backupu zostaje (id adoptowane, reszta z pliku).
+    expect((payload.days as Array<{ dayName: string }>).map((d) => d.dayName))
+      .toEqual(foreignDays.map((d) => d.dayName));
+    expect(payload.durationWeeks).toBe(8);
+  });
+
+  it('niezmiennik: bez aktywnego cyklu dni z backupu wchodzą bez zmian', async () => {
+    const state = buildCanonicalState('active-plan');
+    const foreignDays = state.plan!.days.map((day, i) => ({ ...day, id: `day-${i + 1}` }));
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.importData(JSON.stringify({
+        trainingPlan: { days: foreignDays, durationWeeks: 12 },
+      }));
+    });
+
+    const [, payload] = planSetCall();
+    expect((payload.days as Array<{ id: string }>).map((d) => d.id)).toEqual(['day-1', 'day-2']);
+  });
+
+  it('niezmiennik: dni nieprzechodzące sanitizera (legacy kształt) zapisują się jak dotąd', async () => {
+    // Dzień bez dayName — sanitizeTrainingPlanDays zwraca null; zapis surowy
+    // jak przed fixem (import starych/ręcznych plików nie może stracić danych).
+    const legacyDays = [{ id: 'day-1', exercises: [] }];
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.importData(JSON.stringify({
+        trainingPlan: { days: legacyDays, durationWeeks: 12 },
+      }));
+    });
+
+    const [, payload] = planSetCall();
+    expect(payload.days).toEqual(legacyDays);
+    // Bez sanityzowalnych dni nie ma też odpytywania o cykle.
+    expect(getDocsMock).not.toHaveBeenCalled();
+  });
+});

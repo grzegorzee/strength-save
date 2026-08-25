@@ -22,7 +22,9 @@ import { calculateTonnage } from '@/lib/summary-utils';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
-import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
+import { sanitizePlanCycleDoc, sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
+import { resolvePlanDaysForSave } from '@/lib/training-plan-save';
+import type { TrainingDay } from '@/data/trainingPlan';
 import {
   buildWorkoutSessionId,
   createProvisionalWorkoutSession,
@@ -340,8 +342,28 @@ export const useFirebaseWorkoutActions = (
 
       const tp = data.trainingPlan;
       if (tp && typeof tp === 'object' && Array.isArray(tp.days) && tp.days.length > 0) {
+        // Bug 44 (X30): niezmiennik Z151 — dni planu wyrównane do id dni
+        // PIERWSZEGO aktywnego cyklu także przy imporcie backupu (stary plik
+        // z ery poprzedniego cyklu / formatu day-N nie może rozjechać pary
+        // plan/cykl). Sanityzacja jak przy hydracji; dni w nieczytelnym
+        // kształcie legacy wchodzą jak dotąd, bez alignacji.
+        let daysToWrite: unknown = tp.days;
+        const sanitizedDays = sanitizeTrainingPlanDays(tp.days);
+        if (sanitizedDays) {
+          // Odczyt PO batchach: cykle z tego samego backupu już zapisane, więc
+          // alignacja widzi faktyczny stan konta (importowany albo istniejący cykl).
+          const activeCyclesSnap = await getDocs(query(
+            collection(db, 'plan_cycles'),
+            where('userId', '==', userId),
+            where('status', '==', 'active'),
+          ));
+          daysToWrite = resolvePlanDaysForSave(
+            sanitizedDays,
+            activeCyclesSnap.docs.map((cycleDoc) => cycleDoc.data() as { days?: TrainingDay[]; startDate?: string }),
+          );
+        }
         await setDoc(doc(db, 'training_plans', userId), {
-          days: tp.days,
+          days: daysToWrite,
           durationWeeks: typeof tp.durationWeeks === 'number' ? tp.durationWeeks : 12,
           ...(typeof tp.startDate === 'string' ? { startDate: tp.startDate.slice(0, 10) } : {}),
           updatedAt: new Date().toISOString(),
