@@ -11,7 +11,8 @@ import { renderHook } from '@testing-library/react';
 // - NIEZMIENNIK: addMeasurement dziala jak dotad (recordedAt domyslnie z zegara).
 
 const fs = vi.hoisted(() => ({
-  setDoc: vi.fn(async () => undefined),
+  // Sygnatura (ref, data) jawna — typecheck czyta mock.calls[0][1] jako payload.
+  setDoc: vi.fn(async (_ref: unknown, _data: unknown) => undefined),
   deleteDoc: vi.fn(async () => undefined),
   doc: vi.fn((_db: unknown, col: string, id: string) => ({ col, id })),
 }));
