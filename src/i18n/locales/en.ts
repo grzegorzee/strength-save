@@ -1066,7 +1066,7 @@ export const en: Record<keyof typeof pl, string> = {
   'plates.countLabel': 'Count {weight}',
   'plates.customPlate': 'Custom plate',
   'plates.addPlate': 'Add plate',
-  'plates.customBar': 'Custom bar',
+  'plates.customBar': 'Custom bar ({unit})',
   'plates.removePlate': 'Remove',
   'plates.unitPreset': 'Inventory unit',
   'plates.countHint': 'Enter the TOTAL number of plates. Half goes on each side of the bar.',

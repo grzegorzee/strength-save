@@ -1082,7 +1082,7 @@ export const pl = {
   'plates.countLabel': 'Sztuk {weight}',
   'plates.customPlate': 'Własny talerz',
   'plates.addPlate': 'Dodaj talerz',
-  'plates.customBar': 'Własny gryf',
+  'plates.customBar': 'Własny gryf ({unit})',
   'plates.removePlate': 'Usuń',
   'plates.unitPreset': 'Jednostka inwentarza',
   'plates.countHint': 'Podaj ŁĄCZNĄ liczbę sztuk. Na jedną stronę gryfu wchodzi połowa.',

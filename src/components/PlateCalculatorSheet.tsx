@@ -372,12 +372,18 @@ export const PlateInventorySettings = () => {
               type="text"
               inputMode="decimal"
               value={customBar}
-              aria-label={t('plates.customBar')}
-              placeholder={t('plates.customBar')}
+              aria-label={t('plates.customBar', { unit: inventoryUnit })}
+              placeholder={t('plates.customBar', { unit: inventoryUnit })}
               onChange={(e) => {
                 setCustomBar(e.target.value);
-                const kg = parseDecimalInput(e.target.value);
-                if (kg !== null && kg >= 0 && kg <= 100) setBar(kg);
+                // Bug 19 (X30): wpis w jednostce inwentarza jak addPlate wyżej —
+                // "45" przy lbs to 20.41 kg, nie 45 kg. Limit 0..100 kg PO konwersji
+                // (spójny z walidacją loadPlateInventory), inaczej legalne wartości
+                // funtowe >100 lb były cicho odrzucane.
+                const nominal = parseDecimalInput(e.target.value);
+                if (nominal === null) return;
+                const kg = inventoryUnit === 'lbs' ? lbsToKg(nominal) : nominal;
+                if (kg >= 0 && kg <= 100) setBar(kg);
               }}
               className="h-9 w-28 text-sm"
             />
