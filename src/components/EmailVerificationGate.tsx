@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,15 @@ interface EmailVerificationGateProps {
 // Po wysłaniu kodu blokujemy ponowne wysłanie na 60 s.
 const RESEND_COOLDOWN_SEC = 60;
 
+// Bug 9 (X30), wzorzec ConsentGate/zasada 6: po udanym verifyEmailCode bramkę
+// zamyka dopiero snapshot users/{uid} (status active). Czekamy z zablokowanym
+// przyciskiem, a po timeoucie oddajemy sterowanie (komunikat + Odśwież),
+// zamiast pozwalać na retry kończący się sprzecznym "Kod nie jest już aktywny"
+// obok toastu o sukcesie.
+const SNAPSHOT_TIMEOUT_MS = 12_000;
+
+type AwaitingState = 'idle' | 'waiting' | 'timeout';
+
 export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGateProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -28,6 +37,20 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [awaiting, setAwaiting] = useState<AwaitingState>('idle');
+  const [alreadyVerifiedInfo, setAlreadyVerifiedInfo] = useState(false);
+  const awaitingTimeoutRef = useRef<number | null>(null);
+
+  const beginAwaitingRefresh = useCallback(() => {
+    setAwaiting('waiting');
+    setError(null);
+    if (awaitingTimeoutRef.current !== null) window.clearTimeout(awaitingTimeoutRef.current);
+    awaitingTimeoutRef.current = window.setTimeout(() => setAwaiting('timeout'), SNAPSHOT_TIMEOUT_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (awaitingTimeoutRef.current !== null) window.clearTimeout(awaitingTimeoutRef.current);
+  }, []);
 
   const inboxProviders = getInboxProviders(email);
 
@@ -44,13 +67,20 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
       setResending(true);
       setError(null);
       try {
-        await requestEmailVerificationCode();
+        const result = await requestEmailVerificationCode();
         if (!cancelled) {
-          setCooldown(RESEND_COOLDOWN_SEC);
-          toast({
-            title: t('comp.emailGate.codeSentTitle'),
-            description: t('comp.emailGate.codeSentDesc'),
-          });
+          if (result.alreadyVerified) {
+            // Bug 9: konto już active (snapshot się spóźnia) — nic nie poszło,
+            // więc bez toastu "wysłano" i bez cooldownu; czekamy na odświeżenie.
+            setAlreadyVerifiedInfo(true);
+            beginAwaitingRefresh();
+          } else {
+            setCooldown(RESEND_COOLDOWN_SEC);
+            toast({
+              title: t('comp.emailGate.codeSentTitle'),
+              description: t('comp.emailGate.codeSentDesc'),
+            });
+          }
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -67,10 +97,10 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
     return () => {
       cancelled = true;
     };
-  }, [toast, t]);
+  }, [toast, t, beginAwaitingRefresh]);
 
   const handleVerify = async () => {
-    if (!code.trim()) return;
+    if (!code.trim() || awaiting !== 'idle') return;
     setLoading(true);
     setError(null);
     try {
@@ -81,6 +111,7 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
         title: t('comp.emailGate.verifiedTitle'),
         description: t('comp.emailGate.verifiedDesc'),
       });
+      beginAwaitingRefresh();
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : t('comp.emailGate.verifyError'));
     } finally {
@@ -89,16 +120,23 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
   };
 
   const handleResend = async () => {
-    if (cooldown > 0 || resending) return;
+    if (cooldown > 0 || resending || awaiting !== 'idle') return;
     setResending(true);
     setError(null);
     try {
-      await requestEmailVerificationCode();
-      setCooldown(RESEND_COOLDOWN_SEC);
-      toast({
-        title: t('comp.emailGate.resentTitle'),
-        description: t('comp.emailGate.resentDesc'),
-      });
+      const result = await requestEmailVerificationCode();
+      if (result.alreadyVerified) {
+        // Bug 9: backend nic nie wysłał (konto już zweryfikowane) — bez
+        // fałszywego toastu i cooldownu, czekamy na snapshot profilu.
+        setAlreadyVerifiedInfo(true);
+        beginAwaitingRefresh();
+      } else {
+        setCooldown(RESEND_COOLDOWN_SEC);
+        toast({
+          title: t('comp.emailGate.resentTitle'),
+          description: t('comp.emailGate.resentDesc'),
+        });
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : t('comp.emailGate.resendError'));
     } finally {
@@ -124,11 +162,37 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
             </p>
           </div>
 
-          {error && (
+          {error && awaiting === 'idle' && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
+          )}
+
+          {awaiting !== 'idle' && (
+            <Alert data-testid="email-gate-awaiting">
+              {awaiting === 'waiting'
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <AlertCircle className="h-4 w-4" />}
+              <AlertDescription>
+                {awaiting === 'timeout'
+                  ? t('comp.emailGate.awaitingTimeout')
+                  : alreadyVerifiedInfo
+                    ? t('comp.emailGate.alreadyVerified')
+                    : t('comp.emailGate.awaitingRefresh')}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {awaiting === 'timeout' && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.location.reload()}
+              data-testid="email-gate-refresh"
+            >
+              {t('gate.refresh')}
+            </Button>
           )}
 
           <Input
@@ -156,11 +220,11 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={handleVerify} disabled={loading || code.length < 6}>
+            <Button className="flex-1" onClick={handleVerify} disabled={loading || code.length < 6 || awaiting !== 'idle'}>
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {t('comp.emailGate.verifyButton')}
             </Button>
-            <Button variant="outline" onClick={handleResend} disabled={resending || cooldown > 0}>
+            <Button variant="outline" onClick={handleResend} disabled={resending || cooldown > 0 || awaiting !== 'idle'}>
               {resending
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : cooldown > 0
