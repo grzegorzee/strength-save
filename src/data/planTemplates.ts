@@ -1173,8 +1173,8 @@ export const getPlanTemplateById = (id: string): PlanTemplate | undefined =>
 /**
  * Rekomenduje plan na podstawie wyborów z onboardingu (cel × poziom × dni/tydz).
  * WP-O (X30): scoring wydzielony do lib/plan-recommendation (wagi tam opisane).
- * Kontrakt: częstotliwość wygrywa, ale zgodny cel może przesunąć rekomendację
- * o ±1 dzień (mismatch dni user widzi w kroku 5 przez planDaysMismatch).
+ * Kontrakt (X31 H2): liczba dni = twardy priorytet (rekomendacja ma tyle dni,
+ * ile user wybrał w kroku 4), wśród dokładnych dni cel, potem poziom.
  * Zawsze zwraca plan.
  */
 export const getRecommendedPlan = (

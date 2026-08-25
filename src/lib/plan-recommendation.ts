@@ -20,15 +20,18 @@ export interface ScoredPlanTemplate {
 
 const LEVEL_RANK: Record<PlanTemplate['level'], number> = { beginner: 0, intermediate: 1, advanced: 2 };
 
-// Wagi (WP-O): częstotliwość nadal wygrywa, ale cel może przesunąć rekomendację
-// o ±1 dzień. Niezmienniki, które te liczby MUSZĄ spełniać (D=dzień, O=cel, L=poziom):
-//  1. Δ1 dnia + zgodny cel (najgorszy poziom) > dokładne dni + zły cel:  O > D + 2L
-//  2. Δ2 dni NIGDY nie wygrywa z dokładnymi dniami:                      O < 2D - 2L
-//  3. Przy tych samych dniach cel bije poziom:                           O > 2L
-// Stare wagi 1000/100/10 łamały (1): jedyny szablon fat_loss (4 dni) przegrywał
-// z 3-dniowym planem na masę, gdy user wybrał redukcję i 3 dni.
-const DAY_WEIGHT = 100;
-const OBJECTIVE_BONUS = 150;
+// Wagi (X31 H2, hotfix regresji WP-O): LICZBA DNI = TWARDY PRIORYTET. Liczba dni
+// to jawna decyzja usera (krok 4 wybiera też konkretne dni tygodnia); cel i poziom
+// są wtórne. Porządek jest leksykograficzny (D=dzień, O=cel, L=poziom):
+//  1. Δ1 dnia NIGDY nie wygrywa z dokładnymi dniami, nawet przy zgodnym celu
+//     i poziomie (najgorszy przypadek dokładnych dni = zły cel, zły poziom):  D > O + 2L
+//  2. Przy tych samych dniach cel bije poziom:                                O > 2L
+// Inna liczba dni może wygrać TYLKO, gdy katalog nie ma żadnego szablonu
+// z dokładną liczbą dni (dziś katalog pokrywa 2-6 dni, więc praktycznie nigdy).
+// Wagi X30 (100/150/10) pozwalały celowi przesunąć rekomendację o ±1 dzień:
+// user na realnym koncie wybrał redukcję + 3 dni i dostał 4-dniowy Lean Engine.
+const DAY_WEIGHT = 1000;
+const OBJECTIVE_BONUS = 100;
 const LEVEL_WEIGHT = 10;
 
 /**
