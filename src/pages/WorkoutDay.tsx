@@ -842,7 +842,26 @@ const WorkoutDay = () => {
 
     setAutoSaveStatus('syncing');
 
-    const outcome = await syncWorkoutSession(uid, sessionId, mode, workoutSyncDeps);
+    let outcome = await syncWorkoutSession(uid, sessionId, mode, workoutSyncDeps);
+
+    // Bug 3 (X30): AutoSync mógł wypromować sesję provisional za plecami ekranu
+    // (powrót sieci w tle) — silnik nie znajduje draftu pod starym id
+    // (missingDraft). Rozwiąż tombstone promocji, przejmij tożsamość remote
+    // i ponów sync, zamiast kończyć cichym no-opem (zasada 6: każdy stan
+    // błędu ma wyjście).
+    if (outcome.skipped && outcome.missingDraft) {
+      const promotedRemoteId = workoutDraftDb.resolvePromotedSessionId(uid, sessionId);
+      if (promotedRemoteId && promotedRemoteId !== sessionId) {
+        const externallyPromotedDraft = await workoutDraftDb.loadDraft(uid, promotedRemoteId);
+        if (externallyPromotedDraft) {
+          activeDraftRef.current = externallyPromotedDraft;
+          setActiveDraft(externallyPromotedDraft);
+        }
+        setSessionId(promotedRemoteId);
+        setQueuedDraft(prev => prev?.sessionId === sessionId ? null : prev);
+        outcome = await syncWorkoutSession(uid, promotedRemoteId, mode, workoutSyncDeps);
+      }
+    }
 
     // Promocja provisional -> remote: odśwież tożsamość sesji w UI.
     if (outcome.promotedSessionId) {
@@ -2080,7 +2099,15 @@ const WorkoutDay = () => {
     if (result.skipped) {
       // Kontrakt Z23: skipped przychodzi z success:true (nic do zrobienia / inny
       // sync w toku) — to nie błąd; user może ponowić (R2-32).
+      // Bug 3 (X30): primary CTA nie ma prawa być niemy — powiedz userowi, co się
+      // stało (przypadek missingDraft z tombstone'em rozwiązuje syncDraftToFirebase,
+      // więc tu zostaje realne "brak zmian").
       setIsExplicitSaving(false);
+      setShowCompleteConfirm(false);
+      toast({
+        title: t('workout.toast.nothingToSyncTitle'),
+        description: t('workout.toast.nothingToSyncDesc'),
+      });
       return;
     }
 

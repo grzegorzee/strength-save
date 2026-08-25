@@ -89,6 +89,9 @@ export interface WorkoutSyncDeps {
 export interface SyncOutcome {
   success: boolean;
   skipped?: boolean;          // brak draftu / nic do zrobienia
+  missingDraft?: boolean;     // skipped, bo draft NIE ISTNIEJE pod tym id (bug 3, X30:
+                              // np. AutoSync wypromował sesję za plecami ekranu) —
+                              // UI może rozwiązać tombstone promocji i ponowić
   conflict?: boolean;         // realny konflikt rewizji: UI decyduje o dialogu
   alreadyFinalized?: boolean; // finalna treść już była w chmurze (idempotencja)
   error?: string;             // surowy kod; UI mapuje przez workoutSyncErrorMessageKey
@@ -162,8 +165,9 @@ const runSync = async (
     let draft = await deps.loadDraft(userId, sessionId);
     if (!draft) {
       // Kolejka referencyjna: wpis bez draftu nie ma treści do zapisania.
+      // missingDraft odróżnia ten przypadek od "nic do zrobienia" (bug 3, X30).
       deps.queue.remove(userId, sessionId);
-      return { success: true, skipped: true, sessionId };
+      return { success: true, skipped: true, missingDraft: true, sessionId };
     }
 
     let targetSessionId = sessionId;

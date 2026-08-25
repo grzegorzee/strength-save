@@ -1064,6 +1064,14 @@ export const workoutDraftDb = {
     await runWrite(null, userId, sessionId);
   },
 
+  // Bug 3 (X30): publiczny odczyt tombstone'a promocji. WorkoutDay po
+  // skipped/missingDraft własnej sesji provisional (promocja zewnętrzna przez
+  // AutoSync) rozwiązuje nową tożsamość remote i ponawia sync zamiast kończyć
+  // cichym no-opem "Zakończ trening".
+  resolvePromotedSessionId(userId: string, provisionalSessionId: string): string | null {
+    return readPromotionTombstone(userId, provisionalSessionId)?.remoteId ?? null;
+  },
+
   // Warunkowe czyszczenie po finalnym syncu: draft z NOWSZĄ wersją (seria odhaczona
   // w trakcie finalnego RTT) zostaje jako dirty i idzie kolejnym checkpointem (R2-03).
   // Zwraca true, gdy draft skasowany lub już nie istniał; false = odmowa (nowsza wersja).
