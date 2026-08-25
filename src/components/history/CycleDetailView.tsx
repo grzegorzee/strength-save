@@ -190,8 +190,9 @@ export const CycleDetailView = ({
         </div>
       </div>
 
-      {/* Chipsy statusu (design 2b); styl jak kinetic Chip (DESIGN.md §5). */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {/* Chipsy statusu (design 2b); styl jak kinetic Chip (DESIGN.md §5).
+          X35a WP-A: zawijane, bez przewijania w bok. */}
+      <div className="flex flex-wrap gap-2">
         {([
           { id: 'all' as const, label: t('history.chipAll', { n: sessions.length }), active: chip === 'all', onClick: () => setChip('all') },
           { id: 'prs' as const, label: t('history.onlyPRs'), active: chip === 'prs', onClick: () => setChip('prs') },
@@ -204,7 +205,7 @@ export const CycleDetailView = ({
             data-testid={`cycle-chip-${item.id}`}
             onClick={item.onClick}
             className={cn(
-              'shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
+              'touch-manipulation select-none whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
               item.active ? 'bg-accent text-accent-foreground' : 'bg-surface-highest text-muted-foreground',
             )}
           >

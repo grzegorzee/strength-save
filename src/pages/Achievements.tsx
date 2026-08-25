@@ -7,7 +7,6 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal, BarChart3, CalendarRange, type LucideIcon } from 'lucide-react';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
-import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -394,10 +393,9 @@ const Achievements = () => {
         </Card>
       )}
 
-      {/* PRO-D T4: heatmapa konsekwencji (komponent ma własny Card + tytuł + wybór roku).
-          Strava poza zakresem tego ekranu — heatmapa liczy treningi siłowe.
-          X28 WP-D: trend 6-mies. tonażu przeniesiony do wykresów analityki (zakres 6M). */}
-      <TrainingHeatmap workouts={workouts} stravaActivities={[]} />
+      {/* X35a W1 (decyzja właściciela): roczna heatmapa (52 tyg.) USUNIĘTA — nieczytelna
+          na telefonie i wymagała przewijania w bok; konsekwencję pokazuje siatka
+          12 tygodni w Analityce + streak. X28 WP-D: trend 6-mies. tonażu w wykresach. */}
 
       {/* Fix 2026-08-21: kafle sekcji — standardowe ikony lucide zamiast webp */}
       <div className="grid grid-cols-2 gap-2.5">

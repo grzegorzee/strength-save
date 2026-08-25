@@ -132,6 +132,10 @@ describe('X34: ekran 6/6 "Start planu"', () => {
 
     // X34b: 8 chipow = kolejne dni treningowe (4 dni: pn/wt/czw/pt) od dzis, rosnaco; pierwszy zaznaczony.
     expect(chips()).toHaveLength(8);
+    // X35a WP-A: siatka 4x2 zamiast przewijanego rzedu (wszystkie chipy widoczne).
+    const chipsGrid = screen.getByTestId('ob-first-workout-chips');
+    expect(chipsGrid.className).toContain('grid-cols-4');
+    expect(chipsGrid.className).not.toContain('overflow-x');
     expect(chips()[0]).toHaveAttribute('aria-pressed', 'true');
     const dates = chips().map((_, i) => chipDate(i));
     expect(dates[0] >= todayISO()).toBe(true);

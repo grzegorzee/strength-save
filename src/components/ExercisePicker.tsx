@@ -168,24 +168,24 @@ export const ExercisePicker = ({
             />
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-            <button
-              onClick={() => setCategory('all')}
-              className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                category === 'all' ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
-            >
-              {t('exercises.all')}
-            </button>
-            {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
-              <button
-                key={key}
-                onClick={() => setCategory(key)}
-                className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                  category === key ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
-              >
-                {localizeCategory(key, lang)}
-              </button>
-            ))}
+          {/* X35a WP-A: 9 kategorii jako siatka 3x3 kompaktowych kafli (wszystkie
+              widoczne od razu, bez przewijania w bok). */}
+          <div className="grid grid-cols-3 gap-1.5" data-testid="picker-category-grid">
+            {(['all', ...Object.keys(categoryLabels)] as (LibraryExercise['category'] | 'all')[]).map((key) => {
+              const on = category === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setCategory(key)}
+                  className={cn('flex min-h-[38px] touch-manipulation select-none items-center justify-center rounded-xl px-1.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                    on ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
+                >
+                  {key === 'all' ? t('exercises.all') : localizeCategory(key, lang)}
+                </button>
+              );
+            })}
           </div>
           {/* X28 WP-A: przycisk NAD scrollowaną listą — widoczny bez scrollowania
               niezależnie od długości listy (wcześniej ginął nad ~200 pozycjami). */}

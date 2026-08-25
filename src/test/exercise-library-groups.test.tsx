@@ -166,22 +166,29 @@ describe('E3: poziom 2 — widok grupy', () => {
     const chest = exerciseLibrary.filter((e) => e.category === 'chest');
     expect(screen.getAllByTestId('group-exercise-row')).toHaveLength(chest.length);
 
-    // Chipsy: ALL z licznikiem grupy + typy.
+    // Chipsy: KAZDY z licznikiem (X35a WP-H), zawijane bez przewijania w bok (WP-A).
+    const compound = chest.filter((e) => e.type === 'compound').length;
+    const isolation = chest.filter((e) => e.type === 'isolation').length;
+    const bodyweight = chest.filter((e) => e.isBodyweight === true).length;
     expect(screen.getByRole('button', { name: `Wszystkie ${chest.length}` })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Wielostawowe' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Izolacja' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Masa ciała' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Wielostawowe ${compound}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Izolacja ${isolation}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Masa ciała ${bodyweight}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Wszystkie ${chest.length}` })).toHaveAttribute('aria-pressed', 'true');
+    const chipsRow = screen.getByRole('button', { name: `Wszystkie ${chest.length}` }).parentElement!;
+    expect(chipsRow.className).toContain('flex-wrap');
+    expect(chipsRow.className).not.toContain('overflow-x');
   });
 
   it('filtr COMPOUND zawęża listę do wielostawowych, BODYWEIGHT do masy ciała', () => {
     renderPage('/exercises?group=chest');
 
     const chest = exerciseLibrary.filter((e) => e.category === 'chest');
-    fireEvent.click(screen.getByRole('button', { name: 'Wielostawowe' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Wielostawowe \d+$/ }));
     expect(screen.getAllByTestId('group-exercise-row'))
       .toHaveLength(chest.filter((e) => e.type === 'compound').length);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Masa ciała' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Masa ciała \d+$/ }));
     expect(screen.getAllByTestId('group-exercise-row'))
       .toHaveLength(chest.filter((e) => e.isBodyweight === true).length);
   });

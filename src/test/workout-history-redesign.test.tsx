@@ -221,9 +221,17 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
     expect(prLabel.previousElementSibling?.className).toContain('text-primary');
   });
 
-  it('tryb Porównaj: chip włącza tryb, dwa tapnięcia dają kartę porównania, trzecie wypycha najstarsze (FIFO)', () => {
+  it('tryb Porównaj: przycisk włącza tryb, dwa tapnięcia dają kartę porównania, trzecie wypycha najstarsze (FIFO)', () => {
     renderPage();
+    // X35a WP-A#5: "Porównaj" to tryb, nie filtr — osobny przycisk POZA zawijanym rzędem chipów.
+    const statusChips = screen.getByTestId('history-status-chips');
+    expect(statusChips.className).toContain('flex-wrap');
+    expect(statusChips.className).not.toContain('overflow-x');
+    expect(within(statusChips).queryByRole('button', { name: /^porównaj$/i })).toBeNull();
+    const compareToggle = screen.getByTestId('history-compare-toggle');
+    expect(compareToggle).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(screen.getByRole('button', { name: /^porównaj$/i }));
+    expect(compareToggle).toHaveAttribute('aria-pressed', 'true');
     const rows = screen.getAllByTestId('history-session-row');
     fireEvent.click(rows[0]);
     fireEvent.click(rows[1]);

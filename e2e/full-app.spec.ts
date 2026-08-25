@@ -400,10 +400,11 @@ test.describe('Bodyweight Exercises', () => {
     await expect(page.getByRole('heading', { name: 'Ćwiczenia' }).first()).toBeVisible();
     // X27: chipy kategorii zastąpione kaflami grup; wejście w grupę pokazuje
     // filtr "Masa ciała" (ćwiczenia bodyweight są w bibliotece).
+    // X35a WP-H: filtr ma licznik ("Masa ciała N").
     const tile = page.getByTestId('exercise-group-tile').filter({ hasText: 'Brzuch' });
     await expect(tile).toBeVisible();
     await tile.click();
-    await expect(page.getByRole('button', { name: 'Masa ciała', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Masa ciała \d+$/ })).toBeVisible();
   });
 });
 
@@ -1232,7 +1233,7 @@ test.describe('Import CSV (Z110)', () => {
     expect(workoutsAfterUndo).toBe(0);
   });
 
-  test('zaimportowane treningi zasilają rekordy i heatmapę (snapshot+resolver)', async ({ page }) => {
+  test('zaimportowane treningi zasilają rekordy (snapshot+resolver)', async ({ page }) => {
     // Seed przez mechanizm E2E — kształt identyczny jak buildImportedSessions.
     await setE2EWorkouts(page, [{
       id: 'imported-testbatch-1',

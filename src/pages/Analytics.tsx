@@ -490,7 +490,7 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
         if (value === 'strava') trackTelemetryEvent(uid, 'action_strava_opened');
         setSearchParams(embedded ? { view: 'analytics', tab: value } : { tab: value });
       }}>
-        <TabsList className="w-full overflow-x-auto">
+        <TabsList className="w-full">
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">{t('analytics.tab.summary')}</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">{t('analytics.tab.charts')}</TabsTrigger>
           {canUseStrava && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}

@@ -196,12 +196,13 @@ export const StravaTab = () => {
         estimatedMaxHR={connection.estimatedMaxHR}
       />
 
-      {/* X27/WP-C: filtr typu listy — wzorzec chipsów jak w Historii */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
+      {/* X27/WP-C: filtr typu listy — wzorzec chipsów jak w Historii.
+          X35a WP-A: zawijane, bez przewijania w bok. */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         {TYPE_FILTERS.map((f) => (
           <Chip
             key={f.id}
-            className="shrink-0"
+            className="touch-manipulation select-none"
             active={typeFilter === f.id}
             onClick={() => setTypeFilter(f.id)}
           >
