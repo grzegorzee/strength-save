@@ -21,6 +21,7 @@ import { unregisterPushForUser } from '@/lib/push-notifications';
 import { revokeAllGarminDevices } from '@/lib/garmin-api';
 import { disableAppleWatchAccess } from '@/lib/watch-bridge';
 import { readE2EAuthState } from '@/lib/e2e-auth';
+import { mapAuthErrorMessage } from '@/lib/auth-errors';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { markStartup } from '@/lib/startup-performance';
@@ -88,8 +89,11 @@ export const useAuth = () => {
       }
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('auth.err.login');
-      console.error('Login error:', errorMessage);
+      // Bug 10: anulowanie sheetu/popupu = cichy powrót; reszta kodów mapowana
+      // na i18n zamiast surowego angielskiego komunikatu Firebase/pluginu.
+      const errorMessage = mapAuthErrorMessage(err, t);
+      if (errorMessage === null) return false;
+      console.error('Login error:', err);
       setError(errorMessage);
       return false;
     }
@@ -114,8 +118,10 @@ export const useAuth = () => {
       }
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('auth.err.login');
-      console.error('Apple login error:', errorMessage);
+      // Bug 10: jak w signInWithGoogle wyżej — cichy powrót przy anulowaniu.
+      const errorMessage = mapAuthErrorMessage(err, t);
+      if (errorMessage === null) return false;
+      console.error('Apple login error:', err);
       setError(errorMessage);
       return false;
     }

@@ -186,7 +186,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   // Re-consent (pakiet prawny v2): komplet aktualnych zgód wymagany przed
   // trasami. Nowi userzy zbierają zgody w onboardingu (krok Welcome).
   if (!isNewUser && needsConsentRefresh(profile)) {
-    return <ConsentGate profile={profile} />;
+    return <ConsentGate profile={profile} onLogout={onLogout} />;
   }
 
   return (

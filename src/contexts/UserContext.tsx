@@ -4,7 +4,8 @@ import { db } from '@/lib/firebase';
 import { useAuth, FUNNEL_REGISTERED_KEY } from '@/hooks/useAuth';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { readE2EAuthState } from '@/lib/e2e-auth';
-import { consumePendingInviteCode, readInviteCodeFromLocation, setPendingInviteCode } from '@/lib/pending-invite';
+import { getPendingInviteCode, isPermanentInviteRedeemError, readInviteCodeFromLocation, setPendingInviteCode } from '@/lib/pending-invite';
+import { reportClientError } from '@/lib/error-telemetry';
 import { redeemInvite, syncUserProfile, type AppUserProfile } from '@/lib/registration-api';
 import {
   mapAppUserProfile,
@@ -138,13 +139,24 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             setPendingInviteCode(inviteFromLocation);
           }
           let syncedProfile = await syncUserProfile();
-          const pendingInviteCode = consumePendingInviteCode();
+          // Bug 33: kod konsumujemy dopiero PO udanym redeem. Wcześniejsze
+          // consume gubiło zaproszenie cicho przy przejściowej porażce
+          // (timeout 10 s na słabym zasięgu) — retry 'online' nie miał już
+          // czego ponowić, a przypadek nie zostawiał śladu w telemetrii.
+          const pendingInviteCode = getPendingInviteCode();
           if (pendingInviteCode) {
             try {
               await redeemInvite(pendingInviteCode);
+              setPendingInviteCode(null);
               syncedProfile = await syncUserProfile();
             } catch (inviteError) {
               console.error('Failed to redeem invite after login:', inviteError);
+              if (isPermanentInviteRedeemError(inviteError)) setPendingInviteCode(null);
+              void reportClientError(userId, {
+                code: 'invite-redeem-failed',
+                phase: 'other',
+                detail: inviteError instanceof Error ? inviteError.message : String(inviteError),
+              });
             }
           }
 

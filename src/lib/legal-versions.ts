@@ -34,13 +34,25 @@ export interface ConsentMirror {
   marketingVersion?: string;
 }
 
-/** Czy komplet obowiązkowych zgód jest aktualny (terms, privacy_ack, health). */
+/**
+ * Czy komplet obowiązkowych zgód jest aktualny (terms, privacy_ack, health).
+ *
+ * Zgoda zdrowotna: bramka wymaga aktualnej DECYZJI, nie zgody. Świadome
+ * wycofanie (healthGranted === false przy aktualnej healthVersion — mirror
+ * pisany przez recordConsent ustawia oba pola także przy withdrawn) jest
+ * pełnoprawną decyzją: ConsentGate NIE wstaje, a ograniczenia realizuje
+ * useHealthConsent w WorkoutDay/Measurements (DECYZJE.md 2026-08-11:
+ * "wycofanie zdrowotnej blokuje pomiary + metryki, konto zostaje").
+ * Inaczej wycofanie zgody w Ustawieniach zapętlało usera na bramce
+ * wymuszającej ponowne udzielenie zgody, którą przed chwilą wycofał (bug 1).
+ */
 export function hasCurrentRequiredConsents(mirror: ConsentMirror | undefined | null): boolean {
   if (!mirror) return false;
+  const healthDecisionCurrent = typeof mirror.healthGranted === 'boolean'
+    && mirror.healthVersion === LEGAL_VERSIONS.health;
   return (
     mirror.termsVersion === LEGAL_VERSIONS.terms
     && mirror.privacyVersion === LEGAL_VERSIONS.privacy
-    && mirror.healthGranted === true
-    && mirror.healthVersion === LEGAL_VERSIONS.health
+    && healthDecisionCurrent
   );
 }

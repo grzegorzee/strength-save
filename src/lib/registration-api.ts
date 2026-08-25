@@ -1,12 +1,9 @@
 import { httpsCallable } from "firebase/functions";
-import { Capacitor } from "@capacitor/core";
 import { functions } from "@/lib/firebase";
 import type { ConsentMirror } from "@/lib/legal-versions";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
-import { withTimeout } from '@/lib/promise-timeout';
-
-const REGISTRATION_WEB_TIMEOUT_MS = 10000;
+import { callProtectedFunction } from "@/lib/protected-callable";
 
 const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
 
@@ -22,22 +19,9 @@ function currentLanguage(): LanguageCode {
   return detectLanguage();
 }
 
-async function callRegistrationFunction<RequestData, ResponseData>(
-  functionName: string,
-  data: RequestData,
-): Promise<ResponseData> {
-  const platform = Capacitor.getPlatform();
-  if (platform === 'ios' || platform === 'android') {
-    const { callNativeAttestedFunction } = await import('@/lib/native-callable');
-    return callNativeAttestedFunction<RequestData, ResponseData>(functionName, data);
-  }
-  const fn = httpsCallable<RequestData, ResponseData>(functions, functionName);
-  return (await withTimeout(
-    fn(data),
-    REGISTRATION_WEB_TIMEOUT_MS,
-    `Registration function ${functionName}`,
-  )).data;
-}
+// Chroniona ścieżka (timeout 10 s + atestacja natywna) przeniesiona do
+// @/lib/protected-callable — współdzielona z consents-api (bug 34).
+const callRegistrationFunction = callProtectedFunction;
 
 export type AccountStatus = "pending_verification" | "active" | "suspended" | "deleted";
 

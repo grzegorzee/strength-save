@@ -42,21 +42,45 @@ describe('needsConsentRefresh', () => {
     expect(needsConsentRefresh(profileWith({ ...currentConsents, termsVersion: '1.0' }))).toBe(true);
   });
 
-  it('wycofana zgoda zdrowotna = true (bez niej brak podstawy art. 9)', () => {
-    expect(needsConsentRefresh(profileWith({ ...currentConsents, healthGranted: false }))).toBe(true);
+  // Bug 1 (X30): świadome wycofanie zgody zdrowotnej (healthGranted=false przy
+  // AKTUALNEJ healthVersion) to pełnoprawna decyzja usera — bramka NIE wstaje.
+  // Ograniczenia (pomiary, RPE, ból) realizuje useHealthConsent w
+  // WorkoutDay/Measurements, zgodnie z DECYZJE.md 2026-08-11 i treścią dialogu
+  // wycofania ("Konto i dziennik treningowy zostają").
+  it('świadomie wycofana zgoda zdrowotna (aktualna wersja) = false, bez pętli bramki', () => {
+    expect(needsConsentRefresh(profileWith({ ...currentConsents, healthGranted: false }))).toBe(false);
+  });
+
+  it('brak decyzji zdrowotnej (bez healthGranted/healthVersion) = true', () => {
+    expect(needsConsentRefresh(profileWith({
+      ...currentConsents,
+      healthGranted: undefined,
+      healthVersion: undefined,
+    }))).toBe(true);
+  });
+
+  it('decyzja zdrowotna na starej wersji dokumentu = true (re-consent po bumpie)', () => {
+    expect(needsConsentRefresh(profileWith({
+      ...currentConsents,
+      healthGranted: false,
+      healthVersion: '0.9',
+    }))).toBe(true);
   });
 });
 
 describe('ConsentGate', () => {
   beforeEach(() => {
     recordConsents.mockClear();
+    onLogout.mockClear();
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
   });
 
+  const onLogout = vi.fn(async () => {});
+
   const renderGate = (profile: UserProfile) => render(
     <LanguageProvider>
-      <ConsentGate profile={profile} />
+      <ConsentGate profile={profile} onLogout={onLogout} />
     </LanguageProvider>,
   );
 
@@ -97,6 +121,17 @@ describe('ConsentGate', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Bug 32 (X30): bramka renderowana ZAMIAST HashRouter była jedynym ekranem
+  // bez wyjścia — zero logoutu (obce konto na współdzielonym urządzeniu =
+  // pułapka). Symetria z EmailVerificationGate: przycisk Wyloguj obok CTA.
+  it('ma wyjście Wyloguj niezależne od zaznaczenia zgód (zasada 6)', () => {
+    renderGate(profileWith(undefined));
+    const logout = screen.getByTestId('consent-gate-logout');
+    expect(logout).not.toBeDisabled();
+    fireEvent.click(logout);
+    expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
   it('błąd zapisu pokazuje komunikat i odblokowuje przycisk', async () => {

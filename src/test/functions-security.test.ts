@@ -11,6 +11,7 @@ import {
   providerFromSignInProvider,
   providerGetsImmediateAccess,
   resendErrorMessage,
+  resolveUpdatedAccessStatus,
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
   buildGrantedSubscription,
@@ -97,6 +98,38 @@ describe('functions security helpers', () => {
       'training_plans',
       'users',
     ]));
+  });
+});
+
+// Bug 46 (X30): restore konta legacy bez verification.emailVerifiedAt (konta
+// sprzed registration flow, np. v4.0.0) ustawiał JAWNY status
+// pending_verification — rules blokowały wtedy wszystkie zapisy, user widział
+// EmailVerificationGate mimo maila "dostęp przywrócony", a panel admina
+// pokazywał optymistyczne "active".
+describe('resolveUpdatedAccessStatus (updateUserAccess, bug 46)', () => {
+  it('suspend zawsze daje suspended', () => {
+    expect(resolveUpdatedAccessStatus(true, { status: 'active' })).toBe('suspended');
+    expect(resolveUpdatedAccessStatus(true, {})).toBe('suspended');
+  });
+
+  it('restore zweryfikowanego konta = active', () => {
+    expect(resolveUpdatedAccessStatus(false, {
+      status: 'suspended',
+      verification: { emailVerifiedAt: '2026-08-01T00:00:00.000Z' },
+    })).toBe('active');
+  });
+
+  it('restore konta legacy bez pola verification = active (nie pending_verification)', () => {
+    expect(resolveUpdatedAccessStatus(false, { status: 'suspended' })).toBe('active');
+    expect(resolveUpdatedAccessStatus(false, {})).toBe('active');
+    expect(resolveUpdatedAccessStatus(false, { verification: { emailVerifiedAt: null } })).toBe('active');
+  });
+
+  it('konto jawnie czekające na weryfikację zostaje pending (toggle dostępu nie omija weryfikacji)', () => {
+    expect(resolveUpdatedAccessStatus(false, {
+      status: 'pending_verification',
+      verification: { emailVerifiedAt: null },
+    })).toBe('pending_verification');
   });
 });
 
