@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShareExportResult } from '@/lib/share-export';
 import type { WorkoutSession } from '@/types';
 
-const shareMock = vi.hoisted(() => vi.fn<() => Promise<ShareExportResult>>());
+const shareMock = vi.hoisted(() =>
+  vi.fn<(file: File, options?: { onShareError?: (err: unknown) => void }) => Promise<ShareExportResult>>());
 
 vi.mock('@/lib/share-export', () => ({ shareOrDownloadFile: shareMock }));
 vi.mock('@/lib/workout-read-store', () => ({ fetchWorkoutHistoryPage: vi.fn() }));

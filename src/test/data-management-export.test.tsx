@@ -8,7 +8,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import type { ShareExportResult } from '@/lib/share-export';
 
 const toastMock = vi.hoisted(() => vi.fn());
-const shareMock = vi.hoisted(() => vi.fn<() => Promise<ShareExportResult>>());
+const shareMock = vi.hoisted(() =>
+  vi.fn<(file: File, options?: { onShareError?: (err: unknown) => void }) => Promise<ShareExportResult>>());
 const reportErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
@@ -49,7 +50,7 @@ describe('DataManagement — eksport backupu bramkuje feedback wynikiem share', 
   });
 
   it('failed: awaria share sheeta laduje w client_errors (onShareError)', async () => {
-    shareMock.mockImplementation(async (_file, options?: { onShareError?: (err: unknown) => void }) => {
+    shareMock.mockImplementation(async (_file, options) => {
       options?.onShareError?.(new Error('share broke'));
       return 'failed';
     });
