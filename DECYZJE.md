@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (fala X30 scalona na main: 53 bugi + 5 funkcji; wydanie czeka na decyzję właściciela)
+**Ostatnia aktualizacja:** 2026-08-25 (fala X30 WYDANA: web index-BOgk902c LIVE, functions+rules deploy, iOS 118 Beta App Review APPROVED, AAB v33 SHA 533fcd8f)
 
 ---
 
@@ -33,7 +33,7 @@
 
 **Bramki po merge:** vitest **2850/2850** (341 plików), functions **396/0**, test:rules **258/0** (JDK 21), typecheck web+functions czysty, lint 0 err (9 warningów sprzed fali), check:no-emoji OK, build web + build:mobile, dist-smoke, bundle-budget (wyniki w podsumowaniu sesji).
 
-**Wydanie wymaga (poza web+iOS+AAB):** deploy **functions** (p1 bug 46, p7 subskrypcje, p8 strefy: zmiana cronów daily-reminder `0 * * * *` i weekly-digest `0 * * * 0,1` UTC) oraz deploy **firestore.rules** (`timeZone`, `onboardingAnswers`).
+**Wydanie (2026-08-25 rano, za zgodą usera):** push main (c867de5f); **functions** deploy OK (59 funkcji, w tym nowe crony daily-reminder `0 * * * *` i weekly-digest `0 * * * 0,1` UTC); **firestore.rules** released (`timeZone`, `onboardingAnswers`; potwierdzone jawnym re-deployem "already up to date"); web LIVE `index-BOgk902c.js` na app.strengthsave.app (propagacja 30 s; smoke headless: #root wyrenderowany, zero pageerror; jedyny 403 = App Check reCAPTCHA w bocie, oczekiwane); iOS **118** upload + obie grupy + Beta App Review **APPROVED**; AAB **v33** SHA `533fcd8f` (`~/Desktop/strength-save-v33.aab`, jar verified). Telemetria `client_errors` na moment wydania: zero nowych wpisów (ostatni 2026-08-22, znany `body-compare-export-load` sprzed X29). **Następny iOS = 119, versionCode = 34.**
 
 **Scenariusze ręczne na realnym iPhone (unit nie sięga):** (a) wycofanie zgody zdrowotnej w Ustawieniach na koncie testowym (NIE QA-bazowym): apka zostaje, banery blokady w Pomiarach/treningu, ponowne wyrażenie działa; (b) przerwa 90 s z włączonym ekranem = jeden gong, zero banera systemowego; zgaszenie ekranu w połowie = notyfikacja systemowa z dźwiękiem, powrót przed deadline = bez drugiego sygnału; powrót >3 s po deadline = pasek znika bez gongu; (c) zabić apkę w tle w trakcie przerwy, tapnąć notyfikację = otwiera sesję; (d) anulowanie sheetu Apple/Google = cichy powrót bez czerwonego Alertu; (e) edycja pomiaru z godziną i podmianą zdjęcia; (f) przełożenie pn→śr: karta w Planie i Dashboard pokazują "Środa"; (g) nowy onboarding na koncie jednorazowym → karta Onboarding w adminie.
 
