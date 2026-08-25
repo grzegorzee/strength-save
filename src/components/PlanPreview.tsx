@@ -16,6 +16,8 @@ interface PlanPreviewProps {
   onDaysChange: (days: TrainingDay[]) => void;
   onBack: () => void;
   onConfirm: () => void;
+  /** X34: "Wybierz inny plan" = powrót do kreatora na 5A z zachowanym stanem (host podaje resumeStep 5). */
+  onChooseOther?: () => void;
   confirmLabel: string;
   isSaving?: boolean;
   error?: string | null;
@@ -23,7 +25,7 @@ interface PlanPreviewProps {
 
 // Podgląd planu przed zatwierdzeniem (Z73): jeden ekran dla NewPlan i Onboardingu.
 // Lista dni/ćwiczeń + swap przez wspólny ExercisePicker.
-export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, confirmLabel, isSaving, error }: PlanPreviewProps) => {
+export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOther, confirmLabel, isSaving, error }: PlanPreviewProps) => {
   const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
@@ -84,11 +86,23 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, confirmLabe
             </div>
           ))}
         </div>
-        <div className="pt-5">
-          <button onClick={onConfirm} disabled={isSaving} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2">
+        <div className="pt-5 space-y-2">
+          <button data-testid="plan-preview-confirm" onClick={onConfirm} disabled={isSaving} className="w-full touch-manipulation select-none rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {confirmLabel}
           </button>
+          {/* X34: drugi przycisk (secondary, pełna szerokość) pod zatwierdzeniem. */}
+          {onChooseOther && (
+            <button
+              type="button"
+              data-testid="plan-preview-choose-other"
+              onClick={onChooseOther}
+              disabled={isSaving}
+              className="w-full touch-manipulation select-none rounded-2xl bg-surface-high py-3 text-sm font-medium disabled:opacity-50"
+            >
+              {t('ob.preview.chooseOther')}
+            </button>
+          )}
           {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
         </div>
       </div>

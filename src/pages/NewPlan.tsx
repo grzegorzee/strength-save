@@ -88,6 +88,9 @@ const NewPlan = () => {
   const [profileHint, setProfileHint] = useState<ProfileHint | null | undefined>();
   const [chosen, setChosen] = useState<PlanWizardChoice | null>(null);
   const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
+  // X34: krok, na który wraca kreator z podglądu: 6 = ekran 6/6 (strzałka wstecz),
+  // 5 = 5A po "Wybierz inny plan" (stan kreatora z `chosen`).
+  const [wizardResumeStep, setWizardResumeStep] = useState<5 | 6>(6);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Szkic z poprzedniej sesji (refresh/crash w podglądzie) — banner "kontynuować?".
@@ -230,8 +233,8 @@ const NewPlan = () => {
         <PlanWizard
           initial={profileHint ?? undefined}
           resume={chosen}
-          // X34: powrót z podglądu = ekran 6/6, z którego user wyszedł.
-          resumeStep={chosen ? 6 : undefined}
+          // X34: powrót z podglądu = ekran 6/6; "Wybierz inny plan" = 5A.
+          resumeStep={chosen ? wizardResumeStep : undefined}
           builderDraftKey={builderDraftKey(uid)}
           confirmLabelKey="newplan.toReview"
           onConfirm={onWizardConfirm}
@@ -311,7 +314,8 @@ const NewPlan = () => {
     <PlanPreview
       days={reviewDays}
       onDaysChange={setReviewDays}
-      onBack={() => setPhase('wizard')}
+      onBack={() => { setWizardResumeStep(6); setPhase('wizard'); }}
+      onChooseOther={() => { setWizardResumeStep(5); setPhase('wizard'); }}
       onConfirm={() => { if (chosen) void startCycle(chosen, reviewDays); }}
       confirmLabel={t('newplan.preview.confirm')}
       isSaving={isSaving}
