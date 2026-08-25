@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   listeners: new Map<string, Listener>(),
   syncUserProfile: vi.fn(),
   redeemInvite: vi.fn(),
+  pendingInviteCode: null as string | null,
+  setPendingInviteCode: vi.fn(),
+  reportClientError: vi.fn(),
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -52,10 +55,18 @@ vi.mock('@/lib/registration-api', () => ({
   redeemInvite: mocks.redeemInvite,
 }));
 
-vi.mock('@/lib/pending-invite', () => ({
-  consumePendingInviteCode: () => null,
-  readInviteCodeFromLocation: () => null,
-  setPendingInviteCode: vi.fn(),
+vi.mock('@/lib/pending-invite', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/pending-invite')>();
+  return {
+    ...actual,
+    getPendingInviteCode: () => mocks.pendingInviteCode,
+    readInviteCodeFromLocation: () => null,
+    setPendingInviteCode: mocks.setPendingInviteCode,
+  };
+});
+
+vi.mock('@/lib/error-telemetry', () => ({
+  reportClientError: mocks.reportClientError,
 }));
 
 import { UserProvider, useCurrentUser } from '@/contexts/UserContext';
@@ -119,6 +130,9 @@ describe('UserProvider cache-first profile bootstrap', () => {
     mocks.listeners.clear();
     mocks.syncUserProfile.mockReset();
     mocks.redeemInvite.mockReset();
+    mocks.pendingInviteCode = null;
+    mocks.setPendingInviteCode.mockReset();
+    mocks.reportClientError.mockReset();
   });
 
   it('wpuszcza cached active bez czekania na wiszący sync', async () => {
@@ -240,6 +254,57 @@ describe('UserProvider cache-first profile bootstrap', () => {
 
     expect(screen.getByTestId('access')).toHaveTextContent('true');
     expect(screen.getByTestId('photos')).toHaveTextContent('false');
+  });
+
+  // Bug 33 (X30): kod zaproszenia był kasowany z localStorage PRZED
+  // redeemInvite; przejściowa porażka (timeout 10 s na słabym zasięgu) gubiła
+  // go cicho — bez telemetrii, a retry 'online' nie miał już czego ponowić.
+  it('bug 33: udany redeem czyści kod dopiero po sukcesie i odświeża profil drugim syncem', async () => {
+    mocks.pendingInviteCode = 'INVITE42';
+    mocks.redeemInvite.mockResolvedValue({ success: true, inviteId: 'i1' });
+    mocks.syncUserProfile
+      .mockResolvedValueOnce(profile('user-1'))
+      .mockResolvedValueOnce({ ...profile('user-1'), cohorts: ['beta'] });
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.redeemInvite).toHaveBeenCalledWith('INVITE42'));
+    await waitFor(() => expect(mocks.syncUserProfile).toHaveBeenCalledTimes(2));
+    expect(mocks.setPendingInviteCode).toHaveBeenCalledWith(null);
+    expect(mocks.reportClientError).not.toHaveBeenCalled();
+  });
+
+  it('bug 33: przejściowa porażka redeem zostawia kod do retry i raportuje client_errors', async () => {
+    mocks.pendingInviteCode = 'INVITE42';
+    mocks.redeemInvite.mockRejectedValue(
+      Object.assign(new Error('Native callable timed out'), { code: 'deadline-exceeded' }),
+    );
+    mocks.syncUserProfile.mockResolvedValue(profile('user-1'));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.redeemInvite).toHaveBeenCalledWith('INVITE42'));
+    await waitFor(() => expect(mocks.reportClientError).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ code: 'invite-redeem-failed', phase: 'other' }),
+    ));
+    expect(mocks.setPendingInviteCode).not.toHaveBeenCalledWith(null);
+    // Niezmiennik: porażka redeemu nie blokuje wejścia do apki.
+    await waitFor(() => expect(screen.getByTestId('loaded')).toHaveTextContent('true'));
+    expect(screen.getByTestId('status')).toHaveTextContent('active');
+  });
+
+  it('bug 33: permanentna porażka redeem (not-found) czyści kod, bez pętli retry', async () => {
+    mocks.pendingInviteCode = 'BADCODE1';
+    mocks.redeemInvite.mockRejectedValue(
+      Object.assign(new Error('Nie znaleziono zaproszenia.'), { code: 'functions/not-found' }),
+    );
+    mocks.syncUserProfile.mockResolvedValue(profile('user-1'));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.setPendingInviteCode).toHaveBeenCalledWith(null));
+    expect(mocks.reportClientError).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ code: 'invite-redeem-failed' }),
+    );
   });
 
   it('po reconnect ponawia sync, a serwerowa revokacja zastępuje cached active', async () => {
