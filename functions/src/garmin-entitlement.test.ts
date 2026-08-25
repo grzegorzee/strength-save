@@ -55,6 +55,29 @@ describe("resolveGarminEntitlement (X25/Z226)", () => {
     }, NOW)).toMatchObject({ active: false, tier: "comp", reason: "incomplete" });
   });
 
+  // Bug 7 (X30): wygasły/odebrany grant comp nie kasuje opłaconego okresu — stan
+  // sklepowy zachowany w storeSubscription przejmuje entitlement na zegarku.
+  it("wygasły comp z opłaconym stanem w storeSubscription => PRO ze store", () => {
+    expect(resolveGarminEntitlement({
+      status: "active",
+      subscription: { tier: "comp", status: "active", expiresAt: PAST },
+      storeSubscription: { tier: "yearly", status: "active", expiresAt: FUTURE },
+    }, NOW)).toMatchObject({ active: true, tier: "yearly", expiresAt: Date.parse(FUTURE) });
+  });
+
+  it("aktywny comp wygrywa ze storeSubscription; wygasły store nie wskrzesza PRO", () => {
+    expect(resolveGarminEntitlement({
+      status: "active",
+      subscription: { tier: "comp", status: "active", expiresAt: null },
+      storeSubscription: { tier: "yearly", status: "active", expiresAt: FUTURE },
+    }, NOW)).toMatchObject({ active: true, tier: "comp" });
+    expect(resolveGarminEntitlement({
+      status: "active",
+      subscription: { tier: "comp", status: "active", expiresAt: PAST },
+      storeSubscription: { tier: "yearly", status: "active", expiresAt: PAST },
+    }, NOW)).toMatchObject({ active: false });
+  });
+
   it("emits a compact server-confirmed capability snapshot without store secrets", () => {
     const entitlement = resolveGarminEntitlement({
       status: "active",

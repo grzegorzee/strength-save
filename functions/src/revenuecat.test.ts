@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mapEventToSubscription, resolveUid, shouldApplySubscriptionEvent, shouldRetryMissingUser } from "./revenuecat";
+import {
+  mapEventToSubscription,
+  resolveEventTarget,
+  resolveUid,
+  shouldApplySubscriptionEvent,
+  shouldRetryMissingUser,
+} from "./revenuecat";
 
 const NOW = "2026-06-11T12:00:00.000Z";
 const EXP_MS = Date.parse("2026-07-11T12:00:00.000Z");
@@ -143,6 +149,46 @@ describe("mapEventToSubscription", () => {
     const nowMs = Date.parse("2026-08-20T12:00:00.000Z");
     const renewal = mapEventToSubscription({ type: "RENEWAL", id: "r-2", event_timestamp_ms: 9_000 }, NOW)!;
     expect(shouldApplySubscriptionEvent({ tier: "comp", expiresAt: "2026-08-01T00:00:00.000Z" }, renewal, nowMs)).toBe(true);
+  });
+});
+
+// Bug 7 (X30): aktywny grant comp nie blokuje już eventów RC — stan sklepowy ląduje
+// w polu siostrzanym storeSubscription i wraca po wygaśnięciu/revoke grantu.
+// Wcześniej każdy RENEWAL podczas grantu przepadał (200 skipped), a po grancie
+// mirror stał w comp/none miesiącami mimo opłaconego okresu.
+describe("resolveEventTarget (bug 7)", () => {
+  const nowMs = Date.parse("2026-08-20T12:00:00.000Z");
+  const renewal = () => mapEventToSubscription({
+    type: "RENEWAL", id: "rw-1", event_timestamp_ms: 9_000,
+    product_id: "strengthsave_pro_yearly", expiration_at_ms: EXP_MS,
+  }, NOW)!;
+
+  it("aktywny comp => event trafia do storeSubscription (nie przepada)", () => {
+    expect(resolveEventTarget({ tier: "comp" }, undefined, renewal(), nowMs)).toBe("store");
+    expect(resolveEventTarget(
+      { tier: "comp", expiresAt: "2026-09-01T00:00:00.000Z" },
+      { tier: "yearly", eventTimestamp: 1_000 },
+      renewal(),
+      nowMs,
+    )).toBe("store");
+  });
+
+  it("duplikat/stary event wobec storeSubscription => skip", () => {
+    expect(resolveEventTarget({ tier: "comp" }, { eventId: "rw-1" }, renewal(), nowMs)).toBe("skip");
+    expect(resolveEventTarget({ tier: "comp" }, { eventTimestamp: 10_000 }, renewal(), nowMs)).toBe("skip");
+  });
+
+  it("NIEZMIENNIK: bez aktywnego comp zapis idzie do subscription jak dotąd", () => {
+    expect(resolveEventTarget(undefined, undefined, renewal(), nowMs)).toBe("subscription");
+    expect(resolveEventTarget({ tier: "yearly", eventTimestamp: 1_000 }, undefined, renewal(), nowMs)).toBe("subscription");
+    expect(resolveEventTarget(
+      { tier: "comp", expiresAt: "2026-08-01T00:00:00.000Z" }, undefined, renewal(), nowMs,
+    )).toBe("subscription");
+  });
+
+  it("NIEZMIENNIK: duplikat/stary event wobec subscription => skip", () => {
+    expect(resolveEventTarget({ tier: "yearly", eventId: "rw-1" }, undefined, renewal(), nowMs)).toBe("skip");
+    expect(resolveEventTarget({ tier: "yearly", eventTimestamp: 10_000 }, undefined, renewal(), nowMs)).toBe("skip");
   });
 });
 

@@ -1,14 +1,18 @@
 export type GarminEntitlementTier = "monthly" | "yearly" | "trial" | "comp" | "none";
 
+export interface GarminSubscriptionDoc {
+  tier?: unknown;
+  status?: unknown;
+  expiresAt?: unknown;
+}
+
 export interface GarminEntitlementProfile {
   role?: unknown;
   status?: unknown;
   access?: { enabled?: unknown } | null;
-  subscription?: {
-    tier?: unknown;
-    status?: unknown;
-    expiresAt?: unknown;
-  } | null;
+  subscription?: GarminSubscriptionDoc | null;
+  /** Bug 7 (X30): stan sklepowy zachowany obok aktywnego grantu comp (pisany przez webhook RC). */
+  storeSubscription?: GarminSubscriptionDoc | null;
 }
 
 export interface GarminCapabilitySnapshot {
@@ -50,18 +54,11 @@ const result = (
   },
 });
 
-/** Server-side mirror of the Firestore/RevenueCat PRO contract used by clients. */
-export function resolveGarminEntitlement(
-  profile: GarminEntitlementProfile | undefined,
-  now = Date.now(),
+/** Ocena samego pola subskrypcji (subscription albo storeSubscription) — bez pól profilu. */
+function resolveSubscriptionEntitlement(
+  subscription: GarminSubscriptionDoc | null | undefined,
+  now: number,
 ): GarminEntitlementResult {
-  if (!profile) return result(false, "none", null, "missing");
-  const profileActive = (profile.status === undefined || profile.status === "active")
-    && profile.access?.enabled !== false;
-  if (!profileActive) return result(false, "none", null, "inactive-profile");
-  if (profile.role === "admin") return result(true, "comp", null, "active");
-
-  const subscription = profile.subscription;
   const tier = TIERS.has(subscription?.tier as GarminEntitlementTier)
     ? subscription!.tier as GarminEntitlementTier
     : "none";
@@ -87,4 +84,26 @@ export function resolveGarminEntitlement(
   return expiresAt > now
     ? result(true, tier, expiresAt, "active")
     : result(false, tier, expiresAt, "expired");
+}
+
+/** Server-side mirror of the Firestore/RevenueCat PRO contract used by clients. */
+export function resolveGarminEntitlement(
+  profile: GarminEntitlementProfile | undefined,
+  now = Date.now(),
+): GarminEntitlementResult {
+  if (!profile) return result(false, "none", null, "missing");
+  const profileActive = (profile.status === undefined || profile.status === "active")
+    && profile.access?.enabled !== false;
+  if (!profileActive) return result(false, "none", null, "inactive-profile");
+  if (profile.role === "admin") return result(true, "comp", null, "active");
+
+  const primary = resolveSubscriptionEntitlement(profile.subscription, now);
+  // Bug 7 (X30): wygasły/odebrany grant comp nie kasuje opłaconego okresu — stan
+  // sklepowy zachowany w storeSubscription przejmuje entitlement do czasu, aż
+  // webhook RC znów pisze wprost do subscription (lustro resolveEffectiveSubscription).
+  if (!primary.active && profile.subscription?.tier === "comp" && profile.storeSubscription) {
+    const fallback = resolveSubscriptionEntitlement(profile.storeSubscription, now);
+    if (fallback.active) return fallback;
+  }
+  return primary;
 }

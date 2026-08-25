@@ -155,6 +155,29 @@ export const shouldApplySubscriptionEvent = (
   return next.eventTimestamp >= currentTimestamp;
 };
 
+export type SubscriptionEventTarget = "subscription" | "store" | "skip";
+
+/**
+ * Bug 7 (X30): aktywny grant comp nie blokuje już eventów RC — stan sklepowy ląduje
+ * w polu siostrzanym users/{uid}.storeSubscription (RENEWAL/BILLING_ISSUE podczas
+ * grantu nie przepada) i wraca po wygaśnięciu grantu (odczyt: klient
+ * resolveEffectiveSubscription, zegarek resolveGarminEntitlement) albo po
+ * adminRevokeSubscription. Poza grantem zapis idzie do subscription jak dotąd,
+ * a storeSubscription jest czyszczone (jedno źródło prawdy).
+ */
+export const resolveEventTarget = (
+  current: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
+  currentStore: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
+  next: SubscriptionWrite,
+  now: number,
+): SubscriptionEventTarget => {
+  if (isActiveCompGrant(current, now)) {
+    // storeSubscription nigdy nie trzyma comp, więc gating to czysty dedupe/stale.
+    return shouldApplySubscriptionEvent(currentStore, next, now) ? "store" : "skip";
+  }
+  return shouldApplySubscriptionEvent(current, next, now) ? "subscription" : "skip";
+};
+
 export const revenuecatWebhook = onRequest(
   { secrets: [webhookAuth], region: "us-central1", cors: false },
   async (req, res) => {
@@ -190,14 +213,23 @@ export const revenuecatWebhook = onRequest(
         const snap = await transaction.get(userRef);
         if (!snap.exists) return "no-user";
         const current = snap.data()?.subscription as { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
+        const currentStore = snap.data()?.storeSubscription as { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
         const now = Date.now();
-        if (!shouldApplySubscriptionEvent(current, subscription, now)) {
-          return isActiveCompGrant(current, now) ? "comp" : "stale-or-duplicate";
+        const target = resolveEventTarget(current, currentStore, subscription, now);
+        if (target === "skip") return "stale-or-duplicate";
+        if (target === "store") {
+          // Bug 7 (X30): aktywny grant comp — stan sklepowy do pola siostrzanego.
+          transaction.set(userRef, { storeSubscription: subscription }, { merge: true });
+          return "applied-store";
         }
-        transaction.set(userRef, { subscription }, { merge: true });
+        transaction.set(userRef, {
+          subscription,
+          // Bug 7 (X30): subscription znów sklepowe — cień grantu do kasacji.
+          storeSubscription: admin.firestore.FieldValue.delete(),
+        }, { merge: true });
         return "applied";
       });
-      if (result !== "applied") {
+      if (result !== "applied" && result !== "applied-store") {
         // Bug 23 (X30): 200 = doręczone na zawsze; zgubiony INITIAL_PURCHASE/RENEWAL
         // zostawiał płacącego usera bez mirroru na web/Garmin do następnego eventu.
         if (result === "no-user" && shouldRetryMissingUser(subscription)) {
@@ -209,7 +241,8 @@ export const revenuecatWebhook = onRequest(
         res.status(200).json({ ok: true, skipped: result });
         return;
       }
-      logger.info(`[revenuecat] ${event.type} → users/${uid}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt ?? "(bez zmiany)"}`);
+      const field = result === "applied-store" ? "storeSubscription (aktywny grant comp)" : "subscription";
+      logger.info(`[revenuecat] ${event.type} → users/${uid} ${field}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt ?? "(bez zmiany)"}`);
       res.status(200).json({ ok: true });
     } catch (error) {
       logger.error("[revenuecat] Zapis nieudany", error);

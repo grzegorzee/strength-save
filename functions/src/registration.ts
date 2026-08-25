@@ -29,8 +29,8 @@ import {
   readFeatureFlags,
   resendErrorMessage,
   buildGrantedSubscription,
-  buildRevokedSubscription,
   resolveGrantStartedAt,
+  restoreRevokedSubscription,
   canCreateUserProfile,
 } from "./security";
 import { writeEmailLog } from "./email-log";
@@ -1425,15 +1425,22 @@ export const adminGrantSubscription = onCall(async (request) => {
       const snap = await transaction.get(userRef);
       if (!snap.exists) throw new HttpsError("not-found", "User not found");
       const currentSub = snap.data()?.subscription as
-        { status?: unknown; startedAt?: unknown; expiresAt?: unknown } | undefined;
+        { tier?: unknown; status?: unknown; startedAt?: unknown; expiresAt?: unknown } | undefined;
       const nowMs = Date.now();
       const next = buildGrantedSubscription({
         days,
         currentExpiresAt: typeof currentSub?.expiresAt === "string" ? currentSub.expiresAt : null,
       }, nowMs);
-      transaction.set(userRef, {
+      const write: { subscription: Record<string, unknown>; storeSubscription?: unknown } = {
         subscription: { ...next, startedAt: resolveGrantStartedAt(currentSub, nowMs), updatedAt: nowIso() },
-      }, { merge: true });
+      };
+      // Bug 7 (X30): grant nad stanem sklepowym nie może go skasować — pełna mapa
+      // idzie do storeSubscription (webhook RC aktualizuje ją, póki grant trwa;
+      // revoke i wygaśnięcie grantu przywracają ją do głosu).
+      if (currentSub && currentSub.tier !== "comp") {
+        write.storeSubscription = currentSub;
+      }
+      transaction.set(userRef, write, { merge: true });
       return next;
     });
   } catch (error) {
@@ -1475,8 +1482,11 @@ export const adminRevokeSubscription = onCall(async (request) => {
     if (snap.data()?.subscription?.tier !== "comp") {
       throw new HttpsError("failed-precondition", "ONLY_GRANTED_CAN_BE_REVOKED");
     }
+    // Bug 7 (X30): revoke nie zeruje opłaconego okresu — przywraca stan sklepowy
+    // zachowany w storeSubscription; bez niego wraca 'none' jak dotąd.
     transaction.set(userRef, {
-      subscription: { ...buildRevokedSubscription(), updatedAt: nowIso() },
+      subscription: { ...restoreRevokedSubscription(snap.data()?.storeSubscription), updatedAt: nowIso() },
+      storeSubscription: admin.firestore.FieldValue.delete(),
     }, { merge: true });
   });
 
