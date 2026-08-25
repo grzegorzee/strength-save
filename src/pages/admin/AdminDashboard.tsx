@@ -31,6 +31,7 @@ import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
 import { AdminCommsCard } from '@/components/admin/AdminCommsCard';
 import { AdminFeatureFlagsCard } from '@/components/admin/AdminFeatureFlagsCard';
+import { AdminRepairToolsCard } from '@/components/admin/AdminRepairToolsCard';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -839,6 +840,9 @@ const AdminDashboard = () => {
 
       {/* G-T4: rejestr wysyłek maili + dostarczalność (email_log + zdarzenia SES) */}
       <AdminEmailsCard />
+
+      {/* X35b (WP-B): narzędzia naprawcze konta admina, dawniej na /settings. */}
+      <AdminRepairToolsCard />
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">

@@ -4,8 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 // T7: ręczny sync zniknął z Analityki→Strava (dało się go spamować i palić
-// limit API), ale ZOSTAJE w Ustawieniach (niezmiennik reguły 5 — nowa zmiana
-// nie zabiera istniejącego przepływu zaawansowanego).
+// limit API), ale ZOSTAJE w panelu Strava (niezmiennik reguły 5 — nowa zmiana
+// nie zabiera istniejącego przepływu zaawansowanego). X35b: panel mieszka w
+// Profilu (sekcja Połączenia) jako StravaConnectionCard, dawniej /settings.
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
@@ -62,36 +63,11 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
     workouts: [],
     isLoaded: true,
-    exportData: vi.fn(),
-    importData: vi.fn(),
-    cleanupEmptyWorkouts: vi.fn(),
-    backfillHistoricalWorkouts: vi.fn(),
   }),
 }));
-vi.mock('@/hooks/usePlanCycles', () => ({
-  usePlanCycles: () => ({ cycles: [], mergeContinuousCycles: vi.fn() }),
-}));
-vi.mock('@/hooks/useTrainingPlan', () => ({
-  useTrainingPlan: () => ({ plan: [], isCustom: false, planDurationWeeks: 12, planStartDate: null }),
-}));
-vi.mock('@/hooks/useSyncCenterEntries', () => ({
-  useSyncCenterEntries: () => ({ listedEntries: [] }),
-}));
-
-// Ciężkie sekcje Ustawień nieistotne dla inwariantu — wycięte.
-vi.mock('@/components/NotificationSettings', () => ({ NotificationSettings: () => null }));
-vi.mock('@/components/ConsentSettings', () => ({ ConsentSettings: () => null }));
-vi.mock('@/components/PlateCalculatorSheet', () => ({ PlateInventorySettings: () => null }));
-vi.mock('@/components/RestSettingsCard', () => ({ RestSettingsCard: () => null }));
-vi.mock('@/components/WorkoutImportWizard', () => ({ WorkoutImportWizard: () => null }));
-vi.mock('@/components/HealthSettings', () => ({ HealthSettings: () => null }));
-vi.mock('@/components/GarminSettings', () => ({ GarminSettings: () => null }));
-vi.mock('@/components/SyncCenterCard', () => ({ SyncCenterCard: () => null }));
-vi.mock('@/components/DataManagement', () => ({ DataManagement: () => null, DataRepairTools: () => null }));
-vi.mock('@/components/ExportWorkoutsDialog', () => ({ ExportWorkoutsDialog: () => null }));
 
 import { StravaTab } from '@/components/strava/StravaTab';
-import Settings from '@/pages/Settings';
+import { StravaConnectionCard } from '@/components/StravaConnectionCard';
 
 const renderWithProviders = (ui: React.ReactElement) =>
   render(
@@ -125,28 +101,19 @@ describe('ręczny sync Stravy (T7)', () => {
     expect(screen.getByRole('button', { name: /Rozłącz/ })).toBeTruthy();
   });
 
-  it('Ustawienia NADAL mają przycisk synchronizacji (niezmiennik reguły 5)', () => {
-    renderWithProviders(<Settings />);
+  it('panel Strava (Profil → Połączenia) NADAL ma przycisk synchronizacji (niezmiennik reguły 5)', () => {
+    renderWithProviders(<StravaConnectionCard />);
 
     expect(screen.getByRole('button', { name: /Synchronizuj/ })).toBeTruthy();
-  });
-
-  // Fala 2 (redesign Profilu): deep-linki ?section=connections / ?section=strava
-  // z grupy Połączenia w Profilu potrzebują kotwic w Ustawieniach.
-  it('kotwice sekcji połączeń: settings-connections i settings-strava istnieją', () => {
-    const { container } = renderWithProviders(<Settings />);
-
-    expect(container.querySelector('#settings-connections')).toBeTruthy();
-    expect(container.querySelector('#settings-strava')).toBeTruthy();
   });
 });
 
 // X27/WP-C: ręczny sync maks. raz na dobę — UI odzwierciedla serwerowy cooldown
 // (users/{uid}.stravaLastSync + 24 h) zamiast pozwalać klikać w pustkę.
-describe('cooldown 24 h ręcznego syncu w Ustawieniach (X27/WP-C)', () => {
+describe('cooldown 24 h ręcznego syncu w panelu Strava (X27/WP-C)', () => {
   it('przycisk disabled + podpis z godziną odblokowania, gdy cooldown aktywny', () => {
     stravaMockState.nextSyncAvailableAt = new Date(Date.now() + 3600_000);
-    renderWithProviders(<Settings />);
+    renderWithProviders(<StravaConnectionCard />);
 
     const btn = screen.getByRole('button', { name: /Synchronizuj/ }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
@@ -154,7 +121,7 @@ describe('cooldown 24 h ręcznego syncu w Ustawieniach (X27/WP-C)', () => {
   });
 
   it('przycisk enabled bez podpisu, gdy cooldown minął', () => {
-    renderWithProviders(<Settings />);
+    renderWithProviders(<StravaConnectionCard />);
 
     const btn = screen.getByRole('button', { name: /Synchronizuj/ }) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);

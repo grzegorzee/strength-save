@@ -113,7 +113,9 @@ export async function listLinkedDevices(): Promise<LinkedDevice[]> {
   }
   const call = httpsCallable<Record<string, never>, { devices: LinkedDevice[] }>(functions, 'linkedDevices');
   const result = await call({});
-  return result.data.devices;
+  // X35b: panel urządzeń żyje w Profilu (każdy user) — zła odpowiedź nie może
+  // położyć route'a (zasada 11), pusta lista zamiast undefined.
+  return result.data?.devices ?? [];
 }
 
 export async function reportAppleWatchStatus(
