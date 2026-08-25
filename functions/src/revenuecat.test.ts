@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapEventToSubscription, resolveUid, shouldApplySubscriptionEvent } from "./revenuecat";
+import { mapEventToSubscription, resolveUid, shouldApplySubscriptionEvent, shouldRetryMissingUser } from "./revenuecat";
 
 const NOW = "2026-06-11T12:00:00.000Z";
 const EXP_MS = Date.parse("2026-07-11T12:00:00.000Z");
@@ -143,5 +143,25 @@ describe("mapEventToSubscription", () => {
     const nowMs = Date.parse("2026-08-20T12:00:00.000Z");
     const renewal = mapEventToSubscription({ type: "RENEWAL", id: "r-2", event_timestamp_ms: 9_000 }, NOW)!;
     expect(shouldApplySubscriptionEvent({ tier: "comp", expiresAt: "2026-08-01T00:00:00.000Z" }, renewal, nowMs)).toBe(true);
+  });
+});
+
+// Bug 23 (X30): webhook nie może potwierdzić 200 eventu, którego nie zapisał.
+// Brak users/{uid} = wyścig z syncUserProfile przy świeżym koncie (zakup tuż po
+// rejestracji) albo jego chwilowa porażka — 5xx każe RC ponowić dostarczenie,
+// retry dogoni utworzenie dokumentu i INITIAL_PURCHASE nie przepada.
+describe("shouldRetryMissingUser (bug 23)", () => {
+  it("eventy niosące aktywny stan (zakup/odnowienie/anulowanie/billing) => retry", () => {
+    for (const type of ["INITIAL_PURCHASE", "RENEWAL", "CANCELLATION", "BILLING_ISSUE"]) {
+      const sub = mapEventToSubscription({
+        type, product_id: "strengthsave_pro_monthly", expiration_at_ms: EXP_MS,
+      }, NOW)!;
+      expect(shouldRetryMissingUser(sub)).toBe(true);
+    }
+  });
+
+  it("EXPIRATION => bez retry (brak dokumentu = ten sam skutek; usunięte konto nie kręci retry)", () => {
+    const sub = mapEventToSubscription({ type: "EXPIRATION", expiration_at_ms: EXP_MS }, NOW)!;
+    expect(shouldRetryMissingUser(sub)).toBe(false);
   });
 });

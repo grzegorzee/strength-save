@@ -131,6 +131,16 @@ export const isActiveCompGrant = (
   return !Number.isFinite(expires) || expires > now;
 };
 
+/**
+ * Bug 23 (X30): event niosący aktywny stan na nieistniejącym users/{uid} musi wrócić —
+ * 5xx każe RevenueCat ponowić dostarczenie, a retry dogoni utworzenie dokumentu przez
+ * syncUserProfile (wyścig przy świeżym koncie / chwilowa porażka syncu). EXPIRATION
+ * nie: brak dokumentu daje ten sam skutek (brak PRO), a trwale usunięte konto
+ * (deleteOwnAccount) nie ma kręcić retry do wyczerpania backoffu RC.
+ */
+export const shouldRetryMissingUser = (subscription: SubscriptionWrite): boolean =>
+  subscription.status === "active" || subscription.status === "billing_issue";
+
 /** Duplicate event IDs and events older than the committed state are harmless no-ops. */
 export const shouldApplySubscriptionEvent = (
   current: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
@@ -188,6 +198,13 @@ export const revenuecatWebhook = onRequest(
         return "applied";
       });
       if (result !== "applied") {
+        // Bug 23 (X30): 200 = doręczone na zawsze; zgubiony INITIAL_PURCHASE/RENEWAL
+        // zostawiał płacącego usera bez mirroru na web/Garmin do następnego eventu.
+        if (result === "no-user" && shouldRetryMissingUser(subscription)) {
+          logger.warn(`[revenuecat] Event ${event.type} dla nieistniejącego users/${uid} — 503, RC ponowi`);
+          res.status(503).json({ ok: false, retry: "no-user" });
+          return;
+        }
         logger.info(`[revenuecat] Event ${event.type} pominięty: ${result}`);
         res.status(200).json({ ok: true, skipped: result });
         return;
