@@ -6,13 +6,11 @@ import {
   getDoc,
   getDocFromServer,
   setDoc,
-  updateDoc,
   deleteDoc,
   query,
   where,
   runTransaction,
   writeBatch,
-  increment,
   type UpdateData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -562,12 +560,29 @@ export const useFirebaseWorkoutActions = (
         }
 
         if (Object.keys(update).length === 0) continue;
-        // Inwariant "każdy zapis podbija revision": zmiana musi być widoczna
-        // dla preconditionów optimistic concurrency (audyt 3.2).
-        update.revision = increment(1);
-        update.updatedAt = Date.now();
-        await updateDoc(doc(db, WORKOUTS_COLLECTION, w.id), update as UpdateData<Record<string, unknown>>);
-        updated += 1;
+        // Bug 43 (X30): zapis w transakcji z precondycją rewizji — naprawa
+        // liczy update ze snapshotu klienta (closure), więc równoległy zapis
+        // tej samej sesji (drugie urządzenie edytuje stary trening w trakcie
+        // "Napraw"/archiwizacji) nie może zostać cicho cofnięty. Rozjazd
+        // rewizji lub brak dokumentu = pomiń (kolejny przebieg naprawi na
+        // świeżym snapshotcie). Wzorzec: saveWorkoutBatchWithRevision.
+        const snapshotRevision = Math.max(0, Math.floor(w.revision ?? 0));
+        const workoutRef = doc(db, WORKOUTS_COLLECTION, w.id);
+        const applied = await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(workoutRef);
+          if (!snapshot.exists()) return false;
+          const currentRevision = Math.max(0, Math.floor((snapshot.data() as { revision?: number }).revision ?? 0));
+          if (currentRevision !== snapshotRevision) return false;
+          // Inwariant "każdy zapis podbija revision": zmiana musi być widoczna
+          // dla preconditionów optimistic concurrency (audyt 3.2).
+          transaction.update(workoutRef, {
+            ...update,
+            revision: currentRevision + 1,
+            updatedAt: Date.now(),
+          } as UpdateData<Record<string, unknown>>);
+          return true;
+        });
+        if (applied) updated += 1;
       }
       return { updated, scanned: workouts.length };
     } catch (err) {

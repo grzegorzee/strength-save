@@ -208,3 +208,104 @@ describe('importData — training_plans.days wyrównane do aktywnego cyklu (bug 
     expect(getDocsMock).not.toHaveBeenCalled();
   });
 });
+
+// Bug 43 (X30): backfillHistoricalWorkouts robił goły updateDoc z pełną tablicą
+// exercises ze snapshotu klienta — równoległy zapis tej samej sesji (drugie
+// urządzenie edytuje stary trening w trakcie "Napraw"/archiwizacji planu)
+// był cicho cofany do starej tablicy serii. Fix: transakcja z precondycją
+// rewizji, rozjazd = pomiń dokument.
+describe('backfillHistoricalWorkouts — precondycja rewizji (bug 43)', () => {
+  type TxUpdatePayload = Record<string, unknown>;
+
+  const setupTransaction = (currentDoc: Record<string, unknown> | null) => {
+    const txUpdate = vi.fn();
+    runTransactionMock.mockImplementation(async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        get: async () => ({
+          exists: () => currentDoc !== null,
+          data: () => currentDoc,
+        }),
+        update: txUpdate,
+      }));
+    return txUpdate;
+  };
+
+  // Trening legacy: bezimienne ćwiczenia (cel naprawy), poza tym kanoniczny.
+  const buildLegacyWorkout = () => {
+    const state = buildCanonicalState('active-plan');
+    const base = state.workouts[0];
+    return {
+      state,
+      workout: {
+        ...base,
+        revision: 3,
+        exercises: base.exercises.map(({ name: _name, ...rest }) => rest),
+      } as WorkoutSession,
+    };
+  };
+
+  it('rewizja zgodna ze snapshotem: naprawa dopisuje nazwy i podbija rewizję w transakcji', async () => {
+    const { state, workout } = buildLegacyWorkout();
+    const txUpdate = setupTransaction({ revision: 3 });
+    const { result } = renderActions([workout]);
+
+    let outcome: { updated: number; scanned: number } | undefined;
+    await act(async () => {
+      outcome = await result.current.backfillHistoricalWorkouts(state.cycles);
+    });
+
+    expect(outcome).toMatchObject({ updated: 1, scanned: 1 });
+    expect(txUpdate).toHaveBeenCalledTimes(1);
+    const [ref, payload] = txUpdate.mock.calls[0] as [FirestoreRefToken, TxUpdatePayload];
+    expect(ref.__id).toBe(workout.id);
+    expect((payload.exercises as Array<{ name?: string }>)[0].name).toBe('Przysiad ze sztangą');
+    expect(payload.revision).toBe(4);
+    // Naprawa nie idzie już gołym updateDoc poza transakcją.
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('rozjazd rewizji (równoległy zapis wygrał): dokument pominięty bez nadpisania', async () => {
+    const { state, workout } = buildLegacyWorkout();
+    const txUpdate = setupTransaction({ revision: 5 });
+    const { result } = renderActions([workout]);
+
+    let outcome: { updated: number; scanned: number } | undefined;
+    await act(async () => {
+      outcome = await result.current.backfillHistoricalWorkouts(state.cycles);
+    });
+
+    expect(outcome).toMatchObject({ updated: 0, scanned: 1 });
+    expect(txUpdate).not.toHaveBeenCalled();
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('dokument usunięty między snapshotem a naprawą: pominięty', async () => {
+    const { state, workout } = buildLegacyWorkout();
+    const txUpdate = setupTransaction(null);
+    const { result } = renderActions([workout]);
+
+    let outcome: { updated: number } | undefined;
+    await act(async () => {
+      outcome = await result.current.backfillHistoricalWorkouts(state.cycles);
+    });
+
+    expect(outcome?.updated).toBe(0);
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('niezmiennik: kompletny trening (nazwy + dayName + cycleId) nie dotyka bazy', async () => {
+    const state = buildCanonicalState('active-plan');
+    const txUpdate = setupTransaction({ revision: 0 });
+    const { result } = renderActions([state.workouts[0]]);
+
+    let outcome: { updated: number; scanned: number } | undefined;
+    await act(async () => {
+      outcome = await result.current.backfillHistoricalWorkouts(state.cycles);
+    });
+
+    expect(outcome).toMatchObject({ updated: 0, scanned: 1 });
+    expect(runTransactionMock).not.toHaveBeenCalled();
+    expect(txUpdate).not.toHaveBeenCalled();
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+});
