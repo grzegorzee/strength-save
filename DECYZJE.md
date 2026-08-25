@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (X35a WYDANE: web index-DDYag34a LIVE, iOS 123 Beta App Review APPROVED, AAB v38 SHA 7abea171; wcześniej tego dnia X30, X31, X32+X33, X34, X34b)
+**Ostatnia aktualizacja:** 2026-08-26 (X35b+X35c WYDANE: web index-K-NsFPic LIVE, functions deploy, iOS 124 Beta App Review APPROVED, AAB v39 SHA b44d43b1; 25.08: X30, X31, X32+X33, X34, X34b, X35a)
 
 ---
 
@@ -23,7 +23,11 @@
 
 **X35b WP-B Profil:** `/settings` zlikwidowane (`SettingsRedirect` → `/profile?section=` z mapą: notifications→profile-notifications, connections→profile-devices, strava→profile-connections, consents→profile-consents, data→profile-backup, account→profile-account). Profil w 11 sekcjach z kotwicami: Tożsamość (+ osiągnięcia, kolor akcentu), Powiadomienia, Urządzenia i dostęp (+ zegarek), Trening, Przerwy między seriami (Collapsible, wiersz z aktualną wartością), Kalkulator talerzy, Połączenia (`StravaConnectionCard`), Trener (ZAWSZE widoczny: pusty stan "Dodaj trenera" z formularzem imię/e-mail), Subskrypcja, Dane (+ `BackupSettings` z pełnym oknem, `ConsentSettings`), Konto i pomoc; duplikat "Imię i awatar" usunięty; stary Select "Timer przerwy" zastąpiony kartą przerw. Cykle: sekcja "Plan" z trzema akcjami za `ConfirmDialog` ("Zakończ plan", "Zakończ plan i ułóż nowy", "Onboarding od nowa"), guard aktywnego draftu. Narzędzia naprawcze jako `AdminRepairToolsCard` na `/admin`. Hardening: `listLinkedDevices` zwraca `[]` przy złej odpowiedzi (route sweep złapał crash `/profile`).
 
-**Proces:** 3 agentów równolegle (Profil; pasek+przerwy; powiadomienia), Profil scalił main z pozostałymi u siebie (1 konflikt), merge do main bez konfliktów. QA zrzuty: `tmp/qa-x35b-profile/` (Profil pełna strona, Trener 3 stany, Cykle, deep link), `tmp/qa-x35b-back-rest/` (baseline bez sticky vs po fixie, pasek na Pomiarach/ćwiczeniu, brak paska w sesji, karta przerw). Bramki i wydanie: patrz niżej.
+**Proces:** 3 agentów równolegle (Profil; pasek+przerwy; powiadomienia), Profil scalił main z pozostałymi u siebie (1 konflikt), merge do main bez konfliktów. QA zrzuty: `tmp/qa-x35b-profile/` (Profil pełna strona, Trener 3 stany, Cykle, deep link), `tmp/qa-x35b-back-rest/` (baseline bez sticky vs po fixie, pasek na Pomiarach/ćwiczeniu, brak paska w sesji, karta przerw).
+
+**Bramki po merge (main):** vitest **3151/3151** (368 plików; jeden bezgłośny bieg kontrolny padł kodem wyjścia, powtórka exit 0 z 3151/3151), functions **415/0**, typecheck web+functions, lint 0 err, no-emoji, build web+mobile, dist-smoke, bundle 1 391 103 B, e2e chromium **110/110**.
+
+**Wydanie (potok: functions → web → iOS → AAB):** functions Deploy complete (nowa `onWorkoutCompletedPrPush` trigger Firestore + zaktualizowane `photoReminder`, `reducedModeEndingPush`, `vacationEndingPush`, `adminSendPush`, potwierdzone `functions:list`); web LIVE `index-K-NsFPic.js`; iOS **124** upload + obie grupy + Beta App Review **APPROVED**; AAB **v39** SHA `b44d43b1` (`~/Desktop/strength-save-v39.aab`, jar verified); rules bez zmian. **Następny iOS = 125, versionCode = 40.**
 
 ### 2026-08-25 (5): X35a — zero przewijania poziomego, eksport konkretnego cyklu, Plan przed startem, pomiary wg celu (iOS 123 / AAB v38)
 
