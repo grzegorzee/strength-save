@@ -36,6 +36,7 @@ import {
 } from "./security";
 import { writeEmailLog } from "./email-log";
 import { buildAnnouncementEvents } from "./announcement-events";
+import { splitAnnouncementRecipients } from "./announcement-recipients";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
@@ -1135,7 +1136,13 @@ export const adminSendPush = onCall(async (request) => {
   if (target !== "all") query = query.where("cohorts", "array-contains", target);
   const snap = await query.get();
 
-  const eligibleUserIds = new Set(snap.docs.map((doc) => doc.id));
+  // X35c (WP-E): notificationPrefs.announcements === false = bez pusha; mirror
+  // do dzwonka nadal dla całego targetu.
+  const recipients = splitAnnouncementRecipients(snap.docs.map((doc) => ({
+    uid: doc.id,
+    notificationPrefs: (doc.data() as { notificationPrefs?: { announcements?: boolean } }).notificationPrefs,
+  })));
+  const eligibleUserIds = recipients.pushUids;
 
   // T15: mirror do inboxa dla WSZYSTKICH userów z targetu (nie tylko posiadaczy
   // tokenów FCM — to jest wartość mirrora: user bez pusha zobaczy ogłoszenie
@@ -1146,7 +1153,7 @@ export const adminSendPush = onCall(async (request) => {
     let written = 0;
     try {
       const now = Date.now();
-      const events = buildAnnouncementEvents(Array.from(eligibleUserIds), { title, body, now });
+      const events = buildAnnouncementEvents(recipients.inboxUids, { title, body, now });
       await forEachWithConcurrency(events, 10, async ({ uid, event }) => {
         try {
           // create (nie set) pod deterministycznym id — retry tego samego

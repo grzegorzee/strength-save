@@ -33,11 +33,19 @@ describe("runReducedModeEndingPush", () => {
     expect(vi.mocked(deps.sendMulticast).mock.calls[0][1]).toContain("kończy się dziś");
   });
 
-  it("szanuje wylaczone przypomnienia i brak trybu", async () => {
+  // X35c (WP-E): osobny przełącznik modeEnding; dailyReminder nie gate'uje
+  // już końca trybu.
+  it("szanuje wylaczone modeEnding i brak trybu", async () => {
     const offPrefs = baseDeps({
-      getUsers: async () => new Map([["u1", { notificationPrefs: { dailyReminder: false } }]]),
+      getUsers: async () => new Map([["u1", { notificationPrefs: { modeEnding: false } }]]),
     });
     expect((await runReducedModeEndingPush(offPrefs)).sent).toBe(0);
+    expect(offPrefs.sendMulticast).not.toHaveBeenCalled();
+
+    const dailyOff = baseDeps({
+      getUsers: async () => new Map([["u1", { notificationPrefs: { dailyReminder: false } }]]),
+    });
+    expect((await runReducedModeEndingPush(dailyOff)).sent).toBe(1);
 
     const nobody = baseDeps({ getUsersWithModeEndingToday: async () => [] });
     const result = await runReducedModeEndingPush(nobody);
