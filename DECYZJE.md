@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (X32+X33 WYDANE: web index-CtyvAWCa LIVE, iOS 120 Beta App Review APPROVED, AAB v35 SHA 296838ab, rules `choice`; wcześniej tego dnia X30, hotfix X31)
+**Ostatnia aktualizacja:** 2026-08-25 (X34 WYDANE: web index-BvVh_gQc LIVE, iOS 121 Beta App Review APPROVED, AAB v36 SHA f2e3c069; wcześniej tego dnia X30, X31, X32+X33)
 
 ---
 
@@ -19,7 +19,9 @@
 
 **Testy:** vitest +23 (PlanStartStep 18, choose-other 7), e2e 4 nowe scenariusze (a-d ze specu) w `full-app`/`replan`; w trybie mock e2e kończy się na kliknięciu zapisu (transakcja Firestore zablokowana), pełna ścieżka do Dashboardu w `e2e/emulator/plan-lifecycle.spec.ts` (zaktualizowany pod 6/6, wymaga emulatorów). QA wizualne osobnym agentem (Playwright, iPhone 15 393×852 @3x, chromium + webkit, ~40 zrzutów w `tmp/qa-x34/`, obejrzane przez orkiestratora): przerywnik 3502-3505 ms z wierszami co ~0,7 s; brak poziomego scrolla na każdym ekranie; CTA klikalne (`elementFromPoint`); podgląd wchodzi z `scrollY 0`; "Wybierz inny plan" bez przerywnika i z zachowanym stanem; 0 `pageerror`. **Jedno odchylenie:** nazwa 60 znaków przewijała się w jednoliniowym `input` (widoczne ~30 znaków) → fix: `textarea` rosnąca w dół (bez Entera, `overflow-hidden`), ponowne QA 4/4 i e2e **102/102 chromium, 102/102 webkit**. INFO (bez zmian, do decyzji): domyślny poniedziałek = bieżący tydzień (X27), chipy celu w bibliotece przewijają się poziomo, po "Inna" picker dubluje wartości kafli, brak `env(safe-area-inset)` w kreatorze/podglądzie (stan sprzed X34, do sprawdzenia na urządzeniu).
 
-**Bramki po merge:** vitest **2988/2988** (355 plików), typecheck, lint 0 err, no-emoji, build web+mobile, dist-smoke, bundle 1 386 766 B.
+**Bramki po merge:** vitest **2988/2988** (355 plików), typecheck, lint 0 err, no-emoji, build web+mobile, dist-smoke, bundle 1 386 766 B, e2e 102/102 ×2.
+
+**Wydanie (potok nohup):** web LIVE `index-BvVh_gQc.js`; iOS **121** upload + obie grupy + Beta App Review **APPROVED**; AAB **v36** SHA `f2e3c069` (`~/Desktop/strength-save-v36.aab`, jar verified); rules i functions bez zmian. **Następny iOS = 122, versionCode = 37.**
 
 ### 2026-08-25 (3): X32 + X33 — kreator po cyklu od kroku 2, krok 5 jako wybór dwóch planów, "Zaczynam" bez podglądu, odpowiedzi z kreatora na cyklu, sekcja Cykle w adminie, avatar w kroku 1 (iOS 120 / AAB v35)
 
