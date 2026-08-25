@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (X34 WYDANE: web index-BvVh_gQc LIVE, iOS 121 Beta App Review APPROVED, AAB v36 SHA f2e3c069; wcześniej tego dnia X30, X31, X32+X33)
+**Ostatnia aktualizacja:** 2026-08-25 (X34b WYDANE: web index-CbhWFcL2 LIVE, iOS 122 Beta App Review APPROVED, AAB v37 SHA 55fc4b87; wcześniej tego dnia X30, X31, X32+X33, X34)
 
 ---
 
@@ -23,7 +23,7 @@
 
 **Wydanie (potok nohup):** web LIVE `index-BvVh_gQc.js`; iOS **121** upload + obie grupy + Beta App Review **APPROVED**; AAB **v36** SHA `f2e3c069` (`~/Desktop/strength-save-v36.aab`, jar verified); rules i functions bez zmian.
 
-**X34b (uwagi właściciela po 121, ten sam wieczór):** (1) ekran 6/6 w nowej kolejności: **data pierwszego treningu** (chipy kolejnych DNI TRENINGOWYCH wg kroku 4, od dziś, "Dziś" gdy dotyczy) → czas trwania (polecane domyślnie) → nazwa → CTA wg celu; model planu nadal zakotwiczony w poniedziałku (`startDate` = poniedziałek tygodnia wybranej daty), a dni treningowe tygodnia startu sprzed wybranej daty idą do `training_plans.skippedDates` (czysta funkcja `buildFirstWorkoutSchedule`); kontrakty `choice`/`onboardingAnswers`/rules bez zmian; (2) zakładka Plan bez karty zasad "Ciężar… / Przerwy…" (`getTrainingRules` zostaje w DayPlan); (3) Dashboard przed startem cyklu: "Zobacz plan" jako CTA w akcencie (`kinetic-primary-button`, pełna szerokość) zamiast wyszarzonego outline. Wydanie X34b: patrz niżej.
+**X34b (uwagi właściciela po 121, ten sam wieczór):** (1) ekran 6/6 w nowej kolejności: **data pierwszego treningu** (chipy kolejnych DNI TRENINGOWYCH wg kroku 4, od dziś, "Dziś" gdy dotyczy) → czas trwania (polecane domyślnie) → nazwa → CTA wg celu; model planu nadal zakotwiczony w poniedziałku (`startDate` = poniedziałek tygodnia wybranej daty), a dni treningowe tygodnia startu sprzed wybranej daty idą do `training_plans.skippedDates` (czysta funkcja `buildFirstWorkoutSchedule`); kontrakty `choice`/`onboardingAnswers`/rules bez zmian; (2) zakładka Plan bez karty zasad "Ciężar… / Przerwy…" (`getTrainingRules` zostaje w DayPlan); (3) Dashboard przed startem cyklu: "Zobacz plan" jako CTA w akcencie (`kinetic-primary-button`, pełna szerokość) zamiast wyszarzonego outline. Wydanie X34b (bramki: vitest **3011/3011**, typecheck, lint 0 err, build, dist-smoke, bundle 1 386 976 B, e2e chromium 102/102 (webkit 102/102 w worktree agenta), QA chromium 109 sprawdzeń / 0 odchyleń): web LIVE `index-CbhWFcL2.js`; iOS **122** upload + obie grupy + Beta App Review **APPROVED**; AAB **v37** SHA `55fc4b87` (`~/Desktop/strength-save-v37.aab`, jar verified). **Następny iOS = 123, versionCode = 38.**
 
 ### 2026-08-25 (3): X32 + X33 — kreator po cyklu od kroku 2, krok 5 jako wybór dwóch planów, "Zaczynam" bez podglądu, odpowiedzi z kreatora na cyklu, sekcja Cykle w adminie, avatar w kroku 1 (iOS 120 / AAB v35)
 
