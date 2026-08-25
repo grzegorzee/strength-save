@@ -27,7 +27,14 @@ export interface StartCycleDeps {
   startDateISO?: string;
   /** WP-PLANS-2 (X27): nazwa planu zapisywana na training_plans (trim, max 60). */
   planName?: string;
-  archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
+  /** H1 bug B (X31): `excludeCycleId` = świeżo utworzony cykl, którego archiwizacja nie ma prawa zamknąć. */
+  archiveCurrentPlan: (
+    days: TrainingDay[],
+    weeks: number,
+    start: string,
+    workouts: WorkoutSession[],
+    opts?: { excludeCycleId?: string },
+  ) => Promise<string | null>;
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
@@ -152,9 +159,12 @@ export async function startCycleWithPlan(
 
   // Archiwizuj poprzedni plan dopiero po utworzeniu nowego aktywnego cyklu. Jeśli ten krok
   // zostanie ponowiony, archiveCurrentPlan ma zachować idempotencję po startDate.
+  // H1 bug B (X31): nowy cykl jest wykluczony z archiwizacji — przy tej samej
+  // dacie startu archiwum zamykało właśnie utworzony cykl (zero aktywnych).
   if (deps.planStartDate && deps.currentPlan.length > 0) {
     const archivedId = await deps.archiveCurrentPlan(
       deps.currentPlan, deps.planDurationWeeks, deps.planStartDate, deps.workouts,
+      { excludeCycleId: activeCycleId },
     );
     if (archivedId) {
       const archived: PlanCycle = {
@@ -226,8 +236,15 @@ export interface EndPlanDeps {
   workouts: WorkoutSession[];
   archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
-  /** Punktowy zapis statusu na training_plans/{uid} (wstrzykiwany — moduł nie dotyka Firebase). */
-  setPlanStatus: (status: 'active' | 'ended') => Promise<{ success: boolean }>;
+  /**
+   * Punktowy zapis statusu na training_plans/{uid} (wstrzykiwany — moduł nie dotyka Firebase).
+   * H1 (X31): `expectedStartDate` = precondycja; dokument z innym startDate
+   * (albo już nie 'active') zwraca { success: false, reason: 'stale' } bez zapisu.
+   */
+  setPlanStatus: (
+    status: 'active' | 'ended',
+    opts?: { expectedStartDate?: string | null },
+  ) => Promise<{ success: boolean; reason?: 'stale' }>;
   emitPlanEvent?: PlanEventEmitter;
 }
 
@@ -240,7 +257,7 @@ export interface EndPlanDeps {
 export async function endPlan(
   _opts: { chooseNew: boolean },
   deps: EndPlanDeps,
-): Promise<{ success: boolean; archivedCycleId?: string; error?: string }> {
+): Promise<{ success: boolean; archivedCycleId?: string; error?: string; reason?: 'stale' }> {
   if (!deps.planStartDate || deps.currentPlan.length === 0) {
     return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.endPlanFailed') };
   }
@@ -260,9 +277,16 @@ export async function endPlan(
   };
   await deps.backfillHistoricalWorkouts([archived]);
 
-  const statusResult = await deps.setPlanStatus('ended');
+  // H1 (X31): 'ended' tylko do dokumentu, który wciąż jest TYM planem
+  // (startDate zgodny, status active). Rozjazd (replan na innym urządzeniu,
+  // bieg na stale cache) = brak zapisu i brak eventu 'ended'.
+  const statusResult = await deps.setPlanStatus('ended', { expectedStartDate: deps.planStartDate });
   if (!statusResult.success) {
-    return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.endPlanFailed') };
+    return {
+      success: false,
+      error: translate(deps.lang ?? 'pl', 'cycles.endPlanFailed'),
+      ...(statusResult.reason ? { reason: statusResult.reason } : {}),
+    };
   }
 
   deps.emitPlanEvent?.('ended', {
@@ -280,6 +304,13 @@ export async function endPlan(
 export const shouldAutoEndPlan = (opts: {
   planLoaded: boolean;
   cyclesLoaded: boolean;
+  /**
+   * H1 (X31): plan/cykle widziane Z SERWERA (hasServerSnapshot hooków). Snapshot
+   * z samego cache (stary dokument w IndexedDB) nie ma prawa kończyć planu —
+   * offline = brak auto-endu, user zobaczy closeout przy następnym online.
+   */
+  planFromServer: boolean;
+  cyclesFromServer: boolean;
   planStatus: 'active' | 'ended' | 'none';
   isPlanExpired: boolean;
   hasActiveCycle: boolean;
@@ -288,6 +319,8 @@ export const shouldAutoEndPlan = (opts: {
 }): boolean =>
   opts.planLoaded
   && opts.cyclesLoaded
+  && opts.planFromServer
+  && opts.cyclesFromServer
   && opts.planStatus === 'active'
   && opts.isPlanExpired
   && opts.hasActiveCycle

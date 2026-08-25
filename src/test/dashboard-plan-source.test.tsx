@@ -25,7 +25,8 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn(async () => {}),
   updateDoc: vi.fn(async () => {}),
   deleteDoc: vi.fn(async () => {}),
-  onSnapshot: vi.fn((_ref: unknown, onNext: (snap: unknown) => void, onError: (err: Error) => void) => {
+  // H1 (X31): useTrainingPlan woła onSnapshot(ref, { includeMetadataChanges }, onNext, onError).
+  onSnapshot: vi.fn((_ref: unknown, _opts: unknown, onNext: (snap: unknown) => void, onError: (err: Error) => void) => {
     snapshotHandlers.subs.push({ onNext, onError });
     return () => {};
   }),
@@ -216,6 +217,7 @@ describe('Z172: useTrainingPlan — błąd snapshotu nie podmienia planu usera',
   const goodSnapshot = {
     exists: () => true,
     data: () => ({ days: customDays, startDate: '2026-07-06', durationWeeks: 12, revision: 1 }),
+    metadata: { fromCache: false, hasPendingWrites: false },
   };
 
   it('błąd snapshotu PO dobrym planie: plan usera zostaje, planError=true, isLoaded=true', async () => {
@@ -235,7 +237,7 @@ describe('Z172: useTrainingPlan — błąd snapshotu nie podmienia planu usera',
 
   it('niezmiennik: konto BEZ dokumentu planu dostaje defaultPlan (to legalne)', () => {
     const { result } = renderHook(() => useTrainingPlanReal('u1'), { wrapper });
-    act(() => snapshotHandlers.onNext!({ exists: () => false, data: () => null }));
+    act(() => snapshotHandlers.onNext!({ exists: () => false, data: () => null, metadata: { fromCache: false, hasPendingWrites: false } }));
 
     expect(result.current.plan).toEqual(defaultPlan);
     expect(result.current.isCustom).toBe(false);

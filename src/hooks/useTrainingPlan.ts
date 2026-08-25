@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
@@ -39,6 +40,11 @@ export const useTrainingPlan = (userId: string) => {
   const { t } = useTranslation();
   const [plan, setPlan] = useState<TrainingDay[]>(defaultPlan);
   const [isLoaded, setIsLoaded] = useState(false);
+  // H1 (X31): isLoaded staje sie true juz na snapshocie Z CACHE (persistent
+  // cache). Automatyczne mutacje (auto-end planu) czekaja na snapshot z serwera
+  // (metadata.fromCache === false przynajmniej raz), inaczej stary dokument w
+  // IndexedDB "konczy" plan, ktory na serwerze jest juz innym planem.
+  const [hasServerSnapshot, setHasServerSnapshot] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
   const [planDurationWeeks, setPlanDurationWeeks] = useState(12);
   const [planStartDate, setPlanStartDate] = useState<string | null>(null);
@@ -68,8 +74,11 @@ export const useTrainingPlan = (userId: string) => {
     // Inaczej isLoaded zostaje false i gate startu treningu wisi w spinnerze (#6).
     if (!userId) {
       setIsLoaded(true);
+      setHasServerSnapshot(true);
       return;
     }
+
+    setHasServerSnapshot(false);
 
     // E2E mock (Z120/Z141): Firestore zablokowany, więc cały plan (days + meta)
     // żyje w localStorage. Subskrypcję snapshotów POMIJAMY — cache'owy snapshot
@@ -96,13 +105,18 @@ export const useTrainingPlan = (userId: string) => {
         }
       } catch { /* uszkodzony wpis e2e — zostaje default */ }
       setIsLoaded(true);
+      setHasServerSnapshot(true);
       return;
     }
 
     const docRef = doc(db, PLAN_COLLECTION, userId);
 
-    const unsubscribe = onSnapshot(docRef,
+    // H1: includeMetadataChanges — bez tego snapshot z serwera o identycznej
+    // tresci co cache NIE jest dostarczany, wiec flaga serwera nigdy by nie
+    // wstala i auto-end nie ruszylby nawet ze swiezym cache.
+    const unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true },
       (snapshot) => {
+        if (!snapshot.metadata.fromCache) setHasServerSnapshot(true);
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (data.days !== undefined) {
@@ -297,15 +311,31 @@ export const useTrainingPlan = (userId: string) => {
   }, [userId, isLoaded, plan, scheduleOverrides, planDurationWeeks, planStartDate, planRevision, progression, planDocStatus, planName, t]);
 
   /**
-   * WP-PLANS-1 (X27): punktowy zapis cyklu życia planu (ended/reaktywacja) —
-   * wzorzec moveScheduledDay: setDoc merge, offline-first, bez podbijania rewizji.
+   * WP-PLANS-1 (X27): punktowy zapis cyklu życia planu (ended/reaktywacja),
+   * bez podbijania rewizji.
+   *
+   * H1 (X31): zapis w transakcji z PRECONDYCJĄ. `expectedStartDate` = startDate
+   * kończonego planu; jeśli dokument na serwerze ma inny startDate (user zrobił
+   * replan na innym urządzeniu / ten klient działał na stale cache) albo status
+   * 'ended' szedłby do planu, który nie jest już 'active' → { success: false,
+   * reason: 'stale' } BEZ zapisu. Incydent 2026-08-24: setDoc merge wpisał
+   * 'ended' do dokumentu, który był już nowym planem 09-07.
    */
-  const setPlanStatus = useCallback(async (status: TrainingPlanStatus): Promise<{ success: boolean }> => {
+  const setPlanStatus = useCallback(async (
+    status: TrainingPlanStatus,
+    opts?: { expectedStartDate?: string | null },
+  ): Promise<{ success: boolean; reason?: 'stale' }> => {
     if (!userId || !isLoaded) return { success: false };
+    const isStale = (data: { startDate?: unknown; status?: unknown } | undefined): boolean => {
+      if (!data) return true;
+      if (opts?.expectedStartDate !== undefined && (data.startDate ?? null) !== opts.expectedStartDate) return true;
+      return status === 'ended' && sanitizeTrainingPlanStatus(data.status) !== 'active';
+    };
     if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');
         const data = raw ? JSON.parse(raw) : {};
+        if (isStale(data)) return { success: false, reason: 'stale' };
         if (status === 'ended') data.status = 'ended';
         else delete data.status;
         window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify(data));
@@ -313,13 +343,30 @@ export const useTrainingPlan = (userId: string) => {
       setPlanDocStatus(status);
       return { success: true };
     }
-    setDoc(doc(db, PLAN_COLLECTION, userId), {
-      status,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true }).catch((err) => {
+    const planRef = doc(db, PLAN_COLLECTION, userId);
+    try {
+      const outcome = await runTransaction(db, async (transaction) => {
+        const current = await transaction.get(planRef);
+        if (isStale(current.exists() ? current.data() : undefined)) return 'stale' as const;
+        transaction.set(planRef, {
+          status,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        return 'ok' as const;
+      });
+      if (outcome === 'stale') {
+        void reportClientError(userId, {
+          code: 'plan-status-stale',
+          phase: 'other',
+          detail: `status=${status} expectedStartDate=${opts?.expectedStartDate ?? 'n/a'}`,
+        });
+        return { success: false, reason: 'stale' };
+      }
+    } catch (err) {
       console.error('Error saving plan status:', err);
       void reportClientError(userId, { code: 'plan-status-save', phase: 'other', detail: String(err) });
-    });
+      return { success: false };
+    }
     setPlanDocStatus(status);
     return { success: true };
   }, [userId, isLoaded]);
@@ -628,6 +675,7 @@ export const useTrainingPlan = (userId: string) => {
   return {
     plan,
     isLoaded,
+    hasServerSnapshot,
     planError,
     isCustom,
     planStatus,

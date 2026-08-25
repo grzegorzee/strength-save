@@ -579,6 +579,7 @@ export const buildUseTrainingPlanResult = (state: CanonicalState) => {
   return {
     plan: state.plan?.days ?? defaultPlanDays,
     isLoaded: true,
+    hasServerSnapshot: true,
     planError: false,
     isCustom: state.plan !== null,
     planStatus: (state.plan ? state.plan.status : 'none') as 'active' | 'ended' | 'none',
@@ -656,6 +657,7 @@ export const buildUseFirebaseWorkoutsResult = (state: CanonicalState) => {
 export const buildUsePlanCyclesResult = (state: CanonicalState) => ({
   cycles: state.cycles,
   isLoaded: true,
+  hasServerSnapshot: true,
   getActiveCycle: () => state.cycles.find((c) => c.status === 'active') ?? null,
   archiveCurrentPlan: async () => null,
   createActiveCycle: async () => null,

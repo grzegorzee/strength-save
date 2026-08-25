@@ -41,7 +41,7 @@ const Cycles = () => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
   const { uid, canUseBodyPhotos } = useCurrentUser();
-  const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
+  const { cycles, isLoaded, hasServerSnapshot: cyclesFromServer, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { toast } = useToast();
   const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, planStatus, setPlanStatus, scheduleOverrides } = useTrainingPlan(uid);
@@ -123,7 +123,9 @@ const Cycles = () => {
   useEffect(() => {
     // WP-PLANS-1 (X27): plan zakończony nie dostaje odtworzonego aktywnego cyklu.
     if (planStatus === 'ended') return;
-    if (!isLoaded || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
+    // H1 (X31): automatyczne tworzenie cyklu wyłącznie na liście cykli Z SERWERA
+    // (cache bez nowego cyklu = fałszywe "brak aktywnego cyklu").
+    if (!isLoaded || !cyclesFromServer || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
     // Plan ma już swój cykl (np. zarchiwizowany po wygaśnięciu) — nie dubluj.
     if (cycles.some(c => c.startDate === planStartDate)) return;
     // Guard czyszczony przy porażce (R2-27): offline nie wypala naprawy na zawsze.
@@ -152,7 +154,7 @@ const Cycles = () => {
       guard,
       create: () => createActiveCycle(trainingPlan, planDurationWeeks, planStartDate),
     });
-  }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid, planStatus]);
+  }, [isLoaded, cyclesFromServer, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid, planStatus]);
 
   useEffect(() => {
     let cancelled = false;
