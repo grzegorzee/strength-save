@@ -68,7 +68,16 @@ const readPendingTelemetry = (userId: string): PendingTelemetry => {
 };
 
 const writePendingTelemetry = (userId: string, pending: PendingTelemetry) => {
-  localStorage.setItem(getStorageKey(userId), JSON.stringify(pending));
+  // Bug 25 (X30): setItem potrafi rzucic (SecurityError przy blokadzie danych
+  // stron w Safari, QuotaExceededError przy pelnym storage), a trackTelemetryEvent
+  // jest wolany synchronicznie w srodku handlerow core flow (odhaczenie serii
+  // startuje timer przerwy ZA trackiem). Telemetria to best-effort — cicha
+  // degradacja, spojnie z readPendingTelemetry.
+  try {
+    localStorage.setItem(getStorageKey(userId), JSON.stringify(pending));
+  } catch {
+    // licznik przepada; core flow (timer przerwy, haptyka) idzie dalej
+  }
 };
 
 const getDateKey = () => {
