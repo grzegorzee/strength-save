@@ -78,7 +78,8 @@ export async function runReducedModeEndingPush(
   const eligibleUserIds = [...byUser.keys()].filter((uid) => {
     const user = users.get(uid);
     if (!user) return false;
-    if (user.notificationPrefs?.dailyReminder === false) return false;
+    // X35c (WP-E): własny przełącznik modeEnding (koniec urlopu / trybu lżejszego).
+    if (user.notificationPrefs?.modeEnding === false) return false;
     if (user.access?.enabled === false || user.status === "suspended") return false;
     return true;
   });

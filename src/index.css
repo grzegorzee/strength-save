@@ -173,8 +173,20 @@ All colors MUST be HSL.
 
   html, body {
     @apply bg-background text-foreground;
-    overflow-x: hidden;
     max-width: 100vw;
+  }
+
+  /* WP-C (X35b): html `hidden` propaguje na viewport (blokada scrolla w bok).
+     body NIE może mieć `hidden`: przy html != visible nie propaguje, tylko robi
+     z body scrollport (overflow-y liczy się jako auto), a przewija się window,
+     więc `position: sticky` nagłówka nie działał na mobile. `clip` przycina bez
+     scrollportu; iOS < 16 (bez clip) i tak ma blokadę z html. */
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-x: clip;
   }
 
   body {
@@ -366,7 +378,15 @@ All colors MUST be HSL.
   html,
   body {
     max-width: 100%;
+  }
+
+  html {
     overflow-x: hidden;
+  }
+
+  /* Patrz komentarz przy pierwszej regule html/body (WP-C: sticky nagłówek). */
+  body {
+    overflow-x: clip;
   }
 
   body {

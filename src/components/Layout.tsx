@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { HeaderActionsProvider } from './HeaderActions';
 import { AppNavigation } from './AppNavigation';
+import { BackBar } from './BackBar';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
 
@@ -35,6 +36,11 @@ export const Layout = () => {
   const isRootPage = rootPaths.has(location.pathname);
   const titleKey = pageTitleKeys[location.pathname];
   const title = titleKey ? t(titleKey) : 'Strength Save';
+  // WP-C (X35b): pasek "Wstecz" nad dolnym navem na trasach spoza niego. W sesji
+  // treningowej (/workout/*) NIE: ten sam slot 6rem zajmują RestBar i CTA startu,
+  // a ekran ma własny przycisk wstecz w nagłówku sesji. /exercise/* dostaje pasek,
+  // bo bez AppHeader po przewinięciu nie ma tam żadnego powrotu.
+  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/');
 
   const handleBack = () => {
     // React Router v6 trzyma indeks historii w window.history.state.idx.
@@ -56,7 +62,13 @@ export const Layout = () => {
   }
 
   return (
-    <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">
+    // WP-C (X35b): `overflow-x-clip` zamiast `overflow-x-hidden` na przodkach
+    // nagłówka. `hidden` robi z elementu scrollport (overflow-y liczy się jako
+    // auto), a przewija się window — `sticky top-0` nagłówka nie działał na
+    // mobile (Playwright 393x852, /profile po 2000 px: header y = -1475).
+    // `clip` przycina tak samo, ale scrollportu nie tworzy; iOS < 16 (bez clip)
+    // ma i tak html/body overflow-x: hidden z index.css.
+    <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-clip md:overflow-hidden">
       {/* WP-D (X29): bottom nav widoczny na WSZYSTKICH trasach w Layout, także
           w focused flow (/workout/*, /exercise/*) — user ma zawsze wyjście do
           Dashboardu/Planu/Profilu. Paski sesji (start/RestBar) pozycjonują się
@@ -66,7 +78,7 @@ export const Layout = () => {
       {/* Naprawa r2 (2026-08-21): provider slotu akcji headera — ekrany portalują
           swoje przyciski (History: lupa + filtry) do rzędu headera jak w artboardach. */}
       <HeaderActionsProvider>
-        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-clip md:h-[100dvh] md:overflow-hidden">
           {!isFocusedFlow && (
             <AppHeader
               title={title}
@@ -74,13 +86,20 @@ export const Layout = () => {
             />
           )}
 
-          <main className="flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto">
+          {/* Rezerwa dolna: 7.5rem nad navem; z paskiem Wstecz (top ≈ 6rem + 3.25rem)
+              10.75rem, żeby ostatnie CTA strony nie chowało się pod paskiem. */}
+          <main className={showBackBar
+            ? 'flex-1 p-5 pb-[calc(10.75rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6 overflow-x-hidden md:overflow-y-auto'
+            : 'flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto'}
+          >
             <div className="max-w-4xl mx-auto">
               <Outlet />
             </div>
           </main>
         </div>
       </HeaderActionsProvider>
+
+      {showBackBar && <BackBar onBack={handleBack} title={titleKey ? title : undefined} />}
     </div>
   );
 };

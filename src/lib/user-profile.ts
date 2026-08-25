@@ -3,6 +3,7 @@ import { sanitizePRBackfill, type PRBackfill } from '@/lib/pr-backfill';
 import type { ConsentMirror } from '@/lib/legal-versions';
 import type { OnboardingAnswers, TrainingProfileSnapshot } from '@/lib/onboarding-answers';
 import type { LanguageCode } from '@/i18n';
+import type { RestSettings } from '@/lib/rest-timer';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
@@ -93,7 +94,10 @@ export interface UserProfile {
   preferences?: {
     unit?: 'kg' | 'lbs';
     language?: LanguageCode;
+    /** Legacy (do X35a): pojedynczy czas przerwy. Tylko do odczytu (migracja do `rest`). */
     restTimerSec?: number;
+    /** X35b: jedno źródło prawdy o przerwach (RestSettings; walidacja normalizeRestSettings). */
+    rest?: Partial<RestSettings>;
     timerSound?: boolean;
     /** F-T2: id koloru przewodniego (accent-theme); brak = limonka. */
     accentColor?: string;

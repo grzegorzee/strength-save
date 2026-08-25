@@ -18,6 +18,7 @@ import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { restDefaultsDeps } from '@/lib/rest-preferences';
 import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { CycleShareDialog, computeCycleTimeAtGymSec, type CycleShareData } from '@/components/CycleShareCard';
 import { formatDurationHM } from '@/lib/monthly-stats';
@@ -190,6 +191,8 @@ const NewPlan = () => {
         createActiveCycle,
         backfillHistoricalWorkouts,
         emitPlanEvent: buildPlanEventEmitter(uid),
+        // X35b: przerwy polecane dla nowego celu, chyba że user ustawił własne.
+        restDefaults: restDefaultsDeps(uid),
       });
       if (!result.success) { setError(result.error || t('onboarding.error.saveFailed')); setIsSaving(false); return; }
       // WP-O (X30): replan aktualizuje profil treningowy (poziom/cel/dni), żeby

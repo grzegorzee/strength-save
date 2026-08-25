@@ -6,8 +6,8 @@ import { getInvalidFcmTokens, type ReminderUser } from "./daily-reminder";
 
 // WP-D D4: po miesiącu od PIERWSZEGO ukończonego treningu jednorazowe
 // przypomnienie "dodaj fotkę sylwetki i zrób before/after". Kanały:
-// push (jeśli tokeny + zgoda dailyReminder) oraz ZAWSZE dzwonek in-app
-// (user_events, typ announcement, deterministyczny id = max raz).
+// push (jeśli tokeny) oraz dzwonek in-app (user_events, typ announcement,
+// deterministyczny id = max raz). Zgoda: notificationPrefs.photoReminder (X35c).
 // Znacznik users/{uid}.photoReminderSentAt pisze WYŁĄCZNIE ta funkcja
 // (Admin SDK) — rules klienta go nie znają i znać nie muszą.
 // Wzorzec reduced-mode-push: DI-testowalny rdzeń + wrapper onSchedule.
@@ -110,6 +110,9 @@ export async function runPhotoReminder(
     if (user.photoReminderSentAt) return;
     if (user.status !== "active") return;
     if (user.access?.enabled === false) return;
+    // X35c (WP-E): własny przełącznik gate'uje oba kanały i NIE zapisuje
+    // znacznika — po włączeniu przypomnienie dojdzie następnego dnia.
+    if (user.notificationPrefs?.photoReminder === false) return;
 
     const firstWorkout = await deps.getFirstWorkoutDate(uid);
     // Kwalifikacja: pierwszy ukończony trening >= 30 dni temu (first <= cutoff).
@@ -143,9 +146,7 @@ export async function runPhotoReminder(
       return;
     }
 
-    // 3. Push: tylko z tokenami i zgodą (dailyReminder = zbiorcza zgoda na
-    //    przypomnienia treningowe, wzorzec reduced-mode-push).
-    if (user.notificationPrefs?.dailyReminder === false) return;
+    // 3. Push: tylko z tokenami (zgoda photoReminder sprawdzona wyżej).
     const userRegistrations = byUser.get(uid) ?? [];
     if (userRegistrations.length === 0) return;
     const tokens = userRegistrations.map((registration) => registration.token);
