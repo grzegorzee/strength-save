@@ -5,7 +5,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
-import { PLATE_INVENTORY_STORAGE_KEY, savePlateInventory, DEFAULT_PLATE_INVENTORY } from '@/lib/plate-calculator';
+import { PLATE_INVENTORY_STORAGE_KEY, savePlateInventory, DEFAULT_PLATE_INVENTORY, DEFAULT_PLATE_INVENTORY_LB } from '@/lib/plate-calculator';
 
 beforeEach(() => {
   localStorage.clear();
@@ -115,5 +115,29 @@ describe('PlateCalculatorSheet v2 (Z133)', () => {
     const summary = screen.getByTestId('plates-summary');
     expect(within(summary).getByText(/1×20/)).toBeTruthy();
     expect(JSON.parse(localStorage.getItem(PLATE_INVENTORY_STORAGE_KEY)!).barKg).toBe(15);
+  });
+});
+
+// Bug 18 (X30): handleBarChange wołał savePlateInventory bez unitu — default 'kg'
+// nadpisywał CAŁY klucz i kasował preset 'lbs' ustawiony w PlateInventorySettings.
+// Reset następował przy KAŻDYM kliknięciu gryfa, także aktualnie aktywnego.
+describe('bug 18 (X30): zmiana gryfa zachowuje jednostkę inwentarza', () => {
+  it('klik innego gryfa NIE kasuje presetu lbs', () => {
+    savePlateInventory(20, DEFAULT_PLATE_INVENTORY_LB, 'lbs');
+    renderSheet({ targetKg: 60 });
+    fireEvent.click(screen.getByRole('button', { name: '15 kg' }));
+
+    const stored = JSON.parse(localStorage.getItem(PLATE_INVENTORY_STORAGE_KEY)!);
+    expect(stored.barKg).toBe(15);
+    expect(stored.unit).toBe('lbs');
+  });
+
+  it('klik aktualnie aktywnego gryfa = no-op dla zapisu', () => {
+    savePlateInventory(20, DEFAULT_PLATE_INVENTORY_LB, 'lbs');
+    const before = localStorage.getItem(PLATE_INVENTORY_STORAGE_KEY);
+    renderSheet({ targetKg: 60 });
+    fireEvent.click(screen.getByRole('button', { name: '20 kg' }));
+
+    expect(localStorage.getItem(PLATE_INVENTORY_STORAGE_KEY)).toBe(before);
   });
 });

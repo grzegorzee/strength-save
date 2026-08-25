@@ -96,7 +96,10 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
 
   const handleBarChange = (nextBar: number) => {
     setInventory((prev) => {
-      savePlateInventory(nextBar, prev.plates);
+      // Bug 18 (X30): klik aktualnego gryfa = no-op; zapis MUSI nieść prev.unit,
+      // bo savePlateInventory bez trzeciego argumentu kasował preset 'lbs'.
+      if (nextBar === prev.barKg) return prev;
+      savePlateInventory(nextBar, prev.plates, prev.unit);
       return { ...prev, barKg: nextBar };
     });
   };
