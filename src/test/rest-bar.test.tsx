@@ -12,10 +12,15 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { RestBar } from '@/components/RestBar';
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
+import { playTimerSound } from '@/lib/timer-sound';
+import { hapticRestEnd } from '@/lib/haptics';
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));
 vi.mock('@capacitor/haptics', () => ({ Haptics: { notification: vi.fn() }, NotificationType: { Success: 'SUCCESS' } }));
 vi.mock('@/lib/timer-sound', () => ({ playTimerSound: vi.fn(), unlockTimerSound: vi.fn() }));
+// Bug 28 (X30): asercje na haptyce końca przerwy (mock modułu, nie pluginu —
+// web path hapticRestEnd używa navigator.vibrate, którego jsdom nie ma).
+vi.mock('@/lib/haptics', () => ({ hapticRestEnd: vi.fn() }));
 vi.mock('@/lib/rest-notification', () => ({
   scheduleRestEndNotification: vi.fn().mockResolvedValue(undefined),
   cancelRestEndNotification: vi.fn().mockResolvedValue(undefined),
@@ -88,6 +93,8 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   vi.mocked(scheduleRestEndNotification).mockClear();
   vi.mocked(cancelRestEndNotification).mockClear();
+  vi.mocked(playTimerSound).mockClear();
+  vi.mocked(hapticRestEnd).mockClear();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -234,6 +241,35 @@ describe('RestBar (Z136)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Pomiń/i }));
     expect(onSkip).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Ustawienia treningu')).toBeNull();
+  });
+
+  it('naturalny koniec w foregroundzie gra gong i haptykę (niezmiennik przy grace window)', () => {
+    const onFinished = vi.fn();
+    renderBar({ seconds: 5, onFinished });
+
+    act(() => { vi.advanceTimersByTime(6_000); });
+
+    expect(onFinished).toHaveBeenCalledTimes(1);
+    expect(playTimerSound).toHaveBeenCalledWith('finish');
+    expect(hapticRestEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('bug 28 (X30): ciepły resume po deadline sprząta BEZ gongu i haptyki (sygnał dała notyfikacja)', () => {
+    const onFinished = vi.fn();
+    renderBar({ seconds: 90, onFinished });
+
+    // Ekran zgaszony w połowie przerwy: JS wstrzymany, zegar skacze o 5 minut
+    // (notyfikacja systemowa zadzwoniła o deadline). Pierwszy tick po wznowieniu
+    // widzi done=true wiele minut po fakcie.
+    act(() => {
+      vi.setSystemTime(new Date('2026-07-20T10:05:00.000Z'));
+      vi.advanceTimersByTime(250);
+    });
+
+    expect(onFinished).toHaveBeenCalledTimes(1);
+    expect(cancelRestEndNotification).toHaveBeenCalled();
+    expect(playTimerSound).not.toHaveBeenCalled();
+    expect(hapticRestEnd).not.toHaveBeenCalled();
   });
 
   it('Z189: wyjątek sygnału końca NIE blokuje onFinished (stan zawsze posprzątany)', async () => {
