@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (X34b WYDANE: web index-CbhWFcL2 LIVE, iOS 122 Beta App Review APPROVED, AAB v37 SHA 55fc4b87; wcześniej tego dnia X30, X31, X32+X33, X34)
+**Ostatnia aktualizacja:** 2026-08-25 (X35a WYDANE: web index-DDYag34a LIVE, iOS 123 Beta App Review APPROVED, AAB v38 SHA 7abea171; wcześniej tego dnia X30, X31, X32+X33, X34, X34b)
 
 ---
 
@@ -24,6 +24,10 @@
 **WP-G pomiary:** edycja wpisu jako `Sheet` od dołu (`overflow-x-hidden`, `min-w-0`, data i godzina w osobnych pełnych wierszach POD polami) — koniec "latania na boki" (przyczyna: dwa natywne inputy date/time po 152 px w dwóch kolumnach rozpychały `DialogContent`); `onOpenAutoFocus` → pole wagi (dotąd Radix brał natywne pole daty i iOS podnosił picker); `weightDeltaTone(delta, objective)`: redukcja = spadek zielony / wzrost czerwony, masa i siła odwrotnie, atletyka/brak celu neutralnie, ta sama funkcja w wierszu i badge'u trendu (dotąd badge miał zaszyte "wzrost = źle"); test sekwencji popupu "Zrób pomiary" po onboardingu (vitest przez prawdziwy router + e2e od `/?welcome=1`); haki mock E2E `fittracker_e2e_measurements` + `trainingProfile`.
 
 **Proces:** 3 agentów równolegle w worktree (pomiary; eksport+prestart; scroll+ćwiczenia), każdy z własnym e2e i QA na iPhone 15 (chromium + webkit, `tmp/qa-x35a*`), merge bez konfliktów; jeden agent usnął po `run_in_background` (znana pułapka) i został wznowiony z instrukcją "na pierwszym planie". Lekcja QA: `webServer.cwd` w tymczasowym configu Playwright w worktree musi wskazywać worktree, inaczej serwuje kod głównego repo (bezpiecznik `assertServesX35a` w specu).
+
+**Bramki po merge (main):** vitest **3060/3060** (361 plików), typecheck, lint 0 err, no-emoji, build web+mobile, dist-smoke, bundle 1 386 341 B, e2e chromium **109/109**; zrzuty kontrolne orkiestratora (`tmp/qa-x35a-final`, iPhone 15): ćwiczenia/nogi, Historia, Plan, 6/6 — `scrollWidth = innerWidth = 393` wszędzie.
+
+**Wydanie:** web LIVE `index-DDYag34a.js`; iOS **123** upload + obie grupy + Beta App Review **APPROVED**; AAB **v38** SHA `7abea171` (`~/Desktop/strength-save-v38.aab`, jar verified); rules i functions bez zmian. **Następny iOS = 124, versionCode = 39.**
 
 ### 2026-08-25 (4): X34 — poprawki kreatora po przeglądzie X33 na iPhonie: 5A odchudzone, ekran 6/6 "Start planu" z CTA wg celu, "Wybierz inny plan" w podglądzie, przerywnik 3,5 s (iOS 121 / AAB v36)
 
