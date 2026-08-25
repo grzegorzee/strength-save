@@ -2,14 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
-import { getRecommendedPlan } from '@/data/planTemplates';
+import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
 
-// X31 H2: krok 5 przy replanie (startAtPrecision + initial z trainingProfile)
-// ma pokazywac szablon z liczba dni == daysPerWeek usera, a zmiana liczby dni
-// w kroku 4 (powrot przez "Zmien ustawienia" / strzalka wstecz) ma przeliczyc
-// rekomendacje i dni treningowe. Test SEKWENCJI, nie pojedynczego ekranu.
-// Harness wg plan-wizard-browse.test.tsx.
+// X31 H2: krok 5 przy replanie (initial z trainingProfile) ma pokazywac szablon
+// z liczba dni == daysPerWeek usera, a zmiana liczby dni w kroku 4 (powrot przez
+// "Zmien ustawienia" / strzalka wstecz) ma przeliczyc rekomendacje i dni
+// treningowe. X32: replan startuje od kroku 2 z zaznaczonym profilem (user
+// potwierdza Dalej x3), startAtPrecision nie istnieje.
+// Test SEKWENCJI, nie pojedynczego ekranu. Harness wg plan-wizard-browse.test.tsx.
 
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
@@ -31,6 +32,13 @@ const planName = (objective: 'fat_loss', level: 'intermediate', days: number) =>
 const recommendedLine = () => screen.getByText(/polecamy plan/).textContent ?? '';
 const answersLine = () => screen.getByTestId('ob-precision-answers').textContent;
 
+// X32: krok 2 (poziom z initial) -> 3 (cel z initial) -> 4 (dni z initial) -> 5.
+const confirmProfileToStep5 = () => {
+  fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+};
+
 // Krok 5 -> "Zmien ustawienia" -> krok 2 -> 3 -> 4 (wybor dni) -> Dalej -> krok 5.
 const changeDaysViaSettings = (days: number) => {
   fireEvent.click(screen.getByText('Zmień ustawienia'));
@@ -47,7 +55,8 @@ beforeEach(() => {
 
 describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X31 H2)', () => {
   it('REGRESJA (realne konto): initial {fat_loss, intermediate, 3} -> rekomendacja 3-dniowa + podsumowanie odpowiedzi', () => {
-    render(withProviders(<PlanWizard startAtPrecision initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
+    render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
+    confirmProfileToStep5();
 
     expect(getRecommendedPlan('fat_loss', 'intermediate', 3).daysPerWeek).toBe(3);
     expect(recommendedLine()).toContain(planName('fat_loss', 'intermediate', 3));
@@ -57,7 +66,8 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
 
   it('SEKWENCJA: zmiana dni 3 -> 4 w kroku 4 przelicza rekomendacje, powrot strzalka do kroku 4 i 4 -> 3 znow', () => {
     const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
-    render(withProviders(<PlanWizard startAtPrecision initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    confirmProfileToStep5();
 
     changeDaysViaSettings(4);
     // fat_loss/4 = jedyny szablon redukcyjny (Lean Engine, 4 dni).
@@ -84,6 +94,23 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     expect(choice.planSource).toBe('recommended');
   });
 
+  it('X32 SEKWENCJA: zmiana dni przez "Zmien ustawienia" przelicza pule Browse (tylko szablony o nowej liczbie dni)', () => {
+    render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
+    confirmProfileToStep5();
+
+    const browseCards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!.textContent ?? '');
+    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 3).length);
+    for (const card of browseCards()) expect(card).toContain('3×');
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' })); // Browse -> krok 5
+
+    changeDaysViaSettings(4);
+    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 4).length);
+    for (const card of browseCards()) expect(card).toContain('4×');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Plany na 4 dni w tygodniu');
+  });
+
   it('niezmiennik: bez initial (onboarding od zera) domyslne beginner / build_muscle / 4 dni', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
     fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
@@ -96,10 +123,25 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     expect(answersLine()).toBe('4 dni w tygodniu · Budowa masy · Początkujący');
   });
 
-  it('niezmiennik: startAtPrecision bez przejscia przez kroki - strzalka wstecz wychodzi z kreatora (onExitBack)', () => {
+  it('X32: replan z initial startuje na kroku 2 z zaznaczonym profilem; strzalka wstecz z kroku 2 wychodzi z kreatora (onExitBack)', () => {
     const onExitBack = vi.fn();
-    render(withProviders(<PlanWizard startAtPrecision initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} onExitBack={onExitBack} />));
+    render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} onExitBack={onExitBack} />));
+
+    expect(screen.getByText('02 / 05')).toBeTruthy();
+    expect(screen.getByText('Średnio zaawansowany').closest('button')!.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByText(/polecamy plan/)).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
     expect(onExitBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('X32: strzalka wstecz z kroku 5 wraca do kroku 4 (nie wychodzi z kreatora)', () => {
+    const onExitBack = vi.fn();
+    render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} onExitBack={onExitBack} />));
+    confirmProfileToStep5();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+    expect(screen.getByText('Ile dni treningowych w tygodniu?')).toBeTruthy();
+    expect(onExitBack).not.toHaveBeenCalled();
   });
 });

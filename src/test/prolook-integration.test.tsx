@@ -332,28 +332,35 @@ describe('F2: kontekst Strava niepołączona', () => {
 // ── F3: hero kart szablonów w Browse plans ─────────────────────────────────
 
 describe('F3: karty szablonów z hero (PlanWizard, Browse plans)', () => {
+  // X32: kreator bez Welcome startuje od kroku 2 (startAtPrecision usuniete),
+  // a Browse pokazuje tylko szablony o liczbie dni z kroku 4 (domyślnie 4).
+  const visibleTemplates = planTemplates.filter((tpl) => tpl.daysPerWeek === 4);
   const openBrowse = () => {
-    renderPage(<PlanWizard startAtPrecision confirmLabelKey="newplan.toReview" onConfirm={() => {}} />);
+    renderPage(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
   };
 
   it('każda karta szablonu renderuje hero z public/plan-templates/<id>.webp', () => {
     openBrowse();
-    for (const tpl of planTemplates) {
+    expect(visibleTemplates.length).toBeGreaterThan(0);
+    for (const tpl of visibleTemplates) {
       expect(
         document.querySelector(`img[src="${getPlanTemplateImageUrl(tpl.id)}"]`),
         `hero ${tpl.id}`,
       ).not.toBeNull();
     }
     // Obrazy dekoracyjne: alt="" + lazy.
-    const first = document.querySelector(`img[src="${getPlanTemplateImageUrl(planTemplates[0].id)}"]`)!;
+    const first = document.querySelector(`img[src="${getPlanTemplateImageUrl(visibleTemplates[0].id)}"]`)!;
     expect(first.getAttribute('alt')).toBe('');
     expect(first.getAttribute('loading')).toBe('lazy');
   });
 
   it('onError: karta wraca do dotychczasowego wyglądu (bez zepsutego img), treść zostaje', () => {
     openBrowse();
-    const tpl = planTemplates[0];
+    const tpl = visibleTemplates[0];
     const img = document.querySelector(`img[src="${getPlanTemplateImageUrl(tpl.id)}"]`)!;
     fireEvent.error(img);
     expect(document.querySelector(`img[src="${getPlanTemplateImageUrl(tpl.id)}"]`)).toBeNull();

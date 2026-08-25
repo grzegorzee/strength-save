@@ -118,6 +118,36 @@ describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', 
   });
 });
 
+// X32 (zgłoszenie właściciela: "najpierw nazwa planu, dopiero potem 'przeglądaj
+// plany' — dziwna kolejność"): krok 5 = nagłówek + rekomendacja + odpowiedzi +
+// "Zmień ustawienia", OD RAZU pod tym "Przeglądaj plany" / "Ułóż własny",
+// dopiero potem nazwa, długość, tydzień startu, na końcu CTA.
+describe('krok 5: kolejność bloków (X32)', () => {
+  const precedes = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it('Przeglądaj plany / Ułóż własny stoją pod podsumowaniem odpowiedzi, PRZED nazwą planu; CTA na końcu', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToStep5();
+
+    const answers = screen.getByTestId('ob-precision-answers');
+    const change = screen.getByRole('button', { name: /Zmień ustawienia/ });
+    const browse = screen.getByRole('button', { name: /Przeglądaj plany/ });
+    const own = screen.getByRole('button', { name: /Ułóż własny/ });
+    const name = screen.getByTestId('ob-plan-name');
+    const duration = screen.getByTestId('template-duration-picker');
+    const startWeek = screen.getByTestId('ob-start-week-chips');
+    const cta = screen.getByRole('button', { name: /Podgląd planu/ });
+
+    expect(precedes(answers, change)).toBe(true);
+    expect(precedes(change, browse)).toBe(true);
+    expect(precedes(browse, own)).toBe(true);
+    expect(precedes(own, name)).toBe(true);
+    expect(precedes(name, duration)).toBe(true);
+    expect(precedes(duration, startWeek)).toBe(true);
+    expect(precedes(startWeek, cta)).toBe(true);
+  });
+});
+
 describe('krok protokołu: nagłówek dni treningowych + notatka o elastyczności (T1)', () => {
   it('nagłówek pyta o dni TRENINGOWE, a notatka o późniejszej zmianie planu jest widoczna', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));

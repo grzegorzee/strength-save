@@ -2493,7 +2493,10 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.tag.strength': 'Strength',
   'ob.tag.power': 'Power',
   'ob.tag.conditioning': 'Conditioning',
-  'ob.browse.title': 'All plans',
+  // X32: Browse pokazuje tylko szablony o liczbie dni z kroku 4; pula zastępcza (+-1 dnia) jawnie oznaczona.
+  'ob.browse.titleDays': 'Plans for {days} days a week ({count})',
+  'ob.browse.nearestTitle': 'Closest plans ({count})',
+  'ob.browse.nearestNote': 'No plan for {days} days a week, showing the closest ones.',
   'ob.browse.desc': 'Pick any plan to preview the details.',
   'ob.browse.wk': 'w',
   'ob.browse.recommendedBadge': 'Recommended',
