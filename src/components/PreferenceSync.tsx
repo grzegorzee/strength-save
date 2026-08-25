@@ -6,10 +6,14 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { applyAccent, hasStoredAccent, storeAccentId } from '@/lib/accent-theme';
 import { deriveAccentFromAvatar, shouldAutoDeriveAccent } from '@/lib/avatar-accent';
+import { normalizeRestSettings, saveRestSettings } from '@/lib/rest-timer';
+import { buildMigratedRestSettings, toRestPreference } from '@/lib/rest-preferences';
 
-// Synchronizacja preferencji (jednostki, język, timer, dźwięk) z users/{uid}.preferences.
+// Synchronizacja preferencji (jednostki, język, przerwy, dźwięk) z users/{uid}.preferences.
 // localStorage zostaje cache per urządzenie; chmura jest źródłem prawdy między web i iOS.
 // Cloud → local: raz po załadowaniu profilu. Local → cloud: przy każdej zmianie unit/lang.
+// X35b: przerwy = preferences.rest (obiekt RestSettings); zapis local → cloud robi
+// persistRestSettings (RestSettingsCard / WorkoutSettingsSheet), nie ten komponent.
 export const PreferenceSync = () => {
   const { uid, profile } = useCurrentUser();
   const { unit, setUnit } = useUnit();
@@ -24,10 +28,23 @@ export const PreferenceSync = () => {
     if (prefs?.unit && prefs.unit !== unit) setUnit(prefs.unit);
     if (prefs?.language && prefs.language !== lang) setLang(prefs.language);
     try {
-      if (typeof prefs?.restTimerSec === 'number') localStorage.setItem('rest-timer-default', String(prefs.restTimerSec));
       if (typeof prefs?.timerSound === 'boolean') localStorage.setItem('timer-sound-enabled', String(prefs.timerSound));
     } catch {
       // localStorage niedostępny — preferencje i tak działają w tej sesji
+    }
+    // X35b: przerwy. Chmura ma preferences.rest -> cache. Brak pola -> migracja
+    // RAZ z legacy restTimerSec albo z cache tego urządzenia (custom: true, żeby
+    // start cyklu nie nadpisał świadomego wyboru); świeży user bez zapisów = nic.
+    if (prefs?.rest && typeof prefs.rest === 'object') {
+      saveRestSettings(normalizeRestSettings(prefs.rest));
+    } else if (uid) {
+      const migrated = buildMigratedRestSettings(prefs);
+      if (migrated) {
+        saveRestSettings(migrated);
+        updateDoc(doc(db, 'users', uid), { 'preferences.rest': toRestPreference(migrated) }).catch(() => {
+          // offline — cache wystarczy, następny zapis przerw dosynchronizuje
+        });
+      }
     }
     // X29 WP-H: automat akcentu z avatara — TYLKO gdy user nie ma ŻADNEGO
     // wyboru (brak mirroru w profilu ORAZ brak wpisu w localStorage). Fire &

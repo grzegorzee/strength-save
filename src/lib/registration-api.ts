@@ -5,6 +5,7 @@ import type { OnboardingAnswers, TrainingProfileSnapshot } from "@/lib/onboardin
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
 import { callProtectedFunction } from "@/lib/protected-callable";
+import type { RestSettings } from "@/lib/rest-timer";
 
 const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
 
@@ -87,7 +88,10 @@ export interface AppUserProfile {
   preferences?: {
     unit?: 'kg' | 'lbs';
     language?: LanguageCode;
+    /** Legacy (do X35a), tylko do odczytu — patrz `rest`. */
     restTimerSec?: number;
+    /** X35b: jedno źródło prawdy o przerwach (RestSettings). */
+    rest?: Partial<RestSettings>;
     timerSound?: boolean;
   };
 }

@@ -1,20 +1,33 @@
 // Zgłoszenie usera po treningu 2026-07-20: „możliwość ustawiania domyślnej przerwy
 // między seriami w ustawieniach i domyślnej przerwy między ćwiczeniami".
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 // Z177: RestSettingsCard → timer-sound → global-error-telemetry ciągnie Firebase
 // (Auth pada w jsdom) — mock jak w timer-sound.test.ts.
 vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
+// X35b: karta pisze preferences.rest przez persistRestSettings (Firestore) i czyta
+// cel planu z profilu — mocki jak w profile-sections.test.tsx.
+const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
+vi.mock('@/lib/firebase', () => ({ db: {} }));
+const userFixture = vi.hoisted(() => ({
+  profile: {} as Record<string, unknown>,
+}));
+vi.mock('@/contexts/UserContext', () => ({
+  useCurrentUser: () => ({ uid: 'u1', profile: userFixture.profile, isAdmin: false }),
+}));
 
 import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { loadRestSettings, saveRestSettings, DEFAULT_REST_SETTINGS, resolveRestSeconds } from '@/lib/rest-timer';
 import { loadTimerVolume, saveTimerVolume } from '@/lib/timer-volume';
 
 beforeEach(() => {
+  vi.clearAllMocks();
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
+  userFixture.profile = { displayName: 'Tester' };
 });
 
 const renderCard = () => render(
@@ -92,6 +105,54 @@ describe('RestSettingsCard', () => {
     saveTimerVolume(0.4);
     renderCard();
     expect((screen.getByTestId('rest-volume-slider') as HTMLInputElement).value).toBe('40');
+  });
+});
+
+// X35b: jedno źródło prawdy (preferences.rest) + polecane wg celu planu.
+describe('RestSettingsCard: preferences.rest + polecane dla planu (X35b)', () => {
+  it('ręczna zmiana pisze preferences.rest z custom: true (cache + chmura)', async () => {
+    renderCard();
+    fireEvent.click(screen.getByTestId('rest-preset-working-120'));
+    expect(loadRestSettings()).toMatchObject({ workingSeconds: 120, custom: true });
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      'preferences.rest': expect.objectContaining({ workingSeconds: 120, custom: true, perExercise: {} }),
+    }));
+  });
+
+  it('bez celu planu w profilu: brak wiersza "polecane" i przycisku przywracania', () => {
+    renderCard();
+    expect(screen.queryByTestId('rest-recommended-hint')).toBeNull();
+    expect(screen.queryByTestId('rest-restore-recommended')).toBeNull();
+    expect(screen.getByTestId('rest-current-working').textContent).toBe('1:30');
+  });
+
+  it('cel redukcja + wartości domyślne 90 s: pokazuje "Polecane dla Twojego planu: 60 s" i przywraca 60/90/30', async () => {
+    userFixture.profile = { displayName: 'Tester', trainingProfile: { objective: 'fat_loss' } };
+    renderCard();
+    expect(screen.getByTestId('rest-recommended-hint').textContent).toBe('Polecane dla Twojego planu: 60 s');
+    fireEvent.click(screen.getByTestId('rest-restore-recommended'));
+    expect(loadRestSettings()).toMatchObject({
+      workingSeconds: 60, betweenExercisesSeconds: 90, warmupSeconds: 30, custom: false,
+    });
+    expect((screen.getByLabelText(/Przerwa między seriami/i) as HTMLInputElement).value).toBe('60');
+    expect(screen.getByTestId('rest-recommended-hint').textContent).toBe('Używasz polecanych czasów dla Twojego planu.');
+    expect(screen.queryByTestId('rest-restore-recommended')).toBeNull();
+    await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      'preferences.rest': expect.objectContaining({ workingSeconds: 60, custom: false }),
+    }));
+  });
+
+  it('custom true przy wartościach równych polecanym: badge "Własne" + przycisk czyści flagę', () => {
+    userFixture.profile = { displayName: 'Tester', trainingProfile: { objective: 'peak_strength' } };
+    saveRestSettings({ workingSeconds: 180, betweenExercisesSeconds: 240, warmupSeconds: 90, perExercise: { przysiad: 300 }, custom: true });
+    renderCard();
+    expect(screen.getByText('Własne')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('rest-restore-recommended'));
+    const saved = loadRestSettings();
+    expect(saved.custom).toBe(false);
+    // Nadpisania per ćwiczenie to osobna decyzja usera — zostają.
+    expect(saved.perExercise).toEqual({ przysiad: 300 });
+    expect(screen.queryByText('Własne')).toBeNull();
   });
 });
 

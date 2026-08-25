@@ -12,7 +12,9 @@ import {
 } from '@/components/ui/select';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
-import { REST_TIMER_KEY, SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
+import { SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
+import { loadRestSettings } from '@/lib/rest-timer';
+import { persistRestSettings } from '@/lib/rest-preferences';
 
 interface WorkoutSettingsSheetProps {
   open: boolean;
@@ -24,14 +26,16 @@ interface WorkoutSettingsSheetProps {
  * z ekranu treningu (zębatka przy RestBar). TE SAME klucze zapisu co Profil
  * (localStorage + preferences.* w Firestore) — nowy punkt wejścia, zero zmian
  * w istniejącej logice zapisu (zasada #5).
+ *
+ * X35b: przerwa robocza czyta/pisze JEDNO źródło prawdy (preferences.rest przez
+ * persistRestSettings, cache localStorage) — to samo co RestSettingsCard.
+ * Ręczna zmiana tutaj = `custom: true` (start cyklu nie nadpisze).
  */
 export const WorkoutSettingsSheet = ({ open, onOpenChange }: WorkoutSettingsSheetProps) => {
   const { uid } = useCurrentUser();
   const { t } = useTranslation();
 
-  const [restTimer, setRestTimer] = useState(() => {
-    try { return localStorage.getItem(REST_TIMER_KEY) || '90'; } catch { return '90'; }
-  });
+  const [restTimer, setRestTimer] = useState(() => String(loadRestSettings().workingSeconds));
   const [sound, setSound] = useState(() => {
     try { return localStorage.getItem(SOUND_KEY) !== 'false'; } catch { return true; }
   });
@@ -41,7 +45,7 @@ export const WorkoutSettingsSheet = ({ open, onOpenChange }: WorkoutSettingsShee
   // każdym otwarciu, żeby oba punkty wejścia zawsze pokazywały ten sam stan.
   useEffect(() => {
     if (!open) return;
-    try { setRestTimer(localStorage.getItem(REST_TIMER_KEY) || '90'); } catch { /* zostaje stan */ }
+    setRestTimer(String(loadRestSettings().workingSeconds));
     try { setSound(localStorage.getItem(SOUND_KEY) !== 'false'); } catch { /* zostaje stan */ }
     setTimersOn(FEATURE_FLAGS.workoutTimers);
   }, [open]);
@@ -58,15 +62,21 @@ export const WorkoutSettingsSheet = ({ open, onOpenChange }: WorkoutSettingsShee
     setTimersOn(value);
   };
   const handleRestChange = (v: string) => {
+    const seconds = parseInt(v, 10);
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
     setRestTimer(v);
-    persist(REST_TIMER_KEY, v);
-    persistPreference({ 'preferences.restTimerSec': parseInt(v, 10) || 90 });
+    void persistRestSettings(uid, { ...loadRestSettings(), workingSeconds: seconds, custom: true });
   };
   const handleSound = (v: boolean) => {
     setSound(v);
     persist(SOUND_KEY, String(v));
     persistPreference({ 'preferences.timerSound': v });
   };
+
+  // Wartość spoza siatki (np. 75 s z celu "atletyka") musi być widoczna w Select.
+  const restOptions = REST_OPTIONS.includes(restTimer)
+    ? REST_OPTIONS
+    : [...REST_OPTIONS, restTimer].sort((a, b) => Number(a) - Number(b));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -88,7 +98,7 @@ export const WorkoutSettingsSheet = ({ open, onOpenChange }: WorkoutSettingsShee
               <Select value={restTimer} onValueChange={handleRestChange}>
                 <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest" aria-label={t('profile.pref.restTimer')}><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {REST_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
+                  {restOptions.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
                 </SelectContent>
               </Select>
             )}

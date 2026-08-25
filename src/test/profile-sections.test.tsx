@@ -10,6 +10,8 @@ import { UnitProvider } from '@/contexts/UnitContext';
 
 // Vite define nie działa w vitest bez wpisu w configu — stub lokalny.
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
+// X35b: RestSettingsCard → timer-sound → global-error-telemetry ciągnie Firebase Auth (jsdom pada).
+vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
 
 const firestoreFixture = vi.hoisted(() => ({
   updateDoc: vi.fn(async () => {}),
@@ -76,6 +78,8 @@ vi.mock('@/lib/push-notifications', () => ({
 
 import Profile from '@/pages/Profile';
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
+import { RestSettingsCard } from '@/components/RestSettingsCard';
+import { loadRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { readWorkoutTimersSetting } from '@/lib/workout-timers-setting';
 
 const renderProfile = () =>
@@ -356,16 +360,28 @@ describe('krok 5: potwierdzenie resetu hasła', () => {
 // Krok 6 (spec 2026-08-11): skrót w treningu pisze i czyta TE SAME klucze co
 // Profil (localStorage + preferences.* w Firestore) — test SEKWENCJI obu kierunków.
 describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () => {
-  it('zmiana domyślnej przerwy w sheet → localStorage + preferences.restTimerSec + widoczna w Profilu', async () => {
+  // X35b: jedno źródło prawdy o przerwach = preferences.rest (cache
+  // fittracker_rest_settings_v1). Sheet i RestSettingsCard czytają loadRestSettings;
+  // legacy preferences.restTimerSec nie jest już pisane.
+  it('zmiana domyślnej przerwy w sheet → cache RestSettings + preferences.rest (custom) + widoczna w RestSettingsCard', async () => {
     const sheet = renderSheet();
     fireEvent.click(sheet.getByLabelText('Domyślny czas odpoczynku'));
     fireEvent.click(await sheet.findByText('120s'));
-    expect(localStorage.getItem('rest-timer-default')).toBe('120');
-    expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(expect.anything(), { 'preferences.restTimerSec': 120 });
+    expect(loadRestSettings()).toMatchObject({ workingSeconds: 120, custom: true });
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(expect.anything(), {
+      'preferences.rest': expect.objectContaining({ workingSeconds: 120, custom: true }),
+    }));
+    expect(firestoreFixture.updateDoc).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ 'preferences.restTimerSec': expect.anything() }));
     sheet.unmount();
 
-    const profil = renderProfile();
-    expect(profil.getByLabelText('Domyślny czas odpoczynku').textContent).toContain('120');
+    const card = render(<LanguageProvider><RestSettingsCard /></LanguageProvider>);
+    expect((card.getByLabelText(/Przerwa między seriami/i) as HTMLInputElement).value).toBe('120');
+  });
+
+  it('wartość spoza siatki (75 s z celu atletyka) jest widoczna w Select sheeta, nie znika', () => {
+    saveRestSettings({ workingSeconds: 75, betweenExercisesSeconds: 120, warmupSeconds: 45, perExercise: {}, custom: false });
+    const sheet = renderSheet();
+    expect(sheet.getByLabelText('Domyślny czas odpoczynku').textContent).toContain('75');
   });
 
   it('wyłączenie dźwięku w sheet → localStorage + preferences.timerSound + widoczne w Profilu', () => {
