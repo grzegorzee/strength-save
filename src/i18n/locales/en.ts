@@ -40,6 +40,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nav.progress': 'Progress',
   'nav.cycles': 'Cycles',
   'nav.settings': 'Settings',
+  'nav.back': 'Back',
   'nav.measurements': 'Body measurements',
   'empty.startFirstWorkout': 'Start your first workout',
 
@@ -997,7 +998,13 @@ export const en: Record<keyof typeof pl, string> = {
   'rest.keepAwake': 'Keep screen on during workout',
   'rest.keepAwakeHint': 'The screen stays on until the workout ends. Uses more battery, but sound and timer always work.',
   'rest.settings.title': 'Rest between sets',
-  'rest.settings.desc': 'How long the countdown runs after you check a set (saved on this device).',
+  'rest.settings.desc': 'How long the countdown runs after you check a set (saved to your account, same on every device).',
+  // X35b: przerwy wg celu planu (polecane vs własne).
+  'rest.settings.currentLabel': 'Your working rest',
+  'rest.settings.recommended': 'Recommended for your plan: {seconds} s',
+  'rest.settings.recommendedActive': 'You are using the recommended times for your plan.',
+  'rest.settings.customBadge': 'Custom',
+  'rest.settings.restoreRecommended': 'Restore recommended',
   'rest.settings.betweenSets': 'Rest between sets',
   'rest.settings.betweenExercises': 'Rest between exercises',
   'rest.settings.afterWarmup': 'Rest after warm-up',

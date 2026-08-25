@@ -613,3 +613,99 @@ describe('skippedDates z kreatora (X34b)', () => {
     expect('skippedDates' in (without.mock.calls[0][1] as Record<string, unknown>)).toBe(false);
   });
 });
+
+// X35b: przerwy wg celu planu po udanym starcie cyklu (decyzja wlasciciela:
+// peak_strength 180, build_muscle 120, fat_loss 60, athletic 75). Wstrzykiwane
+// deps.restDefaults; custom === true = user ustawil wlasne, nie ruszamy.
+describe('X35b: przerwy wg celu po starcie cyklu (deps.restDefaults)', () => {
+  const baseRest = { workingSeconds: 90, betweenExercisesSeconds: 150, warmupSeconds: 45, perExercise: {} };
+  type RestDeps = { current: (typeof baseRest & { custom?: boolean }) | undefined; save: ReturnType<typeof vi.fn> };
+  const replanDeps = (restDefaults: RestDeps, objective: 'peak_strength' | 'fat_loss' | 'build_muscle' | 'athletic') => ({
+    uid: 'u1',
+    currentPlan: [],
+    planStartDate: null,
+    planDurationWeeks: 8,
+    workouts: [],
+    startDate: '2026-06-10',
+    choice: buildPlanCycleChoice(
+      { level: 'beginner', objective, daysPerWeek: 3, trainingDays: ['monday'], templateId: 'tpl-x' },
+      'replan',
+      new Date('2026-08-25T10:30:00.000Z'),
+    ),
+    archiveCurrentPlan: vi.fn(),
+    savePlan: vi.fn().mockResolvedValue({ success: true }),
+    createActiveCycle: vi.fn().mockResolvedValue('new-cycle-id'),
+    backfillHistoricalWorkouts: vi.fn(),
+    restDefaults,
+  });
+
+  it('onboarding z celem redukcja -> preferences.rest 60 / 90 / 30, custom false', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const result = await completeOnboardingPlan(
+      { days, durationWeeks: 8, startDate: '2026-06-10', level: 'beginner', objective: 'fat_loss', daysPerWeek: 3 },
+      {
+        savePlan: vi.fn().mockResolvedValue({ success: true }),
+        createActiveCycle: vi.fn().mockResolvedValue('cycle-1'),
+        markOnboardingComplete: vi.fn().mockResolvedValue(undefined),
+        restDefaults: { current: undefined, save },
+      },
+    );
+    expect(result.success).toBe(true);
+    expect(save).toHaveBeenCalledWith({
+      workingSeconds: 60, betweenExercisesSeconds: 90, warmupSeconds: 30, perExercise: {}, custom: false,
+    });
+  });
+
+  it('replan na sile -> 180 / 240 / 90 (polecane z poprzedniego celu nadpisane)', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const result = await startCycleWithPlan(days, 8, replanDeps({ current: { ...baseRest, workingSeconds: 60, custom: false }, save }, 'peak_strength'));
+    expect(result.success).toBe(true);
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ workingSeconds: 180, betweenExercisesSeconds: 240, warmupSeconds: 90, custom: false }));
+  });
+
+  it('user z wlasnymi przerwami (custom true) -> bez zmian, save nie wolane', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    await startCycleWithPlan(days, 8, replanDeps({ current: { ...baseRest, workingSeconds: 100, custom: true }, save }, 'fat_loss'));
+    expect(save).not.toHaveBeenCalled();
+
+    const saveOnb = vi.fn().mockResolvedValue(undefined);
+    await completeOnboardingPlan(
+      { days, durationWeeks: 8, startDate: '2026-06-10', level: 'beginner', objective: 'fat_loss', daysPerWeek: 3 },
+      {
+        savePlan: vi.fn().mockResolvedValue({ success: true }),
+        createActiveCycle: vi.fn().mockResolvedValue('cycle-1'),
+        markOnboardingComplete: vi.fn().mockResolvedValue(undefined),
+        restDefaults: { current: { ...baseRest, custom: true }, save: saveOnb },
+      },
+    );
+    expect(saveOnb).not.toHaveBeenCalled();
+  });
+
+  it('nieudany start (createActiveCycle null) -> przerwy nietkniete', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const deps = replanDeps({ current: undefined, save }, 'fat_loss');
+    deps.createActiveCycle = vi.fn().mockResolvedValue(null);
+    const result = await startCycleWithPlan(days, 8, deps);
+    expect(result.success).toBe(false);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('awaria zapisu przerw nie cofa startu cyklu (best-effort)', async () => {
+    const save = vi.fn().mockRejectedValue(new Error('offline'));
+    const result = await startCycleWithPlan(days, 8, replanDeps({ current: undefined, save }, 'athletic'));
+    expect(result.success).toBe(true);
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ workingSeconds: 75 }));
+  });
+
+  it('NIEZMIENNIK: bez choice (Powtorz plan, przedluzenie) albo bez restDefaults nic sie nie dzieje', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const noChoice = replanDeps({ current: undefined, save }, 'fat_loss');
+    delete (noChoice as { choice?: unknown }).choice;
+    await startCycleWithPlan(days, 8, noChoice);
+    expect(save).not.toHaveBeenCalled();
+
+    const noDeps = replanDeps({ current: undefined, save }, 'fat_loss');
+    delete (noDeps as { restDefaults?: unknown }).restDefaults;
+    await expect(startCycleWithPlan(days, 8, noDeps)).resolves.toEqual({ success: true });
+  });
+});

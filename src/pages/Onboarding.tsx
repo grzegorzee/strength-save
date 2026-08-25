@@ -18,6 +18,7 @@ import {
 import { recordConsents } from '@/lib/consents-api';
 import { readStoredAccentId } from '@/lib/accent-theme';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
+import { restDefaultsDeps } from '@/lib/rest-preferences';
 import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
 import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { buildPlanEventEmitter } from '@/lib/user-events';
@@ -110,6 +111,8 @@ const Onboarding = () => {
       // WP-6 (X33): te same odpowiedzi trafiają NA pierwszy cykl (entry onboarding).
       choice: buildPlanCycleChoice(confirmed, 'onboarding'),
       emitPlanEvent: buildPlanEventEmitter(uid),
+      // X35b: przerwy polecane dla celu (redukcja 60 s, siła 180 s...), chyba że custom.
+      restDefaults: restDefaultsDeps(uid),
       markOnboardingComplete: async (_choice, _days, planStartDate) => {
         // Plan I: kolor wybrany na Welcome (albo domyślna limonka) do mirroru
         // cross-device — zawsze jedno pole, czytane w momencie zapisu.
