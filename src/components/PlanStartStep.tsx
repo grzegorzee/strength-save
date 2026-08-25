@@ -73,7 +73,9 @@ export const PlanStartStep = ({
         <div className="rounded-2xl bg-surface-low p-4" data-testid="ob-first-workout">
           <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.start.firstWorkout')}</p>
           <p className="mb-2 text-[12px] text-muted-foreground">{t('ob.start.firstWorkoutHint')}</p>
-          <div className="flex gap-2 overflow-x-auto pb-1" data-testid="ob-first-workout-chips">
+          {/* X35a WP-A: 8 chipow w siatce 4x2 (wszystkie widoczne na 393 px, bez
+              przewijania w bok); chip wypelnia kolumne zamiast stalego w-16. */}
+          <div className="grid grid-cols-4 gap-2" data-testid="ob-first-workout-chips">
             {firstWorkoutOptions.map((iso) => {
               const date = parseLocalDateSafe(iso);
               const on = iso === firstWorkoutDate;
@@ -85,7 +87,7 @@ export const PlanStartStep = ({
                   aria-pressed={on}
                   data-date={iso}
                   onClick={() => onFirstWorkoutChange(iso)}
-                  className={cn('flex w-16 shrink-0 touch-manipulation select-none flex-col items-center rounded-full py-2 transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
+                  className={cn('flex touch-manipulation select-none flex-col items-center rounded-full py-2 transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
                 >
                   <span className="text-[10px] font-medium uppercase">
                     {isToday ? t('ob.start.today') : date ? date.toLocaleDateString(dateLocale(lang), { weekday: 'short' }) : '-'}
