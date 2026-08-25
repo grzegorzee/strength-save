@@ -84,8 +84,12 @@ const BROWSE_CHIPS: { value: PlanObjective | 'all'; labelKey: TranslationKey }[]
   { value: 'athletic', labelKey: 'ob.browse.chipAthletic' },
 ];
 
-// X33 WP-1: czas przerywnika "Dobieram plany" po Dalej w kroku 4.
-export const MATCHING_INTERSTITIAL_MS = 900;
+// X33 WP-1 / X34: przerywnik "Dobieram plany" po Dalej w kroku 4 trwa 3,5 s
+// (ma wyglądać na realne dobieranie); trzy wiersze Poziom / Cel / Częstotliwość
+// pojawiają się kolejno co 0,7 s, pasek wypełnia się przez cały czas.
+export const MATCHING_INTERSTITIAL_MS = 3500;
+export const MATCHING_ROW_STEP_MS = 700;
+const MATCHING_ROWS = 3;
 
 const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBack?: () => void }) => {
   const { t } = useTranslation();
@@ -327,10 +331,15 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // przez "Zmień ustawienia"/strzałkę i wznowienie szkicu go pomijają).
   const [matching, setMatching] = useState(false);
   const [matchingShown, setMatchingShown] = useState(Boolean(resume));
+  // X34: liczba widocznych wierszy przerywnika (0..3), kolejne co MATCHING_ROW_STEP_MS.
+  const [matchingRows, setMatchingRows] = useState(0);
   useEffect(() => {
     if (!matching) return;
-    const id = window.setTimeout(() => setMatching(false), MATCHING_INTERSTITIAL_MS);
-    return () => window.clearTimeout(id);
+    setMatchingRows(0);
+    const rowIds = Array.from({ length: MATCHING_ROWS }, (_, i) =>
+      window.setTimeout(() => setMatchingRows(i + 1), (i + 1) * MATCHING_ROW_STEP_MS));
+    const endId = window.setTimeout(() => setMatching(false), MATCHING_INTERSTITIAL_MS);
+    return () => { rowIds.forEach((id) => window.clearTimeout(id)); window.clearTimeout(endId); };
   }, [matching]);
   // X33 WP-5: zmiana kroku/trybu = scroll na górę (zgłoszenie właściciela:
   // krok 5 otwierał się przewinięty w dół po długim kroku 4).
@@ -620,19 +629,32 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
         {step === 5 && mode === 'recommend' && (
           <>
             <StepHeader step={5} total={6} onBack={() => setStep(4)} />
-            {/* X33 WP-1: przerywnik "Dobieram plany" (ok. 900 ms) jako nakładka nad
-                gotowym ekranem 5A; pasek = istniejąca animacja boot-progress. */}
+            {/* X33 WP-1 / X34: przerywnik "Dobieram plany" (3,5 s) jako nakładka nad
+                gotowym ekranem 5A; wiersze wchodzą kolejno, pasek wypełnia się
+                przez cały czas (ss-match-fill w index.css). Zasada 7: nic tu nie
+                jest zaznaczalne. */}
             {matching && (
               <div data-testid="ob-matching" role="status" aria-live="polite" className="fixed inset-0 z-50 flex select-none items-center justify-center bg-background px-6">
                 <div className="w-full max-w-sm rounded-2xl bg-surface-low p-6">
                   <p className="font-heading text-2xl font-bold">{t('ob.matching.title')}</p>
-                  <dl className="mt-4 space-y-2 text-[14px]">
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.matching.level')}</dt><dd className="font-medium">{t(LEVEL_LABEL_KEY[level])}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.matching.objective')}</dt><dd className="font-medium">{t(OBJECTIVE_LABEL_KEY[objective])}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.precision.frequency')}</dt><dd className="font-medium">{daysPerWeek} {t('ob.precision.daysWk')}</dd></div>
+                  <dl className="mt-4 min-h-[5.5rem] space-y-2 text-[14px]">
+                    {([
+                      [t('ob.matching.level'), t(LEVEL_LABEL_KEY[level])],
+                      [t('ob.matching.objective'), t(OBJECTIVE_LABEL_KEY[objective])],
+                      [t('ob.precision.frequency'), `${daysPerWeek} ${t('ob.precision.daysWk')}`],
+                    ] as const).slice(0, matchingRows).map(([label, value]) => (
+                      <div key={label} data-testid="ob-matching-row" className="flex justify-between gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                      </div>
+                    ))}
                   </dl>
                   <div className="mt-5 h-1 overflow-hidden rounded-full bg-surface-highest">
-                    <span className="boot-progress-indicator block h-full w-1/3 rounded-full bg-primary" />
+                    <span
+                      data-testid="ob-matching-bar"
+                      className="ss-match-fill block h-full rounded-full bg-primary"
+                      style={{ animationDuration: `${MATCHING_INTERSTITIAL_MS}ms` }}
+                    />
                   </div>
                 </div>
               </div>

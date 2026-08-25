@@ -15,7 +15,7 @@ import { localizePlanName } from '@/lib/plan-i18n';
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
-import { MATCHING_INTERSTITIAL_MS, PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
+import { MATCHING_INTERSTITIAL_MS, MATCHING_ROW_STEP_MS, PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 
 const withProviders = (node: React.ReactNode) => (
   <LanguageProvider>
@@ -189,20 +189,34 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
   });
 });
 
-describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4', () => {
+describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4 (X34: 3,5 s, wiersze kolejno co 0,7 s)', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('pokazuje Poziom / Cel / Czestotliwosc, potem znika; powrot strzalka do kroku 4 i Dalej go pomija', () => {
+  it('3,5 s: pasek od razu, Poziom / Cel / Czestotliwosc pojawiaja sie kolejno co 0,7 s, potem znika; powrot strzalka do kroku 4 i Dalej go pomija', () => {
+    expect(MATCHING_INTERSTITIAL_MS).toBe(3500);
+    expect(MATCHING_ROW_STEP_MS).toBe(700);
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5(3, 'Redukcja');
 
-    const overlay = screen.getByTestId('ob-matching');
-    expect(within(overlay).getByText('Dobieram plany')).toBeInTheDocument();
-    act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS - 1); });
-    expect(within(screen.getByTestId('ob-matching')).getByText('Początkujący')).toBeInTheDocument();
-    expect(within(screen.getByTestId('ob-matching')).getByText('Redukcja')).toBeInTheDocument();
-    expect(within(screen.getByTestId('ob-matching')).getByText('3 dni/tydz')).toBeInTheDocument();
+    const overlay = () => screen.getByTestId('ob-matching');
+    const rows = () => within(overlay()).queryAllByTestId('ob-matching-row').map((r) => r.textContent ?? '');
+    expect(within(overlay()).getByText('Dobieram plany')).toBeInTheDocument();
+    expect(within(overlay()).getByTestId('ob-matching-bar')).toBeInTheDocument();
+    expect(rows()).toEqual([]);
+
+    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS - 1); });
+    expect(rows()).toEqual([]);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(rows()).toEqual(['PoziomPoczątkujący']);
+    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS); });
+    expect(rows()).toEqual(['PoziomPoczątkujący', 'CelRedukcja']);
+    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS); });
+    expect(rows()).toEqual(['PoziomPoczątkujący', 'CelRedukcja', 'Częstotliwość3 dni/tydz']);
+
+    act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS - 3 * MATCHING_ROW_STEP_MS - 1); });
+    expect(screen.getByTestId('ob-matching')).toBeInTheDocument();
+    expect(rows()).toHaveLength(3);
     act(() => { vi.advanceTimersByTime(1); });
     expect(screen.queryByTestId('ob-matching')).toBeNull();
     expect(cards()).toHaveLength(2);
@@ -224,6 +238,19 @@ describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4', () => {
     render(withProviders(<PlanWizard resume={resume} resumeStep={5} confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     expect(screen.queryByTestId('ob-matching')).toBeNull();
     expect(cards()).toHaveLength(2);
+  });
+
+  it('powrot z 6/6 na 5A nie odpala przerywnika ponownie (raz na przejscie kreatora)', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToStep5(4);
+    act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS); });
+    expect(screen.queryByTestId('ob-matching')).toBeNull();
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+    expect(screen.getByText('05 / 06')).toBeInTheDocument();
+    expect(screen.queryByTestId('ob-matching')).toBeNull();
+    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS); });
+    expect(screen.queryByTestId('ob-matching')).toBeNull();
   });
 });
 

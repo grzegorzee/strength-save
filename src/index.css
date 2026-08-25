@@ -11,6 +11,18 @@
   animation: boot-progress 1.1s ease-in-out infinite;
 }
 
+/* X34: pasek przerywnika "Dobieram plany" wypełnia się od 0 do 100% przez cały
+   czas nakładki (czas ustawiany inline z MATCHING_INTERSTITIAL_MS). */
+@keyframes ss-match-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.ss-match-fill {
+  width: 100%;
+  animation: ss-match-fill 3.5s linear forwards;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
