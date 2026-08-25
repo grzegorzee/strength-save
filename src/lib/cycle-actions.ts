@@ -6,6 +6,18 @@ import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { assignCycleDayIds, getCycleStartPreview } from '@/lib/plan-cycle-utils';
 import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-engine';
+import { sanitizeSkippedDates } from '@/lib/skipped-days';
+
+/** X34b: opcje savePlan wspólne dla startu cyklu i onboardingu (skippedDates razem z planem). */
+type SavePlanOptions = {
+  durationWeeks?: number;
+  startDate?: string;
+  syncActiveCycle?: boolean;
+  progression?: ProgressionConfig;
+  status?: 'active' | 'ended';
+  name?: string;
+  skippedDates?: string[];
+};
 
 export interface StartCycleDeps {
   uid: string;
@@ -28,6 +40,12 @@ export interface StartCycleDeps {
   /** WP-PLANS-2 (X27): nazwa planu zapisywana na training_plans (trim, max 60). */
   planName?: string;
   /**
+   * X34b: dni tygodnia startu przed datą pierwszego treningu (buildFirstWorkoutSchedule),
+   * zapisywane RAZEM z planem w tym samym savePlan. Brak = pole nietknięte
+   * (Powtórz plan, przedłużenie, auto-repair).
+   */
+  skippedDates?: string[];
+  /**
    * WP-6 (X33): odpowiedzi z kreatora zapisywane NA nowym cyklu (buildPlanCycleChoice,
    * entry 'replan'). Brak = cykl bez pola (Powtórz plan, przedłużenie, auto-repair).
    */
@@ -40,7 +58,7 @@ export interface StartCycleDeps {
     workouts: WorkoutSession[],
     opts?: { excludeCycleId?: string },
   ) => Promise<string | null>;
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: SavePlanOptions) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: CreateActiveCycleFn;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
@@ -73,11 +91,13 @@ export interface CompleteOnboardingChoice {
   daysPerWeek: number;
   /** WP-PLANS-2 (X27): nazwa planu z kroku 5 onboardingu (trim, max 60). */
   planName?: string;
+  /** X34b: dni tygodnia startu przed datą pierwszego treningu (zapis razem z planem). */
+  skippedDates?: string[];
 }
 
 export interface CompleteOnboardingDeps {
   lang?: LanguageCode;
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; name?: string }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: SavePlanOptions) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: CreateActiveCycleFn;
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
   /** WP-6 (X33): odpowiedzi z kreatora na pierwszym cyklu (buildPlanCycleChoice, entry 'onboarding'). */
@@ -158,6 +178,8 @@ export async function startCycleWithPlan(
     syncActiveCycle: false,
     status: 'active',
     ...(planName !== undefined ? { name: planName } : {}),
+    // X34b: pominięte dni tygodnia startu w tym samym zapisie co plan.
+    ...(deps.skippedDates !== undefined ? { skippedDates: sanitizeSkippedDates(deps.skippedDates) } : {}),
   });
   if (!result.success) return result;
 
@@ -228,6 +250,8 @@ export async function completeOnboardingPlan(
       progression: DEFAULT_PROGRESSION,
       // WP-PLANS-2 (X27): nazwa planu z kroku 5 (pusta = pole nie powstaje).
       ...(planName ? { name: planName } : {}),
+      // X34b: pominięte dni tygodnia startu w tym samym zapisie co plan.
+      ...(choice.skippedDates !== undefined ? { skippedDates: sanitizeSkippedDates(choice.skippedDates) } : {}),
     });
     if (!result.success) return result;
 

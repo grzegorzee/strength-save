@@ -30,7 +30,12 @@ const sanitizeWizardLevel = (level?: string): WizardLevel | undefined => {
 export interface PlanWizardChoice {
   days: TrainingDay[];
   durationWeeks: number;
-  startDate: string;        // surowa data (rodzic snapuje do poniedziałku)
+  /** Poniedziałek tygodnia pierwszego treningu (X34b); rodzic i tak snapuje do poniedziałku. */
+  startDate: string;
+  /** X34b: konkretny dzień pierwszego treningu wybrany na 6/6 (ISO); brak = stary szkic. */
+  firstWorkoutDate?: string;
+  /** X34b: dni treningowe tygodnia startu przed pierwszym treningiem (do training_plans.skippedDates). */
+  skippedDates?: string[];
   level: WizardLevel;
   objective: PlanObjective;
   daysPerWeek: number;

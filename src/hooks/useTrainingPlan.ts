@@ -231,7 +231,7 @@ export const useTrainingPlan = (userId: string) => {
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
-    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string },
+    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string; skippedDates?: string[] },
   ): Promise<{ success: boolean; error?: string }> => {
     if (!userId) return { success: false, error: t('err.noUserId') };
     // Zapis przed załadowaniem snapshotu nadpisałby istniejący plan domyślnym stanem
@@ -248,6 +248,8 @@ export const useTrainingPlan = (userId: string) => {
       const nextStatus = options?.status ?? planDocStatus;
       // WP-PLANS-2 (X27): mirror przenosi też nazwę planu.
       const nextName = options?.name !== undefined ? sanitizeTrainingPlanName(options.name) : planName;
+      // X34b: mirror przenosi skippedDates z kreatora (data pierwszego treningu).
+      const nextSkipped = options?.skippedDates !== undefined ? sanitizeSkippedDates(options.skippedDates) : skippedDates;
       // Z151: ta gałąź omija saveTrainingPlanWithRevision, więc niezmiennik id dni
       // aktywnego cyklu egzekwujemy tu tak samo — cykle z seamu e2e.
       let alignedPlan = newPlan;
@@ -270,6 +272,7 @@ export const useTrainingPlan = (userId: string) => {
           ...(Object.keys(nextOverrides).length > 0 ? { scheduleOverrides: nextOverrides } : {}),
           ...(nextStatus === 'ended' ? { status: 'ended' } : {}),
           ...(nextName ? { name: nextName } : {}),
+          ...(nextSkipped.length > 0 ? { skippedDates: nextSkipped } : {}),
         }));
       } catch { /* noop */ }
       setPlan(alignedPlan);
@@ -280,6 +283,7 @@ export const useTrainingPlan = (userId: string) => {
       setScheduleOverrides(nextOverrides);
       setPlanDocStatus(nextStatus);
       setPlanName(nextName);
+      setSkippedDates(nextSkipped);
       return { success: true };
     }
     try {
@@ -294,6 +298,7 @@ export const useTrainingPlan = (userId: string) => {
         ...(options?.progression !== undefined ? { progression: options.progression } : {}),
         ...(options?.status !== undefined ? { status: options.status } : {}),
         ...(options?.name !== undefined ? { name: options.name } : {}),
+        ...(options?.skippedDates !== undefined ? { skippedDates: options.skippedDates } : {}),
       });
 
       trackTelemetryEvent(userId, 'action_plan_edited');
@@ -308,7 +313,7 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, isLoaded, plan, scheduleOverrides, planDurationWeeks, planStartDate, planRevision, progression, planDocStatus, planName, t]);
+  }, [userId, isLoaded, plan, scheduleOverrides, planDurationWeeks, planStartDate, planRevision, progression, planDocStatus, planName, skippedDates, t]);
 
   /**
    * WP-PLANS-1 (X27): punktowy zapis cyklu życia planu (ended/reaktywacja),

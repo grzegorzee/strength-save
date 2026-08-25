@@ -181,3 +181,36 @@ describe('training plan name (WP-PLANS-2)', () => {
     expect(sanitizeTrainingPlanName(undefined)).toBeNull();
   });
 });
+
+// X34b: skippedDates (dni tygodnia startu przed pierwszym treningiem) ida w TEJ
+// SAMEJ transakcji co plan, nie osobnym updateDoc.
+describe('training plan skippedDates (X34b)', () => {
+  it('saveTrainingPlanWithRevision przepuszcza skippedDates przez transakcję (jeden set)', async () => {
+    transactionMock.sets.length = 0;
+    await saveTrainingPlanWithRevision({} as never, {
+      userId: 'u1',
+      newPlan: defaultPlan,
+      expectedRevision: 0,
+      durationWeeks: 12,
+      startDate: '2026-08-24',
+      skippedDates: ['2026-08-24', '2026-08-26'],
+    });
+
+    expect(transactionMock.sets).toHaveLength(1);
+    expect(transactionMock.sets[0].skippedDates).toEqual(['2026-08-24', '2026-08-26']);
+    expect(transactionMock.sets[0].startDate).toBe('2026-08-24');
+  });
+
+  it('bez skippedDates pole nie powstaje (merge zostawia stare; niezmiennik edycji planu)', async () => {
+    transactionMock.sets.length = 0;
+    await saveTrainingPlanWithRevision({} as never, {
+      userId: 'u1',
+      newPlan: defaultPlan,
+      expectedRevision: 0,
+      durationWeeks: 12,
+      startDate: '2026-08-24',
+    });
+
+    expect('skippedDates' in transactionMock.sets[0]).toBe(false);
+  });
+});

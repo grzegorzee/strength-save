@@ -39,6 +39,11 @@ export interface SaveTrainingPlanWithRevisionParams {
   status?: 'active' | 'ended';
   /** WP-PLANS-2 (X27): nazwa planu (trim/limit robi caller); undefined = nie ruszaj pola. */
   name?: string;
+  /**
+   * X34b: dni tygodnia startu przed pierwszym treningiem (sanityzacja robi
+   * caller); zapis w TEJ SAMEJ transakcji co plan. undefined = nie ruszaj pola.
+   */
+  skippedDates?: string[];
 }
 
 /**
@@ -111,6 +116,7 @@ export const saveTrainingPlanWithRevision = async (
       ...(params.progression !== undefined ? { progression: params.progression } : {}),
       ...(params.status !== undefined ? { status: params.status } : {}),
       ...(params.name !== undefined ? { name: params.name } : {}),
+      ...(params.skippedDates !== undefined ? { skippedDates: params.skippedDates } : {}),
       ...(shouldClearOverridesOnPlanSave(currentDays, alignedPlan) ? { scheduleOverrides: {} } : {}),
     }, { merge: true });
 
