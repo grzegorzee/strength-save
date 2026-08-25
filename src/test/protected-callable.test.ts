@@ -70,6 +70,26 @@ describe('callProtectedFunction', () => {
     await assertion;
   });
 
+  // Bug 35 (X30): pierwsze syncUserProfile na webie wyścigało się z
+  // asynchronicznym initem App Check (chunk firebase/app-check) — żądanie bez
+  // tokenu = permission-denied przy tworzeniu profilu. Chroniona ścieżka czeka
+  // na appCheckReady (promise z własnym limitem czasu w firebase.ts).
+  it('web: czeka na appCheckReady zanim wyśle żądanie', async () => {
+    let resolveReady: () => void = () => undefined;
+    mocks.appCheckReady = new Promise<void>((resolve) => { resolveReady = resolve; });
+    const fn = vi.fn(async () => ({ data: { ok: true } }));
+    mocks.httpsCallable.mockReturnValue(fn);
+
+    const call = callProtectedFunction('syncUserProfile', {});
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fn).not.toHaveBeenCalled();
+
+    resolveReady();
+    await expect(call).resolves.toEqual({ ok: true });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it('native (ios): deleguje do callNativeAttestedFunction, bez httpsCallable', async () => {
     mocks.platform = 'ios';
     mocks.callNativeAttestedFunction.mockResolvedValue({ ok: true });

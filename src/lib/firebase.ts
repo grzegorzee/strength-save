@@ -68,6 +68,19 @@ export const functions = getFunctions(app, "us-central1");
 // startu: offline/e2e/brak klucza = apka działa jak dotąd (token po prostu
 // nie zostanie dołączony, a callable odpowie jak dla braku atestacji).
 const appCheckSiteKey = import.meta.env.VITE_APPCHECK_RECAPTCHA_SITE_KEY;
+
+// Bug 35 (X30): pierwsze syncUserProfile na webie wyścigało się z powyższym
+// asynchronicznym initem (SDK functions zwraca brak tokenu, dopóki komponent
+// app-check nie jest zarejestrowany) — nowe konto dostawało permission-denied.
+// Chronione callables (protected-callable.ts) czekają na appCheckReady; własny
+// limit czasu gwarantuje, że zablokowany skrypt reCAPTCHA (adblock, sieć
+// korporacyjna) nie wstrzymuje logowania w nieskończoność.
+const APP_CHECK_READY_TIMEOUT_MS = 4000;
+let resolveAppCheckReady: () => void = () => undefined;
+export const appCheckReady: Promise<void> = new Promise((resolve) => {
+  resolveAppCheckReady = resolve;
+});
+
 if (
   !Capacitor.isNativePlatform()
   && import.meta.env.VITE_E2E_MODE !== "true"
@@ -75,6 +88,7 @@ if (
   && typeof window !== "undefined"
   && appCheckSiteKey
 ) {
+  const readyFallback = setTimeout(resolveAppCheckReady, APP_CHECK_READY_TIMEOUT_MS);
   import("firebase/app-check")
     .then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
       initializeAppCheck(app, {
@@ -84,7 +98,15 @@ if (
     })
     .catch(() => {
       // Brak sieci / zablokowany skrypt reCAPTCHA: świadomie cicho — patrz komentarz wyżej.
+    })
+    .finally(() => {
+      clearTimeout(readyFallback);
+      resolveAppCheckReady();
     });
+} else {
+  // Native (własny App Check w native-callable) / e2e / emulatory / brak klucza:
+  // nie ma na co czekać.
+  resolveAppCheckReady();
 }
 
 // e2e:emulator — podłącz SDK do lokalnych emulatorów zamiast produkcji.

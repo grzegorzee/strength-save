@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { Capacitor } from '@capacitor/core';
-import { functions } from '@/lib/firebase';
+import { appCheckReady, functions } from '@/lib/firebase';
 import { withTimeout } from '@/lib/promise-timeout';
 
 // Chroniona ścieżka callable dla flow pierwszego uruchomienia (rejestracja,
@@ -22,6 +22,10 @@ export async function callProtectedFunction<RequestData, ResponseData>(
     const { callNativeAttestedFunction } = await import('@/lib/native-callable');
     return callNativeAttestedFunction<RequestData, ResponseData>(functionName, data);
   }
+  // Bug 35: nie wysyłaj żądania, zanim webowy App Check się zarejestruje —
+  // SDK dołącza wtedy brak tokenu i tworzenie profilu pada permission-denied.
+  // appCheckReady ma własny limit czasu w firebase.ts, więc nie wisi.
+  await appCheckReady;
   const fn = httpsCallable<RequestData, ResponseData>(functions, functionName);
   return (await withTimeout(
     fn(data),
