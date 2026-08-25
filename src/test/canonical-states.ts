@@ -11,7 +11,7 @@
 
 import { trainingPlan as defaultPlanDays, type TrainingDay, type Weekday } from '@/data/trainingPlan';
 import type { BodyMeasurement, WorkoutSession } from '@/types';
-import type { PlanCycle } from '@/types/cycles';
+import type { PlanCycle, PlanCycleChoice } from '@/types/cycles';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { addCalendarDays, calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { clampSet } from '@/lib/workout-sanitizers';
@@ -134,6 +134,27 @@ const buildActiveCycle = (days: TrainingDay[], durationWeeks: number, startDate:
   status: 'active',
   createdAt: `${startDate}T06:00:00.000Z`,
   stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+});
+
+/** X33 (WP-6/WP-7): odpowiedzi z kreatora zapisane na cyklu, ksztalt 1:1
+ *  z kontraktem plan_cycles.choice (sekcja 3 planu X33). Pola opcjonalne bez
+ *  wartosci NIE powstaja (Firestore odrzuca undefined), stad spread overrides. */
+export const buildCycleChoice = (
+  startDate: string,
+  days: TrainingDay[],
+  overrides: Partial<PlanCycleChoice> = {},
+): PlanCycleChoice => ({
+  version: 1,
+  chosenAt: `${startDate}T06:00:00.000Z`,
+  level: 'intermediate',
+  objective: 'build_muscle',
+  daysPerWeek: days.length,
+  trainingDays: days.map((day) => day.weekday),
+  planSource: 'recommended',
+  templateId: 'tpl-fullbody-2',
+  recommendedTemplateId: 'tpl-fullbody-2',
+  entry: 'onboarding',
+  ...overrides,
 });
 
 /** Cykl zarchiwizowany (archiveCurrentPlan): endDate ustawione, status completed,
