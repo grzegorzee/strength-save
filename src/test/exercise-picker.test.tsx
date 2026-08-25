@@ -50,7 +50,14 @@ describe('ExercisePicker (Z69)', () => {
   // potrafi przekroczyc domyslne 15 s (lokalnie test schodzi w <1 s).
   it('chip kategorii zawęża listę', () => {
     renderPicker();
+    // X35a WP-A: 9 kafli (Wszystkie + 8 partii) w siatce 3x3, bez przewijania w bok.
+    const grid = screen.getByTestId('picker-category-grid');
+    expect(grid.className).toContain('grid-cols-3');
+    expect(grid.className).not.toContain('overflow-x');
+    expect(grid.querySelectorAll('button[aria-pressed]')).toHaveLength(9);
+    expect(screen.getByRole('button', { name: 'Wszystkie' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Plecy' }));
+    expect(screen.getByRole('button', { name: 'Plecy' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Wiosłowanie hantlami na ławce (przodem)')).toBeTruthy();
     expect(screen.queryByText('Wyciskanie sztangi na ławce płaskiej')).toBeNull();
   }, 30000);
