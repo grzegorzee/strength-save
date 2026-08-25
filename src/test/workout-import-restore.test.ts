@@ -142,7 +142,7 @@ describe('importData — planCycles przez sanitizer (bug 14)', () => {
 // plan/cykl aż do najbliższej ręcznej edycji planu.
 describe('importData — training_plans.days wyrównane do aktywnego cyklu (bug 44)', () => {
   const planSetCall = () => {
-    const calls = (setDocMock.mock.calls as Array<[FirestoreRefToken, Record<string, unknown>, { merge?: boolean }]>)
+    const calls = (setDocMock.mock.calls as unknown as Array<[FirestoreRefToken, Record<string, unknown>, { merge?: boolean }]>)
       .filter(([ref]) => ref.__coll === 'training_plans');
     expect(calls).toHaveLength(1);
     return calls[0];
