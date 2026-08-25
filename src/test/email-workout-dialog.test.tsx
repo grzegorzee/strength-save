@@ -158,6 +158,37 @@ describe('EmailWorkoutDialog (WP-I: zapis trenera po wysyłce)', () => {
     expect(screen.queryByTestId('save-trainer-name')).toBeNull();
   });
 
+  // Bug 49 (X30): porównanie adresu trenera bez rozróżniania wielkości liter —
+  // "Trener@X.pl" vs zapisany "trener@x.pl" to TEN SAM trener (mail z powitaniem,
+  // bez zbędnego popupu); wysyłka idzie na oryginalnie wpisany string.
+  it('zapisany adres w innym zapisie liter: bez popupu, imię w payload, wysyłka na oryginalny string', async () => {
+    renderDialog({
+      initialEmail: 'Trener@Example.COM',
+      savedTrainerEmail: 'trener@example.com',
+      savedTrainerName: 'Kasia',
+    });
+    fireEvent.click(screen.getByTestId('email-workout-send'));
+    await waitFor(() => expect(sendWorkoutMock).toHaveBeenCalledWith('w1', 'Trener@Example.COM', 'pl', 'Kasia'));
+    expect(screen.queryByTestId('save-trainer-name')).toBeNull();
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('Zapisz normalizuje adres trenera (trim + lowercase)', async () => {
+    renderDialog({ initialEmail: 'Nowy@Example.com', savedTrainerEmail: undefined });
+    fireEvent.click(screen.getByTestId('email-workout-send'));
+    await waitFor(() => expect(screen.getByTestId('save-trainer-name')).toBeTruthy());
+    fireEvent.click(screen.getByText('email.saveTrainer.save'));
+    await waitFor(() => expect(updateDocMock).toHaveBeenCalledWith(undefined, {
+      'preferences.trainerEmail': 'nowy@example.com',
+      'preferences.trainerName': DELETE_SENTINEL,
+    }));
+    // Kolejna wysyłka na wariant literowy zapisanego adresu: już bez popupu.
+    await waitFor(() => expect(screen.queryByTestId('save-trainer-name')).toBeNull());
+    fireEvent.click(screen.getByTestId('email-workout-send'));
+    await waitFor(() => expect(sendWorkoutMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId('save-trainer-name')).toBeNull();
+  });
+
   it('tryb history: popup też działa, payload z imieniem po zapisie', async () => {
     renderDialog({ mode: 'history', workoutId: undefined, savedTrainerEmail: 'trener@example.com', savedTrainerName: 'Ania' });
     fireEvent.click(screen.getByTestId('email-workout-send'));

@@ -6,13 +6,11 @@ import {
   getDoc,
   getDocFromServer,
   setDoc,
-  updateDoc,
   deleteDoc,
   query,
   where,
   runTransaction,
   writeBatch,
-  increment,
   type UpdateData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -22,6 +20,9 @@ import { calculateTonnage } from '@/lib/summary-utils';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { sanitizePlanCycleDoc, sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
+import { resolvePlanDaysForSave } from '@/lib/training-plan-save';
+import type { TrainingDay } from '@/data/trainingPlan';
 import {
   buildWorkoutSessionId,
   createProvisionalWorkoutSession,
@@ -317,7 +318,15 @@ export const useFirebaseWorkoutActions = (
       if (data.planCycles && Array.isArray(data.planCycles)) {
         for (const cycle of data.planCycles as Array<Record<string, unknown>>) {
           if (!cycle || typeof cycle.id !== 'string' || !cycle.id) continue;
-          ops.push({ collection: 'plan_cycles', id: cycle.id.slice(0, 100), data: { ...cycle, userId } });
+          // Bug 14 (X30): eksport niesie pole `id` (sanitizePlanCycleDoc), a
+          // validPlanCycleShape w rules NIE ma go na hasOnly — surowy zapis
+          // dawał PERMISSION_DENIED na całym batchu cykli przy każdym imporcie.
+          // Ten sam guard co hydracja: sanityzacja + zapis BEZ `id` (id jest
+          // tylko identyfikatorem dokumentu); nieczytelny cykl = pomijamy wpis.
+          const sanitized = sanitizePlanCycleDoc(cycle.id.slice(0, 100), cycle);
+          if (!sanitized) continue;
+          const { id: cycleDocId, ...cycleData } = sanitized;
+          ops.push({ collection: 'plan_cycles', id: cycleDocId, data: { ...cycleData, userId } });
         }
       }
 
@@ -332,8 +341,28 @@ export const useFirebaseWorkoutActions = (
 
       const tp = data.trainingPlan;
       if (tp && typeof tp === 'object' && Array.isArray(tp.days) && tp.days.length > 0) {
+        // Bug 44 (X30): niezmiennik Z151 — dni planu wyrównane do id dni
+        // PIERWSZEGO aktywnego cyklu także przy imporcie backupu (stary plik
+        // z ery poprzedniego cyklu / formatu day-N nie może rozjechać pary
+        // plan/cykl). Sanityzacja jak przy hydracji; dni w nieczytelnym
+        // kształcie legacy wchodzą jak dotąd, bez alignacji.
+        let daysToWrite: unknown = tp.days;
+        const sanitizedDays = sanitizeTrainingPlanDays(tp.days);
+        if (sanitizedDays) {
+          // Odczyt PO batchach: cykle z tego samego backupu już zapisane, więc
+          // alignacja widzi faktyczny stan konta (importowany albo istniejący cykl).
+          const activeCyclesSnap = await getDocs(query(
+            collection(db, 'plan_cycles'),
+            where('userId', '==', userId),
+            where('status', '==', 'active'),
+          ));
+          daysToWrite = resolvePlanDaysForSave(
+            sanitizedDays,
+            activeCyclesSnap.docs.map((cycleDoc) => cycleDoc.data() as { days?: TrainingDay[]; startDate?: string }),
+          );
+        }
         await setDoc(doc(db, 'training_plans', userId), {
-          days: tp.days,
+          days: daysToWrite,
           durationWeeks: typeof tp.durationWeeks === 'number' ? tp.durationWeeks : 12,
           ...(typeof tp.startDate === 'string' ? { startDate: tp.startDate.slice(0, 10) } : {}),
           updatedAt: new Date().toISOString(),
@@ -536,12 +565,29 @@ export const useFirebaseWorkoutActions = (
         }
 
         if (Object.keys(update).length === 0) continue;
-        // Inwariant "każdy zapis podbija revision": zmiana musi być widoczna
-        // dla preconditionów optimistic concurrency (audyt 3.2).
-        update.revision = increment(1);
-        update.updatedAt = Date.now();
-        await updateDoc(doc(db, WORKOUTS_COLLECTION, w.id), update as UpdateData<Record<string, unknown>>);
-        updated += 1;
+        // Bug 43 (X30): zapis w transakcji z precondycją rewizji — naprawa
+        // liczy update ze snapshotu klienta (closure), więc równoległy zapis
+        // tej samej sesji (drugie urządzenie edytuje stary trening w trakcie
+        // "Napraw"/archiwizacji) nie może zostać cicho cofnięty. Rozjazd
+        // rewizji lub brak dokumentu = pomiń (kolejny przebieg naprawi na
+        // świeżym snapshotcie). Wzorzec: saveWorkoutBatchWithRevision.
+        const snapshotRevision = Math.max(0, Math.floor(w.revision ?? 0));
+        const workoutRef = doc(db, WORKOUTS_COLLECTION, w.id);
+        const applied = await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(workoutRef);
+          if (!snapshot.exists()) return false;
+          const currentRevision = Math.max(0, Math.floor((snapshot.data() as { revision?: number }).revision ?? 0));
+          if (currentRevision !== snapshotRevision) return false;
+          // Inwariant "każdy zapis podbija revision": zmiana musi być widoczna
+          // dla preconditionów optimistic concurrency (audyt 3.2).
+          transaction.update(workoutRef, {
+            ...update,
+            revision: currentRevision + 1,
+            updatedAt: Date.now(),
+          } as UpdateData<Record<string, unknown>>);
+          return true;
+        });
+        if (applied) updated += 1;
       }
       return { updated, scanned: workouts.length };
     } catch (err) {

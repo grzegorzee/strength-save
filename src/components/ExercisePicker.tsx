@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
 import { matchesQuery } from '@/lib/search-utils';
+import { toast } from '@/hooks/use-toast';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 
 export interface ExercisePickerProps {
   open: boolean;
@@ -97,8 +99,20 @@ export const ExercisePicker = ({
       const created = await onCreateCustomExercise(customForm);
       setCustomForm(null);
       handleItemTap(created);
-    } catch {
-      // Zapis nie przeszedł (offline/rules) — formularz zostaje, user może ponowić.
+    } catch (err) {
+      // Bug 54 (X30): cichy fail łamał zasadę 6 (stan błędu bez informującego
+      // wyjścia i bez śladu w client_errors). Formularz zostaje, user może
+      // ponowić; konwencja toastu jak CreateCustomExerciseDialog.
+      toast({
+        title: t('custom.toastSaveFailTitle'),
+        description: t('custom.toastSaveFailDesc'),
+        variant: 'destructive',
+      });
+      reportClientErrorWithCurrentUid({
+        code: 'custom-exercise-save',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setIsSavingCustom(false);
     }
