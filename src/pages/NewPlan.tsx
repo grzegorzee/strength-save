@@ -66,7 +66,7 @@ const NewPlan = () => {
   const { t, lang } = useTranslation();
   const { fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
-  const { plan: currentPlan, planDurationWeeks, planStartDate, planName, savePlan } = useTrainingPlan(uid);
+  const { plan: currentPlan, planDurationWeeks, planStartDate, planName, savePlan, scheduleOverrides } = useTrainingPlan(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
 
@@ -131,7 +131,7 @@ const NewPlan = () => {
   // buildActiveCyclePreview (przeliczenie z workouts) tylko dla starych cykli bez snapshotu;
   // liczone na żywo pokazywało zera, zanim workouts się załadowały.
   const closeoutStats = sourceCycle
-    ? (sourceCycle.stats ?? buildActiveCyclePreview(sourceCycle, workouts)?.stats ?? null)
+    ? (sourceCycle.stats ?? buildActiveCyclePreview(sourceCycle, workouts, undefined, { scheduleOverrides })?.stats ?? null)
     : null;
   const closeoutMedal = closeoutStats ? medalForCompletionRate(closeoutStats.completionRate) : null;
   // WP-PLANS-2 (X27, Task O4): łączny czas na siłowni z workoutów cyklu (te same

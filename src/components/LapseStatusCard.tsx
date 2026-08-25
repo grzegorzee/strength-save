@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { localizeDayName } from '@/lib/plan-i18n';
+import { displayDayNameForDateISO } from '@/lib/plan-i18n';
 import { formatLocalDateLabel } from '@/lib/utils';
 import type { Lapse } from '@/lib/lapse-detection';
 
@@ -20,8 +20,9 @@ export const LapseStatusCard = ({
   const dateLabel = formatLocalDateLabel(lapse.dateISO, dateLocale(lang), {
     weekday: 'long', day: 'numeric', month: 'long',
   });
+  // WP-L (X30): domyslna nazwa weekday podaza za date zaleglosci.
   const description = lapse.kind === 'stale-session' && lapse.day
-    ? t('lapse.staleDesc', { day: localizeDayName(lapse.day.dayName, lang), date: dateLabel })
+    ? t('lapse.staleDesc', { day: displayDayNameForDateISO(lapse.day.dayName, lapse.day.weekday, lapse.dateISO, lang), date: dateLabel })
     : t('lapse.weekDesc');
 
   return (

@@ -1,5 +1,5 @@
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 const WEEKDAY_TO_JS_DAY: Record<Weekday, number> = {
   sunday: 0,
@@ -37,6 +37,21 @@ export const getStartOfPlanWeek = (date: Date): Date => {
   const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   localDate.setDate(localDate.getDate() - daysSinceMonday);
   return localDate;
+};
+
+/**
+ * Bug 12 (X30): numer tygodnia planu (1-indeksowany) liczony KALENDARZOWO.
+ * Dzielenie roznicy milisekund lokalnych polnocy zanizalo numer o 1 miedzy
+ * wiosenna a jesienna zmiana czasu (tydzien zmiany ma lokalnie 23h, floor
+ * schodzil o caly tydzien). calendarDayDiff normalizuje przez UTC (wzorzec
+ * weekNoFor z history-cycles.ts), wiec numeracja Plan = numeracja Cykle.
+ * Tydzien 1 = tydzien poniedzialku zawierajacego start planu; daty sprzed
+ * tego tygodnia daja wartosci <= 0 (guard "plan jeszcze nie ruszyl" zostaje
+ * po stronie wolajacego).
+ */
+export const planWeekNumberForDate = (planStartDate: Date, date: Date): number => {
+  const start = getStartOfPlanWeek(planStartDate);
+  return Math.floor(calendarDayDiff(formatLocalDate(start), formatLocalDate(startOfLocalDay(date))) / 7) + 1;
 };
 
 export const getScheduledDateForDay = (weekStart: Date, weekday: Weekday): Date => {

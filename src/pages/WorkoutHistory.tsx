@@ -68,7 +68,7 @@ const WorkoutHistory = () => {
   const [emailWorkoutId, setEmailWorkoutId] = useState<string | null>(null);
   // WP-H: jeden Export (bottom sheet 2c) zamiast osobnych przycisków CSV/mail.
   const [showExportSheet, setShowExportSheet] = useState(false);
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, scheduleOverrides } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const aggregate = useWorkoutAggregate(uid);
   const [searchQuery, setSearchQuery] = useState('');
@@ -241,8 +241,8 @@ const WorkoutHistory = () => {
   const todayStr = formatLocalDate(new Date());
   // Staty aktywnego cyklu LIVE — ten sam mechanizm co Dashboard/Cykle (realne dane).
   const liveActiveCycle = useMemo(
-    () => buildActiveCyclePreview(activeCycle, liveSessions),
-    [activeCycle, liveSessions],
+    () => buildActiveCyclePreview(activeCycle, liveSessions, undefined, { scheduleOverrides }),
+    [activeCycle, liveSessions, scheduleOverrides],
   );
 
   const filtersActive = searchQuery.trim() !== '' || selectedDay !== 'all'
@@ -404,7 +404,7 @@ const WorkoutHistory = () => {
   const pastAllTimeStats = (cycle: PlanCycle) => {
     const covered = windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)
       || cycleSessionEntries[cycle.id]?.status === 'loaded';
-    const stats = covered ? withLiveCompletedStats(cycle, liveSessions).stats : cycle.stats;
+    const stats = covered ? withLiveCompletedStats(cycle, liveSessions, { scheduleOverrides }).stats : cycle.stats;
     return { sessions: stats.totalWorkouts, tonnageKg: stats.totalTonnage, prs: stats.prs.length };
   };
 
@@ -438,7 +438,7 @@ const WorkoutHistory = () => {
       }
       const covered = windowCoversCycleStart(oldestLoadedDate, detailCycle, hasMore)
         || cycleSessionEntries[detailCycle.id]?.status === 'loaded';
-      const stats = covered ? withLiveCompletedStats(detailCycle, liveSessions).stats : detailCycle.stats;
+      const stats = covered ? withLiveCompletedStats(detailCycle, liveSessions, { scheduleOverrides }).stats : detailCycle.stats;
       return {
         sessions: stats.totalWorkouts,
         tonnageKg: stats.totalTonnage,

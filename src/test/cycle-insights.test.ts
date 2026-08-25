@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildCycleComparison, buildCycleRecommendation, computeCycleStats, withLiveCompletedStats } from '@/lib/cycle-insights';
+import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, computeCycleStats, withLiveCompletedStats } from '@/lib/cycle-insights';
+import { buildScheduleMove } from '@/lib/schedule-overrides';
+import { parseLocalDate } from '@/lib/utils';
 import { translate } from '@/i18n';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
@@ -357,5 +359,119 @@ describe('buildCycleComparison — świeży cykl nie pokazuje ujemnych delt', ()
     // 1600 - 1667 = -67 (sensowne), NIE 8000 - 50000 = -42000
     expect(cmp?.tonnageDelta).toBe(1600 - 1667);
     expect(Math.abs(cmp!.tonnageDelta)).toBeLessThan(1000);
+  });
+});
+
+describe('computeCycleStats + scheduleOverrides (bug 2, X30): przełożony trening liczy się do frekwencji', () => {
+  // Plan pn (day-1) + śr (day-2); cykl 2 tygodnie od pon 2026-03-30.
+  // Overrides budowane produkcyjnym builderem buildScheduleMove (zasada 11:
+  // żadnych ręcznie klepanych map).
+  const session = (id: string, dayId: string, date: string, cycleId?: string): WorkoutSession => ({
+    id,
+    userId: 'user-1',
+    dayId,
+    date,
+    completed: true,
+    ...(cycleId ? { cycleId } : {}),
+    exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 6, weight: 60, completed: true }] }],
+  });
+
+  it('przeniesienie śr->pt (data bez dnia planowego): sesja w piątek zaliczona, środa nie jest "missed"', () => {
+    const move = buildScheduleMove({
+      overrides: {},
+      planDays,
+      fromISO: '2026-04-01',
+      toISO: '2026-04-03',
+      todayISO: '2026-03-30',
+    });
+    expect(move.ok).toBe(true);
+    if (!move.ok) return;
+    expect(move.swapped).toBe(false);
+    const ws = [
+      session('m1', 'day-1', '2026-03-30', 'cycle-current'),
+      // Środa przełożona na piątek: resolver daje day-2 dla 2026-04-03,
+      // WorkoutDay zapisuje parę (2026-04-03, day-2).
+      session('m2', 'day-2', '2026-04-03', 'cycle-current'),
+    ];
+    const stats = computeCycleStats(ws, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current', {
+      scheduleOverrides: move.overrides,
+    });
+    // Slot środowy WĘDRUJE na piątek (nie znika i się nie dubluje).
+    expect(stats.expectedWorkouts).toBe(4);
+    expect(stats.completionRate).toBe(50);
+    expect(stats.missedWorkouts).toBe(2); // tylko tydzień 2 (pn + śr), nic z tygodnia 1
+  });
+
+  it('SWAP pn<->śr: obie realne sesje (zamienione pary date:dayId) zaliczone', () => {
+    const move = buildScheduleMove({
+      overrides: {},
+      planDays,
+      fromISO: '2026-03-30',
+      toISO: '2026-04-01',
+      todayISO: '2026-03-30',
+    });
+    expect(move.ok).toBe(true);
+    if (!move.ok) return;
+    expect(move.swapped).toBe(true);
+    const ws = [
+      session('s1', 'day-2', '2026-03-30', 'cycle-current'),
+      session('s2', 'day-1', '2026-04-01', 'cycle-current'),
+    ];
+    const stats = computeCycleStats(ws, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current', {
+      scheduleOverrides: move.overrides,
+    });
+    expect(stats.expectedWorkouts).toBe(4);
+    expect(stats.completionRate).toBe(50);
+    expect(stats.missedWorkouts).toBe(2);
+  });
+
+  it('orphan bez cycleId na przełożonej dacie trafia w slot i potwierdza obecność', () => {
+    const move = buildScheduleMove({
+      overrides: {},
+      planDays,
+      fromISO: '2026-04-01',
+      toISO: '2026-04-03',
+      todayISO: '2026-03-30',
+    });
+    if (!move.ok) throw new Error('move failed');
+    const ws = [session('o1', 'day-2', '2026-04-03')];
+    const stats = computeCycleStats(ws, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current', {
+      scheduleOverrides: move.overrides,
+    });
+    expect(stats.totalWorkouts).toBe(1);
+  });
+
+  it('niezmiennik (#5): bez overrides i z pustymi overrides wynik identyczny jak dotąd', () => {
+    const before = computeCycleStats(workouts, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current');
+    const withEmpty = computeCycleStats(workouts, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current', {
+      scheduleOverrides: {},
+    });
+    expect(withEmpty).toEqual(before);
+  });
+
+  it('withLiveCompletedStats i buildActiveCyclePreview przekazują overrides do statów', () => {
+    const move = buildScheduleMove({
+      overrides: {},
+      planDays,
+      fromISO: '2026-04-01',
+      toISO: '2026-04-03',
+      todayISO: '2026-03-30',
+    });
+    if (!move.ok) throw new Error('move failed');
+    const ws = [session('l1', 'day-2', '2026-04-03', 'cycle-x')];
+    const completed: PlanCycle = {
+      id: 'cycle-x', userId: 'user-1', days: planDays, durationWeeks: 2,
+      startDate: '2026-03-30', endDate: '2026-04-13', status: 'completed',
+      createdAt: '2026-03-30T00:00:00.000Z',
+      stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+    };
+    const live = withLiveCompletedStats(completed, ws, { scheduleOverrides: move.overrides });
+    expect(live.stats.completionRate).toBe(25); // 1 z 4 slotów (slot środowy poszedł na piątek)
+
+    const active: PlanCycle = { ...completed, status: 'active', endDate: '' };
+    const preview = buildActiveCyclePreview(active, ws, parseLocalDate('2026-04-13'), {
+      scheduleOverrides: move.overrides,
+    });
+    expect(preview?.stats.completionRate).toBe(25);
   });
 });

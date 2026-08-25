@@ -18,7 +18,7 @@ import { cn, formatLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayDayNameForDate, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 
 const DayPlan = () => {
@@ -148,7 +148,7 @@ const DayPlan = () => {
                     {isWorkoutCompleted
                       ? t('dayplan.exercisesDone', { n: todaysWorkout?.exercises.length || 0 })
                     : nextScheduledTraining
-                      ? t('dayplan.nextTrainingDetail', { day: localizeDayName(nextScheduledTraining.day.dayName, lang), focus: localizeFocus(nextScheduledTraining.day.focus, lang) })
+                      ? t('dayplan.nextTrainingDetail', { day: displayDayNameForDate(nextScheduledTraining.day.dayName, nextScheduledTraining.day.weekday, nextScheduledTraining.date, lang), focus: localizeFocus(nextScheduledTraining.day.focus, lang) })
                       : t('dayplan.checkWeeklyPlan')
                     }
                   </p>
@@ -203,7 +203,8 @@ const DayPlan = () => {
               </div>
             </div>
             <Badge className="bg-primary text-primary-foreground px-3 py-1">
-              {localizeDayName(todaysTraining.dayName, lang)}
+              {/* WP-L (X30): domyslna nazwa weekday podaza za dzisiejsza date. */}
+              {displayDayNameForDate(todaysTraining.dayName, todaysTraining.weekday, today, lang)}
             </Badge>
           </div>
         </CardHeader>

@@ -13,11 +13,11 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
-import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
+import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, planWeekNumberForDate, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayDayNameForDate, localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { VacationDialog } from '@/components/VacationDialog';
@@ -210,7 +210,7 @@ const TrainingPlan = () => {
 
   // C-T4: jedna karta decyzyjna końca planu — to samo źródło co Dashboard/Cykle.
   const activeCycleRaw = cycles.find((cycle) => cycle.status === 'active') || null;
-  const liveActiveCycle = buildActiveCyclePreview(activeCycleRaw, workouts);
+  const liveActiveCycle = buildActiveCyclePreview(activeCycleRaw, workouts, undefined, { scheduleOverrides });
   const previousCompletedCycle = cycles.find((cycle) => cycle.status === 'completed') || null;
   const planNextStep = useMemo(() => buildPlanNextStep({
     hasPlan: trainingPlan.length > 0,
@@ -337,7 +337,8 @@ const TrainingPlan = () => {
   );
   const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;
-  const selectedWeekNumber = Math.floor((startOfLocalDay(selectedOrToday).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  // Bug 12 (X30): rachunek kalendarzowy zamiast ms (DST zanizalo numer o 1).
+  const selectedWeekNumber = planWeekNumberForDate(startDate, selectedOrToday);
   const isHistoricalWeek = selectedWeekNumber < 1;
   const displayWeek = isHistoricalWeek ? 0 : Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
 
@@ -821,7 +822,8 @@ const TrainingPlan = () => {
 
                   {displayDay && (
                     <>
-                      <p className="text-sm text-muted-foreground">{localizeDayName(displayDay.dayName, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
+                      {/* WP-L (X30): domyslna nazwa weekday podaza za wybrana date. */}
+                      <p className="text-sm text-muted-foreground">{displayDayNameForDate(displayDay.dayName, displayDay.weekday, selectedDate, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-0 bg-fitness-success/15 text-fitness-success">

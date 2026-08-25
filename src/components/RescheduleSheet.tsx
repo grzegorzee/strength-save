@@ -5,7 +5,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { resolvePlannedDay, type ScheduleOverrides } from '@/lib/plan-schedule';
-import { localizeDayName } from '@/lib/plan-i18n';
+import { displayDayNameForDateISO } from '@/lib/plan-i18n';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 
 /** Horyzont wyboru nowej daty (spec 2026-08-11: tylko dziś i do przodu, 14 dni). */
@@ -120,8 +120,9 @@ export const RescheduleSheet = ({
         <SheetHeader className="text-left">
           <SheetTitle>{t('reschedule.sheetTitle')}</SheetTitle>
           <SheetDescription>
+            {/* WP-L (X30): domyslna nazwa weekday podaza za data zrodlowa. */}
             {t('reschedule.sheetDesc', {
-              name: localizeDayName(fromDay.dayName, lang),
+              name: displayDayNameForDateISO(fromDay.dayName, fromDay.weekday, fromISO, lang),
               date: formatLocalDateLabel(fromISO, dateLocale(lang), { day: 'numeric', month: 'short' }),
             })}
           </SheetDescription>
@@ -154,7 +155,7 @@ export const RescheduleSheet = ({
                   <span className="flex items-center gap-1.5 text-xs text-fitness-warning">
                     <ArrowRightLeft className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">
-                      {localizeDayName(occupant.dayName, lang)} · {t('reschedule.swapNote')}
+                      {displayDayNameForDateISO(occupant.dayName, occupant.weekday, dateISO, lang)} · {t('reschedule.swapNote')}
                     </span>
                   </span>
                 ) : (
