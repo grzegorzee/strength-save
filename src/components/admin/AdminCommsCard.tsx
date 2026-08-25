@@ -18,15 +18,32 @@ import { Mail, Bell, Loader2, Send } from 'lucide-react';
 import { adminBroadcastEmail, adminSendPush } from '@/lib/registration-api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
+import type { TranslationKey } from '@/i18n';
+
+type CommsTemplate = 'release' | 'week' | 'free';
+
+// X35c (WP-E, pkt 4): szablony wypelniaja pola (tresc edytowalna), "free" czysci.
+const TEMPLATES: Array<{ id: CommsTemplate; labelKey: TranslationKey; titleKey?: TranslationKey; bodyKey?: TranslationKey }> = [
+  { id: 'release', labelKey: 'admin.commsTplRelease', titleKey: 'admin.commsTplReleaseTitle', bodyKey: 'admin.commsTplReleaseBody' },
+  { id: 'week', labelKey: 'admin.commsTplWeek', titleKey: 'admin.commsTplWeekTitle', bodyKey: 'admin.commsTplWeekBody' },
+  { id: 'free', labelKey: 'admin.commsTplFree' },
+];
+
+interface AdminCommsCardProps {
+  cohorts: string[];
+  /** X35c: liczba kont per target ('all' + kohorty) do podgladu; brak = bez liczby. */
+  recipientCounts?: Record<string, number>;
+}
 
 // Komunikacja: broadcast mailowy + powiadomienia push do wszystkich lub do cohorty.
-export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
+export const AdminCommsCard = ({ cohorts, recipientCounts }: AdminCommsCardProps) => {
   const { toast } = useToast();
   const { t } = useTranslation();
   const [channel, setChannel] = useState<'email' | 'push'>('push');
   const [target, setTarget] = useState('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [template, setTemplate] = useState<CommsTemplate>('free');
   // T15: mirror pusha do dzwonka (inbox user_events); dotyczy tylko kanału push.
   const [inbox, setInbox] = useState(true);
   const [sending, setSending] = useState(false);
@@ -34,6 +51,15 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const targets = ['all', ...cohorts];
+  const targetLabel = target === 'all' ? t('admin.commsTargetAll') : target;
+  const recipientCount = recipientCounts?.[target];
+
+  const applyTemplate = (id: CommsTemplate) => {
+    setTemplate(id);
+    const tpl = TEMPLATES.find((entry) => entry.id === id);
+    setSubject(tpl?.titleKey ? t(tpl.titleKey) : '');
+    setBody(tpl?.bodyKey ? t(tpl.bodyKey) : '');
+  };
 
   const validateBeforeSend = () => {
     if (!body.trim() || (channel === 'email' && !subject.trim()) || (channel === 'push' && !subject.trim())) {
@@ -67,7 +93,7 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
       }
       setLastResult(resultText);
       toast({ title: t('admin.commsSentTitle'), description: resultText });
-      setSubject(''); setBody('');
+      setSubject(''); setBody(''); setTemplate('free');
     } catch (e) {
       toast({
         title: t('admin.errorTitle'),
@@ -104,6 +130,22 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
               {targets.map((tg) => (
                 <button key={tg} onClick={() => setTarget(tg)} className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${target === tg ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground'}`}>
                   {tg === 'all' ? t('admin.filterAll') : tg}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground mb-1.5">{t('admin.commsTemplates')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => applyTemplate(tpl.id)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${template === tpl.id ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground'}`}
+                >
+                  {t(tpl.labelKey)}
                 </button>
               ))}
             </div>
@@ -147,10 +189,28 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
             <AlertDialogTitle>{t('admin.commsConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
               {channel === 'email'
-                ? t('admin.commsConfirmEmail', { target: target === 'all' ? t('admin.commsTargetAll') : target })
-                : t('admin.commsConfirmPush', { target: target === 'all' ? t('admin.commsTargetAll') : target })}
+                ? t('admin.commsConfirmEmail', { target: targetLabel })
+                : t('admin.commsConfirmPush', { target: targetLabel })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* X35c: podglad przed wysylka — kanal, odbiorcy (z liczba, gdy znana), tytul, tresc. */}
+          <div data-testid="admin-comms-preview" className="space-y-2 rounded-xl bg-surface-low p-3 text-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.commsPreviewTitle')}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('admin.commsPreviewChannel', { channel: channel === 'email' ? 'E-mail' : 'Push' })}
+              {' / '}
+              {t('admin.commsPreviewRecipients', { target: targetLabel })}
+              {typeof recipientCount === 'number' && ` (${t('admin.commsPreviewCount', { n: recipientCount })})`}
+            </p>
+            <p className="font-semibold">{subject}</p>
+            <p className="whitespace-pre-wrap text-muted-foreground">{body}</p>
+            {channel === 'push' && (
+              <p className="text-xs text-muted-foreground">
+                {t('admin.commsPreviewPushNote')}
+                {inbox ? ` ${t('admin.commsPreviewInboxOn')}` : ''}
+              </p>
+            )}
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={sending}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={(event) => { event.preventDefault(); setConfirmOpen(false); void send(); }} disabled={sending}>

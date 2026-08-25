@@ -451,6 +451,13 @@ const AdminDashboard = () => {
     () => Array.from(new Set(users.flatMap(u => u.cohorts))).sort(),
     [users],
   );
+  // X35c: liczba kont per target do podgladu broadcastu (ta sama baza co adminSendPush:
+  // wszystkie dokumenty users / kohorta), liczona z juz zaladowanej listy.
+  const recipientCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: users.length };
+    users.forEach((u) => u.cohorts.forEach((cohort) => { counts[cohort] = (counts[cohort] ?? 0) + 1; }));
+    return counts;
+  }, [users]);
 
   // Aktywni w ostatnich 7 dniach (po lastLogin).
   const activeLast7 = useMemo(() => {
@@ -882,7 +889,7 @@ const AdminDashboard = () => {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <AdminCommsCard cohorts={allCohorts} />
+        <AdminCommsCard cohorts={allCohorts} recipientCounts={recipientCounts} />
         <AdminFeatureFlagsCard />
       </div>
     </div>
