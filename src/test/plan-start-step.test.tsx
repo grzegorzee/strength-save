@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
+import { listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
 import type { TrainingDay } from '@/data/trainingPlan';
 
 // X34 (docs/PLAN-X34-2026-08-25.md, sekcja 0): krok 5A = TYLKO wybor (naglowek,
@@ -51,15 +52,21 @@ const cardName = (card: HTMLElement) => within(card).getByTestId('plan-choice-na
 const templateByName = (name: string) => planTemplates.find((t) => localizePlanName(t.id, t.name, 'pl') === name)!;
 const nameInput = () => screen.getByTestId('ob-plan-name') as HTMLInputElement;
 const tiles = () => within(screen.getByTestId('ob-duration-tiles')).getAllByRole('button');
-const chips = () => within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
+// X34b: chipy = kolejne dni treningowe od dzis (data w data-date), nie poniedzialki.
+const chips = () => within(screen.getByTestId('ob-first-workout-chips')).getAllByRole('button');
+const chipDate = (i: number) => chips()[i].getAttribute('data-date')!;
 
-const mondayOfWeek = (weeksAhead: number) => {
-  const d = new Date();
-  const dow = d.getDay();
-  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + weeksAhead * 7);
-  return d;
-};
 const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parseISO = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+const mondayOf = (iso: string) => {
+  const d = parseISO(iso);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return isoOf(d);
+};
+const todayISO = () => isoOf(new Date());
+const JS_DAY_TO_WEEKDAY = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const weekdayOf = (iso: string) => JS_DAY_TO_WEEKDAY[parseISO(iso).getDay()];
 
 beforeEach(() => {
   localStorage.clear();
@@ -85,7 +92,7 @@ describe('X34: krok 5A odchudzony (tylko wybor)', () => {
     expect(screen.queryByTestId('plan-choice-first')).toBeNull();
     expect(screen.queryByText(/Pierwszy trening/)).toBeNull();
     expect(screen.queryByTestId('ob-plan-name')).toBeNull();
-    expect(screen.queryByTestId('ob-start-week-chips')).toBeNull();
+    expect(screen.queryByTestId('ob-first-workout-chips')).toBeNull();
     expect(screen.queryByRole('button', { name: /Zaczynam ten plan/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Podgląd planu/ })).toBeNull();
 
@@ -105,7 +112,7 @@ describe('X34: krok 5A odchudzony (tylko wybor)', () => {
 });
 
 describe('X34: ekran 6/6 "Start planu"', () => {
-  it('"Wybierz start planu" -> 6/6 z domyslnymi: nazwa szablonu, tygodnie szablonu "polecane", najblizszy poniedzialek, CTA celu', () => {
+  it('"Wybierz start planu" -> 6/6 z domyslnymi: nazwa szablonu, tygodnie szablonu "polecane", najblizszy dzien treningowy, CTA celu', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep6(4);
 
@@ -123,19 +130,89 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     expect(tiles()[1].getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByTestId('duration-custom-input')).toBeNull();
 
+    // X34b: 8 chipow = kolejne dni treningowe (4 dni: pn/wt/czw/pt) od dzis, rosnaco; pierwszy zaznaczony.
     expect(chips()).toHaveLength(8);
     expect(chips()[0]).toHaveAttribute('aria-pressed', 'true');
-    expect(chips()[0].textContent).toContain(String(mondayOfWeek(0).getDate()));
+    const dates = chips().map((_, i) => chipDate(i));
+    expect(dates[0] >= todayISO()).toBe(true);
+    expect([...dates].sort()).toEqual(dates);
+    for (const iso of dates) expect(['monday', 'tuesday', 'thursday', 'friday']).toContain(weekdayOf(iso));
+    expect(chips()[0].textContent).toContain(String(parseISO(dates[0]).getDate()));
+    expect(screen.getByText('Data pierwszego treningu')).toBeInTheDocument();
 
     const cta = screen.getByTestId('ob-start-cta');
     expect(cta.textContent).toContain('Zacznij budować masę');
     expect(screen.getByTestId('ob-start-preview').textContent).toBe('Podgląd planu');
-    // Kolejnosc: nazwa -> dlugosc -> start -> CTA -> podglad.
+    // Kolejnosc (decyzja wlasciciela po 121): pierwszy trening -> dlugosc -> nazwa -> CTA -> podglad.
     const precedes = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(precedes(nameInput(), screen.getByTestId('ob-duration-tiles'))).toBe(true);
-    expect(precedes(screen.getByTestId('ob-duration-tiles'), screen.getByTestId('ob-start-week-chips'))).toBe(true);
-    expect(precedes(screen.getByTestId('ob-start-week-chips'), cta)).toBe(true);
+    expect(precedes(screen.getByTestId('ob-first-workout-chips'), screen.getByTestId('ob-duration-tiles'))).toBe(true);
+    expect(precedes(screen.getByTestId('ob-duration-tiles'), nameInput())).toBe(true);
+    expect(precedes(nameInput(), cta)).toBe(true);
     expect(precedes(cta, screen.getByTestId('ob-start-preview'))).toBe(true);
+  });
+
+  it('chipy tylko z dni treningowych kroku 4 (3 dni: pn/sr/pt), "Dzis" na pierwszym chipie gdy dzis jest dniem treningowym', () => {
+    // Wtorek 2026-08-25: dzis NIE jest dniem treningowym -> pierwszy chip = sroda 26.08 bez "Dzis".
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 7, 25, 12));
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToStep6(3);
+    expect(chips().map((_, i) => chipDate(i))).toEqual(['2026-08-26', '2026-08-28', '2026-08-31', '2026-09-02', '2026-09-04', '2026-09-07', '2026-09-09', '2026-09-11']);
+    expect(chips()[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText('Dziś')).toBeNull();
+    expect(chips()[0].textContent).toMatch(/^śr\.?26sie/i);
+    cleanup();
+
+    // Sroda 2026-08-26: dzis jest dniem treningowym -> pierwszy chip "Dzis".
+    vi.setSystemTime(new Date(2026, 7, 26, 12));
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToStep6(3);
+    expect(chipDate(0)).toBe('2026-08-26');
+    expect(chips()[0].textContent).toContain('Dziś');
+    expect(chips()[1].textContent).not.toContain('Dziś');
+    vi.useRealTimers();
+  });
+
+  it('SEKWENCJA (kontrakt zapisu): wybor piatku przy dzis=wtorek -> startDate = poniedzialek tego tygodnia, skippedDates = [pn (przed dzis), wt (dzis, przed wyborem), czw]; poniedzialek = zero skippedDates', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 7, 25, 12)); // wtorek
+    const onConfirm = vi.fn<Confirm>();
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    goToStep6(4); // pn / wt / czw / pt
+    expect(chips().map((_, i) => chipDate(i)).slice(0, 4)).toEqual(['2026-08-25', '2026-08-27', '2026-08-28', '2026-08-31']);
+    fireEvent.click(chips()[2]); // piatek 28.08
+    fireEvent.click(screen.getByTestId('ob-start-cta'));
+    expect(onConfirm.mock.calls[0][0]).toMatchObject({
+      firstWorkoutDate: '2026-08-28', startDate: '2026-08-24', skippedDates: ['2026-08-24', '2026-08-25', '2026-08-27'],
+    });
+
+    // Niezmiennik: poniedzialek 31.08 = start ten poniedzialek, zero skippedDates.
+    fireEvent.click(chips()[3]);
+    fireEvent.click(screen.getByTestId('ob-start-cta'));
+    expect(onConfirm.mock.calls[1][0]).toMatchObject({ firstWorkoutDate: '2026-08-31', startDate: '2026-08-31', skippedDates: [] });
+    // Kontrakt choice/onboardingAnswers bez zmian: startDate to nadal poniedzialek.
+    expect(onConfirm.mock.calls[1][0].daysPerWeek).toBe(4);
+    vi.useRealTimers();
+  });
+
+  it('zasada 6: zmiana dni w kroku 4 po wyborze chipa nie zostawia pustego wyboru (spada na pierwszy chip)', () => {
+    const onConfirm = vi.fn<Confirm>();
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    goToStep6(4);
+    fireEvent.click(chips()[3]);
+    const picked = chipDate(3);
+    // Wstecz do kroku 4, inne dni (2: pn/czw) -> 5A -> 6/6.
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    const dates = chips().map((_, i) => chipDate(i));
+    const pressed = chips().filter((b) => b.getAttribute('aria-pressed') === 'true');
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0].getAttribute('data-date')).toBe(dates.includes(picked) ? picked : dates[0]);
+    fireEvent.click(screen.getByTestId('ob-start-cta'));
+    expect(dates).toContain(onConfirm.mock.calls[0][0].firstWorkoutDate);
   });
 
   it.each([
@@ -158,7 +235,7 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
     fireEvent.click(screen.getByTestId('ob-match-next'));
     expect(screen.getByTestId('ob-start-cta').textContent).toContain('Start your fat loss');
-    expect(screen.getByText('First week')).toBeInTheDocument();
+    expect(screen.getByText('First workout date')).toBeInTheDocument();
     expect(screen.getByTestId('ob-start-preview').textContent).toBe('Review plan');
   });
 
@@ -177,7 +254,8 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     expect(direct[1]).toEqual({ skipPreview: true });
     expect(viaPreview[1]).toEqual({ skipPreview: false });
     expect(direct[0]).toEqual(viaPreview[0]);
-    expect(direct[0]).toMatchObject({ planName: 'Mój blok', durationWeeks: 16, startDate: isoOf(mondayOfWeek(2)), planSource: 'recommended' });
+    expect(direct[0]).toMatchObject({ planName: 'Mój blok', durationWeeks: 16, firstWorkoutDate: chipDate(2), startDate: mondayOf(chipDate(2)), planSource: 'recommended' });
+    expect(Array.isArray(direct[0].skippedDates)).toBe(true);
   });
 
   it('dlugosc szablonu spoza 8/12/16 = czwarty kafel "polecane"; "Inna" otwiera picker (2-36)', () => {
@@ -239,7 +317,7 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     expect(tiles().find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent).toContain(`${tpl.durationWeeks} tyg.`);
     expect(chips()[1]).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByTestId('ob-start-cta'));
-    expect(onConfirm.mock.calls[0][0]).toMatchObject({ templateId: tpl.id, planSource: 'browsed', durationWeeks: tpl.durationWeeks, startDate: isoOf(mondayOfWeek(1)) });
+    expect(onConfirm.mock.calls[0][0]).toMatchObject({ templateId: tpl.id, planSource: 'browsed', durationWeeks: tpl.durationWeeks, firstWorkoutDate: chipDate(1), startDate: mondayOf(chipDate(1)) });
   });
 
   it('wlasny plan (PlanBuilder) przechodzi przez 6/6: nazwa "Wlasny plan", tygodnie z buildera bez "polecane", CTA celu, planSource custom', () => {
@@ -288,10 +366,11 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     expect(onConfirm.mock.calls[0][0]).toMatchObject({ templateId: tpl.id, planSource: 'recommended', durationWeeks: tpl.durationWeeks });
   });
 
-  it('wznowienie (resume + resumeStep 6) = 6/6 z nazwa, tygodniami i startem 1:1, bez przerywnika', () => {
+  it('wznowienie (resume + resumeStep 6) = 6/6 z nazwa, tygodniami i data pierwszego treningu 1:1, bez przerywnika', () => {
     const tpl = planTemplates.find((t) => t.id === 'tpl-upper-lower-4')!;
+    const fourth = listFirstWorkoutOptions(tpl.days.map((d) => d.weekday))[3];
     const resume: PlanWizardChoice = {
-      days: tpl.days, durationWeeks: 16, startDate: isoOf(mondayOfWeek(3)), level: 'beginner', objective: 'build_muscle',
+      days: tpl.days, durationWeeks: 16, startDate: mondayOf(fourth), firstWorkoutDate: fourth, level: 'beginner', objective: 'build_muscle',
       daysPerWeek: 4, templateId: tpl.id, planName: 'Mój szkic', planSource: 'recommended',
     };
     render(withProviders(<PlanWizard resume={resume} resumeStep={6} confirmLabelKey="newplan.toReview" onConfirm={noop} />));
@@ -300,12 +379,30 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     expect(nameInput().value).toBe('Mój szkic');
     expect(tiles().find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent).toBe('16 tyg.');
     expect(chips()[3]).toHaveAttribute('aria-pressed', 'true');
+    expect(chipDate(3)).toBe(fourth);
+  });
+
+  it('stary szkic bez firstWorkoutDate (sam poniedzialek startu) = pierwszy dzien treningowy >= tego poniedzialku', () => {
+    const tpl = planTemplates.find((t) => t.id === 'tpl-upper-lower-4')!;
+    const options = listFirstWorkoutOptions(tpl.days.map((d) => d.weekday));
+    const monday = mondayOf(options[5]);
+    const resume: PlanWizardChoice = {
+      days: tpl.days, durationWeeks: 16, startDate: monday, level: 'beginner', objective: 'build_muscle',
+      daysPerWeek: 4, templateId: tpl.id, planName: 'Mój szkic', planSource: 'recommended',
+    };
+    const onConfirm = vi.fn<Confirm>();
+    render(withProviders(<PlanWizard resume={resume} resumeStep={6} confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    const pressed = chips().find((b) => b.getAttribute('aria-pressed') === 'true')!;
+    expect(pressed.getAttribute('data-date')).toBe(options.find((iso) => iso >= monday));
+    fireEvent.click(screen.getByTestId('ob-start-cta'));
+    expect(onConfirm.mock.calls[0][0].startDate).toBe(monday);
   });
 
   it('wznowienie na 5A (resume + resumeStep 5, "Wybierz inny plan") = karta zaznaczona; przejscie do 6/6 zachowuje nazwe, tygodnie i start', () => {
     const tpl = planTemplates.find((t) => t.id === 'tpl-fullbody-3')!;
+    const third = listFirstWorkoutOptions(tpl.days.map((d) => d.weekday))[2];
     const resume: PlanWizardChoice = {
-      days: tpl.days, durationWeeks: 16, startDate: isoOf(mondayOfWeek(2)), level: 'intermediate', objective: 'fat_loss',
+      days: tpl.days, durationWeeks: 16, startDate: mondayOf(third), firstWorkoutDate: third, level: 'intermediate', objective: 'fat_loss',
       daysPerWeek: 3, templateId: tpl.id, planName: 'Mój szkic', planSource: 'browsed',
     };
     render(withProviders(<PlanWizard resume={resume} resumeStep={5} confirmLabelKey="newplan.toReview" onConfirm={noop} />));
@@ -318,21 +415,25 @@ describe('X34: ekran 6/6 "Start planu"', () => {
     expect(nameInput().value).toBe('Mój szkic');
     expect(tiles().find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent).toBe('16 tyg.');
     expect(chips()[2]).toHaveAttribute('aria-pressed', 'true');
+    expect(chipDate(2)).toBe(third);
     expect(screen.getByTestId('ob-start-cta').textContent).toContain('Zacznij redukcję');
   });
 
-  it('wznowienie wlasnego planu na 6/6 (resume bez templateId + resumeStep 6)', () => {
+  it('wznowienie wlasnego planu na 6/6 (resume bez templateId + resumeStep 6): chipy z dni buildera (sam poniedzialek)', () => {
+    const mondays = listFirstWorkoutOptions(['monday']);
     const resume: PlanWizardChoice = {
-      days: [CUSTOM_DAY], durationWeeks: 8, startDate: isoOf(mondayOfWeek(0)), level: 'beginner', objective: 'athletic',
+      days: [CUSTOM_DAY], durationWeeks: 8, startDate: mondays[0], firstWorkoutDate: mondays[0], level: 'beginner', objective: 'athletic',
       daysPerWeek: 1, planName: 'Mój własny', planSource: 'custom',
     };
     const onConfirm = vi.fn<Confirm>();
     render(withProviders(<PlanWizard resume={resume} resumeStep={6} confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     expect(screen.getByTestId('ob-start-step')).toBeInTheDocument();
     expect(nameInput().value).toBe('Mój własny');
+    expect(chips().map((_, i) => chipDate(i))).toEqual(mondays);
+    expect(chips()[0]).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('ob-start-cta').textContent).toContain('Zacznij trening atletyczny');
     fireEvent.click(screen.getByTestId('ob-start-preview'));
-    expect(onConfirm.mock.calls[0][0]).toMatchObject({ planSource: 'custom', planName: 'Mój własny', durationWeeks: 8, days: [CUSTOM_DAY] });
+    expect(onConfirm.mock.calls[0][0]).toMatchObject({ planSource: 'custom', planName: 'Mój własny', durationWeeks: 8, days: [CUSTOM_DAY], firstWorkoutDate: mondays[0], startDate: mondays[0], skippedDates: [] });
   });
 
   it('zasada 6: isSaving blokuje oba przyciski, error widoczny na 6/6', () => {

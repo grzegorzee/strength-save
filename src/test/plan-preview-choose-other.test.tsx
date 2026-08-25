@@ -67,7 +67,8 @@ const cardName = (card: HTMLElement) => within(card).getByTestId('plan-choice-na
 const selectedCard = () => cards().find((c) => c.getAttribute('aria-pressed') === 'true')!;
 const nameInput = () => screen.getByTestId('ob-plan-name') as HTMLInputElement;
 const tiles = () => within(screen.getByTestId('ob-duration-tiles')).getAllByRole('button');
-const chips = () => within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
+// X34b: chipy dni treningowych (data pierwszego treningu) zamiast poniedzialkow.
+const chips = () => within(screen.getByTestId('ob-first-workout-chips')).getAllByRole('button');
 const precedes = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 beforeEach(() => {

@@ -47,14 +47,26 @@ test.describe('Replan', () => {
     await page.screenshot({ path: '/tmp/replan-fullscreen.png' });
   });
 
-  // X34 (c): replan 2 -> 6 -> podgląd -> zatwierdź (zapis; w mock E2E Firestore
-  // zablokowany, więc asercja kończy się na kliknięciu i zniknięciu kreatora).
-  test('X34 (c): replan 2-6 -> podgląd -> Zatwierdź i zacznij', async ({ page }) => {
+  // X34 (c) + X34b: replan 2 -> 6 -> DRUGI chip pierwszego treningu -> podgląd ->
+  // zatwierdź. Zapis planu idzie do mirrora e2e (fittracker_e2e_plan): startDate =
+  // poniedziałek tygodnia wybranej daty, skippedDates = dni treningowe tego
+  // tygodnia sprzed wyboru (Firestore zablokowany, więc cykl nie powstaje i
+  // asercja UI kończy się na zniknięciu kreatora).
+  test('X34 (c): replan 2-6 -> drugi chip -> podgląd -> Zatwierdź i zacznij (mirror: poniedziałek + skippedDates)', async ({ page }) => {
     await page.goto('./#/new-plan');
     await page.waitForLoadState('domcontentloaded');
     await advanceWizardToStep6(page);
     await expect(page.getByText('06 / 06')).toBeVisible();
     await expect(page.getByTestId('ob-start-cta')).toHaveText(/Zacznij/);
+    const chips = page.getByTestId('ob-first-workout-chips').getByRole('button');
+    await expect(chips).toHaveCount(8);
+    await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
+    const first = (await chips.first().getAttribute('data-date'))!;
+    await chips.nth(1).click();
+    await expect(chips.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    const picked = (await chips.nth(1).getAttribute('data-date'))!;
+    expect(picked > first).toBe(true);
+
     await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
     await expect(page.getByTestId('plan-preview-choose-other')).toHaveText('Wybierz inny plan');
@@ -63,6 +75,24 @@ test.describe('Replan', () => {
     await confirm.click();
     await expect(page.getByTestId('ob-start-step')).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
+
+    const mondayOf = (iso: string) => {
+      const [y, m, d] = iso.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      const dow = date.getDay();
+      date.setDate(date.getDate() - (dow === 0 ? 6 : dow - 1));
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    await expect.poll(async () => page.evaluate(() => {
+      const raw = window.localStorage.getItem('fittracker_e2e_plan');
+      return raw ? (JSON.parse(raw) as { startDate?: string }).startDate ?? null : null;
+    })).toBe(mondayOf(picked));
+    const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('fittracker_e2e_plan')!) as { startDate?: string; skippedDates?: string[] });
+    const skipped = saved.skippedDates ?? [];
+    expect(skipped).not.toContain(picked);
+    for (const iso of skipped) expect(iso >= mondayOf(picked) && iso < picked).toBe(true);
+    // Pierwszy chip w tym samym tygodniu co wybrany = pominięty (nie zaległy).
+    if (mondayOf(first) === mondayOf(picked)) expect(skipped).toContain(first);
   });
 
   // X34 (d): biblioteka -> wybór szablonu spoza kart -> 5A z kartą "Wybrany" -> 6/6

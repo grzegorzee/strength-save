@@ -180,6 +180,8 @@ const NewPlan = () => {
         // pierwszeństwo (stare szkice z surową datą spadają na snap startDate).
         startDateISO: plan.startDate,
         planName: plan.planName,
+        // X34b: dni tygodnia startu przed datą pierwszego treningu (zapis razem z planem).
+        skippedDates: plan.skippedDates,
         // WP-6 (X33): odpowiedzi z kreatora NA nowym cyklu (entry replan);
         // onboardingAnswers na userze zostaje snapshotem pierwszego onboardingu.
         choice: buildPlanCycleChoice(plan, 'replan'),

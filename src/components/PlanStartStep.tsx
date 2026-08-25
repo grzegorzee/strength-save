@@ -25,10 +25,13 @@ interface PlanStartStepProps {
   /** Długość z szablonu: kafel z etykietą "polecane" (spoza 8/12/16 = czwarty kafel). Własny plan = brak. */
   templateWeeks?: number;
   onWeeksChange: (weeks: number) => void;
-  /** Wybrany poniedziałek startu (ISO). */
-  startDate: string;
-  startMondays: string[];
-  onStartDateChange: (iso: string) => void;
+  /** X34b: wybrany dzień pierwszego treningu (ISO). */
+  firstWorkoutDate: string;
+  /** X34b: kolejne dni treningowe od dziś (listFirstWorkoutOptions). */
+  firstWorkoutOptions: string[];
+  onFirstWorkoutChange: (iso: string) => void;
+  /** Dzisiejsza data (ISO) — chip tej daty dostaje etykietę "Dziś". */
+  todayISO: string;
   objective: PlanObjective;
   onStart: () => void;
   onPreview: () => void;
@@ -38,15 +41,17 @@ interface PlanStartStepProps {
 }
 
 /**
- * X34: ekran 6/6 "Start planu" (po wyborze planu w 5A): nazwa (pełna szerokość),
- * długość jako kafle 8 / 12 / 16 (+ wartość szablonu "polecane") + "Inna" z
- * istniejącym PlanDurationPicker, start jako chipy 8 najbliższych poniedziałków.
- * Na dole główny CTA celu (zapis od razu) i drugorzędny "Podgląd planu".
+ * X34 / X34b: ekran 6/6 "Start planu" (po wyborze planu w 5A). Kolejność od góry
+ * (decyzja właściciela po buildzie 121): data PIERWSZEGO TRENINGU (chipy kolejnych
+ * dni treningowych od dziś, "Dziś" gdy dotyczy), długość jako kafle 8 / 12 / 16
+ * (+ wartość szablonu "polecane") + "Inna" z PlanDurationPicker, nazwa planu na
+ * końcu. Na dole główny CTA celu (zapis od razu) i drugorzędny "Podgląd planu".
  * Zasada 7: kafle/chipy touch-manipulation, bez zaznaczania; etykiety dat nie
  * rzucą na złej dacie (zasada 11).
  */
 export const PlanStartStep = ({
-  name, onNameChange, weeks, templateWeeks, onWeeksChange, startDate, startMondays, onStartDateChange,
+  name, onNameChange, weeks, templateWeeks, onWeeksChange,
+  firstWorkoutDate, firstWorkoutOptions, onFirstWorkoutChange, todayISO,
   objective, onStart, onPreview, previewLabel, isSaving, error,
 }: PlanStartStepProps) => {
   const { t, lang } = useTranslation();
@@ -65,25 +70,32 @@ export const PlanStartStep = ({
         <p className="mt-1.5 text-[13px] text-muted-foreground">{t('ob.start.desc')}</p>
       </div>
       <div className="flex-1 space-y-3">
-        <div className="rounded-2xl bg-surface-low p-4">
-          <label htmlFor="ob-plan-name" className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</label>
-          {/* X34 QA: 60 znaków nie mieści się w jednej linii na 393 px — pole
-              rośnie w dół (textarea bez Entera), zamiast przewijać tekst w bok. */}
-          <textarea
-            id="ob-plan-name"
-            data-testid="ob-plan-name"
-            rows={1}
-            maxLength={60}
-            value={name}
-            onChange={(e) => onNameChange(e.target.value.replace(/[\r\n]+/g, ' '))}
-            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-            ref={(el) => {
-              if (!el) return;
-              el.style.height = '0px';
-              el.style.height = `${el.scrollHeight}px`;
-            }}
-            className="mt-1 w-full resize-none overflow-hidden border-b border-transparent bg-transparent font-heading text-xl font-bold leading-tight text-primary outline-none focus:border-primary/40"
-          />
+        <div className="rounded-2xl bg-surface-low p-4" data-testid="ob-first-workout">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.start.firstWorkout')}</p>
+          <p className="mb-2 text-[12px] text-muted-foreground">{t('ob.start.firstWorkoutHint')}</p>
+          <div className="flex gap-2 overflow-x-auto pb-1" data-testid="ob-first-workout-chips">
+            {firstWorkoutOptions.map((iso) => {
+              const date = parseLocalDateSafe(iso);
+              const on = iso === firstWorkoutDate;
+              const isToday = iso === todayISO;
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  aria-pressed={on}
+                  data-date={iso}
+                  onClick={() => onFirstWorkoutChange(iso)}
+                  className={cn('flex w-16 shrink-0 touch-manipulation select-none flex-col items-center rounded-full py-2 transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
+                >
+                  <span className="text-[10px] font-medium uppercase">
+                    {isToday ? t('ob.start.today') : date ? date.toLocaleDateString(dateLocale(lang), { weekday: 'short' }) : '-'}
+                  </span>
+                  <span className="mt-0.5 font-heading text-lg font-bold leading-none">{date ? date.getDate() : '-'}</span>
+                  <span className="mt-0.5 text-[9px] uppercase opacity-70">{date ? date.toLocaleDateString(dateLocale(lang), { month: 'short' }) : ''}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="rounded-2xl bg-surface-low p-4" data-testid="ob-duration-tiles">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('planbuilder.planDuration')}</p>
@@ -121,26 +133,24 @@ export const PlanStartStep = ({
           )}
         </div>
         <div className="rounded-2xl bg-surface-low p-4">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.start.week')}</p>
-          <div className="flex gap-2 overflow-x-auto pb-1" data-testid="ob-start-week-chips">
-            {startMondays.map((iso) => {
-              const monday = parseLocalDateSafe(iso);
-              const on = iso === startDate;
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => onStartDateChange(iso)}
-                  className={cn('flex w-16 shrink-0 touch-manipulation select-none flex-col items-center rounded-full py-2 transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
-                >
-                  <span className="text-[10px] font-medium uppercase">{monday ? monday.toLocaleDateString(dateLocale(lang), { weekday: 'short' }) : '-'}</span>
-                  <span className="mt-0.5 font-heading text-lg font-bold leading-none">{monday ? monday.getDate() : '-'}</span>
-                  <span className="mt-0.5 text-[9px] uppercase opacity-70">{monday ? monday.toLocaleDateString(dateLocale(lang), { month: 'short' }) : ''}</span>
-                </button>
-              );
-            })}
-          </div>
+          <label htmlFor="ob-plan-name" className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</label>
+          {/* X34 QA: 60 znaków nie mieści się w jednej linii na 393 px — pole
+              rośnie w dół (textarea bez Entera), zamiast przewijać tekst w bok. */}
+          <textarea
+            id="ob-plan-name"
+            data-testid="ob-plan-name"
+            rows={1}
+            maxLength={60}
+            value={name}
+            onChange={(e) => onNameChange(e.target.value.replace(/[\r\n]+/g, ' '))}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+            ref={(el) => {
+              if (!el) return;
+              el.style.height = '0px';
+              el.style.height = `${el.scrollHeight}px`;
+            }}
+            className="mt-1 w-full resize-none overflow-hidden border-b border-transparent bg-transparent font-heading text-xl font-bold leading-tight text-primary outline-none focus:border-primary/40"
+          />
         </div>
       </div>
       <div className="space-y-2 pt-4">

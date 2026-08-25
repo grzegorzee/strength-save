@@ -541,3 +541,75 @@ describe('runCycleAutoRepair (R2-27)', () => {
     expect(guardAtCreate).toBe(true);
   });
 });
+
+// X34b: data pierwszego treningu -> skippedDates zapisywane RAZEM z planem
+// (savePlan options), nie osobnym zapisem; bez pola zachowanie jak dotad.
+describe('skippedDates z kreatora (X34b)', () => {
+  const isoDaysFromMonday = (offsetDays: number) => {
+    const d = new Date();
+    const dow = d.getDay();
+    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + offsetDays);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const makeDeps = () => ({
+    uid: 'u1',
+    currentPlan: [] as TrainingDay[],
+    planStartDate: null,
+    planDurationWeeks: 12,
+    workouts: [],
+    archiveCurrentPlan: vi.fn(),
+    savePlan: vi.fn().mockResolvedValue({ success: true }),
+    createActiveCycle: vi.fn().mockResolvedValue('cycle-1'),
+    backfillHistoricalWorkouts: vi.fn(),
+  });
+
+  it('startCycleWithPlan: deps.skippedDates trafia do savePlan razem ze startDate (jeden zapis planu)', async () => {
+    const deps = makeDeps();
+    const monday = isoDaysFromMonday(7);
+    const skipped = [monday, isoDaysFromMonday(9)];
+
+    await startCycleWithPlan(days, 12, { ...deps, startDateISO: monday, skippedDates: skipped });
+
+    expect(deps.savePlan).toHaveBeenCalledTimes(1);
+    expect(deps.savePlan).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ startDate: monday, skippedDates: skipped }),
+    );
+  });
+
+  it('startCycleWithPlan: smieci w skippedDates sa sanityzowane (tylko YYYY-MM-DD, bez duplikatow, posortowane)', async () => {
+    const deps = makeDeps();
+    await startCycleWithPlan(days, 12, { ...deps, skippedDates: ['2026-08-26', 'zle', '2026-08-24', '2026-08-26'] });
+    const options = deps.savePlan.mock.calls[0][1] as Record<string, unknown>;
+    expect(options.skippedDates).toEqual(['2026-08-24', '2026-08-26']);
+  });
+
+  it('NIEZMIENNIK: bez skippedDates (Powtorz plan, przedluzenie) savePlan nie dostaje pola', async () => {
+    const deps = makeDeps();
+    await startCycleWithPlan(days, 12, deps);
+    const options = deps.savePlan.mock.calls[0][1] as Record<string, unknown>;
+    expect('skippedDates' in options).toBe(false);
+  });
+
+  it('completeOnboardingPlan: choice.skippedDates trafia do savePlan; bez pola savePlan bez skippedDates', async () => {
+    const base = {
+      days, durationWeeks: 8, startDate: '2026-08-24', level: 'beginner', objective: 'build_muscle', daysPerWeek: 3,
+    };
+    const withSkipped = vi.fn().mockResolvedValue({ success: true });
+    await completeOnboardingPlan({ ...base, skippedDates: ['2026-08-24'] }, {
+      savePlan: withSkipped,
+      createActiveCycle: vi.fn().mockResolvedValue('cycle-1'),
+      markOnboardingComplete: vi.fn().mockResolvedValue(undefined),
+    });
+    expect(withSkipped).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ startDate: '2026-08-24', skippedDates: ['2026-08-24'] }));
+
+    const without = vi.fn().mockResolvedValue({ success: true });
+    await completeOnboardingPlan(base, {
+      savePlan: without,
+      createActiveCycle: vi.fn().mockResolvedValue('cycle-1'),
+      markOnboardingComplete: vi.fn().mockResolvedValue(undefined),
+    });
+    expect('skippedDates' in (without.mock.calls[0][1] as Record<string, unknown>)).toBe(false);
+  });
+});

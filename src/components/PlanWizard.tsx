@@ -10,12 +10,12 @@ import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/pla
 import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { buildFirstWorkoutSchedule, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
 import { ACCENTS, applyAccent, getAccentById, hasStoredAccent, readStoredAccentId, storeAccentId, type AccentTheme } from '@/lib/accent-theme';
 import { deriveAccentCandidatesFromAvatar } from '@/lib/avatar-accent';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
-import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
+import { applyWeekdaysToPlanDays, hasExactWeekdaySelection, planDaysMismatch, uniqueSortedWeekdays, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
 // 'elite' usunięte (Z72): mapowało się na advanced — iluzoryczny wybór. Legacy wartości
 // zapisane w trainingProfile sanityzuje sanitizeWizardLevel.
@@ -30,7 +30,12 @@ const sanitizeWizardLevel = (level?: string): WizardLevel | undefined => {
 export interface PlanWizardChoice {
   days: TrainingDay[];
   durationWeeks: number;
-  startDate: string;        // surowa data (rodzic snapuje do poniedziałku)
+  /** Poniedziałek tygodnia pierwszego treningu (X34b); rodzic i tak snapuje do poniedziałku. */
+  startDate: string;
+  /** X34b: konkretny dzień pierwszego treningu wybrany na 6/6 (ISO); brak = stary szkic. */
+  firstWorkoutDate?: string;
+  /** X34b: dni treningowe tygodnia startu przed pierwszym treningiem (do training_plans.skippedDates). */
+  skippedDates?: string[];
   level: WizardLevel;
   objective: PlanObjective;
   daysPerWeek: number;
@@ -209,7 +214,10 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     const fromResume = resume?.days.map((d) => d.weekday).filter(Boolean);
     return fromResume && fromResume.length ? fromResume : (DEFAULT_DAYS[initialDays] ?? DEFAULT_DAYS[4]);
   });
-  const [startDate, setStartDate] = useState(() => resume?.startDate ?? formatLocalDate(new Date()));
+  // X34b: konkretny dzień pierwszego treningu (ISO) z 6/6; null = pierwszy
+  // dostępny chip. Stary szkic bez firstWorkoutDate (tylko poniedziałek) spada
+  // na pierwszy dzień treningowy >= jego startDate (defaultFirstWorkout niżej).
+  const [firstWorkoutInput, setFirstWorkoutInput] = useState<string | null>(() => resume?.firstWorkoutDate ?? null);
   // X34: wznowienie na konkretnym kroku (6/6 albo 5A po "Wybierz inny plan")
   // ląduje w trybie wyboru; bez resumeStep własny plan otwiera się w builderze jak dotąd.
   const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(resumedCustomPlan && resumeStep === undefined ? 'own' : 'recommend');
@@ -361,27 +369,39 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // z aktualnego szablonu / "Własny plan" (zmiana szablonu wraca do defaultu).
   const [planNameInput, setPlanNameInput] = useState<string | null>(resume?.planName ?? null);
   const defaultPlanName = customPlan ? t('newplan.customPlan') : localizePlanName(chosen.id, chosen.name, lang);
-  // Start planu = wybór z 8 najbliższych poniedziałków (Edge 3); selekcja liczona
-  // z poniedziałku tygodnia startDate, więc resume ze starą (surową) datą działa.
-  const startMondays = useMemo(() => Array.from({ length: 8 }, (_, weekAhead) => {
-    const monday = getStartOfPlanWeek(new Date());
-    monday.setDate(monday.getDate() + weekAhead * 7);
-    return formatLocalDate(monday);
-  }), []);
-  const selectedMonday = getCycleStartPreview(startDate).cycleStartDate;
+  // X34b: chipy 6/6 = kolejne dni treningowe od dziś (do 8) wg dni ZAPISYWANEGO
+  // planu (szablon po applyWeekdaysToPlanDays = dni z kroku 4 przycięte do liczby
+  // dni szablonu; własny plan = dni z buildera). Wybór spoza listy (zmiana dni
+  // w kroku 4, stary szkic) spada na pierwszy chip — zawsze ważna opcja, zero
+  // pułapki z niezaznaczonym startem.
+  const todayISO = formatLocalDate(new Date());
+  const scheduleWeekdays = useMemo(
+    () => uniqueSortedWeekdays((customPlan ? customPlan.days : applyWeekdaysToPlanDays(chosen.days, trainingDays)).map((d) => d.weekday)),
+    [customPlan, chosen, trainingDays],
+  );
+  const firstWorkoutOptions = useMemo(() => listFirstWorkoutOptions(scheduleWeekdays, todayISO), [scheduleWeekdays, todayISO]);
+  const defaultFirstWorkout = firstWorkoutOptions.find((iso) => iso >= (resume?.startDate ?? '')) ?? firstWorkoutOptions[0];
+  const firstWorkoutDate = firstWorkoutInput && firstWorkoutOptions.includes(firstWorkoutInput) ? firstWorkoutInput : defaultFirstWorkout;
 
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
 
-  const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string, planName?: string, opts?: PlanWizardConfirmOptions) =>
+  // X34b: plan zakotwiczony w poniedziałku tygodnia pierwszego treningu; dni
+  // treningowe tego tygodnia sprzed wybranej daty (i sprzed dziś) = skippedDates.
+  // Dni tygodnia liczone z ZAPISYWANYCH dni (szablon po applyWeekdaysToPlanDays
+  // albo własny plan), nie z surowego wyboru kroku 4.
+  const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string, planName?: string, opts?: PlanWizardConfirmOptions) => {
+    const schedule = buildFirstWorkoutSchedule(firstWorkoutDate, days.map((d) => d.weekday), todayISO);
     onConfirm({
-      days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId,
+      days, durationWeeks, startDate: schedule.startDate, firstWorkoutDate, skippedDates: schedule.skippedDates,
+      level, objective, daysPerWeek: days.length, templateId,
       name: userName.trim() || undefined, planName,
       // WP-O (X30): jawne odpowiedzi do snapshotu onboardingAnswers.
       trainingDays,
       recommendedTemplateId: recommended.id,
       planSource: templateId === undefined ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
     }, opts);
+  };
 
   // X34: zatwierdzenie z ekranu 6/6 (główny CTA = skipPreview, "Podgląd planu" = false).
   // Edge 4: pusta nazwa spada do nazwy szablonu / "Własny plan" (fallback, nie pusty string).
@@ -713,8 +733,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
 
         {step === 6 && (
           <>
-            {/* X34: ekran 6/6 "Start planu": nazwa, długość, start, główny CTA celu
-                (zapis od razu, skipPreview) i "Podgląd planu". Wstecz = 5A. */}
+            {/* X34 / X34b: ekran 6/6 "Start planu": data pierwszego treningu, długość,
+                nazwa, główny CTA celu (zapis od razu, skipPreview) i "Podgląd planu".
+                Wstecz = 5A. */}
             <StepHeader step={6} total={6} onBack={() => setStep(5)} />
             <PlanStartStep
               name={planNameInput ?? defaultPlanName}
@@ -722,9 +743,10 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               weeks={effectiveWeeks}
               templateWeeks={customPlan ? undefined : chosen.durationWeeks}
               onWeeksChange={setTemplateWeeks}
-              startDate={selectedMonday}
-              startMondays={startMondays}
-              onStartDateChange={setStartDate}
+              firstWorkoutDate={firstWorkoutDate}
+              firstWorkoutOptions={firstWorkoutOptions}
+              onFirstWorkoutChange={setFirstWorkoutInput}
+              todayISO={todayISO}
               objective={objective}
               previewLabel={t(confirmLabelKey)}
               onStart={() => confirmPlan({ skipPreview: true })}
