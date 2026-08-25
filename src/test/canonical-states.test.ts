@@ -3,6 +3,7 @@ import {
   CANONICAL_STATE_IDS,
   CANONICAL_UID,
   buildCanonicalState,
+  buildCycleChoice,
   buildTypedSetsWorkout,
 } from '@/test/canonical-states';
 import {
@@ -80,6 +81,21 @@ describe('WP-G — canonical states: roundtrip przez sanitizery hydracji', () =>
     // przezyc roundtrip, inaczej PR-y i progresja typow Z105 sa martwe.
     const workout = buildTypedSetsWorkout(TODAY);
     expect(sanitizeWorkoutDoc(workout.id, stripId(workout))).toEqual(workout);
+  });
+
+  it('history-multi-cycle: aktywny cykl ma choice z kreatora (replan), zamkniety sprzed WP-6 bez (X33)', () => {
+    const state = buildCanonicalState('history-multi-cycle', TODAY);
+    const withChoice = state.cycles.filter((cycle) => cycle.choice !== undefined);
+    expect(withChoice).toHaveLength(1);
+    expect(withChoice[0].status).toBe('active');
+    expect(withChoice[0].choice).toMatchObject({ version: 1, entry: 'replan', planSource: 'recommended' });
+    expect(withChoice[0].choice!.trainingDays.length).toBe(withChoice[0].days.length);
+    expect(withChoice[0].choice!.daysPerWeek).toBe(withChoice[0].days.length);
+    expect(withChoice[0].choice!.planName).toBe(state.plan?.name);
+    // Builder buduje choice produkcyjna logika (buildPlanCycleChoice), wiec
+    // roundtrip przez sanitizer (it.each wyzej) trzyma ksztalt 1:1.
+    expect(sanitizePlanCycleDoc(withChoice[0].id, stripId(withChoice[0]))?.choice).toEqual(withChoice[0].choice);
+    expect(buildCycleChoice('onboarding', `${TODAY}T08:00:00.000Z`)).toMatchObject({ entry: 'onboarding', chosenAt: `${TODAY}T08:00:00.000Z` });
   });
 
   it('draft-open: draft wskazuje dzisiejsza sesje z planu', () => {
