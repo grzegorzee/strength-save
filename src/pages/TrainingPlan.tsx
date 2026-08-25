@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { getTrainingRules } from '@/data/trainingPlan';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -11,7 +10,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Plane } from 'lucide-react';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
 import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, planWeekNumberForDate, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -158,7 +157,6 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
 const TrainingPlan = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
-  const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { plan: trainingPlan, isLoaded: planIsLoaded, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
@@ -924,12 +922,6 @@ const TrainingPlan = () => {
               : t('vac.title')}
           </span>
         </button>
-      </div>
-
-      {/* Rules tip */}
-      <div className="py-3 px-4 rounded-xl bg-surface-low border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
-        <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
-        <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
       </div>
 
       {/* Z112: dialog wpisu cardio (nowy z defaultDate albo edycja) */}

@@ -1105,7 +1105,9 @@ const Dashboard = () => {
               })}
             </p>
           )}
-          <Button variant="outline" size="sm" className="mt-1 self-start" onClick={() => navigate('/plan')}>
+          {/* Uwaga właściciela (121): przed startem cyklu "Zobacz plan" to główna
+              akcja dnia, więc CTA w akcencie jak hero, nie wyszarzony outline. */}
+          <Button className="kinetic-primary-button mt-2 h-12 w-full gap-1.5 text-base hover:brightness-105" onClick={() => navigate('/plan')}>
             {t('dash.preStart.viewPlan')}
           </Button>
         </div>
