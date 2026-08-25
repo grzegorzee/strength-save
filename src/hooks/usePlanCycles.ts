@@ -25,6 +25,7 @@ import { chunkForFirestoreWrite, shouldMergeContinuousCycles } from '@/lib/plan-
 import { isCycleVisible } from '@/lib/cycle-visibility';
 import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
+import { fetchWorkoutRange } from '@/lib/workout-read-store';
 
 const CYCLES_COLLECTION = 'plan_cycles';
 const CYCLE_OPERATIONS_COLLECTION = 'plan_cycle_operations';
@@ -43,6 +44,23 @@ interface MergeOperation {
   nextWorkoutIndex: number;
   nextCycleIndex: number;
 }
+
+// Bug 16: przekazane okno workouts (limit listenera 500) nie pokrywa całej
+// historii — pełną listę sesji otagowanych danymi cyklami rozstrzyga serwerowe
+// zapytanie po cycleId (chunk po 10 = bezpieczny limit dysjunkcji `in`).
+const fetchWorkoutIdsByCycleIds = async (userId: string, cycleIds: string[]): Promise<Set<string>> => {
+  const ids = new Set<string>();
+  for (let index = 0; index < cycleIds.length; index += 10) {
+    const chunk = cycleIds.slice(index, index + 10);
+    const snap = await getDocs(query(
+      collection(db, 'workouts'),
+      where('userId', '==', userId),
+      where('cycleId', 'in', chunk),
+    ));
+    snap.docs.forEach((workoutDoc) => ids.add(workoutDoc.id));
+  }
+  return ids;
+};
 
 const archivedDurationWeeks = (startDate: string, endDate: string, plannedWeeks: number): number => {
   const elapsedDays = calendarDayDiff(startDate, endDate) + 1;
@@ -243,7 +261,6 @@ export const usePlanCycles = (userId: string) => {
   const runMergeOperation = useCallback(async (
     operationId: string,
     operation: MergeOperation,
-    workouts: WorkoutSession[],
   ): Promise<number> => {
     const operationRef = doc(db, CYCLE_OPERATIONS_COLLECTION, operationId);
     const primaryRef = doc(db, CYCLES_COLLECTION, operation.primaryCycleId);
@@ -254,14 +271,16 @@ export const usePlanCycles = (userId: string) => {
 
     let nextWorkoutIndex = operation.nextWorkoutIndex;
     if (operation.phase === 'remapping') {
-      const workoutById = new Map(workouts.map(workout => [workout.id, workout]));
+      // Bug 16: istnienie i potrzebę remapu rozstrzyga serwer, nie okno 500
+      // przekazanych workouts (przy wznowieniu operacji okno mogło się przesunąć).
+      // Sesja już przemapowana lub skasowana nie wraca z zapytania — replay
+      // committed batcha po padniętym checkpoincie pozostaje bezpieczny.
+      const stillTagged = await fetchWorkoutIdsByCycleIds(operation.userId, operation.restCycleIds);
       const pendingIds = operation.workoutIds.slice(nextWorkoutIndex);
       for (const ids of chunkForFirestoreWrite(pendingIds)) {
         const batch = writeBatch(db);
         ids.forEach(id => {
-          // A previously committed batch can be replayed safely if the checkpoint
-          // write was the step that failed.
-          if (workoutById.has(id)) batch.update(doc(db, 'workouts', id), { cycleId: primary.id });
+          if (stillTagged.has(id)) batch.update(doc(db, 'workouts', id), { cycleId: primary.id });
         });
         await batch.commit();
         nextWorkoutIndex += ids.length;
@@ -272,7 +291,13 @@ export const usePlanCycles = (userId: string) => {
     }
 
     if (operation.phase === 'updating_primary') {
-      const remapped = workouts.map(workout =>
+      // Bug 16: staty scalonego cyklu z pełnego zakresu dat (serwer), nie z okna
+      // 500 — inaczej sesje starsze niż okno zaniżały totalWorkouts/tonaż.
+      const rangeWorkouts = await fetchWorkoutRange(operation.userId, {
+        fromDate: operation.newStart,
+        toDate: operation.newEnd,
+      });
+      const remapped = rangeWorkouts.map(workout =>
         restIds.has(workout.cycleId ?? '') ? { ...workout, cycleId: primary.id } : workout,
       );
       const stats = computeCycleStats(remapped, primary.days, operation.newStart, operation.newEnd, operation.newDuration, primary.id);
@@ -306,7 +331,7 @@ export const usePlanCycles = (userId: string) => {
     ));
     let removed = 0;
     for (const pendingOperation of pending.docs) {
-      removed += await runMergeOperation(pendingOperation.id, pendingOperation.data() as MergeOperation, workouts);
+      removed += await runMergeOperation(pendingOperation.id, pendingOperation.data() as MergeOperation);
     }
     // Snapshot state can still contain cycles just deleted by a resumed operation.
     // Let the listener refresh before discovering new merge groups.
@@ -340,13 +365,22 @@ export const usePlanCycles = (userId: string) => {
       const newEnd = group[group.length - 1].endDate;
       const newDuration = weeksBetween(newStart, newEnd);
 
+      // Bug 16: pełna lista sesji do remapu z serwera (okno 500 obcinało starsze
+      // sesje, które zostawały z cycleId na skasowany cykl => "Poza cyklami").
+      // Unia z oknem: sesja otagowana lokalnie, jeszcze niewidoczna w zapytaniu,
+      // też wchodzi do operacji.
+      const workoutIdSet = await fetchWorkoutIdsByCycleIds(userId, rest.map(cycle => cycle.id));
+      workouts.forEach(workout => {
+        if (workout.cycleId && restIds.has(workout.cycleId)) workoutIdSet.add(workout.id);
+      });
+
       const operationId = `merge-${primary.id}`;
       const operation: MergeOperation = {
         userId,
         kind: 'merge_cycles',
         primaryCycleId: primary.id,
         restCycleIds: rest.map(cycle => cycle.id),
-        workoutIds: workouts.filter(workout => workout.cycleId && restIds.has(workout.cycleId)).map(workout => workout.id),
+        workoutIds: [...workoutIdSet],
         newStart,
         newEnd,
         newDuration,
@@ -355,7 +389,7 @@ export const usePlanCycles = (userId: string) => {
         nextCycleIndex: 0,
       };
       await setDoc(doc(db, CYCLE_OPERATIONS_COLLECTION, operationId), operation, { merge: true });
-      removed += await runMergeOperation(operationId, operation, workouts);
+      removed += await runMergeOperation(operationId, operation);
     }
     return removed;
   }, [cycles, runMergeOperation, userId]);
@@ -365,10 +399,17 @@ export const usePlanCycles = (userId: string) => {
   const deleteCycle = useCallback(async (cycleId: string, workouts: WorkoutSession[] = []): Promise<boolean> => {
     if (!userId || !cycleId) return false;
     try {
-      const tagged = workouts.filter((w) => w.cycleId === cycleId);
-      for (let index = 0; index < tagged.length; index += 450) {
+      // Bug 16 (ta sama dziura co merge): sesje otagowane cyklem bierzemy
+      // z serwera, nie tylko z przekazanego okna — inaczej starsze sesje
+      // zostawały z cycleId na skasowany cykl ("Poza cyklami" na stałe).
+      const tagged = await fetchWorkoutIdsByCycleIds(userId, [cycleId]);
+      workouts.forEach((workout) => {
+        if (workout.cycleId === cycleId) tagged.add(workout.id);
+      });
+      const taggedIds = [...tagged];
+      for (const ids of chunkForFirestoreWrite(taggedIds)) {
         const batch = writeBatch(db);
-        tagged.slice(index, index + 450).forEach(workout => batch.update(doc(db, 'workouts', workout.id), { cycleId: null }));
+        ids.forEach(id => batch.update(doc(db, 'workouts', id), { cycleId: null }));
         await batch.commit();
       }
       await deleteDoc(doc(db, CYCLES_COLLECTION, cycleId));
