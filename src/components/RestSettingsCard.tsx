@@ -89,12 +89,12 @@ export const RestSettingsCard = () => {
         <div
           data-testid="rest-recommended-summary"
           className={cn(
-            'flex items-center justify-between gap-3 rounded-xl px-3 py-3',
+            'space-y-2 rounded-xl px-3 py-3',
             onRecommended ? 'bg-primary/10' : 'bg-muted/40',
           )}
         >
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
               {t('rest.settings.currentLabel')}
               {settings.custom === true && (
                 <span className="ml-2 rounded-full bg-surface-highest px-2 py-0.5 text-[10px] normal-case tracking-normal text-foreground">
@@ -102,23 +102,23 @@ export const RestSettingsCard = () => {
                 </span>
               )}
             </p>
-            <p className="font-heading text-2xl font-bold tabular-nums" data-testid="rest-current-working">
+            <p className="shrink-0 font-heading text-2xl font-bold tabular-nums" data-testid="rest-current-working">
               {formatSeconds(settings.workingSeconds)}
             </p>
-            {objective && (
-              <p className="text-[11px] text-muted-foreground/80" data-testid="rest-recommended-hint">
-                {onRecommended
-                  ? t('rest.settings.recommendedActive')
-                  : t('rest.settings.recommended', { seconds: recommended.workingSeconds })}
-              </p>
-            )}
           </div>
+          {objective && (
+            <p className="text-[11px] text-muted-foreground/80" data-testid="rest-recommended-hint">
+              {onRecommended
+                ? t('rest.settings.recommendedActive')
+                : t('rest.settings.recommended', { seconds: recommended.workingSeconds })}
+            </p>
+          )}
           {objective && !onRecommended && (
             <button
               type="button"
               onClick={restoreRecommended}
               data-testid="rest-restore-recommended"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-transform active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-transform active:scale-95"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               {t('rest.settings.restoreRecommended')}
