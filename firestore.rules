@@ -323,12 +323,27 @@ service cloud.firestore {
       allow read: if request.auth != null && isAdmin();
     }
 
+    // WP-6 (X33): odpowiedzi z kreatora na cyklu — zamknięta mapa (11 pól kontraktu
+    // PlanCycleChoice), wersja int, enumy źródła i wejścia. Reszta pól (typy
+    // stringów/list) sanityzowana w kodzie (sanitizePlanCycleChoice).
+    function validPlanCycleChoice() {
+      return request.resource.data.choice is map
+        && request.resource.data.choice.keys().hasOnly([
+          'version', 'chosenAt', 'level', 'objective', 'daysPerWeek', 'trainingDays',
+          'planSource', 'templateId', 'recommendedTemplateId', 'planName', 'entry'
+        ])
+        && request.resource.data.choice.version is int
+        && request.resource.data.choice.planSource in ['recommended', 'browsed', 'custom']
+        && request.resource.data.choice.entry in ['onboarding', 'replan'];
+    }
+
     // Zamknięty schemat cyklu (Z41). Głęboka walidacja days zostaje w kodzie.
     function validPlanCycleShape() {
       return request.resource.data.keys().hasOnly([
         'userId', 'days', 'durationWeeks', 'startDate', 'endDate', 'status',
-        'createdAt', 'stats', 'technical', 'hiddenFromInsights'
+        'createdAt', 'stats', 'technical', 'hiddenFromInsights', 'choice'
       ])
+      && (!('choice' in request.resource.data) || validPlanCycleChoice())
       && (!('days' in request.resource.data) || request.resource.data.days is list)
       && (!('durationWeeks' in request.resource.data) || request.resource.data.durationWeeks is number)
       && (!('startDate' in request.resource.data)

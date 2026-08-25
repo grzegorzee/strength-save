@@ -334,6 +334,21 @@ const validCycle = {
 add('plan_cycles: zgodny cykl (z polami technical) ALLOWED', true, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-1'), validCycle)));
 add('plan_cycles: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-2'), { ...validCycle, evil: 1 })));
 add('plan_cycles: status nie-string DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-3'), { ...validCycle, status: 7 })));
+// WP-6 (X33): odpowiedzi z kreatora na cyklu (zamknieta mapa choice).
+const validChoice = {
+  version: 1, chosenAt: '2026-08-25T10:30:00.000Z', level: 'intermediate', objective: 'build_muscle',
+  daysPerWeek: 3, trainingDays: ['monday', 'wednesday', 'friday'], planSource: 'recommended',
+  templateId: 'tpl-fullbody-3', recommendedTemplateId: 'tpl-fullbody-3', planName: 'Moj plan', entry: 'onboarding',
+};
+add('plan_cycles: pelny choice (11 pol) ALLOWED', true, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-4'), { ...validCycle, choice: validChoice })));
+add('plan_cycles: choice bez pol opcjonalnych (entry replan, planSource custom) ALLOWED', true, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-5'), { ...validCycle, choice: { version: 1, chosenAt: 'x', level: 'beginner', objective: 'fat_loss', daysPerWeek: 2, trainingDays: [], planSource: 'custom', entry: 'replan' } })));
+add('plan_cycles: choice z nieznanym kluczem DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-6'), { ...validCycle, choice: { ...validChoice, extra: 1 } })));
+add('plan_cycles: choice nie-mapa DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-7'), { ...validCycle, choice: 'recommended' })));
+add('plan_cycles: choice ze zlym planSource DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-8'), { ...validCycle, choice: { ...validChoice, planSource: 'magic' } })));
+add('plan_cycles: choice ze zlym entry DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-9'), { ...validCycle, choice: { ...validChoice, entry: 'admin' } })));
+add('plan_cycles: choice z version nie-int DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-10'), { ...validCycle, choice: { ...validChoice, version: '1' } })));
+// Update (archiwizacja updateDoc) na cyklu z choice: keepsOwner + shape na calym dokumencie.
+add('plan_cycles: update statusu cyklu z choice ALLOWED', true, await ok(() => updateDoc(doc(db, 'plan_cycles', 'c-4'), { status: 'completed', endDate: '2026-09-01' })));
 
 // plan_cycle_operations: zamkniety schemat
 await env.clearFirestore();
