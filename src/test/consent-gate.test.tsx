@@ -71,13 +71,16 @@ describe('needsConsentRefresh', () => {
 describe('ConsentGate', () => {
   beforeEach(() => {
     recordConsents.mockClear();
+    onLogout.mockClear();
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
   });
 
+  const onLogout = vi.fn(async () => {});
+
   const renderGate = (profile: UserProfile) => render(
     <LanguageProvider>
-      <ConsentGate profile={profile} />
+      <ConsentGate profile={profile} onLogout={onLogout} />
     </LanguageProvider>,
   );
 
@@ -118,6 +121,17 @@ describe('ConsentGate', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Bug 32 (X30): bramka renderowana ZAMIAST HashRouter była jedynym ekranem
+  // bez wyjścia — zero logoutu (obce konto na współdzielonym urządzeniu =
+  // pułapka). Symetria z EmailVerificationGate: przycisk Wyloguj obok CTA.
+  it('ma wyjście Wyloguj niezależne od zaznaczenia zgód (zasada 6)', () => {
+    renderGate(profileWith(undefined));
+    const logout = screen.getByTestId('consent-gate-logout');
+    expect(logout).not.toBeDisabled();
+    fireEvent.click(logout);
+    expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
   it('błąd zapisu pokazuje komunikat i odblokowuje przycisk', async () => {

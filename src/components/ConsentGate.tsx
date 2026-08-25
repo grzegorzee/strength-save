@@ -26,7 +26,12 @@ import type { UserProfile } from '@/lib/user-profile';
 // jest bezpieczny, recordConsent nadpisuje te same zgody).
 const SNAPSHOT_TIMEOUT_MS = 12_000;
 
-export const ConsentGate = ({ profile }: { profile: UserProfile | null }) => {
+export const ConsentGate = ({ profile, onLogout }: {
+  profile: UserProfile | null;
+  /** Zasada 6 (bug 32): bramka zastępuje cały router, więc musi mieć wyjście
+   *  niezależne od zatwierdzenia zgód — symetrycznie do EmailVerificationGate. */
+  onLogout: () => Promise<void>;
+}) => {
   const { t, lang } = useTranslation();
   const [selection, setSelection] = useState<ConsentSelection>(EMPTY_CONSENT_SELECTION);
   const [saving, setSaving] = useState(false);
@@ -84,6 +89,14 @@ export const ConsentGate = ({ profile }: { profile: UserProfile | null }) => {
             data-testid="consent-gate-submit"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('consent.gateSubmit')}
+          </Button>
+          <Button
+            variant="secondary"
+            className="w-full mt-2"
+            onClick={() => void onLogout()}
+            data-testid="consent-gate-logout"
+          >
+            {t('profile.logout')}
           </Button>
         </CardContent>
       </Card>
