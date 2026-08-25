@@ -2518,7 +2518,10 @@ export const pl = {
   'ob.tag.strength': 'Siła',
   'ob.tag.power': 'Moc',
   'ob.tag.conditioning': 'Kondycja',
-  'ob.browse.title': 'Wszystkie plany',
+  // X32: Browse pokazuje tylko szablony o liczbie dni z kroku 4; pula zastępcza (+-1 dnia) jawnie oznaczona.
+  'ob.browse.titleDays': 'Plany na {days} dni w tygodniu ({count})',
+  'ob.browse.nearestTitle': 'Najbliższe plany ({count})',
+  'ob.browse.nearestNote': 'Brak planu na {days} dni w tygodniu, pokazujemy najbliższe.',
   'ob.browse.desc': 'Wybierz dowolny plan, by zobaczyć szczegóły.',
   'ob.browse.wk': 't',
   'ob.browse.recommendedBadge': 'Polecany',

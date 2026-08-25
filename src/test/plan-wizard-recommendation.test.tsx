@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
-import { getRecommendedPlan } from '@/data/planTemplates';
+import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
 
 // X31 H2: krok 5 przy replanie (initial z trainingProfile) ma pokazywac szablon
@@ -92,6 +92,23 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     expect(choice.templateId).toBe(getRecommendedPlan('fat_loss', 'intermediate', 3).id);
     expect(choice.recommendedTemplateId).toBe(choice.templateId);
     expect(choice.planSource).toBe('recommended');
+  });
+
+  it('X32 SEKWENCJA: zmiana dni przez "Zmien ustawienia" przelicza pule Browse (tylko szablony o nowej liczbie dni)', () => {
+    render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
+    confirmProfileToStep5();
+
+    const browseCards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!.textContent ?? '');
+    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 3).length);
+    for (const card of browseCards()) expect(card).toContain('3×');
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' })); // Browse -> krok 5
+
+    changeDaysViaSettings(4);
+    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 4).length);
+    for (const card of browseCards()) expect(card).toContain('4×');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Plany na 4 dni w tygodniu');
   });
 
   it('niezmiennik: bez initial (onboarding od zera) domyslne beginner / build_muscle / 4 dni', () => {

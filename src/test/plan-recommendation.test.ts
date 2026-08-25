@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreTemplates } from '@/lib/plan-recommendation';
+import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
 import { getRecommendedPlan, planTemplates, type PlanObjective, type PlanTemplate } from '@/data/planTemplates';
 
 // X31 H2 (hotfix regresji WP-O): liczba dni to JAWNA decyzja usera (krok 4
@@ -84,6 +84,18 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
     expect(top.reasons).toContain('close-days');
   });
 
+  it('X32: rekomendacja z puli przefiltrowanej po dniach = rekomendacja z całego katalogu (kontrakt getRecommendedPlan bez zmian)', () => {
+    for (const objective of OBJECTIVES) {
+      for (const level of LEVELS) {
+        for (const daysPerWeek of DAYS) {
+          const pool = selectTemplatesForDays(daysPerWeek, planTemplates).templates;
+          expect(scoreTemplates({ objective, level, daysPerWeek }, pool)[0].template.id)
+            .toBe(getRecommendedPlan(objective, level, daysPerWeek).id);
+        }
+      }
+    }
+  });
+
   it('getRecommendedPlan deleguje do scoreTemplates (ten sam zwycięzca)', () => {
     const cases = [
       { objective: 'build_muscle', level: 'intermediate', daysPerWeek: 3 },
@@ -95,5 +107,36 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
       expect(getRecommendedPlan(c.objective, c.level, c.daysPerWeek).id)
         .toBe(scoreTemplates(c, planTemplates)[0].template.id);
     }
+  });
+});
+
+// X32: krok 5 i Browse plans widzą TYLKO szablony o liczbie dni z kroku 4
+// (user wybrał 3 dni = dostaje wyłącznie plany 3-dniowe). Pusta pula (katalog
+// bez tej liczby dni) = szablony o +-1 dnia z jawną etykietą; brak i tych =
+// cały katalog (scoreTemplates i tak sortuje po odległości dni).
+describe('selectTemplatesForDays: pula szablonów pod liczbę dni z kroku 4 (X32)', () => {
+  it('WŁASNOŚĆ: dla każdej liczby dni 2..6 pula jest niepusta i zawiera WYŁĄCZNIE szablony o tej liczbie dni', () => {
+    for (const daysPerWeek of DAYS) {
+      const pool = selectTemplatesForDays(daysPerWeek, planTemplates);
+      expect(pool.exactDays, `${daysPerWeek} dni`).toBe(true);
+      expect(pool.templates.length, `${daysPerWeek} dni`).toBe(planTemplates.filter((t) => t.daysPerWeek === daysPerWeek).length);
+      for (const tpl of pool.templates) expect(tpl.daysPerWeek, tpl.id).toBe(daysPerWeek);
+    }
+  });
+
+  it('pula pusta: katalog bez 3-dniowych → szablony o 2 i 4 dniach, exactDays=false', () => {
+    const noThreeDay = planTemplates.filter((t) => t.daysPerWeek !== 3);
+    const pool = selectTemplatesForDays(3, noThreeDay);
+    expect(pool.exactDays).toBe(false);
+    expect(pool.templates.length).toBeGreaterThan(0);
+    for (const tpl of pool.templates) expect([2, 4]).toContain(tpl.daysPerWeek);
+    expect(pool.templates.length).toBe(noThreeDay.filter((t) => t.daysPerWeek === 2 || t.daysPerWeek === 4).length);
+  });
+
+  it('pula pusta także dla +-1: zostaje cały katalog (nie pusty ekran)', () => {
+    const onlySixDay = planTemplates.filter((t) => t.daysPerWeek === 6);
+    const pool = selectTemplatesForDays(2, onlySixDay);
+    expect(pool.exactDays).toBe(false);
+    expect(pool.templates).toEqual(onlySixDay);
   });
 });

@@ -7,7 +7,7 @@ import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDesc
 import { PlanBuilder } from '@/components/PlanBuilder';
 import { PlanDurationPicker } from '@/components/PlanDaysEditor';
 import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
-import { scoreTemplates } from '@/lib/plan-recommendation';
+import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
 import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
@@ -281,9 +281,13 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     setStep(2);
   };
 
+  // X32: krok 5 i Browse plans widzą WYŁĄCZNIE szablony o liczbie dni z kroku 4
+  // (zgłoszenie właściciela: "wybrałem 3 dni, a dostałem 4 dni w tygodniu").
+  // Pusta pula = szablony o +-1 dnia z jawną etykietą (exactDays=false).
+  const dayPool = useMemo(() => selectTemplatesForDays(daysPerWeek, planTemplates), [daysPerWeek]);
   // WP-O (X30): jeden scoring dla rekomendacji (element [0]) i sortowania Browse
   // plans (ta sama lista, malejąco po dopasowaniu do odpowiedzi usera).
-  const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, planTemplates), [objective, level, daysPerWeek]);
+  const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, dayPool.templates), [objective, level, daysPerWeek, dayPool]);
   const recommended = scoredTemplates[0].template;
   const chosen = picked ?? recommended;
   // WP-PLANS-1 (X27, Task P5): kontrola długości w kroku potwierdzenia szablonu;
@@ -592,7 +596,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 ) : null;
               })()}
               <div className="flex gap-2">
-                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-primary" />{t('ob.precision.browse')}</button>
+                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-primary" />{t('ob.precision.browse')}<span className="text-muted-foreground tabular-nums">({scoredTemplates.length})</span></button>
                 <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
               </div>
             </div>
@@ -610,14 +614,25 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
           <>
             <StepHeader step={5} total={5} onBack={() => setMode('recommend')} />
             <div className="mt-7 mb-4">
-              <h1 className="font-heading font-bold text-3xl tracking-tight uppercase">{t('ob.browse.title')}</h1>
+              {/* X32: nagłówek z liczbą dni z kroku 4 + licznik puli; pula zastępcza
+                  (+-1 dnia) jest jawnie oznaczona zamiast cichej podmiany. */}
+              <h1 className="font-heading font-bold text-3xl tracking-tight uppercase">
+                {dayPool.exactDays
+                  ? t('ob.browse.titleDays', { days: daysPerWeek, count: scoredTemplates.length })
+                  : t('ob.browse.nearestTitle', { count: scoredTemplates.length })}
+              </h1>
+              {!dayPool.exactDays && (
+                <p data-testid="browse-nearest-note" className="mt-1 text-[13px] text-fitness-warning">{t('ob.browse.nearestNote', { days: daysPerWeek })}</p>
+              )}
               <p className="text-muted-foreground mt-1">{t('ob.browse.desc')}</p>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
               {/* WP-O (X30): lista posortowana wg dopasowania (scoreTemplates);
-                  najlepszy dostaje badge "Polecany". */}
+                  najlepszy dostaje badge "Polecany". X32: ta sama liczba dni =
+                  dni tygodnia z kroku 4 zostają (setDays resetuje do domyślnych
+                  tylko przy realnej zmianie liczby dni, pula zastępcza). */}
               {scoredTemplates.map(({ template: tpl }, idx) => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setPickedViaBrowse(true); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
+                <button key={tpl.id} onClick={() => { setPicked(tpl); setPickedViaBrowse(true); if (tpl.daysPerWeek !== daysPerWeek) setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
                   {/* WP-F (X28): hero na górze karty (rounded-t przez overflow-hidden rodzica) */}
                   <TemplateHero templateId={tpl.id} />
                   <div className="p-4">

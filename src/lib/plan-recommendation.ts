@@ -59,3 +59,27 @@ export const scoreTemplates = (
   });
   return scored.sort((a, b) => b.score - a.score);
 };
+
+export interface TemplatesForDays {
+  templates: PlanTemplate[];
+  /** true = kazdy szablon ma dokladnie `daysPerWeek` dni; false = pula zastepcza (+-1 dnia albo caly katalog). */
+  exactDays: boolean;
+}
+
+/**
+ * X32: pula szablonow dla kroku 5 i Browse plans = WYLACZNIE szablony o liczbie
+ * dni z kroku 4 (user wybral 3 dni, dostaje tylko plany 3-dniowe). Guard na
+ * katalog bez tej liczby dni (dzis niemozliwe, katalog pokrywa 2..6): szablony
+ * o +-1 dnia, a gdy i tych brak, caly katalog; caller pokazuje wtedy jawna
+ * etykiete (exactDays=false). Kolejnosc w puli = kolejnosc katalogu (scoring
+ * robi scoreTemplates).
+ */
+export const selectTemplatesForDays = (
+  daysPerWeek: number,
+  templates: readonly PlanTemplate[],
+): TemplatesForDays => {
+  const exact = templates.filter((t) => t.daysPerWeek === daysPerWeek);
+  if (exact.length) return { templates: exact, exactDays: true };
+  const near = templates.filter((t) => Math.abs(t.daysPerWeek - daysPerWeek) === 1);
+  return { templates: near.length ? near : [...templates], exactDays: false };
+};

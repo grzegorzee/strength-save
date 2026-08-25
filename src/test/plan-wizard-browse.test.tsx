@@ -6,12 +6,15 @@ import { planTemplates } from '@/data/planTemplates';
 
 // WP-O (X30): Browse plans posortowane wg dopasowania do odpowiedzi usera
 // (scoreTemplates), najlepszy szablon dostaje badge "Polecany".
+// X32 (zgloszenie wlasciciela: "wybralem 3 dni, a dostalem 4 dni w tygodniu"):
+// krok 5 i Browse pokazuja WYLACZNIE szablony o liczbie dni z kroku 4,
+// naglowek z liczba dni i licznikiem, kafel Czestotliwosc = wybor usera.
 // Harness wg plan-wizard-protocol.test.tsx.
 
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
-import { PlanWizard } from '@/components/PlanWizard';
+import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 
 const withProviders = (node: React.ReactNode) => (
   <LanguageProvider>
@@ -26,19 +29,20 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
 });
 
-// Bez showWelcome wizard startuje na kroku 2 (poziom). Wybieramy fat_loss + 3 dni:
-// sortowanie po score widać gołym okiem (bez sortowania pierwszy byłby
-// katalogowy tpl-fullbody-2). X31 H2: liczba dni to twardy priorytet, więc
-// na górze ląduje 3-dniowy szablon (poziom domyślny beginner → tpl-strength-5x5),
-// a nie 4-dniowy Lean Engine (fat_loss).
-const goToBrowseAsFatLoss3Days = () => {
+// Bez showWelcome wizard startuje na kroku 2 (poziom). Wybieramy fat_loss + N dni.
+const goToStep5AsFatLoss = (days: number) => {
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ })); // krok 2 -> 3
   fireEvent.click(screen.getByText('Redukcja'));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ })); // krok 3 -> 4
-  fireEvent.click(screen.getByRole('button', { name: '3' }));
+  fireEvent.click(screen.getByRole('button', { name: String(days) }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ })); // krok 4 -> 5
-  fireEvent.click(screen.getByText('Przeglądaj plany'));
 };
+const openBrowse = () => fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+const goToBrowseAsFatLoss3Days = () => { goToStep5AsFatLoss(3); openBrowse(); };
+
+const cards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!);
+const frequencyTile = () => screen.getByText('Częstotliwość').nextElementSibling!.textContent;
+const countFor = (days: number) => planTemplates.filter((t) => t.daysPerWeek === days).length;
 
 describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () => {
   it('pierwsza karta to najlepsze dopasowanie i ma badge; reszta bez badge', () => {
@@ -60,11 +64,65 @@ describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () =
     expect(card.textContent).toContain('3×');
     expect(card.textContent).not.toContain('Rzeźba i Kondycja');
   });
+});
 
-  it('niezmiennik: lista nadal pokazuje WSZYSTKIE szablony (sortowanie niczego nie chowa)', () => {
+describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', () => {
+  it('REGRESJA (zgloszenie wlasciciela): fat_loss / 3 dni -> kafel Czestotliwosc = 3, przycisk z licznikiem, Browse tylko 3-dniowe', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToBrowseAsFatLoss3Days();
+    goToStep5AsFatLoss(3);
 
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(planTemplates.length);
+    expect(frequencyTile()).toBe('3 dni/tydz');
+    expect(screen.getByRole('button', { name: `Przeglądaj plany (${countFor(3)})` })).toBeTruthy();
+    expect(screen.queryByText(/Ten plan ma \d+ dni treningowych/)).toBeNull();
+
+    openBrowse();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na 3 dni w tygodniu (${countFor(3)})`);
+    expect(screen.queryByTestId('browse-nearest-note')).toBeNull();
+    const list = cards();
+    expect(list).toHaveLength(countFor(3));
+    for (const card of list) {
+      expect(card.textContent).toContain('3×');
+      expect(card.textContent).not.toContain('4×');
+    }
+    expect(screen.queryByText('Rzeźba i Kondycja')).toBeNull();
+  });
+
+  it('WŁASNOŚĆ: dla każdej liczby dni 2..6 każda karta w Browse ma tę liczbę dni, a licznik = liczba takich szablonów', () => {
+    for (const days of [2, 3, 4, 5, 6]) {
+      const view = render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+      goToStep5AsFatLoss(days);
+      expect(frequencyTile(), `${days} dni`).toBe(`${days} dni/tydz`);
+      openBrowse();
+      const list = cards();
+      expect(list, `${days} dni`).toHaveLength(countFor(days));
+      for (const card of list) expect(card.textContent, `${days} dni`).toContain(`${days}×`);
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na ${days} dni w tygodniu (${countFor(days)})`);
+      view.unmount();
+    }
+  });
+
+  it('wybór z Browse zachowuje dni tygodnia z kroku 4 (ta sama liczba dni = bez resetu do domyślnych)', () => {
+    const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    // Domyślnie pon/śr/pt; user przekłada piątek na sobotę ('P' = Pn i Pt, drugi to piątek).
+    fireEvent.click(screen.getAllByRole('button', { name: 'P' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'S' }));
+    expect(screen.getByText('Wybrano 3/3 dni')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+
+    openBrowse();
+    const list = cards();
+    fireEvent.click(list[list.length - 1]);
+    expect(frequencyTile()).toBe('3 dni/tydz');
+    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+
+    const choice = onConfirm.mock.calls[0][0];
+    expect(choice.daysPerWeek).toBe(3);
+    expect(choice.trainingDays).toEqual(['monday', 'wednesday', 'saturday']);
+    expect(choice.days.map((d) => d.weekday)).toEqual(['monday', 'wednesday', 'saturday']);
+    expect(choice.planSource).toBe('browsed');
   });
 });
