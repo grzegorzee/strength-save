@@ -41,6 +41,7 @@ export const pl = {
   'nav.progress': 'Postępy',
   'nav.cycles': 'Cykle',
   'nav.settings': 'Ustawienia',
+  'nav.back': 'Wstecz',
   'nav.measurements': 'Pomiary ciała',
   'empty.startFirstWorkout': 'Zacznij pierwszy trening',
 

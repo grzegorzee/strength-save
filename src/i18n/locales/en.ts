@@ -40,6 +40,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nav.progress': 'Progress',
   'nav.cycles': 'Cycles',
   'nav.settings': 'Settings',
+  'nav.back': 'Back',
   'nav.measurements': 'Body measurements',
   'empty.startFirstWorkout': 'Start your first workout',
 
