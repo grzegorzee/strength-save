@@ -202,7 +202,7 @@ test.describe('Batch Save Workflow', () => {
   });
 
   test('sync center shows active local draft and quick actions', async ({ page }) => {
-    await navigateAndWait(page, '/settings');
+    await navigateAndWait(page, '/profile');
 
     await writeWorkoutDraftDb(page, {
       sessionId: 'local-workout-e2e-test-user-day-2-2026-04-03',

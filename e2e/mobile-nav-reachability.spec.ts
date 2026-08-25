@@ -39,7 +39,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/profile');
   });
 
-  test('z Profilu: Ustawienia, Historia, Pomiary, Postępy, Admin', async ({ page }) => {
+  test('z Profilu: Historia, Pomiary, Postępy, Admin (X35b: bez osobnych Ustawień)', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
@@ -53,10 +53,6 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await navigateAndWait(page, '/profile');
     await page.getByRole('button', { name: 'Postępy', exact: true }).click();
     await expectHashRoute(page, '/achievements');
-
-    await navigateAndWait(page, '/profile');
-    await page.getByRole('button', { name: 'Ustawienia zaawansowane', exact: true }).click();
-    await expectHashRoute(page, '/settings');
 
     // Admin widoczny, bo scenariusz e2e to active-admin.
     await navigateAndWait(page, '/profile');
