@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (hotfix X31 WYDANY: web index-X5Z5vJOY LIVE, iOS 119 Beta App Review APPROVED, AAB v34 SHA da7bc4f1; wcześniej tego dnia fala X30 + functions + rules)
+**Ostatnia aktualizacja:** 2026-08-25 (X32+X33 WYDANE: web index-CtyvAWCa LIVE, iOS 120 Beta App Review APPROVED, AAB v35 SHA 296838ab, rules `choice`; wcześniej tego dnia X30, hotfix X31)
 
 ---
 
@@ -25,7 +25,11 @@
 
 **X33 krok 1 (WP-8):** kółko avatara (zdjęcie z Google; Apple nie daje zdjęcia → inicjał imienia/e-maila; ikona bez danych) + "Cześć, {imię}" liczone z żywego pola imienia; `accentCandidatesFromImageData` (12 sektorów koła barw, próg nasycenia, pasmo jasności 0.1-0.9, top 3 → `nearestAccentId`, dedup, nigdy neutralne) → do 3 kropek "Z Twojego zdjęcia" przed paletą; auto-preselekcja jak w X29; szare zdjęcie/Apple/offline = dokładnie dotychczasowy widok.
 
-**Proces:** WP-6, WP-7, WP-8 równolegle w worktree (WP-7 na kontrakcie ze specu; przy merge ręczne scalenie zdublowanego typu `PlanCycleChoice` i buildera `buildCycleChoice`, zwycięzca WP-6, adapter w teście WP-7), potem kreator na scalonym main. Bramki i wydanie: patrz niżej.
+**Proces:** WP-6, WP-7, WP-8 równolegle w worktree (WP-7 na kontrakcie ze specu; przy merge ręczne scalenie zdublowanego typu `PlanCycleChoice` i buildera `buildCycleChoice`, zwycięzca WP-6, adapter w teście WP-7), potem kreator na scalonym main.
+
+**Bramki po merge:** vitest **2965/2965** (353 pliki), typecheck, lint 0 err (15 warningów react-refresh), no-emoji, build web+mobile, dist-smoke, bundle 1 386 559 B / 1 536 000, test:rules **266/266** (8 nowych dla `choice`). E2E: `replan`, `auth-registration`, `onboarding-accent` zielone; `full-app.spec.ts` 14 testów × 2 przeglądarki czerwone z przyczyn PRZESTARZAŁYCH SCENARIUSZY (X30 WP-L: nazwa dnia z daty, test oczekiwał "Poniedziałek" na `/workout/day-1` bez daty we wtorek; X32: `/new-plan` od kroku 2, test klikał "Zmień ustawienia" od razu; X33: nowy DOM kroku 5) — e2e nie było uruchamiane przy X30/X31 (lekcja: e2e do bramek każdego wydania dotykającego kreatora/WorkoutDay). Naprawa testów osobnym pakietem po wydaniu (patrz niżej).
+
+**Wydanie (potok nohup: rules → web → iOS → AAB):** firestore.rules released (`choice`); web LIVE `index-CtyvAWCa.js`; iOS **120** upload + obie grupy + Beta App Review **APPROVED**; AAB **v35** SHA `296838ab` (`~/Desktop/strength-save-v35.aab`, jar verified). **Następny iOS = 121, versionCode = 36.**
 
 ### 2026-08-25 (2): HOTFIX X31 — incydent na koncie właściciela: plan "zakończony" mimo wybranego nowego planu, zero aktywnych cykli po replanie, rekomendacja 4 dni zamiast 3 (iOS 119 / AAB v34)
 
