@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, Check, RefreshCw, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -30,6 +30,11 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, confirmLabe
   const [swap, setSwap] = useState<{ open: boolean; dayId: string; exerciseId: string; exerciseName: string; sets: string; category: typeof exerciseLibrary[0]['category'] | null }>(
     { open: false, dayId: '', exerciseId: '', exerciseName: '', sets: '', category: null },
   );
+
+  // X33 WP-5: podgląd otwiera się od góry (po długim kroku 5 strona była przewinięta w dół).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+  }, []);
 
   const usedNames = days.flatMap((d) => d.exercises.map((e) => e.name));
 

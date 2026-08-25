@@ -63,7 +63,7 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5();
-    fireEvent.click(screen.getByText('Przeglądaj plany'));
+    fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     // Ostatnia karta = najgorsze dopasowanie, na pewno inna niż rekomendacja.
     const headings = screen.getAllByRole('heading', { level: 3 });
     fireEvent.click(headings[headings.length - 1].closest('button')!);
@@ -83,7 +83,7 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5();
-    fireEvent.click(screen.getByText('Ułóż własny'));
+    fireEvent.click(screen.getByRole('button', { name: /Ułóż własny/ }));
     fireEvent.click(screen.getByText('BUILDER-SUBMIT'));
 
     const choice = onConfirm.mock.calls[0][0];

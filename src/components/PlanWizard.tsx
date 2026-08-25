@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, SlidersHorizontal, User } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { useUnit } from '@/contexts/UnitContext';
-import { dateLocale, type TranslationKey } from '@/i18n';
-import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
+import type { TranslationKey } from '@/i18n';
+import { localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
-import { PlanDurationPicker } from '@/components/PlanDaysEditor';
+import { PlanChoiceCard, PlanTemplateHero, type PlanChoiceBadge } from '@/components/PlanChoiceCard';
+import { PlanSettingsRow } from '@/components/PlanSettingsRow';
 import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
-import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
 import { ACCENTS, applyAccent, getAccentById, hasStoredAccent, readStoredAccentId, storeAccentId, type AccentTheme } from '@/lib/accent-theme';
@@ -76,21 +75,17 @@ const OBJECTIVE_LABEL_KEY: Record<PlanObjective, TranslationKey> = {
   build_muscle: 'ob.obj.muscle', peak_strength: 'ob.obj.strength', fat_loss: 'ob.obj.fatloss', athletic: 'ob.obj.athletic',
 };
 
-const OBJECTIVE_TAGS: Record<PlanObjective, TranslationKey[]> = {
-  build_muscle: ['ob.tag.hypertrophy'],
-  peak_strength: ['ob.tag.strength', 'ob.tag.power'],
-  fat_loss: ['ob.tag.conditioning'],
-  athletic: ['ob.tag.power', 'ob.tag.conditioning'],
-};
+// X33 WP-2: chipy celu w bibliotece (filtr objective w obrębie puli dni).
+const BROWSE_CHIPS: { value: PlanObjective | 'all'; labelKey: TranslationKey }[] = [
+  { value: 'all', labelKey: 'ob.browse.chipAll' },
+  { value: 'build_muscle', labelKey: 'ob.browse.chipMuscle' },
+  { value: 'peak_strength', labelKey: 'ob.browse.chipStrength' },
+  { value: 'fat_loss', labelKey: 'ob.browse.chipFatLoss' },
+  { value: 'athletic', labelKey: 'ob.browse.chipAthletic' },
+];
 
-const estimateMonthlyVolume = (tpl: { days: TrainingDay[] }): number => {
-  let weeklySets = 0;
-  tpl.days.forEach(d => d.exercises.forEach(e => {
-    const m = e.sets.match(/^(\d+)/);
-    weeklySets += m ? parseInt(m[1], 10) : 3;
-  }));
-  return Math.round((weeklySets * 10 * 35 * 4.3) / 500) * 500;
-};
+// X33 WP-1: czas przerywnika "Dobieram plany" po Dalej w kroku 4.
+export const MATCHING_INTERSTITIAL_MS = 900;
 
 const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBack?: () => void }) => {
   const { t } = useTranslation();
@@ -116,23 +111,6 @@ const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBa
         </span>
       </div>
     </div>
-  );
-};
-
-/** WP-F (X28): hero karty szablonu w Browse plans (pro-look dark-gym-v1).
- *  Obraz dekoracyjny: alt="" + lazy; brak/błąd pliku = karta jak dotąd. */
-const TemplateHero = ({ templateId }: { templateId: string }) => {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    <img
-      src={getPlanTemplateImageUrl(templateId)}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      className="h-20 w-full object-cover"
-      onError={() => setFailed(true)}
-    />
   );
 };
 
@@ -197,16 +175,21 @@ interface PlanWizardProps {
   resumeStep?: number;
   /** Klucz localStorage dla szkicu PlanBuildera (tryb "własny plan"). */
   builderDraftKey?: string;
+  /** Etykieta drugorzędnego CTA kroku 5 (ścieżka z podglądem: "Podgląd planu"). */
   confirmLabelKey: TranslationKey;
-  onConfirm: (choice: PlanWizardChoice) => void;
+  onConfirm: (choice: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => void;
   isSaving?: boolean;
   error?: string | null;
   onExitBack?: () => void;
 }
 
+/** X33 WP-4: skipPreview = host zapisuje plan od razu ("Zaczynam ten plan"), bez ekranu PlanPreview. */
+export interface PlanWizardConfirmOptions {
+  skipPreview?: boolean;
+}
+
 export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, avatarPhotoURL, accountEmail, initial, resume, resumeStep, builderDraftKey, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
-  const { unit, toDisplay } = useUnit();
 
   const initialDays = resume?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
   const resumedCustomPlan = resume && !resume.templateId ? resume : null;
@@ -320,6 +303,36 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, dayPool.templates), [objective, level, daysPerWeek, dayPool]);
   const recommended = scoredTemplates[0].template;
   const chosen = picked ?? recommended;
+  // X33 WP-2: karta 2 "Alternatywa" = najlepiej punktowany szablon puli o INNYM
+  // celu niż Polecany; bez takiego = drugi element puli; pula 1-elementowa = brak.
+  const alternative = useMemo(
+    () => scoredTemplates.slice(1).find((s) => s.template.objective !== recommended.objective)?.template
+      ?? scoredTemplates[1]?.template ?? null,
+    [scoredTemplates, recommended],
+  );
+  // Szablon z biblioteki spoza dwóch kart podmienia kartę 2 (badge "Wybrany").
+  const secondCard: { template: PlanTemplate; badge: PlanChoiceBadge } | null =
+    picked && picked.id !== recommended.id && picked.id !== alternative?.id
+      ? { template: picked, badge: 'chosen' }
+      : alternative ? { template: alternative, badge: 'alternative' } : null;
+  // X33 WP-1: przerywnik po Dalej w kroku 4, raz na przejście kreatora (powrót
+  // przez "Zmień ustawienia"/strzałkę i wznowienie szkicu go pomijają).
+  const [matching, setMatching] = useState(false);
+  const [matchingShown, setMatchingShown] = useState(Boolean(resume));
+  useEffect(() => {
+    if (!matching) return;
+    const id = window.setTimeout(() => setMatching(false), MATCHING_INTERSTITIAL_MS);
+    return () => window.clearTimeout(id);
+  }, [matching]);
+  // X33 WP-5: zmiana kroku/trybu = scroll na górę (zgłoszenie właściciela:
+  // krok 5 otwierał się przewinięty w dół po długim kroku 4).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+  }, [step, mode]);
+  const [browseObjective, setBrowseObjective] = useState<PlanObjective | 'all'>('all');
+  const browseTemplates = browseObjective === 'all'
+    ? scoredTemplates
+    : scoredTemplates.filter((s) => s.template.objective === browseObjective);
   // WP-PLANS-1 (X27, Task P5): kontrola długości w kroku potwierdzenia szablonu;
   // null = default z szablonu (zmiana szablonu resetuje wybór).
   const [templateWeeks, setTemplateWeeks] = useState<number | null>(null);
@@ -342,7 +355,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
 
-  const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string, planName?: string) =>
+  const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string, planName?: string, opts?: PlanWizardConfirmOptions) =>
     onConfirm({
       days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId,
       name: userName.trim() || undefined, planName,
@@ -350,15 +363,29 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       trainingDays,
       recommendedTemplateId: recommended.id,
       planSource: templateId === undefined ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
-    });
+    }, opts);
 
   // Edge 4: pusta nazwa spada do nazwy szablonu (fallback, nie pusty string).
-  const confirmTemplate = () => fire(
+  const confirmTemplate = (opts?: PlanWizardConfirmOptions) => fire(
     applyWeekdaysToPlanDays(chosen.days, trainingDays),
     effectiveWeeks,
     chosen.id,
     planNameInput?.trim() || defaultPlanName,
+    opts,
   );
+
+  // X33 WP-2: zaznaczenie karty / wybór z biblioteki = nowy szablon, więc nazwa
+  // i długość wracają do defaultów szablonu (jak dotąd przy wyborze z Browse).
+  // planSource: karta 1 = recommended, karta 2 i biblioteka = browsed.
+  const pickTemplate = (tpl: PlanTemplate, viaBrowse: boolean) => {
+    if (tpl.id === chosen.id) return;
+    setPicked(tpl);
+    setPickedViaBrowse(viaBrowse);
+    setTemplateWeeks(null);
+    setPlanNameInput(null);
+  };
+  const whyFor = (tpl: PlanTemplate) =>
+    t('ob.match.why', { objective: t(OBJECTIVE_LABEL_KEY[tpl.objective]), level: t(LEVEL_LABEL_KEY[tpl.level]) });
 
   // ── Tryb: ułóż własny plan ──
   if (mode === 'own') {
@@ -558,108 +585,81 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             {/* WP-PLANS-2 (X27, Edge 7): data startu przeniesiona do kroku 5 —
                 krok protokołu zostaje z dniami treningowymi. */}
-            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); if (!matchingShown) { setMatchingShown(true); setMatching(true); } setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
         {step === 5 && mode === 'recommend' && (
           <>
             <StepHeader step={5} total={5} onBack={() => setStep(4)} />
-            {/* Z234: kompaktowy układ — CTA "Podgląd planu" ma się mieścić bez scrolla na iPhone. */}
+            {/* X33 WP-1: przerywnik "Dobieram plany" (ok. 900 ms) jako nakładka nad
+                gotowym ekranem 5A; pasek = istniejąca animacja boot-progress. */}
+            {matching && (
+              <div data-testid="ob-matching" role="status" aria-live="polite" className="fixed inset-0 z-50 flex select-none items-center justify-center bg-background px-6">
+                <div className="w-full max-w-sm rounded-2xl bg-surface-low p-6">
+                  <p className="font-heading text-2xl font-bold">{t('ob.matching.title')}</p>
+                  <dl className="mt-4 space-y-2 text-[14px]">
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.matching.level')}</dt><dd className="font-medium">{t(LEVEL_LABEL_KEY[level])}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.matching.objective')}</dt><dd className="font-medium">{t(OBJECTIVE_LABEL_KEY[objective])}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.precision.frequency')}</dt><dd className="font-medium">{daysPerWeek} {t('ob.precision.daysWk')}</dd></div>
+                  </dl>
+                  <div className="mt-5 h-1 overflow-hidden rounded-full bg-surface-highest">
+                    <span className="boot-progress-indicator block h-full w-1/3 rounded-full bg-primary" />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="mt-5 mb-4">
               <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
-              <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.precision.title')}</h1>
-              <p className="text-muted-foreground text-[14px] mt-1.5">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: localizePlanName(chosen.id, chosen.name, lang) })}</p>
+              <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.match.title', { days: daysPerWeek })}</h1>
               {/* X31 H2: podsumowanie odpowiedzi z kroków 2-4 — user widzi, że
                   liczba dni, cel i poziom zostały uwzględnione w rekomendacji. */}
-              <p data-testid="ob-precision-answers" className="text-[12px] text-muted-foreground mt-1">
+              <p data-testid="ob-precision-answers" className="text-[12px] text-muted-foreground mt-1.5">
                 {t('ob.precision.answers', { days: daysPerWeek, objective: t(OBJECTIVE_LABEL_KEY[objective]), level: t(LEVEL_LABEL_KEY[level]) })}
+              </p>
+              <p data-testid="ob-precision-days" className="text-[12px] text-muted-foreground">
+                {WEEKDAYS.filter((w) => trainingDays.includes(w.value)).map((w) => localizeWeekdayShort(w.short, lang)).join(' · ')}
               </p>
               <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-primary font-medium">
                 <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
               </button>
             </div>
             <div className="flex-1 space-y-2.5">
-              {/* X32: wybór źródła planu (Browse / własny) od razu pod
-                  podsumowaniem odpowiedzi, PRZED nazwą i szczegółami
-                  (zgłoszenie właściciela: nazwa przed "Przeglądaj plany"
-                  = dziwna kolejność). */}
-              <div className="flex gap-2">
-                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-primary" />{t('ob.precision.browse')}<span className="text-muted-foreground tabular-nums">({scoredTemplates.length})</span></button>
-                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
-              </div>
-              <div className="rounded-2xl bg-surface-low p-4">
-                {/* WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna (default z szablonu). */}
-                <label htmlFor="ob-plan-name" className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</label>
-                <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <input
-                    id="ob-plan-name"
-                    data-testid="ob-plan-name"
-                    type="text"
-                    maxLength={60}
-                    value={planNameInput ?? defaultPlanName}
-                    onChange={e => setPlanNameInput(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent font-heading font-bold text-xl text-primary leading-tight outline-none border-b border-transparent focus:border-primary/40"
+              {/* X33 WP-2: dwie karty (Polecany / Alternatywa albo Wybrany z biblioteki);
+                  tap = zaznaczenie, domyślnie karta 1. */}
+              <div className="space-y-3" data-testid="ob-plan-choices">
+                <PlanChoiceCard
+                  testId="plan-choice-recommended"
+                  template={recommended}
+                  badge="recommended"
+                  why={whyFor(recommended)}
+                  selected={chosen.id === recommended.id}
+                  onSelect={() => pickTemplate(recommended, false)}
+                />
+                {secondCard && (
+                  <PlanChoiceCard
+                    testId="plan-choice-second"
+                    template={secondCard.template}
+                    badge={secondCard.badge}
+                    why={whyFor(secondCard.template)}
+                    selected={chosen.id === secondCard.template.id}
+                    onSelect={() => pickTemplate(secondCard.template, true)}
                   />
-                  <div className="flex flex-wrap gap-1.5 justify-end">
-                    {OBJECTIVE_TAGS[chosen.objective].map(tag => (
-                      <span key={tag} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{t(tag)}</span>
-                    ))}
-                  </div>
-                </div>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-2xl bg-surface-low p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
-                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-primary">{effectiveWeeks}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
-                </div>
-                <div className="rounded-2xl bg-surface-low p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
-                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-primary">{chosen.daysPerWeek}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.daysWk')}</span></p>
-                </div>
-                <div className="rounded-2xl bg-surface-low p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.volume')}</p>
-                  <p className="font-heading font-bold text-lg mt-0.5">{Math.round(toDisplay(estimateMonthlyVolume(chosen))).toLocaleString(dateLocale(lang))} <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.kgMonth', { unit })}</span></p>
-                </div>
-              </div>
-              <div className="rounded-2xl bg-surface-low p-3 space-y-1">
-                {chosen.days.map((d, i) => (
-                  <div key={d.id} className="text-[12px] flex gap-2">
-                    <span className="text-primary font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="text-muted-foreground">{localizeFocus(d.focus, lang)} · {d.exercises.length} {t('ob.precision.exercises')}</span>
-                  </div>
-                ))}
-              </div>
-              {/* WP-PLANS-1 (X27, Task P5): długość planu nadpisywalna także dla
-                  szablonów (default z szablonu, zakres 2-36 + własna liczba). */}
-              <div className="rounded-2xl bg-surface-low p-3" data-testid="template-duration-picker">
-                <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('planbuilder.planDuration')}</p>
-                <PlanDurationPicker value={effectiveWeeks} onChange={setTemplateWeeks} />
-              </div>
-              {/* WP-PLANS-2 (X27, Task O3): start planu = wybór z 8 najbliższych
-                  poniedziałków (przeniesione z kroku 4; default bieżący tydzień). */}
-              <div className="rounded-2xl bg-surface-low p-3">
-                <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.startWeek')}</p>
-                <div className="flex gap-2 overflow-x-auto pb-1" data-testid="ob-start-week-chips">
-                  {startMondays.map((iso) => {
-                    const monday = parseLocalDate(iso);
-                    const on = iso === selectedMonday;
-                    return (
-                      <button
-                        key={iso}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => setStartDate(iso)}
-                        className={cn('shrink-0 w-16 rounded-full py-2 flex flex-col items-center transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
-                      >
-                        <span className="text-[10px] font-medium uppercase">{monday.toLocaleDateString(dateLocale(lang), { weekday: 'short' })}</span>
-                        <span className="font-heading font-bold text-lg leading-none mt-0.5">{monday.getDate()}</span>
-                        <span className="text-[9px] uppercase opacity-70 mt-0.5">{monday.toLocaleDateString(dateLocale(lang), { month: 'short' })}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <button onClick={() => setMode('own')} className="w-full touch-manipulation rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
+              <button onClick={() => setMode('browse')} className="w-full touch-manipulation py-1 text-[13px] text-primary font-medium inline-flex items-center justify-center gap-1.5"><ListChecks className="h-4 w-4" />{t('ob.match.library', { n: scoredTemplates.length, days: daysPerWeek })}</button>
+              {/* X33 WP-3: nazwa, długość i start zwinięte do jednej linii. */}
+              <PlanSettingsRow
+                name={planNameInput ?? defaultPlanName}
+                onNameChange={setPlanNameInput}
+                weeks={effectiveWeeks}
+                templateWeeks={chosen.durationWeeks}
+                onWeeksChange={setTemplateWeeks}
+                startDate={selectedMonday}
+                startMondays={startMondays}
+                onStartDateChange={setStartDate}
+              />
               {(() => {
                 // Z72: user widzi prawdę zamiast cichej degradacji (slice w applyWeekdaysToPlanDays).
                 const mismatch = planDaysMismatch(chosen, daysPerWeek);
@@ -670,11 +670,20 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 ) : null;
               })()}
             </div>
-            <div className="pt-4">
-              <PrimaryButton onClick={confirmTemplate} disabled={isSaving}>
+            {/* X33 WP-4: główny CTA zapisuje plan od razu (skipPreview), drugorzędny = dotychczasowy podgląd. */}
+            <div className="pt-4 space-y-2">
+              <PrimaryButton onClick={() => confirmTemplate({ skipPreview: true })} disabled={isSaving}>
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {t(confirmLabelKey)}
+                {t('ob.match.start')}
               </PrimaryButton>
+              <button
+                type="button"
+                onClick={() => confirmTemplate({ skipPreview: false })}
+                disabled={isSaving}
+                className="w-full touch-manipulation rounded-2xl py-3 bg-surface-high text-sm font-medium disabled:opacity-50"
+              >
+                {t(confirmLabelKey)}
+              </button>
               {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
             </div>
           </>
@@ -695,21 +704,42 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 <p data-testid="browse-nearest-note" className="mt-1 text-[13px] text-fitness-warning">{t('ob.browse.nearestNote', { days: daysPerWeek })}</p>
               )}
               <p className="text-muted-foreground mt-1">{t('ob.browse.desc')}</p>
+              {/* X33 WP-2: chipy celu (filtr w obrębie puli dni; "Wszystkie" domyślnie). */}
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1" data-testid="browse-objective-chips">
+                {BROWSE_CHIPS.map((chip) => {
+                  const on = browseObjective === chip.value;
+                  return (
+                    <button
+                      key={chip.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setBrowseObjective(chip.value)}
+                      className={cn('shrink-0 touch-manipulation select-none rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
+                    >
+                      {t(chip.labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
               {/* WP-O (X30): lista posortowana wg dopasowania (scoreTemplates);
-                  najlepszy dostaje badge "Polecany". X32: ta sama liczba dni =
+                  rekomendacja dostaje badge "Polecany". X32: ta sama liczba dni =
                   dni tygodnia z kroku 4 zostają (setDays resetuje do domyślnych
-                  tylko przy realnej zmianie liczby dni, pula zastępcza). */}
-              {scoredTemplates.map(({ template: tpl }, idx) => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setPickedViaBrowse(true); if (tpl.daysPerWeek !== daysPerWeek) setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
+                  tylko przy realnej zmianie liczby dni, pula zastępcza). Wybór
+                  wraca do 5A z zaznaczoną kartą (X33 WP-2). */}
+              {browseTemplates.length === 0 && (
+                <p data-testid="browse-empty-objective" className="rounded-2xl bg-surface-low p-4 text-[13px] text-muted-foreground">{t('ob.browse.emptyObjective', { days: daysPerWeek })}</p>
+              )}
+              {browseTemplates.map(({ template: tpl }) => (
+                <button key={tpl.id} onClick={() => { setPicked(tpl); setPickedViaBrowse(true); if (tpl.daysPerWeek !== daysPerWeek) setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full touch-manipulation select-none text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
                   {/* WP-F (X28): hero na górze karty (rounded-t przez overflow-hidden rodzica) */}
-                  <TemplateHero templateId={tpl.id} />
+                  <PlanTemplateHero templateId={tpl.id} className="h-20" />
                   <div className="p-4">
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
                         <h3 className="truncate font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
-                        {idx === 0 && (
+                        {tpl.id === recommended.id && (
                           <span data-testid="browse-recommended-badge" className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                             {t('ob.browse.recommendedBadge')}
                           </span>

@@ -12,7 +12,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
-import { PlanWizard, type PlanWizardChoice, type WizardLevel } from '@/components/PlanWizard';
+import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions, type WizardLevel } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
 import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -151,28 +151,35 @@ const NewPlan = () => {
   );
   const [shareOpen, setShareOpen] = useState(false);
 
-  const onWizardConfirm = (c: PlanWizardChoice) => { setChosen(c); setReviewDays(c.days); setPhase('preview'); };
+  // X33 WP-4: "Zaczynam ten plan" = startCycleWithPlan od razu (bez podglądu),
+  // redirect jak dotąd; "Podgląd planu" = faza preview jak dotąd.
+  const onWizardConfirm = (c: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => {
+    setChosen(c);
+    setReviewDays(c.days);
+    if (opts?.skipPreview) { void startCycle(c, c.days); return; }
+    setPhase('preview');
+  };
 
-  const handleConfirm = async () => {
-    if (!chosen) return;
+  // Jeden zapis dla obu ścieżek (podgląd -> Zatwierdź oraz "Zaczynam ten plan").
+  const startCycle = async (plan: PlanWizardChoice, days: TrainingDay[]) => {
     setIsSaving(true);
     setError(null);
     try {
-      const result = await startCycleWithPlan(reviewDays, chosen.durationWeeks, {
+      const result = await startCycleWithPlan(days, plan.durationWeeks, {
         lang,
         uid,
         currentPlan,
         planStartDate,
         planDurationWeeks,
         workouts,
-        startDate: chosen.startDate,
+        startDate: plan.startDate,
         // WP-PLANS-2 (X27): wizard daje poniedziałek — walidowany kontrakt ma
         // pierwszeństwo (stare szkice z surową datą spadają na snap startDate).
-        startDateISO: chosen.startDate,
-        planName: chosen.planName,
+        startDateISO: plan.startDate,
+        planName: plan.planName,
         // WP-6 (X33): odpowiedzi z kreatora NA nowym cyklu (entry replan);
         // onboardingAnswers na userze zostaje snapshotem pierwszego onboardingu.
-        choice: buildPlanCycleChoice(chosen, 'replan'),
+        choice: buildPlanCycleChoice(plan, 'replan'),
         archiveCurrentPlan,
         savePlan,
         createActiveCycle,
@@ -186,7 +193,7 @@ const NewPlan = () => {
       // wystartował, awaria tego zapisu nie ma prawa go cofnąć.
       try {
         await updateDoc(doc(db, 'users', uid), {
-          trainingProfile: { level: chosen.level, objective: chosen.objective, daysPerWeek: chosen.daysPerWeek },
+          trainingProfile: { level: plan.level, objective: plan.objective, daysPerWeek: plan.daysPerWeek },
         });
       } catch {
         // profil to tylko podpowiedź dla następnego kreatora
@@ -227,6 +234,8 @@ const NewPlan = () => {
           builderDraftKey={builderDraftKey(uid)}
           confirmLabelKey="newplan.toReview"
           onConfirm={onWizardConfirm}
+          isSaving={isSaving}
+          error={error}
           onExitBack={() => (sourceCycle ? setPhase('closeout') : navigate(-1))}
         />
       </>
@@ -302,7 +311,7 @@ const NewPlan = () => {
       days={reviewDays}
       onDaysChange={setReviewDays}
       onBack={() => setPhase('wizard')}
-      onConfirm={handleConfirm}
+      onConfirm={() => { if (chosen) void startCycle(chosen, reviewDays); }}
       confirmLabel={t('newplan.preview.confirm')}
       isSaving={isSaving}
       error={error}

@@ -37,11 +37,18 @@ const goToStep5AsFatLoss = (days: number) => {
   fireEvent.click(screen.getByRole('button', { name: String(days) }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ })); // krok 4 -> 5
 };
-const openBrowse = () => fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+// X33 WP-2: wejście do biblioteki przez link "Biblioteka planów na {days} dni ({n})".
+const openBrowse = () => fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
 const goToBrowseAsFatLoss3Days = () => { goToStep5AsFatLoss(3); openBrowse(); };
 
 const cards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!);
-const frequencyTile = () => screen.getByText('Częstotliwość').nextElementSibling!.textContent;
+// X33 WP-2: kafel "Częstotliwość" zniknął; liczba dni z kroku 4 = linia odpowiedzi,
+// a liczba dni szablonu = meta zaznaczonej karty ("{weeks} tyg. · {days} dni · ...").
+const answersLine = () => screen.getByTestId('ob-precision-answers').textContent ?? '';
+const selectedCardMeta = () => {
+  const selected = screen.getAllByTestId(/^plan-choice-(recommended|second)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
+  return selected.querySelector('[data-testid="plan-choice-meta"]')!.textContent ?? '';
+};
 const countFor = (days: number) => planTemplates.filter((t) => t.daysPerWeek === days).length;
 
 describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () => {
@@ -67,12 +74,13 @@ describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () =
 });
 
 describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', () => {
-  it('REGRESJA (zgloszenie wlasciciela): fat_loss / 3 dni -> kafel Czestotliwosc = 3, przycisk z licznikiem, Browse tylko 3-dniowe', () => {
+  it('REGRESJA (zgloszenie wlasciciela): fat_loss / 3 dni -> zaznaczona karta 3-dniowa, link biblioteki z licznikiem, Browse tylko 3-dniowe', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5AsFatLoss(3);
 
-    expect(frequencyTile()).toBe('3 dni/tydz');
-    expect(screen.getByRole('button', { name: `Przeglądaj plany (${countFor(3)})` })).toBeTruthy();
+    expect(answersLine()).toContain('3 dni w tygodniu');
+    expect(selectedCardMeta()).toContain('· 3 dni ·');
+    expect(screen.getByRole('button', { name: `Biblioteka planów na 3 dni (${countFor(3)})` })).toBeTruthy();
     expect(screen.queryByText(/Ten plan ma \d+ dni treningowych/)).toBeNull();
 
     openBrowse();
@@ -91,7 +99,7 @@ describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', 
     for (const days of [2, 3, 4, 5, 6]) {
       const view = render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
       goToStep5AsFatLoss(days);
-      expect(frequencyTile(), `${days} dni`).toBe(`${days} dni/tydz`);
+      expect(selectedCardMeta(), `${days} dni`).toContain(`· ${days} dni ·`);
       openBrowse();
       const list = cards();
       expect(list, `${days} dni`).toHaveLength(countFor(days));
@@ -116,7 +124,7 @@ describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', 
     openBrowse();
     const list = cards();
     fireEvent.click(list[list.length - 1]);
-    expect(frequencyTile()).toBe('3 dni/tydz');
+    expect(selectedCardMeta()).toContain('· 3 dni ·');
     fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
 
     const choice = onConfirm.mock.calls[0][0];
