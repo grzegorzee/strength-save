@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BarChart,
@@ -466,29 +466,32 @@ const AnalyticsChartsTab = () => {
 
       {activeChart === 'streak' && (
         <Card>
-          <CardContent className="pt-6">
+          {/* X35a W2: siatka 12 tyg. x 7 dni bez przewijania w bok. Komorki plynne
+              z limitem 24 px (max-w-6, aspect-square); na 393 px: main p-5 (353)
+              - ramka karty (2) - px-3 (24) = 327 = 16 (etykiety) + 12 gap x 2 + 12 komorek
+              po ~24 px (23.9). Odstep 2 px i px-3 zamiast domyslnego px-6, zeby 24 px
+              sie zmiescilo; na wezszym ekranie komorki sie kurcza, nigdy nie przewijaja. */}
+          <CardContent className="px-3 pt-6">
             <ChartHeader icon={Flame} title={t('analytics.subtab.streak')} />
-            <div className="flex gap-1">
-              <div className="flex flex-col gap-1 mr-1">
-                {dayLabels.map(label => (
-                  <div key={label} className="h-7 flex items-center"><span className="text-[10px] text-muted-foreground w-5">{label}</span></div>
-                ))}
-              </div>
-              <div className="flex gap-1 flex-1 overflow-x-auto">
-                {Array.from({ length: 12 }, (_, weekIdx) => (
-                  <div key={weekIdx} className="flex flex-col gap-1">
-                    {Array.from({ length: 7 }, (_, dayIdx) => {
-                      const cell = streakData.days.find(d => d.weekIndex === weekIdx && reorderDay(d.dayOfWeek) === dayIdx);
-                      if (!cell) return <div key={dayIdx} className="h-7 w-7 rounded-sm bg-muted/10" />;
-                      return (
-                        <div key={dayIdx} className={cn('h-7 w-7 rounded-sm transition-colors',
-                          cell.hasWorkout ? 'bg-fitness-success' : cell.isPlanned ? 'bg-muted/30 border-2 border-primary/30' : 'bg-muted/20'
-                        )} title={`${cell.date}${cell.hasWorkout ? ` - ${t('analytics.legend.workout')}` : ''}`} />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+            <div
+              className="grid gap-[2px]"
+              style={{ gridTemplateColumns: 'minmax(0, 1rem) repeat(12, minmax(0, 1fr))' }}
+              data-testid="streak-heatmap-grid"
+            >
+              {dayLabels.map((label, dayIdx) => (
+                <Fragment key={label}>
+                  <div className="flex items-center"><span className="text-[10px] text-muted-foreground">{label}</span></div>
+                  {Array.from({ length: 12 }, (_, weekIdx) => {
+                    const cell = streakData.days.find(d => d.weekIndex === weekIdx && reorderDay(d.dayOfWeek) === dayIdx);
+                    if (!cell) return <div key={weekIdx} className="aspect-square w-full max-w-6 rounded-sm bg-muted/10" />;
+                    return (
+                      <div key={weekIdx} className={cn('aspect-square w-full max-w-6 rounded-sm transition-colors',
+                        cell.hasWorkout ? 'bg-fitness-success' : cell.isPlanned ? 'bg-muted/30 border-2 border-primary/30' : 'bg-muted/20'
+                      )} title={`${cell.date}${cell.hasWorkout ? ` - ${t('analytics.legend.workout')}` : ''}`} />
+                    );
+                  })}
+                </Fragment>
+              ))}
             </div>
             <div className="flex items-center gap-4 mt-4 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-fitness-success" /><span>{t('analytics.legend.workout')}</span></div>
