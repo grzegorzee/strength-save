@@ -1,5 +1,6 @@
 import { exerciseLibrary } from './exerciseLibrary';
 import type { TrainingDay, Exercise } from './trainingPlan';
+import { scoreTemplates } from '@/lib/plan-recommendation';
 
 // Gotowe (nie-AI) plany treningowe do wyboru jednym klikiem.
 // Każde ćwiczenie z source:'library' jest zakotwiczone w bibliotece (exerciseLibrary),
@@ -1171,24 +1172,13 @@ export const getPlanTemplateById = (id: string): PlanTemplate | undefined =>
 
 /**
  * Rekomenduje plan na podstawie wyborów z onboardingu (cel × poziom × dni/tydz).
- * Punktacja: CZĘSTOTLIWOŚĆ = twardy priorytet (user świadomie wybrał liczbę dni na kroku 4,
- * więc rekomendacja musi ją uszanować — inaczej krok 5 pokazuje inną liczbę dni niż wybrana),
- * potem cel, potem poziom. Zawsze zwraca plan.
+ * WP-O (X30): scoring wydzielony do lib/plan-recommendation (wagi tam opisane).
+ * Kontrakt: częstotliwość wygrywa, ale zgodny cel może przesunąć rekomendację
+ * o ±1 dzień (mismatch dni user widzi w kroku 5 przez planDaysMismatch).
+ * Zawsze zwraca plan.
  */
 export const getRecommendedPlan = (
   objective: PlanObjective,
   level: PlanTemplate['level'],
   daysPerWeek: number,
-): PlanTemplate => {
-  const levelRank: Record<PlanTemplate['level'], number> = { beginner: 0, intermediate: 1, advanced: 2 };
-  const score = (t: PlanTemplate): number => {
-    let s = 0;
-    // Waga 1000 sprawia, że dopasowanie częstotliwości przebija cel (100) i poziom (10):
-    // plan o pasującej liczbie dni zawsze wygrywa, a w obrębie tej samej liczby decyduje cel.
-    s -= Math.abs(t.daysPerWeek - daysPerWeek) * 1000;
-    if (t.objective === objective) s += 100;
-    s -= Math.abs(levelRank[t.level] - levelRank[level]) * 10;
-    return s;
-  };
-  return [...planTemplates].sort((a, b) => score(b) - score(a))[0];
-};
+): PlanTemplate => scoreTemplates({ objective, level, daysPerWeek }, planTemplates)[0].template;

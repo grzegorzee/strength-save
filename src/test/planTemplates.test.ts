@@ -80,12 +80,24 @@ describe('planTemplates', () => {
   });
 
   it('getRecommendedPlan respektuje wybraną liczbę dni (krok 4 = krok 5)', () => {
-    // Częstotliwość to twardy priorytet: rekomendacja MUSI mieć tyle dni co wybór usera.
+    // Częstotliwość wygrywa, gdy katalog ma szablon celu w tej liczbie dni
+    // (build_muscle i peak_strength mają pokrycie na 3-5 dni).
     for (const days of [3, 4, 5]) {
       expect(getRecommendedPlan('build_muscle', 'beginner', days).daysPerWeek).toBe(days);
       expect(getRecommendedPlan('peak_strength', 'advanced', days).daysPerWeek).toBe(days);
-      expect(getRecommendedPlan('fat_loss', 'intermediate', days).daysPerWeek).toBe(days);
     }
+  });
+
+  // WP-O (X30, świadoma zmiana kontraktu): fat_loss ma w katalogu JEDEN szablon
+  // (tpl-lean-engine-4, 4 dni). Stare wagi ignorowały cel i dawały 3-dniowy plan
+  // na masę; teraz zgodny cel wygrywa w tolerancji ±1 dnia (mismatch dni user
+  // widzi w kroku 5 przez planDaysMismatch). Δ2 dni nadal nie wygrywa.
+  it('fat_loss: cel wygrywa w tolerancji ±1 dnia (3 i 5 dni → Lean Engine 4)', () => {
+    expect(getRecommendedPlan('fat_loss', 'intermediate', 3).id).toBe('tpl-lean-engine-4');
+    expect(getRecommendedPlan('fat_loss', 'intermediate', 4).id).toBe('tpl-lean-engine-4');
+    expect(getRecommendedPlan('fat_loss', 'intermediate', 5).id).toBe('tpl-lean-engine-4');
+    // Δ2 dni: dokładna liczba dni (inny cel) nadal bije 4-dniowy plan redukcyjny.
+    expect(getRecommendedPlan('fat_loss', 'beginner', 2).daysPerWeek).toBe(2);
   });
 
   it('szablon 6-dniowy PPL×2 istnieje: wybór 6 dni daje plan 6-dniowy (Z72)', () => {
