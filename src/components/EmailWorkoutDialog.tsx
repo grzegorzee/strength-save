@@ -35,6 +35,11 @@ interface EmailWorkoutDialogProps {
   savedTrainerName?: string;
 }
 
+// Bug 49 (X30): adresy email porównujemy i zapisujemy bez rozróżniania
+// wielkości liter ("Jan@x.pl" = zapisany "jan@x.pl" to ten sam trener);
+// wysyłka idzie zawsze na oryginalnie wpisany string.
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 export const EmailWorkoutDialog = ({
   open, onOpenChange, mode, uid, workoutId, initialEmail, savedTrainerEmail, savedTrainerName,
 }: EmailWorkoutDialogProps) => {
@@ -66,9 +71,10 @@ export const EmailWorkoutDialog = ({
     if (!to) return;
     setSending(true);
     setError(null);
+    // Imię tylko dla ZAPISANEGO adresu — cudze imię nie trafia w obcy mail.
+    const isKnownTrainer = !!knownEmail && normalizeEmail(to) === normalizeEmail(knownEmail);
     try {
-      // Imię tylko dla ZAPISANEGO adresu — cudze imię nie trafia w obcy mail.
-      const trainerName = to === knownEmail ? knownName : undefined;
+      const trainerName = isKnownTrainer ? knownName : undefined;
       if (mode === 'workout') {
         if (!workoutId) throw new Error('missing-workout');
         await sendWorkoutEmail(workoutId, to, lang, trainerName);
@@ -78,7 +84,7 @@ export const EmailWorkoutDialog = ({
       toast({ title: t('email.sentTitle'), description: t('email.sentDesc', { email: to }) });
       onOpenChange(false);
       // WP-I: nowy adres -> pytamy o zapis DOPIERO po udanej wysyłce.
-      if (to !== knownEmail) {
+      if (!isKnownTrainer) {
         setNameInput('');
         setSavePromptFor(to);
       }
@@ -92,12 +98,15 @@ export const EmailWorkoutDialog = ({
   const handleSaveTrainer = () => {
     if (!savePromptFor) return;
     const name = nameInput.trim();
+    // Bug 49 (X30): zapis znormalizowany — kolejne wysyłki na dowolny wariant
+    // literowy tego adresu są rozpoznawane bez popupu.
+    const savedEmail = normalizeEmail(savePromptFor);
     // Offline: lokalnie i tak zadziała (localSaved), mirror dojdzie po powrocie sieci.
     updateDoc(doc(db, 'users', uid), {
-      'preferences.trainerEmail': savePromptFor,
+      'preferences.trainerEmail': savedEmail,
       'preferences.trainerName': name || deleteField(),
     }).catch(() => {});
-    setLocalSaved({ email: savePromptFor, ...(name ? { name } : {}) });
+    setLocalSaved({ email: savedEmail, ...(name ? { name } : {}) });
   };
 
   return (
