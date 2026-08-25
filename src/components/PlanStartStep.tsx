@@ -67,14 +67,22 @@ export const PlanStartStep = ({
       <div className="flex-1 space-y-3">
         <div className="rounded-2xl bg-surface-low p-4">
           <label htmlFor="ob-plan-name" className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</label>
-          <input
+          {/* X34 QA: 60 znaków nie mieści się w jednej linii na 393 px — pole
+              rośnie w dół (textarea bez Entera), zamiast przewijać tekst w bok. */}
+          <textarea
             id="ob-plan-name"
             data-testid="ob-plan-name"
-            type="text"
+            rows={1}
             maxLength={60}
             value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-            className="mt-1 w-full border-b border-transparent bg-transparent font-heading text-xl font-bold leading-tight text-primary outline-none focus:border-primary/40"
+            onChange={(e) => onNameChange(e.target.value.replace(/[\r\n]+/g, ' '))}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+            ref={(el) => {
+              if (!el) return;
+              el.style.height = '0px';
+              el.style.height = `${el.scrollHeight}px`;
+            }}
+            className="mt-1 w-full resize-none overflow-hidden border-b border-transparent bg-transparent font-heading text-xl font-bold leading-tight text-primary outline-none focus:border-primary/40"
           />
         </div>
         <div className="rounded-2xl bg-surface-low p-4" data-testid="ob-duration-tiles">
