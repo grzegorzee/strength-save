@@ -114,6 +114,12 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
         if (uid && option.trial.status === 'eligible') trackTelemetryEvent(uid, 'trial_started');
         await refresh();
         navigate(successRoute(), { replace: true });
+      } else {
+        // Bug 47 (X30): sukces zakupu bez aktywnego entitlementu (np. desync
+        // konfiguracji RC w dashboardzie) — zasada 6: user dostaje feedback, a
+        // listener CustomerInfo + redirect przy isPro (wyżej) domkną resztę.
+        await refresh();
+        toast({ title: t('paywall.purchasePending') });
       }
     } catch (error) {
       const cancelled = typeof error === 'object' && error !== null
