@@ -8,6 +8,8 @@ import {
 } from '@/lib/history-cycles';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
+import { buildCanonicalState } from '@/test/canonical-states';
+import { addCalendarDays } from '@/lib/utils';
 
 // Fala 2 (2026-08-20): grupowanie Historii po cyklach.
 // Kluczowy niezmiennik (lekcja "testuj sekwencje, nie ekrany"):
@@ -84,6 +86,26 @@ describe('assignWorkoutsToCycles', () => {
     const second = cycle('c-second', '2026-05-15', '2026-07-15');
     const noActive = assignWorkoutsToCycles([w], [overlapping, second]);
     expect(noActive.perCycle.get('c-overlap')).toEqual([w]);
+  });
+
+  it('bug 17: aktywny cykl z endDate "" (kanoniczny kształt) łapie sesje bez cycleId po dacie', () => {
+    // Produkcja: createActiveCycle zapisuje endDate '' aż do archiwizacji.
+    // Import CSV (Strong/Hevy) tworzy sesje bez cycleId — jedyna droga do cyklu
+    // to zakres dat, więc aktywny cykl musi działać jako zakres otwarty.
+    const state = buildCanonicalState('history-multi-cycle', '2026-08-25');
+    const activeCanonical = state.cycles.find((c) => c.status === 'active')!;
+    expect(activeCanonical.endDate).toBe('');
+
+    const imported = workout('imported', '2026-08-20', { dayId: 'imported-batch1-0' });
+    const { perCycle, outside } = assignWorkoutsToCycles([imported], state.cycles);
+    expect(perCycle.get(activeCanonical.id)).toEqual([imported]);
+    expect(outside).toEqual([]);
+
+    // Sesja sprzed startu aktywnego cyklu nadal NIE wpada do niego.
+    const before = workout('before', addCalendarDays(activeCanonical.startDate, -1));
+    const beforeResult = assignWorkoutsToCycles([before], [activeCanonical]);
+    expect(beforeResult.perCycle.size).toBe(0);
+    expect(beforeResult.outside).toEqual([before]);
   });
 
   it('NIEZMIENNIK KOMPLETNOŚCI: perCycle + outside == wejście (bez ubytków i duplikatów)', () => {
