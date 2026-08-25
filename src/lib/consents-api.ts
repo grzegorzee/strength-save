@@ -1,12 +1,14 @@
-import { httpsCallable } from 'firebase/functions';
 import { Capacitor } from '@capacitor/core';
-import { functions } from '@/lib/firebase';
 import { CONSENT_DOC_VERSION } from '@/lib/legal-versions';
 import { isConsentBypassed, type ConsentSubmission } from '@/lib/consent-selection';
+import { callProtectedFunction } from '@/lib/protected-callable';
 
 // Zapis zgód przez Cloud Function recordConsent: IP i timestamp muszą pochodzić
 // z serwera (rozliczalność art. 7 ust. 1 RODO), więc klient NIE pisze do
-// kolekcji consents bezpośrednio (rules blokują).
+// kolekcji consents bezpośrednio (rules blokują). Wywołanie idzie chronioną
+// ścieżką (bug 34): 10 s timeout na webie, atestacja best-effort na natywie —
+// jak syncUserProfile, bo zapis zgód tak samo blokuje flow pierwszego
+// uruchomienia.
 
 export async function recordConsents(
   entries: ConsentSubmission[],
@@ -21,8 +23,7 @@ export async function recordConsents(
   const channel = channelOverride ?? (platform === 'ios' || platform === 'android' ? platform : 'web');
   const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
 
-  const call = httpsCallable(functions, 'recordConsent');
-  await call({
+  await callProtectedFunction('recordConsent', {
     entries: entries.map((entry) => ({
       type: entry.type,
       action: entry.action,
