@@ -27,6 +27,8 @@ interface RcEvent {
   store?: string;
   environment?: string;
   cancel_reason?: string;
+  /** Bug 22 (X30): koniec grace period przy BILLING_ISSUE (retry płatności w sklepie). */
+  grace_period_expiration_at_ms?: number;
 }
 
 // Timing-safe porównanie sekretu (wzorzec safeHashEquals z admin-api.ts);
@@ -56,7 +58,8 @@ export interface SubscriptionWrite {
   status: "active" | "expired" | "billing_issue" | "none";
   /** Początek bieżącego okresu (purchased_at_ms) — wyświetlany w apce jako "aktywna od". */
   startedAt: string | null;
-  expiresAt: string | null;
+  /** Klucz pominięty (BILLING_ISSUE bez dat) = zapis merge zachowuje dotychczasową wartość. */
+  expiresAt?: string | null;
   productId: string | null;
   willRenew: boolean;
   updatedAt: string;
@@ -97,8 +100,19 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
     case "CANCELLATION":
       // Anulowanie odnowienia — dostęp zostaje do końca okresu.
       return { ...base, status: "active", willRenew: false };
-    case "BILLING_ISSUE":
-      return { ...base, status: "billing_issue", willRenew: true };
+    case "BILLING_ISSUE": {
+      // Bug 22 (X30): store daje grace period na naprawę płatności — dostęp trwa do
+      // max(expiration, grace_period_expiration). Event bez żadnej daty NIE zeruje
+      // expiresAt: klucz pominięty, żeby merge w webhooku zachował datę z dokumentu.
+      const graceEnds = [event.expiration_at_ms, event.grace_period_expiration_at_ms]
+        .filter((ms): ms is number => typeof ms === "number" && Number.isFinite(ms));
+      const billing = { ...base, status: "billing_issue" as const, willRenew: true };
+      if (graceEnds.length === 0) {
+        delete (billing as { expiresAt?: string | null }).expiresAt;
+        return billing;
+      }
+      return { ...billing, expiresAt: new Date(Math.max(...graceEnds)).toISOString() };
+    }
     case "EXPIRATION":
       return { ...base, tier: "none", status: "expired", willRenew: false };
     default:
@@ -178,7 +192,7 @@ export const revenuecatWebhook = onRequest(
         res.status(200).json({ ok: true, skipped: result });
         return;
       }
-      logger.info(`[revenuecat] ${event.type} → users/${uid}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt}`);
+      logger.info(`[revenuecat] ${event.type} → users/${uid}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt ?? "(bez zmiany)"}`);
       res.status(200).json({ ok: true });
     } catch (error) {
       logger.error("[revenuecat] Zapis nieudany", error);

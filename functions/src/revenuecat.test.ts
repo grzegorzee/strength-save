@@ -58,7 +58,36 @@ describe("mapEventToSubscription", () => {
     const sub = mapEventToSubscription({
       type: "BILLING_ISSUE", product_id: "strengthsave_pro_monthly", expiration_at_ms: EXP_MS,
     }, NOW);
-    expect(sub).toMatchObject({ status: "billing_issue" });
+    expect(sub).toMatchObject({ status: "billing_issue", expiresAt: "2026-07-11T12:00:00.000Z" });
+  });
+
+  // Bug 22 (X30): realny payload RC BILLING_ISSUE potrafi nie nieść expiration_at_ms;
+  // jawny null nadpisywał dotychczasową datę w merge i PRO znikało natychmiast
+  // (Garmin permission-denied, web/admin bez subskrypcji) zamiast grace period.
+  it("BILLING_ISSUE bez dat NIE nadpisuje expiresAt (klucz pominięty w zapisie merge)", () => {
+    const sub = mapEventToSubscription({
+      id: "bi-1", type: "BILLING_ISSUE", app_user_id: "uid-1",
+      product_id: "strengthsave_pro_monthly", period_type: "NORMAL",
+      purchased_at_ms: Date.parse("2026-06-01T12:00:00.000Z"),
+      event_timestamp_ms: Date.parse(NOW), store: "APP_STORE", environment: "PRODUCTION",
+    }, NOW);
+    expect(sub).toMatchObject({ status: "billing_issue", willRenew: true });
+    expect(sub && "expiresAt" in sub).toBe(false);
+  });
+
+  it("BILLING_ISSUE honoruje grace_period_expiration_at_ms (dostęp do końca grace)", () => {
+    const GRACE_MS = Date.parse("2026-07-27T12:00:00.000Z");
+    const onlyGrace = mapEventToSubscription({
+      type: "BILLING_ISSUE", product_id: "strengthsave_pro_monthly",
+      grace_period_expiration_at_ms: GRACE_MS,
+    }, NOW);
+    expect(onlyGrace).toMatchObject({ status: "billing_issue", expiresAt: "2026-07-27T12:00:00.000Z" });
+
+    const both = mapEventToSubscription({
+      type: "BILLING_ISSUE", product_id: "strengthsave_pro_monthly",
+      expiration_at_ms: EXP_MS, grace_period_expiration_at_ms: GRACE_MS,
+    }, NOW);
+    expect(both).toMatchObject({ expiresAt: "2026-07-27T12:00:00.000Z" });
   });
 
   it("EXPIRATION => tier none, expired", () => {
