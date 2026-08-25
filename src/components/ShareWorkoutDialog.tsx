@@ -51,19 +51,27 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   // Z198: który przycisk pokazuje "Zapisano ✓" (null = żaden).
   const [savedAction, setSavedAction] = useState<'download' | 'share' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Bug 30 (X30): licznik generacji — starszy, wolniejszy run (pierwszy płaci
+  // lazy import html2canvas) kończył OSTATNI i cicho podmieniał podgląd/blob
+  // na obraz niezgodny z zaznaczonymi chipami. Wynik nieaktualnego runa jest
+  // odrzucany (wzorzec: BodyCompareShareDialog cancelled).
+  const generationRef = useRef(0);
 
   const generate = async (photo: string | null, tpl: ShareTemplate, heroSel: ShareHero = hero) => {
+    const runId = ++generationRef.current;
     setIsGenerating(true);
     setError(null);
-    if (imageUrl) URL.revokeObjectURL(imageUrl);
     try {
       const result = await generateWorkoutImage(data, photo || undefined, lang, unit, tpl, heroSel);
+      if (generationRef.current !== runId) return;
       setBlob(result);
-      setImageUrl(URL.createObjectURL(result));
+      // Revoke wyłącznie URL-a realnie zastępowanego — przegrany run nie tworzy URL-a.
+      setImageUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(result); });
     } catch {
+      if (generationRef.current !== runId) return;
       setError(t('comp.share.generateError'));
     } finally {
-      setIsGenerating(false);
+      if (generationRef.current === runId) setIsGenerating(false);
     }
   };
 
@@ -85,6 +93,8 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
 
   useEffect(() => {
     if (!open) {
+      // Zamknięcie unieważnia wiszące runy (wynik po zamknięciu nie tworzy URL-a).
+      generationRef.current += 1;
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       setImageUrl(null);
       setBlob(null);

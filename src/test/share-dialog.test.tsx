@@ -7,7 +7,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { hapticSuccess } from '@/lib/haptics';
-import type { ShareData } from '@/lib/share-utils';
+import { generateWorkoutImage, type ShareData } from '@/lib/share-utils';
 
 vi.mock('@/lib/share-utils', () => ({
   generateWorkoutImage: vi.fn(async () => new Blob(['img'], { type: 'image/jpeg' })),
@@ -96,5 +96,57 @@ describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
     fireEvent.click(share);
 
     await waitFor(() => expect(screen.getByText('Zapisano')).toBeTruthy());
+  });
+});
+
+// Bug 30 (X30): wyścig generacji — starszy, wolniejszy run (np. pierwszy po
+// otwarciu, płacący lazy import html2canvas) kończył OSTATNI i cicho
+// podmieniał podgląd/blob na obraz niezgodny z zaznaczonymi chipami.
+describe('ShareWorkoutDialog — wyścig generacji (bug 30)', () => {
+  it('starszy run kończący po nowszym NIE nadpisuje podglądu ani bloba', async () => {
+    const gen = vi.mocked(generateWorkoutImage);
+    let resolveFirst!: (b: Blob) => void;
+    let resolveSecond!: (b: Blob) => void;
+    gen.mockClear();
+    gen
+      .mockImplementationOnce(() => new Promise<Blob>((resolve) => { resolveFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise<Blob>((resolve) => { resolveSecond = resolve; }));
+    let urlCounter = 0;
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:run-${++urlCounter}`);
+
+    renderDialog();
+    // Run 1: efekt otwarcia (story). Run 2: klik chipa "Minimal" w trakcie renderu.
+    await waitFor(() => expect(gen).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Minimal' }));
+    await waitFor(() => expect(gen).toHaveBeenCalledTimes(2));
+
+    // Nowszy run (Minimal) kończy pierwszy — podgląd widoczny.
+    resolveSecond(new Blob(['minimal'], { type: 'image/jpeg' }));
+    await waitFor(() => expect(screen.getByAltText('Podsumowanie treningu')).toBeTruthy());
+    const src = (screen.getByAltText('Podsumowanie treningu') as HTMLImageElement).src;
+
+    // Starszy run dojeżdża później — wynik odrzucony: zero nowego objectURL,
+    // podgląd bez zmian.
+    resolveFirst(new Blob(['story'], { type: 'image/jpeg' }));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    expect((screen.getByAltText('Podsumowanie treningu') as HTMLImageElement).src).toBe(src);
+  });
+
+  it('spinner gaśnie po nowszym runie mimo wiszącego starszego', async () => {
+    const gen = vi.mocked(generateWorkoutImage);
+    let resolveSecond!: (b: Blob) => void;
+    gen.mockClear();
+    gen
+      .mockImplementationOnce(() => new Promise<Blob>(() => { /* run 1 nigdy nie kończy */ }))
+      .mockImplementationOnce(() => new Promise<Blob>((resolve) => { resolveSecond = resolve; }));
+
+    renderDialog();
+    await waitFor(() => expect(gen).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Minimal' }));
+    await waitFor(() => expect(gen).toHaveBeenCalledTimes(2));
+
+    resolveSecond(new Blob(['minimal'], { type: 'image/jpeg' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pobierz/i })).toBeTruthy());
   });
 });
