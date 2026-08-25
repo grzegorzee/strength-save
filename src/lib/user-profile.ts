@@ -88,6 +88,8 @@ export interface UserProfile {
   };
   /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
   consents?: ConsentMirror;
+  /** Bug 11 (X30): strefa IANA zapisana w profilu (TimeZoneSync porównuje z Intl). */
+  timeZone?: string;
   /** Rekordy sprzed instalacji (Runna p.1, spec A5) — baseline detekcji PR. */
   prBackfill?: PRBackfill;
 }
@@ -137,6 +139,7 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   consents: data.consents || undefined,
   // Lekcja builda 88: mapper pole-po-polu — nowe pole bez wpisu tutaj znika.
   prBackfill: sanitizePRBackfill(data.prBackfill),
+  timeZone: typeof data.timeZone === 'string' && data.timeZone ? data.timeZone : undefined,
 });
 
 export const resolveProfileLoadFailure = (lastKnownProfile: UserProfile | null): UserProfile | null =>

@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { getInvalidFcmTokens, runDailyReminder, type DailyReminderDeps } from "./daily-reminder";
 import { shouldLogLoginSuccess } from "./registration";
 
+// Bug 11 (X30): "dziś" i pora liczone per user ze strefy; testy podają CHWILĘ biegu.
+// Poniedziałek 07:00 CEST = 05:00Z (user bez strefy = Warszawa, niezmiennik).
+const WARSAW_MONDAY_07 = new Date("2026-07-06T05:00:00Z");
+const WARSAW_SUNDAY_07 = new Date("2026-07-05T05:00:00Z");
+
 describe("getInvalidFcmTokens", () => {
   it("keeps only tokens rejected permanently by FCM", () => {
     expect(getInvalidFcmTokens(["valid", "expired", "transient"], [
@@ -27,7 +32,7 @@ describe("runDailyReminder (R2-12)", () => {
     })),
     deleteRegistrations: vi.fn(async () => undefined),
     getTodayWorkout: vi.fn(async () => null),
-    today: "monday",
+    now: WARSAW_MONDAY_07,
     ...over,
   });
 
@@ -106,7 +111,7 @@ describe("runDailyReminder (R2-12)", () => {
   });
 
   it("dzien wolny = brak wysylki", async () => {
-    const deps = makeDeps({ today: "sunday" });
+    const deps = makeDeps({ now: WARSAW_SUNDAY_07 });
 
     const result = await runDailyReminder(deps);
 
@@ -171,7 +176,7 @@ describe("runDailyReminder (R2-12)", () => {
   it("odczyt treningu TYLKO dla kandydatow po dotychczasowych filtrach (1 query per kandydat)", async () => {
     const getTodayWorkout = vi.fn(async () => null);
     const deps = makeDeps({
-      today: "sunday", // dzień wolny — zero kandydatów
+      now: WARSAW_SUNDAY_07, // dzień wolny — zero kandydatów
       getTodayWorkout,
     });
 
@@ -194,6 +199,87 @@ describe("runDailyReminder (R2-12)", () => {
     expect(deps.deleteRegistrations).toHaveBeenCalledWith(["r1"]);
     expect(deps.deleteRegistrations).toHaveBeenCalledWith(["r2"]);
     expect(result.invalidTokens).toBe(2);
+  });
+});
+
+// Bug 11 (X30): push o lokalnej 07:00 usera, z dniem planu i datą z JEGO strefy.
+describe("runDailyReminder: strefa usera (bug 11, X30)", () => {
+  const registrations = [
+    { id: "r1", userId: "pl", token: "t-pl" },
+    { id: "r2", userId: "la", token: "t-la" },
+  ];
+  const makeDeps = (now: Date, over: Partial<DailyReminderDeps> = {}): DailyReminderDeps => ({
+    listTokenRegistrations: vi.fn(async () => registrations),
+    getUsers: vi.fn(async () => new Map([
+      ["pl", { displayName: "Jan" }],
+      ["la", { displayName: "Joe", language: "en", timeZone: "America/Los_Angeles" }],
+    ])),
+    getPlanDays: vi.fn(async (userIds: string[]) => new Map(userIds.map((uid) => [uid, [
+      { weekday: "monday", focus: "Push" },
+      { weekday: "tuesday", focus: "Pull" },
+    ]]))),
+    sendMulticast: vi.fn(async (tokens: string[]) => ({
+      successCount: tokens.length,
+      failureCount: 0,
+      responses: tokens.map(() => ({ success: true })),
+    })),
+    deleteRegistrations: vi.fn(async () => undefined),
+    getTodayWorkout: vi.fn(async () => null),
+    now,
+    ...over,
+  });
+  const sentTokens = (deps: DailyReminderDeps) =>
+    (deps.sendMulticast as ReturnType<typeof vi.fn>).mock.calls.flatMap((call) => call[0] as string[]);
+
+  it("wtorek 07:00 Warszawy: PL dostaje push wtorkowy, LA (poniedziałek 22:00) NIC — bez pusha z jutrzejszym planem o 22:00", async () => {
+    const deps = makeDeps(new Date("2026-07-07T05:00:00Z"));
+
+    await runDailyReminder(deps);
+
+    expect(sentTokens(deps)).toEqual(["t-pl"]);
+    expect(deps.sendMulticast).toHaveBeenCalledWith(["t-pl"], expect.any(String), expect.stringContaining("Pull"));
+    // Plan czytany tylko dla userów w porze porannej (koszt: bieg co godzinę).
+    expect(deps.getPlanDays).toHaveBeenCalledWith(["pl"]);
+  });
+
+  it("wtorek 07:00 w LA (14:00Z): LA dostaje push z WTORKOWYM planem i datą lokalną, PL (16:00) nic", async () => {
+    const deps = makeDeps(new Date("2026-07-07T14:00:00Z"));
+
+    await runDailyReminder(deps);
+
+    expect(sentTokens(deps)).toEqual(["t-la"]);
+    expect(deps.sendMulticast).toHaveBeenCalledWith(["t-la"], "Hey Joe! Time to train 💪", expect.stringContaining("Pull"));
+    // Tłumienie po dzisiejszym treningu: data z zegara usera, nie serwera.
+    expect(deps.getTodayWorkout).toHaveBeenCalledWith("la", "2026-07-07");
+  });
+
+  it("poniedziałek 22:00 w LA (wtorek 05:00Z): dzisiejszy trening LA z datą 2026-07-06 nie jest pytany, bo to nie pora pusha", async () => {
+    const deps = makeDeps(new Date("2026-07-07T05:00:00Z"));
+
+    await runDailyReminder(deps);
+
+    expect(deps.getTodayWorkout).not.toHaveBeenCalledWith("la", expect.anything());
+  });
+
+  it("nieznana strefa = Warszawa (bezpieczny default)", async () => {
+    const deps = makeDeps(new Date("2026-07-07T05:00:00Z"), {
+      getUsers: vi.fn(async () => new Map([["pl", { displayName: "Jan", timeZone: "Mars/Olympus" }]])),
+      listTokenRegistrations: vi.fn(async () => [registrations[0]]),
+    });
+
+    await runDailyReminder(deps);
+
+    expect(sentTokens(deps)).toEqual(["t-pl"]);
+  });
+
+  it("bieg o godzinie, która nie jest niczyim porankiem: zero odczytów planu i zero pushy", async () => {
+    const deps = makeDeps(new Date("2026-07-07T20:00:00Z")); // Warszawa 22:00, LA 13:00
+
+    const result = await runDailyReminder(deps);
+
+    expect(deps.getPlanDays).toHaveBeenCalledWith([]);
+    expect(deps.sendMulticast).not.toHaveBeenCalled();
+    expect(result.candidates).toBe(0);
   });
 });
 

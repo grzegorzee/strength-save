@@ -354,6 +354,10 @@ add('users: klient nie zapisze activitySummary DENIED', false, await ok(() => up
 add('users: notificationPrefs nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: 'wylacz' })));
 add('users: displayName > 200 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'x'.repeat(201) })));
 add('users: preferences nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { preferences: 42 })));
+// Bug 11 (X30): klient pisze strefę IANA (TimeZoneSync) — string do 64 znakow.
+add('users: timeZone string ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { timeZone: 'America/Los_Angeles' })));
+add('users: timeZone nie-string DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { timeZone: 7 })));
+add('users: timeZone > 64 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { timeZone: 'x'.repeat(65) })));
 
 // weekly_summaries: martwe uprawnienia zamkniete (klient tylko czyta)
 await env.clearFirestore();

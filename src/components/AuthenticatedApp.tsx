@@ -15,6 +15,7 @@ import { TelemetryHeartbeat } from '@/components/TelemetryHeartbeat';
 import { ProductTelemetry } from '@/components/ProductTelemetry';
 import { AutoSyncOnReconnect } from '@/components/AutoSyncOnReconnect';
 import { PreferenceSync } from '@/components/PreferenceSync';
+import { TimeZoneSync } from '@/components/TimeZoneSync';
 import { PushRegistrar } from '@/components/PushRegistrar';
 import { IosSwipeBack } from '@/components/IosSwipeBack';
 import { EmailVerificationGate } from '@/components/EmailVerificationGate';
@@ -252,6 +253,7 @@ export default function AuthenticatedApp({ onLogout }: { onLogout: () => Promise
         <PushRegistrar />
         <AutoSyncOnReconnect />
         <PreferenceSync />
+        <TimeZoneSync />
         <AppRoutes onLogout={onLogout} />
       </UserProvider>
     </UnitProvider>

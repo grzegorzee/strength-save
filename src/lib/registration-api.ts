@@ -86,6 +86,9 @@ export interface AppUserProfile {
     updatedAt?: string;
   };
   stravaConnected?: boolean;
+  /** Bug 11 (X30): strefa IANA urządzenia (Intl), pisze klient; backend liczy z niej
+   *  porę i dzień pusha/digestu. Brak = Europe/Warsaw. */
+  timeZone?: string;
   // Preferencje aplikacji synchronizowane między urządzeniami (web + iOS).
   preferences?: {
     unit?: 'kg' | 'lbs';

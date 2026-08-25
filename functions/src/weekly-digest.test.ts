@@ -33,6 +33,10 @@ const workout = (userId: string, date = "2026-06-23") => ({
   }],
 });
 
+// Bug 11 (X30): odbiorca dostaje digest w poniedziałek o 08:00 SWOJEJ strefy.
+// User bez strefy = Warszawa: poniedziałek 08:00 CEST = 06:00Z.
+const WARSAW_MONDAY_08 = new Date("2026-06-29T06:00:00Z");
+
 const makeDeps = (users: DigestUser[], over: Partial<WeeklyDigestDeps> = {}) => {
   const deps = {
     listUsers: vi.fn(async () => users),
@@ -40,7 +44,7 @@ const makeDeps = (users: DigestUser[], over: Partial<WeeklyDigestDeps> = {}) => 
     queryWorkoutHistory: vi.fn(async () => []),
     queryStravaActivities: vi.fn(async () => []),
     sendEmail: vi.fn(async () => ({})),
-    now: () => new Date("2026-07-01T08:00:00Z"),
+    now: () => WARSAW_MONDAY_08,
     ...over,
   } satisfies WeeklyDigestDeps;
   return deps;
@@ -150,7 +154,7 @@ describe("runWeeklyDigest (R2-10)", () => {
   });
 
   it("historia daje PR-y i porównanie z poprzednim tygodniem", async () => {
-    // Tydzień digestu: 2026-06-22..28 (now = 2026-07-01). Poprzedni: 06-15..21.
+    // Tydzień digestu: 2026-06-22..28 (now = poniedziałek 2026-06-29). Poprzedni: 06-15..21.
     const history = [
       { ...workout("u1", "2026-06-17"), exercises: [{ exerciseId: "ex-1", name: "Przysiad ze sztangą", sets: [{ reps: 5, weight: 90, completed: true }] }] },
     ];
@@ -240,7 +244,7 @@ describe("B-T6: producent zdarzenia inboxa (user_events)", () => {
     expect(writeUserEvent).toHaveBeenCalledTimes(1);
     const [uid, event] = writeUserEvent.mock.calls[0];
     expect(uid).toBe("u1");
-    // now = 2026-07-01 (środa) => poprzedni poniedziałek 2026-06-22.
+    // now = poniedziałek 2026-06-29 08:00 => poprzedni poniedziałek 2026-06-22.
     expect(event.key).toBe("week-2026-06-22");
     expect(event.type).toBe("week");
     expect(event.payload.weekStart).toBe("2026-06-22");
@@ -268,5 +272,70 @@ describe("B-T6: producent zdarzenia inboxa (user_events)", () => {
 
     const legacy = makeDeps([{ uid: "u1", email: "a@b.c" }]);
     await expect(runWeeklyDigest(legacy)).resolves.toMatchObject({ processed: 1 });
+  });
+});
+
+// Bug 11 (X30): wysyłka o poniedziałkowym poranku ODBIORCY, okno tygodnia z jego daty.
+describe("runWeeklyDigest: strefa odbiorcy (bug 11, X30)", () => {
+  const pl: DigestUser = { uid: "pl", email: "pl@test.pl", status: "active" };
+  const ny: DigestUser = { uid: "ny", email: "ny@test.us", status: "active", language: "en", timeZone: "America/New_York" };
+  const nz: DigestUser = { uid: "nz", email: "nz@test.nz", status: "active", timeZone: "Pacific/Auckland" };
+
+  it("poniedziałek 08:00 Warszawy: PL dostaje, NY (02:00 w nocy) NIE", async () => {
+    const deps = makeDeps([pl, ny]);
+
+    await runWeeklyDigest(deps);
+
+    expect(deps.sendEmail.mock.calls.map((call) => call[0])).toEqual(["pl@test.pl"]);
+  });
+
+  it("poniedziałek 08:00 w Nowym Jorku (12:00Z): NY dostaje z oknem 06-22..06-28, PL (14:00) już nie", async () => {
+    const writeUserEvent = vi.fn(async () => undefined);
+    const deps = makeDeps([pl, ny], { now: () => new Date("2026-06-29T12:00:00Z"), writeUserEvent });
+
+    await runWeeklyDigest(deps);
+
+    expect(deps.sendEmail.mock.calls.map((call) => call[0])).toEqual(["ny@test.us"]);
+    expect(deps.queryCompletedWorkouts).toHaveBeenCalledWith("2026-06-22", "2026-06-28");
+    expect(writeUserEvent.mock.calls[0][1].key).toBe("week-2026-06-22");
+  });
+
+  it("poniedziałek 08:00 w Auckland to jeszcze niedziela 20:00Z: NZ dostaje pełny tydzień, PL (niedziela 22:00) czeka", async () => {
+    const deps = makeDeps([pl, nz], { now: () => new Date("2026-06-28T20:00:00Z") });
+
+    await runWeeklyDigest(deps);
+
+    expect(deps.sendEmail.mock.calls.map((call) => call[0])).toEqual(["nz@test.nz"]);
+    // Okno z LOKALNEJ daty odbiorcy (poniedziałek 06-29), nie z daty UTC (niedziela 06-28).
+    expect(deps.queryCompletedWorkouts).toHaveBeenCalledWith("2026-06-22", "2026-06-28");
+  });
+
+  it("nikt nie ma teraz poniedziałkowego poranka: zero kwerend zbiorczych (koszt biegu co godzinę)", async () => {
+    const deps = makeDeps([pl, ny], { now: () => new Date("2026-06-29T09:00:00Z") });
+
+    const result = await runWeeklyDigest(deps);
+
+    expect(result).toEqual({ processed: 0, sent: 0, failed: 0 });
+    expect(deps.queryCompletedWorkouts).not.toHaveBeenCalled();
+    expect(deps.queryWorkoutHistory).not.toHaveBeenCalled();
+    expect(deps.queryStravaActivities).not.toHaveBeenCalled();
+  });
+
+  it("nieznana strefa = Warszawa (bezpieczny default)", async () => {
+    const deps = makeDeps([{ ...pl, timeZone: "Mars/Olympus" }]);
+
+    await runWeeklyDigest(deps);
+
+    expect(deps.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("etykieta zakresu liczona w UTC z dat okna (niezależna od strefy serwera)", async () => {
+    const deps = makeDeps([pl]);
+
+    await runWeeklyDigest(deps);
+
+    const [, , html] = deps.sendEmail.mock.calls[0] as unknown as [string, string, string];
+    expect(html).toContain("22 czerwca");
+    expect(html).toContain("28 czerwca 2026");
   });
 });
