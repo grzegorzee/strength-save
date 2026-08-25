@@ -18,7 +18,7 @@ export interface GarminCapabilitySnapshot {
   a: 0 | 1;
   /** Entitlement tier; never contains product/store identifiers. */
   t: GarminEntitlementTier;
-  /** Expiry epoch ms; omitted for admin/comp and unavailable states. */
+  /** Expiry epoch ms; omitted for admin, indefinite comp and unavailable states. */
   x?: number;
 }
 
@@ -66,9 +66,17 @@ export function resolveGarminEntitlement(
     ? subscription!.tier as GarminEntitlementTier
     : "none";
   if (tier === "comp") {
-    return subscription?.status === "active"
-      ? result(true, tier, null, "active")
-      : result(false, tier, null, "expired");
+    if (subscription?.status !== "active") return result(false, tier, null, "expired");
+    // Bug 21 (X30): grant admina może mieć datę końca (+30/+90/+365 z panelu) —
+    // wygasa identycznie jak u klienta (isSubscriptionActive); brak daty = bezterminowo.
+    if (typeof subscription.expiresAt !== "string" || subscription.expiresAt === "") {
+      return result(true, tier, null, "active");
+    }
+    const compExpiresAt = Date.parse(subscription.expiresAt);
+    if (!Number.isFinite(compExpiresAt)) return result(false, tier, null, "incomplete");
+    return compExpiresAt > now
+      ? result(true, tier, compExpiresAt, "active")
+      : result(false, tier, compExpiresAt, "expired");
   }
   if (subscription?.status !== "active" && subscription?.status !== "billing_issue") {
     return result(false, tier, null, "missing");

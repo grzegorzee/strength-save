@@ -36,6 +36,25 @@ describe("resolveGarminEntitlement (X25/Z226)", () => {
     }, NOW).active).toBe(false);
   });
 
+  // Bug 21 (X30): datowany grant comp (panel admina +30/+90/+365 dni) wygasa na
+  // zegarku tak samo jak u klienta (isSubscriptionActive) — koniec z dożywotnim a=1.
+  it("comp z przyszłą datą jest aktywny i deklaruje koniec (x) zegarkowi", () => {
+    const entitlement = resolveGarminEntitlement({
+      status: "active", subscription: { tier: "comp", status: "active", expiresAt: FUTURE },
+    }, NOW);
+    expect(entitlement).toMatchObject({ active: true, tier: "comp", expiresAt: Date.parse(FUTURE), reason: "active" });
+    expect(entitlement.snapshot).toEqual({ v: 1, a: 1, t: "comp", x: Date.parse(FUTURE) });
+  });
+
+  it("comp z przeszłą albo niepoprawną datą wygasa (fail closed)", () => {
+    expect(resolveGarminEntitlement({
+      status: "active", subscription: { tier: "comp", status: "active", expiresAt: PAST },
+    }, NOW)).toMatchObject({ active: false, tier: "comp", reason: "expired" });
+    expect(resolveGarminEntitlement({
+      status: "active", subscription: { tier: "comp", status: "active", expiresAt: "not-a-date" },
+    }, NOW)).toMatchObject({ active: false, tier: "comp", reason: "incomplete" });
+  });
+
   it("emits a compact server-confirmed capability snapshot without store secrets", () => {
     const entitlement = resolveGarminEntitlement({
       status: "active",
