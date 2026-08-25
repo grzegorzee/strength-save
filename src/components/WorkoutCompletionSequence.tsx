@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, Pencil, ThumbsDown, ThumbsUp, Trophy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,10 +36,15 @@ interface WorkoutCompletionSequenceProps {
 }
 
 const AutoAdvance = ({ ms, onDone }: { ms: number; onDone: () => void }) => {
+  // Bug 31 (X30, wzorzec B-T3): rodzic re-renderuje się w oknie celebracji
+  // (onSnapshot po zapisie i acku, autoSaveStatus) z nową tożsamością inline
+  // onDone — timeout NIE może startować od nowa. Callback czytany z refa.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   useEffect(() => {
-    const id = setTimeout(onDone, ms);
+    const id = setTimeout(() => onDoneRef.current(), ms);
     return () => clearTimeout(id);
-  }, [ms, onDone]);
+  }, [ms]);
   return null;
 };
 

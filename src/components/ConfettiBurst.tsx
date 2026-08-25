@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentAccent } from '@/lib/accent-theme';
 
 // Lekki confetti bez zależności (CSS animacja). F-T2: kolory z akcentu usera.
@@ -38,10 +38,15 @@ export const ConfettiBurst = ({ onDone, durationMs = 2600 }: ConfettiBurstProps)
     [],
   );
 
+  // Bug 31 (X30, wzorzec B-T3): rodzic re-renderuje się w oknie celebracji
+  // z nową tożsamością inline onDone — timeout NIE może startować od nowa
+  // (kawałki CSS i tak wygasają po ~3 s, reset zostawiał statyczny overlay).
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   useEffect(() => {
-    const id = setTimeout(() => { setShow(false); onDone?.(); }, durationMs);
+    const id = setTimeout(() => { setShow(false); onDoneRef.current?.(); }, durationMs);
     return () => clearTimeout(id);
-  }, [durationMs, onDone]);
+  }, [durationMs]);
 
   if (!show) return null;
 
