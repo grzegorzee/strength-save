@@ -1,1 +1,0 @@
-import{m as a,X as r,Y as s,n as i}from"./generateCategoricalChart-DWGcasP-.js";import{A as x}from"./Analytics-QF--_a66.js";var o=a({chartName:"AreaChart",GraphicalChild:x,axisComponents:[{axisType:"xAxis",AxisComp:r},{axisType:"yAxis",AxisComp:s}],formatAxisMap:i});export{o as A};
