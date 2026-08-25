@@ -18,6 +18,7 @@ import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { CycleShareDialog, computeCycleTimeAtGymSec, type CycleShareData } from '@/components/CycleShareCard';
 import { formatDurationHM } from '@/lib/monthly-stats';
 import { buildPlanEventEmitter } from '@/lib/user-events';
@@ -169,6 +170,9 @@ const NewPlan = () => {
         // pierwszeństwo (stare szkice z surową datą spadają na snap startDate).
         startDateISO: chosen.startDate,
         planName: chosen.planName,
+        // WP-6 (X33): odpowiedzi z kreatora NA nowym cyklu (entry replan);
+        // onboardingAnswers na userze zostaje snapshotem pierwszego onboardingu.
+        choice: buildPlanCycleChoice(chosen, 'replan'),
         archiveCurrentPlan,
         savePlan,
         createActiveCycle,

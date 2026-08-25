@@ -10,6 +10,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { ONBOARDING_ANSWERS_VERSION } from '@/lib/onboarding-answers';
 import type { PlanWizardChoice } from '@/components/PlanWizard';
+import type { PlanCycleChoice } from '@/types/cycles';
 
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 vi.mock('@/components/PlanPreview', () => ({
@@ -106,6 +107,27 @@ describe('Onboarding: zapis onboardingAnswers przy markOnboardingComplete (WP-O)
       durationWeeks: choice.durationWeeks,
       startDate: PLAN_START,
       planName: choice.planName,
+    });
+  });
+
+  // WP-6 (X33): te same odpowiedzi ida na cykl (deps.choice, entry onboarding).
+  it('deps.choice dla cyklu = odpowiedzi kreatora z entry onboarding (WP-6)', async () => {
+    render(withProviders(<Onboarding />));
+    await walkWizardToConfirm();
+
+    const [wizardChoice, deps] = completeOnboardingPlan.mock.calls[0] as unknown as [PlanWizardChoice, { choice?: PlanCycleChoice }];
+    expect(deps.choice).toEqual({
+      version: 1,
+      chosenAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      level: 'beginner',
+      objective: 'build_muscle',
+      daysPerWeek: 4,
+      trainingDays: ['monday', 'tuesday', 'thursday', 'friday'],
+      planSource: 'recommended',
+      templateId: wizardChoice.templateId,
+      recommendedTemplateId: wizardChoice.templateId,
+      planName: wizardChoice.planName,
+      entry: 'onboarding',
     });
   });
 
