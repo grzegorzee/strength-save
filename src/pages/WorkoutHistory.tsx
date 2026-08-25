@@ -34,7 +34,7 @@ import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { formatTonnage } from '@/lib/units';
 import { EmptyState } from '@/components/EmptyState';
 import { getEmptyStateImageUrl } from '@/lib/exercise-media';
-import { formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -740,28 +740,40 @@ const WorkoutHistory = () => {
               />
             </div>
 
-            {/* Status — chipy w jednym przewijanym rzędzie. */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <Chip className="shrink-0" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
-              <Chip className="shrink-0" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
-              <Chip className="shrink-0" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
-              <Chip className="shrink-0" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
-              <Chip className="shrink-0" active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
-                {t('history.compare')}
-              </Chip>
+            {/* Status — chipy zawijane, wszystkie widoczne (X35a WP-A). */}
+            <div className="flex flex-wrap gap-2" data-testid="history-status-chips">
+              <Chip className="touch-manipulation select-none" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
+              <Chip className="touch-manipulation select-none" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
+              <Chip className="touch-manipulation select-none" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
+              <Chip className="touch-manipulation select-none" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
             </div>
 
-            {/* Dzień planu — chipy (scroll wewnątrz kontenera, strona bez h-scrolla) */}
+            {/* Dzień planu — chipy zawijane (X35a WP-A). */}
             {trainingPlan.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                <Chip className="shrink-0" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
+              <div className="flex flex-wrap gap-2" data-testid="history-day-chips">
+                <Chip className="touch-manipulation select-none" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
                 {trainingPlan.map(day => (
-                  <Chip key={day.id} className="shrink-0" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
+                  <Chip key={day.id} className="touch-manipulation select-none" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
                     {localizeDayName(day.dayName, lang)}
                   </Chip>
                 ))}
               </div>
             )}
+
+            {/* X35a WP-A#5: "Porównaj" to TRYB, nie filtr — osobny przycisk poza rzędem chipów. */}
+            <button
+              type="button"
+              aria-pressed={compareMode}
+              data-testid="history-compare-toggle"
+              onClick={() => setCompareMode((prev) => !prev)}
+              className={cn(
+                'inline-flex touch-manipulation select-none items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
+                compareMode ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-transparent text-foreground/80',
+              )}
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              {t('history.compare')}
+            </button>
 
             {/* Zakres dat — T20.5: kalendarz booking-style; zwijany pod ikoną filtrów */}
             {(filtersOpen || fromDate !== '' || toDate !== '') && (
