@@ -3,10 +3,12 @@ import type { WorkoutSession } from '@/types';
 
 export type WorkoutSyncErrorCode =
   | 'offline'
+  | 'timeout'
   | 'not-found'
   | 'revision-conflict'
   | 'validation'
   | 'permission'
+  | 'invalid-argument'
   | 'unknown';
 
 export interface WorkoutContentSummary {
@@ -28,14 +30,37 @@ export const classifyWorkoutSyncError = (error: unknown): WorkoutSyncErrorCode =
     || message.includes('cloud_not_confirmed')
     || message.includes('cloudnotconfirmed')
   ) return 'validation';
-  if (message.includes('permission-denied') || message.includes('permission')) return 'permission';
+  if (
+    message.includes('permission-denied')
+    || message.includes('permission')
+    || message.includes('unauthenticated')
+  ) return 'permission';
+  if (message.includes('invalid-argument')) return 'invalid-argument';
   if (
     message.includes('offline')
     || message.includes('network')
     || message.includes('unavailable')
-    || message.includes('timeout')
+    || message.includes('deadline-exceeded')
   ) return 'offline';
+  // WP-C (X38): timeout silnika (withTimeout: "... timed out after N ms") to
+  // osobny kod retryable; "network timeout" zostaje offline (gałąź wyżej).
+  if (message.includes('timed out') || message.includes('timeout')) return 'timeout';
   return 'unknown';
+};
+
+// WP-C (X38): klasyfikacja retryable vs trwale. Trwale wypadaja z auto-retry
+// (Sync Center daje wyjscie: Sprobuj ponownie / Usun szkic / Eksportuj, zasada 6).
+// Konflikt rewizji obsluguje osobny filtr (dialog w treningu), wiec nie jest tu
+// "trwaly", ale tez nie jest auto-ponawiany przez AutoSync.
+export const isPermanentWorkoutSyncError = (error: unknown): boolean => {
+  const code = classifyWorkoutSyncError(error);
+  return code === 'permission' || code === 'not-found' || code === 'invalid-argument';
+};
+
+// Blad, ktory NIE wymaga telemetrii client_errors (brak sieci to stan, nie bug).
+export const isOfflineLikeWorkoutSyncError = (error: unknown): boolean => {
+  const code = classifyWorkoutSyncError(error);
+  return code === 'offline';
 };
 
 export type WorkoutSyncErrorMessageKey =
@@ -66,7 +91,9 @@ export const workoutSyncErrorMessageKey = (error: unknown): WorkoutSyncErrorMess
     case 'permission': return 'workout.err.permission';
     case 'not-found': return 'workout.err.notFound';
     case 'validation': return 'workout.err.validation';
+    case 'invalid-argument': return 'workout.err.validation';
     case 'offline': return 'workout.err.offline';
+    case 'timeout': return 'workout.err.offline';
     default: return 'workout.err.unknown';
   }
 };

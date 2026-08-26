@@ -31,6 +31,7 @@ import {
 } from '@/lib/workout-session';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
+import { e2eCloudMock, isE2ECloudMockEnabled } from '@/lib/e2e-cloud-mock';
 import { clampSet } from '@/lib/workout-sanitizers';
 import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
 
@@ -115,6 +116,15 @@ export const useFirebaseWorkoutActions = (
   const createWorkoutSession = useCallback(async (dayId: string, date?: string, cycleId?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean; provisional?: boolean }> => {
     const workoutDate = date || formatLocalDate(new Date());
     const sessionId = buildWorkoutSessionId(userId, dayId, workoutDate);
+
+    // WP-C (X38): mock chmury e2e (tylko z jawną flagą testu, patrz e2e-cloud-mock.ts).
+    if (isE2ECloudMockEnabled()) {
+      try {
+        return e2eCloudMock.createSession(userId, dayId, workoutDate, cycleId);
+      } catch (err) {
+        return { session: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
 
     // Check if workout for this date already exists (prevent duplicates)
     const existingWorkout = workouts.find(w => w.id === sessionId || (w.dayId === dayId && w.date === workoutDate));
@@ -675,6 +685,9 @@ export const useFirebaseWorkoutActions = (
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
     try {
+      if (isE2ECloudMockEnabled()) {
+        return { success: true, ...e2eCloudMock.save(sessionId, exercises, options) };
+      }
       const syncState = await saveWorkoutBatchWithRevision(db, sessionId, exercises, options);
       return { success: true, ...syncState };
     } catch (err) {
@@ -686,6 +699,7 @@ export const useFirebaseWorkoutActions = (
 
   const getWorkoutSessionFromServer = useCallback(async (sessionId: string): Promise<WorkoutSession | null> => {
     if (!sessionId) return null;
+    if (isE2ECloudMockEnabled()) return e2eCloudMock.getFromServer(userId, sessionId);
 
     const snapshot = await getDocFromServer(doc(db, WORKOUTS_COLLECTION, sessionId));
     if (!snapshot.exists()) return null;

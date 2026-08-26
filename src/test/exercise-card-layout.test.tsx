@@ -7,6 +7,7 @@ import { UnitProvider } from '@/contexts/UnitContext';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import type { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
+import type { WeeklyTarget } from '@/lib/progression-engine';
 
 // Karta czyta uid tylko do telemetrii — provider ciągnie Firebase, więc mock.
 vi.mock('@/contexts/UserContext', () => ({
@@ -220,8 +221,9 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
     });
 
     // WP-D (X37, research sekcja 4): aktywna seria to wyróżnienie WIERSZA (obrys +
-    // lewy pasek akcentu + checkmark z obrysem), nie sam ring na inputach.
-    it('WP-D: aktywna seria ma obrys wiersza, pasek akcentu i wyróżniony checkmark; inne wiersze bez ramek', () => {
+    // checkmark z obrysem), nie sam ring na inputach. X38 WP-A: bez lewego paska
+    // akcentu (.set-row-active); zostaje obrys, tło i checkmark.
+    it('WP-D: aktywna seria ma obrys wiersza i wyróżniony checkmark, bez lewego paska; inne wiersze bez ramek', () => {
       const sets: SetData[] = [
         workingSet({ isWarmup: true }),
         workingSet({ weight: 60, reps: 8, completed: true }),
@@ -235,11 +237,12 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const activeRow = rowOf(repsInputs[2]);
       const nextRow = rowOf(repsInputs[3]);
 
-      expect(activeRow.className).toContain('set-row-active');
       expect(activeRow.className).toContain('ring-1');
       expect(activeRow.className).toContain('ring-primary/70');
+      expect(activeRow.className).toContain('bg-primary/[0.08]');
+      // X38: kreska po lewej usunięta z całej karty.
+      expect(card.querySelector('.set-row-active')).toBeNull();
       for (const row of [warmupRow, doneRow, nextRow]) {
-        expect(row.className).not.toContain('set-row-active');
         expect(row.className).not.toContain('ring-');
       }
       // Inputy aktywnej serii nadal z accent-ring (kontrakt r2 zostaje).
@@ -266,10 +269,10 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const { card } = renderCard({ savedSets: sets, trackingType: 'duration' });
       const timeInputs = within(card).getAllByLabelText(/Czas/) as HTMLElement[];
       const activeRow = rowOf(timeInputs[1]);
-      expect(activeRow.className).toContain('set-row-active');
       expect(activeRow.className).toContain('ring-primary/70');
-      expect(rowOf(timeInputs[0]).className).not.toContain('set-row-active');
-      expect(rowOf(timeInputs[2]).className).not.toContain('set-row-active');
+      expect(card.querySelector('.set-row-active')).toBeNull();
+      expect(rowOf(timeInputs[0]).className).not.toContain('ring-');
+      expect(rowOf(timeInputs[2]).className).not.toContain('ring-');
       const activeCheck = within(activeRow).getByRole('button', { name: /\(aktywna\)/ });
       expect(activeCheck.className).toContain('ring-primary');
     });
@@ -574,6 +577,141 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
       // Edycja notatki nie jest zdublowana w treści karty — żyje w menu ⋯.
       expect(within(card).queryAllByText('Uchwyt szeroki')).toHaveLength(1);
+    });
+  });
+
+  describe('X38 WP-A: chip „Rozgrzewka" bez domyślnej W + „Cel" w jednym kolorze', () => {
+    /** Rodzic kontrolowany: oddaje sets z karty z powrotem (round-trip jak draft). */
+    const Controlled = ({ initialSets, spy }: { initialSets: SetData[]; spy: ReturnType<typeof vi.fn> }) => {
+      const [sets, setSets] = useState<SetData[]>(initialSets);
+      return (
+        <MemoryRouter>
+          <LanguageProvider>
+            <UnitProvider>
+              <ExerciseCard
+                exercise={exercise()}
+                index={1}
+                savedSets={sets}
+                onMetricsChange={vi.fn()}
+                onSetsChange={(id, next, notes) => {
+                  spy(id, next, notes);
+                  setSets(next);
+                }}
+              />
+            </UnitProvider>
+          </LanguageProvider>
+        </MemoryRouter>
+      );
+    };
+
+    it('chip jest pierwszy od lewej i widoczny bez W nawet BEZ ciężaru roboczego', () => {
+      const { card } = renderCard({ savedSets: [workingSet(), workingSet()], onMetricsChange: vi.fn() });
+      const chips = within(card).getByTestId('exercise-card-chips');
+      const buttons = within(chips).getAllByRole('button');
+      expect(buttons[0]).toBe(within(chips).getByTestId('warmup-generate'));
+      expect(buttons[0].textContent).toContain('Rozgrzewka');
+    });
+
+    it('bez ciężaru: chip dodaje 1 pustą serię W na górze i znika (są W)', () => {
+      const spy = vi.fn();
+      const { container } = render(<Controlled initialSets={[workingSet(), workingSet()]} spy={spy} />);
+      const card = container.querySelector('.exercise-card') as HTMLElement;
+
+      fireEvent.click(within(card).getByTestId('warmup-generate'));
+
+      const emitted = spy.mock.calls.at(-1)?.[1] as SetData[];
+      expect(emitted).toHaveLength(3);
+      expect(emitted[0]).toMatchObject({ isWarmup: true, weight: 0, reps: 0, completed: false });
+      expect(emitted.slice(1).some((s) => s.isWarmup)).toBe(false);
+      expect(within(card).getAllByLabelText(/Rozgrzewka W, kg/)).toHaveLength(1);
+      expect(within(card).queryByTestId('warmup-generate')).toBeNull();
+    });
+
+    it('z ciężarem: chip wstawia rampę wg sprzętu (sztanga) przed serie robocze', () => {
+      const spy = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ weight: 100, reps: 5 }), workingSet({ weight: 100, reps: 5 })],
+        onSetsChange: spy,
+      });
+      fireEvent.click(within(card).getByTestId('warmup-generate'));
+
+      const emitted = spy.mock.calls.at(-1)?.[1] as SetData[];
+      const warmups = emitted.filter((s) => s.isWarmup);
+      expect(warmups.length).toBeGreaterThanOrEqual(2);
+      expect(warmups.every((s) => s.weight > 0 && s.weight < 100)).toBe(true);
+      // Rampa na górze, robocze bez zmian na dole.
+      expect(emitted.slice(0, warmups.length).every((s) => s.isWarmup)).toBe(true);
+      expect(emitted.slice(warmups.length)).toEqual([
+        workingSet({ weight: 100, reps: 5 }),
+        workingSet({ weight: 100, reps: 5 }),
+      ]);
+    });
+
+    it('chip ukryty, gdy jest choć jedna W (nawet pusta); wraca po usunięciu wszystkich W', () => {
+      const spy = vi.fn();
+      const { container } = render(
+        <Controlled initialSets={[workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 })]} spy={spy} />,
+      );
+      const card = container.querySelector('.exercise-card') as HTMLElement;
+      expect(within(card).queryByTestId('warmup-generate')).toBeNull();
+
+      // Pusta W kasuje się bez dialogu (Z171); po niej chip wraca.
+      fireEvent.click(within(card).getAllByRole('button', { name: /Usuń serię/i })[0]);
+      expect(within(card).queryAllByLabelText(/Rozgrzewka W, kg/)).toHaveLength(0);
+      expect(within(card).getByTestId('warmup-generate')).toBeTruthy();
+    });
+
+    it('chip nie pokazuje się dla ćwiczeń bez ciężaru (duration)', () => {
+      const { card } = renderCard({
+        savedSets: [workingSet({ durationSec: 60 })],
+        trackingType: 'duration',
+        onMetricsChange: vi.fn(),
+      });
+      expect(within(card).queryByTestId('warmup-generate')).toBeNull();
+    });
+
+    const weekly = (over: Partial<WeeklyTarget> = {}): WeeklyTarget => ({
+      exerciseId: 'ex-1',
+      exerciseName: 'Wyciskanie sztangi na ławce płaskiej',
+      kind: 'progress',
+      targetWeight: 62.5,
+      targetReps: 8,
+      targetSets: 3,
+      targetDurationSec: null,
+      reasonKey: 'progression.reason.progress',
+      ...over,
+    });
+
+    it('„Cel" w jednym kolorze: progress = primary na bg-primary/10, etykieta bez własnej klasy', () => {
+      const { card } = renderCard({ savedSets: [workingSet()], weeklyTarget: weekly() });
+      const box = within(card).getByTestId('exercise-card-target');
+      expect(box.className).toContain('text-primary');
+      expect(box.className).toContain('bg-primary/10');
+      const label = within(box).getByText('Cel tygodnia');
+      expect(label.getAttribute('class')).toBeNull();
+    });
+
+    it('„Cel" deload = warning (tekst pełny, tło /10), bez primary; pain = destructive', () => {
+      const deload = renderCard({
+        savedSets: [workingSet()],
+        weeklyTarget: weekly({ kind: 'deload', targetWeight: 55, reasonKey: 'progression.reason.deload' }),
+      });
+      const deloadBox = within(deload.card).getByTestId('exercise-card-target');
+      expect(deloadBox.className).toContain('text-fitness-warning');
+      expect(deloadBox.className).toContain('bg-fitness-warning/10');
+      expect(deloadBox.className).not.toContain('text-primary');
+      expect(deloadBox.className).not.toContain('bg-primary/10');
+      expect(within(deloadBox).getByText('Deload').getAttribute('class')).toBeNull();
+      // Ikona i wartość dziedziczą kolor kontenera (jeden kolor na cały wiersz).
+      expect(deloadBox.querySelector('svg')?.getAttribute('class') ?? '').not.toContain('text-primary');
+
+      const pain = renderCard({
+        savedSets: [workingSet()],
+        weeklyTarget: weekly({ kind: 'pain', targetWeight: 50, reasonKey: 'progression.reason.pain' }),
+      });
+      const painBox = within(pain.card).getByTestId('exercise-card-target');
+      expect(painBox.className).toContain('text-destructive');
+      expect(painBox.className).toContain('bg-destructive/10');
     });
   });
 

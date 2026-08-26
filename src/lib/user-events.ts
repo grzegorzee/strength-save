@@ -23,7 +23,9 @@ export const USER_EVENTS_QUERY_LIMIT = 50;
 // T15: 'announcement' (ogłoszenie od twórcy) tworzy WYŁĄCZNIE backend (Admin SDK,
 // mirror adminSendPush); klient je tylko czyta. Rules ograniczają create klienta
 // do pozostałych typów, dlatego nie ma tu helpera klucza announcement.
-export type UserEventType = 'pr' | 'badge' | 'week' | 'plan' | 'announcement';
+// WP-C (X38): 'sync' = trening doniesiony do chmury po odroczonym zapisie
+// (zakończony offline). Klient tworzy, rules dopuszczają.
+export type UserEventType = 'pr' | 'badge' | 'week' | 'plan' | 'announcement' | 'sync';
 
 export type UserEventPayload = Record<string, string | number | boolean | null>;
 
@@ -54,6 +56,9 @@ export const weekEventKey = (weekStartISO: string): string => `week-${weekStartI
 
 export const planEventKey = (action: 'started' | 'changed' | 'ended', ref: string): string =>
   `plan-${action}-${ref}`;
+
+/** WP-C (X38): jeden wpis per dzień planu i data (promocja provisional nie zmienia klucza). */
+export const syncEventKey = (dayId: string, date: string): string => `sync-${dayId}-${date}`;
 
 export interface EmitUserEventInput {
   type: UserEventType;

@@ -8,6 +8,7 @@ import {
 import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
 import { draftWriteId } from '@/lib/workout-write-attempt';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
+import { withTimeout } from '@/lib/promise-timeout';
 
 // Jeden silnik syncu treningu: cała sekwencja promote -> alreadyFinalized -> save ->
 // validate -> cleanup w jednym miejscu, z blokadą in-flight per (userId, sessionId).
@@ -84,7 +85,15 @@ export interface WorkoutSyncDeps {
   };
   isOnline?: () => boolean;
   now?: () => number;
+  // WP-C (X38): limity czasu na operacje sieciowe silnika (transakcja, promocja,
+  // odczyt z serwera). Bez nich zawieszona obietnica SDK trzymala inFlight
+  // i runningRef do konca zycia strony (incydent 2026-08-26: skorupy ad-hoc
+  // revision 0, zero bledow w telemetrii).
+  timeouts?: { checkpointMs?: number; finalMs?: number };
 }
+
+export const SYNC_CHECKPOINT_TIMEOUT_MS = 20_000;
+export const SYNC_FINAL_TIMEOUT_MS = 30_000;
 
 export interface SyncOutcome {
   success: boolean;
@@ -103,6 +112,11 @@ export interface SyncOutcome {
   markSyncedFailed?: boolean; // chmura OK, lokalny status nieodświeżony
   cleanupFailed?: boolean;    // chmura OK, lokalny draft nieusunięty
   draftRetained?: boolean;    // final OK, ale draft ma nowszą treść — zostaje na follow-up
+  // WP-C (X38): transakcja finalna ZATWIERDZONA (mamy revision), ale odczyt
+  // potwierdzający nie doszedł albo nie zgadzał się z oczekiwaniem. To sukces
+  // (chmura ma dane), nie powód do trzymania finalSyncPending; UI loguje.
+  cloudUnconfirmed?: boolean;
+  unconfirmedReason?: string;
 }
 
 const inFlight = new Map<string, Promise<SyncOutcome>>();
@@ -160,6 +174,12 @@ const runSync = async (
 ): Promise<SyncOutcome> => {
   const now = deps.now ?? Date.now;
   const isOnline = deps.isOnline ?? (() => typeof navigator === 'undefined' || navigator.onLine);
+  const checkpointTimeoutMs = deps.timeouts?.checkpointMs ?? SYNC_CHECKPOINT_TIMEOUT_MS;
+  const finalTimeoutMs = deps.timeouts?.finalMs ?? SYNC_FINAL_TIMEOUT_MS;
+  // Odczyt/promocja: 20 s; zapis finalny: 30 s. Timeout rzuca ("... timed out
+  // after N ms") -> catch na dole zwraca kod retryable 'timeout' i zwalnia lock.
+  const guarded = <T>(operation: Promise<T>, label: string, timeoutMs = checkpointTimeoutMs): Promise<T> =>
+    withTimeout(operation, timeoutMs, label);
 
   try {
     let draft = await deps.loadDraft(userId, sessionId);
@@ -177,7 +197,7 @@ const runSync = async (
       if (!isOnline()) {
         return { success: false, error: 'OFFLINE', sessionId };
       }
-      const promo = await deps.createSession(draft.dayId, draft.date, draft.cycleId ?? undefined);
+      const promo = await guarded(deps.createSession(draft.dayId, draft.date, draft.cycleId ?? undefined), 'promote-session');
       if (promo.error || !promo.session) {
         return { success: false, error: promo.error || 'PROMOTE_FAILED', sessionId };
       }
@@ -189,7 +209,7 @@ const runSync = async (
         ...(promo.session.revision !== undefined && { revision: promo.session.revision }),
       };
       if (promo.existing) {
-        const serverSession = await deps.getFromServer(promo.session.id);
+        const serverSession = await guarded(deps.getFromServer(promo.session.id), 'promote-read');
         if (serverSession) {
           promoCloudState = {
             revision: Math.max(0, Math.floor(serverSession.revision ?? 0)),
@@ -214,7 +234,7 @@ const runSync = async (
     // Final czyta serwer zawsze (idempotencja treści); checkpoint tylko gdy brak baseline.
     let serverWorkout: WorkoutSession | null = null;
     if (requiresFinal || (draft.sessionOrigin === 'remote' && draft.cloudRevision === undefined)) {
-      serverWorkout = await deps.getFromServer(targetSessionId);
+      serverWorkout = await guarded(deps.getFromServer(targetSessionId), 'server-read');
     }
 
     if (draft.cloudRevision === undefined && serverWorkout) {
@@ -277,7 +297,11 @@ const runSync = async (
         updatedAt: existingFinalWorkout?.updatedAt,
         revision: existingFinalWorkout?.revision,
       }
-      : await deps.saveWorkout(targetSessionId, exercisesPayload, saveOptions);
+      : await guarded(
+        deps.saveWorkout(targetSessionId, exercisesPayload, saveOptions),
+        requiresFinal ? 'final-save' : 'checkpoint-save',
+        requiresFinal ? finalTimeoutMs : checkpointTimeoutMs,
+      );
 
     if (!result.success) {
       const error = result.error;
@@ -288,20 +312,43 @@ const runSync = async (
     }
 
     if (requiresFinal) {
-      const confirmedWorkout = alreadyFinalized
-        ? existingFinalWorkout
-        : await deps.getFromServer(targetSessionId);
-      const validation = alreadyFinalized
-        ? { ok: true as const }
-        : validateWorkoutCloudWrite(confirmedWorkout, expectation);
-      if (!validation.ok) {
-        const reason = 'reason' in validation && validation.reason ? validation.reason : 'unknown';
-        return {
-          success: false,
-          error: `CLOUD_NOT_CONFIRMED: ${reason}`,
-          sessionId: targetSessionId,
-          promotedSessionId,
-        };
+      // WP-C (X38): odczyt potwierdzajacy po ZATWIERDZONEJ transakcji jest
+      // dodatkowa asercja, nie warunkiem sukcesu. Transakcja z revision = chmura
+      // ma dane; brak potwierdzenia (timeout, offline tuz po commicie, rozjazd)
+      // NIE trzyma draftu w finalSyncPending (wczesniej: CLOUD_NOT_CONFIRMED
+      // ponawial caly final i sciagal "stale" konflikty). Jedna proba ponowna
+      // samego odczytu, potem sukces z flaga cloudUnconfirmed.
+      let cloudUnconfirmed = false;
+      let unconfirmedReason: string | undefined;
+      if (!alreadyFinalized) {
+        const committed = result.revision !== undefined;
+        let confirmedWorkout: WorkoutSession | null = null;
+        let readFailed: string | undefined;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          try {
+            confirmedWorkout = await guarded(deps.getFromServer(targetSessionId), 'confirm-read');
+            readFailed = undefined;
+            break;
+          } catch (err) {
+            readFailed = err instanceof Error ? err.message : String(err);
+          }
+        }
+        const validation = readFailed === undefined
+          ? validateWorkoutCloudWrite(confirmedWorkout, expectation)
+          : { ok: false as const, reason: `read-failed: ${readFailed}` };
+        if (!validation.ok) {
+          const reason = 'reason' in validation && validation.reason ? validation.reason : 'unknown';
+          if (!committed) {
+            return {
+              success: false,
+              error: `CLOUD_NOT_CONFIRMED: ${reason}`,
+              sessionId: targetSessionId,
+              promotedSessionId,
+            };
+          }
+          cloudUnconfirmed = true;
+          unconfirmedReason = reason;
+        }
       }
 
       let cleanupFailed: boolean | undefined;
@@ -339,6 +386,7 @@ const runSync = async (
         syncedDraftVersion: draft.version,
         ...(cleanupFailed && { cleanupFailed }),
         ...(draftRetained && { draftRetained }),
+        ...(cloudUnconfirmed && { cloudUnconfirmed, unconfirmedReason }),
       };
     }
 

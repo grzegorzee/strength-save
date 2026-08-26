@@ -70,7 +70,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
 
     // count() nie czeka — najpierw auto-wait na wyrenderowane inputy (flake przy pełnym runie).
     await expect(inputs.first()).toBeVisible();
-    // At least 2 inputs per set (reps + weight), warmup + working sets
+    // At least 2 inputs per set (reps + weight), working sets only (X38: no default warm-up row)
     const count = await inputs.count();
     expect(count).toBeGreaterThanOrEqual(4);
   });
@@ -93,23 +93,41 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     expect(labels.some((label) => label.includes(exerciseName!) && /Powt\.|Reps/.test(label))).toBe(true);
   });
 
-  // X17A Z128.1: rozgrzewka wchodzi do wspólnej tabeli serii. Osobny badge sekcji
-  // „Rozgrzewka" znika, oznaczeniem zostaje złote „W" w kolumnie SET.
-  test('warmup row sits in the set table under the column headers', async ({ page }) => {
+  // X38 WP-A: nowa lista serii NIE MA domyślnej W (ani przed startem, ani po nim).
+  // Rozgrzewkę dokłada user chipem „Rozgrzewka" (pierwszy od lewej): bez ciężaru
+  // roboczego wstawia 1 pustą W na górze tabeli (X17A Z128.1: wspólna tabela,
+  // złote „W" w kolumnie SET), po czym chip znika.
+  test('no default warm-up row; the Rozgrzewka chip inserts an empty W row at the top', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeVisible();
+    await expect(firstCard.getByText('W', { exact: true })).toHaveCount(0);
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
 
-    await expect(firstCard.getByText('Rozgrzewka', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    // Po starcie nadal zero W: ćwiczenie nie ma historii ani ciężaru roboczego.
+    await expect(firstCard.getByText('W', { exact: true })).toHaveCount(0);
 
-    const warmupLabel = firstCard.getByText('W', { exact: true });
-    await expect(warmupLabel).toBeVisible();
+    // Chip pierwszy od lewej w rzędzie chipów; bez ciężaru daje pusty wiersz W.
+    const chips = firstCard.getByTestId('exercise-card-chips');
+    await expect(chips.getByRole('button').first()).toHaveAttribute('data-testid', 'warmup-generate');
+    await chips.getByTestId('warmup-generate').click();
 
-    // Nagłówek kolumny SET jest nad wierszem rozgrzewkowym.
+    const warmupInput = firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ });
+    await expect(warmupInput).toHaveCount(1);
+    await expect(warmupInput).toHaveValue('');
+    await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
+
+    // Nagłówek kolumny SET nad wierszem W, wiersz W nad serią roboczą 1.
     const setHeaderBox = await firstCard.getByText('Ser.', { exact: true }).first().boundingBox();
-    const warmupBox = await warmupLabel.boundingBox();
+    const warmupBox = await firstCard.getByText('W', { exact: true }).boundingBox();
+    const set1Box = await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().boundingBox();
     expect(setHeaderBox!.y).toBeLessThan(warmupBox!.y);
+    expect(warmupBox!.y).toBeLessThan(set1Box!.y);
   });
 
   test('tonal header separates the card without a visible divider', async ({ page }) => {
@@ -324,8 +342,9 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first()).toBeEnabled({ timeout: 5000 });
 
+    // X38: bez domyślnej W pierwszy checkmark to seria robocza 1.
     const checkButtons = firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i });
-    await checkButtons.nth(1).click();
+    await checkButtons.first().click();
 
     await expect(page.getByTestId('rest-timer')).toHaveCount(0);
   });
@@ -478,8 +497,8 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
 
-    // Kolejność checkmarków w karcie: [0] = rozgrzewka W, [1] = seria robocza 1.
-    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    // X38: bez domyślnej W pierwszy checkmark = seria robocza 1.
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     // Fala 2 (2026-08-20): pasek jest STICKY na dole ekranu (render w WorkoutDay,
     // poza kartą), a korekty -15/+15 mieszkają w widoku pełnoekranowym.
@@ -505,7 +524,7 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
-    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     await expect(page.getByTestId('rest-bar')).toBeVisible();
     await page.getByTestId('rest-bar-settings').click();
@@ -520,7 +539,7 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
-    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     // Fala 2: pasek sticky poza kartą — expand z page, nie z firstCard.
     await page.getByTestId('rest-bar-expand').click();

@@ -9,11 +9,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Check, ChevronDown, ChevronRight, Timer, Flame, Dumbbell } from 'lucide-react';
-import { getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
+import { Check, ChevronRight, Timer, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { useUnit } from '@/contexts/UnitContext';
 import { localizeFocus } from '@/lib/plan-i18n';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import type { PreStartWarmupPlan, WarmupItem, WarmupPhase } from '@/lib/prestart-warmup';
@@ -21,7 +19,8 @@ import type { TranslationKey } from '@/i18n';
 
 interface Props {
   focus: string;
-  /** C-T2 + X37: plan pod PIERWSZE ćwiczenie dnia (tętno -> mobilność -> aktywacja + ramp). */
+  /** C-T2 + X37: plan pod PIERWSZE ćwiczenie dnia (tętno -> mobilność -> aktywacja).
+   *  X38: tylko fazy; rampa i stretching poza dialogiem. */
   plan: PreStartWarmupPlan;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,13 +38,8 @@ const PHASE_LABEL: Record<WarmupPhase, TranslationKey> = {
 
 export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, onToggle }: Props) => {
   const { t, lang } = useTranslation();
-  const { toDisplay, unit } = useUnit();
-  // C-T2: statyczny stretching NIE jest domyślną połową rozgrzewki: schowany
-  // za jawnym rozwinięciem, odhaczenia działają jak dotąd.
-  const [showStretch, setShowStretch] = useState(false);
-  const stretches = getStretchingForFocus(focus);
 
-  // Postęp liczony po pozycjach szablonu (bez stretchingu i rampy).
+  // Postęp liczony po pozycjach szablonu (stare klucze stretchingu/v2 w drafcie nie liczą się).
   const done = plan.items.filter((item) => checked.has(item.key)).length;
   const total = plan.items.length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -81,10 +75,7 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
   };
 
   useEffect(() => {
-    if (!open) {
-      setDeadline(null);
-      setShowStretch(false);
-    }
+    if (!open) setDeadline(null);
   }, [open]);
 
   // Zmiana aktywnej pozycji (ręczne odhaczenie) przerywa odliczanie.
@@ -122,19 +113,6 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
     </button>
   );
 
-  const rampSetLabel = (setIndex: number): string => {
-    const set = plan.ramp[setIndex];
-    if (set.pctOfWorking === 0) return t('warmup.v2.rampBar');
-    return set.weightKg !== null
-      ? t('warmup.v2.rampSetKg', {
-        weight: Math.round(toDisplay(set.weightKg) * 2) / 2,
-        unit,
-        pct: set.pctOfWorking,
-        reps: set.reps,
-      })
-      : t('warmup.v2.rampSetPct', { pct: set.pctOfWorking, reps: set.reps });
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
@@ -171,43 +149,7 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
           );
         })}
 
-        {/* Serie rampujące: robisz je już w pierwszym ćwiczeniu, stąd bez checkboxów. */}
-        {plan.ramp.length > 0 && (
-          <div className="space-y-1" data-testid="warmup-ramp">
-            <h4 className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
-              <Dumbbell className="h-4 w-4" aria-hidden />
-              {t('warmup.v2.rampTitle')}
-            </h4>
-            {plan.rampNoteKey && plan.rampNoteKey !== 'warmup.v2.rampBar' && (
-              <p className="px-3 pb-1 text-xs text-muted-foreground">{t(plan.rampNoteKey)}</p>
-            )}
-            <ol className="space-y-1">
-              {plan.ramp.map((set, index) => (
-                <li key={index} className="rounded-lg bg-muted/30 px-3 py-2 text-sm tabular-nums">
-                  {rampSetLabel(index)}
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-
-        {/* Stretching: opcjonalny, zwinięty (nie jest domyślną połową rozgrzewki). */}
-        {stretches.length > 0 && (
-          <div className="space-y-1">
-            <button
-              type="button"
-              data-testid="warmup-stretch-toggle"
-              onClick={() => setShowStretch((v) => !v)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/40"
-            >
-              {t('warmup.v2.stretchToggle')}
-              <ChevronDown className={cn('h-4 w-4 transition-transform', showStretch && 'rotate-180')} aria-hidden />
-            </button>
-            {showStretch && stretches.map(ex =>
-              renderCheckItem(ex.nameKey, localizeWarmup(ex, lang).name, localizeWarmup(ex, lang).duration),
-            )}
-          </div>
-        )}
+        {/* X38: bez sekcji rampy (chip "Rozgrzewka" w karcie ćwiczenia) i bez stretchingu. */}
 
         {/* Jawne wyjście z rozgrzewki (zgłoszenie 2026-08-13: sam X nie wystarcza).
             Sticky: widoczny też przy przescrollowanej liście. X37: "Dalej"

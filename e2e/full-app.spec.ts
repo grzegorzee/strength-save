@@ -967,6 +967,10 @@ test.describe('Szybki trening (Z104)', () => {
 
     await page.getByTestId('quick-workout-start').click();
     await expect(page).toHaveURL(/adhoc-/);
+    // X38 WP-B: szybki trening dostaje arkusz rozgrzewki po autostarcie (sesja
+    // w mock e2e powstaje po ~2 s timeoutu sieci): czekamy na arkusz i pomijamy.
+    await page.getByTestId('prestart-skip').click({ timeout: 10_000 });
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /Szybki trening/i }).first()).toBeVisible();
 
     // Dodaj 2 ćwiczenia w locie przez wspólny picker (Z69).
@@ -982,12 +986,14 @@ test.describe('Szybki trening (Z104)', () => {
     await dialog2.getByText('Wiosłowanie hantlami na ławce (przodem)').click();
     await expect(page.getByRole('heading', { name: 'Wiosłowanie hantlami na ławce (przodem)' })).toBeVisible();
 
-    // Odhacz pierwszą serię ROBOCZĄ (nie warmup) pierwszego ćwiczenia.
+    // Odhacz pierwszą serię ROBOCZĄ pierwszego ćwiczenia.
     await page.getByRole('textbox', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, kg' }).fill('60');
     await page.getByRole('spinbutton', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, Powt.' }).fill('8');
-    // Kolejność checkmarków w karcie: [0]=rozgrzewka W, [1]=Set 1.
+    // X38 WP-A: ćwiczenie ad-hoc dostaje same serie robocze (bez W), więc
+    // pierwszy checkmark to Set 1.
     const firstCard = page.locator('.exercise-card').first();
-    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     // Przycisk "Zakończ trening" dostępny (finalny sync w mock e2e nie domknie się —
     // Firestore zablokowany bez timeoutu — ścieżkę finalSyncPending pokrywa test Z49).
@@ -1089,6 +1095,10 @@ test.describe('Typy serii (Z105)', () => {
     await clearWorkoutDraftDb(page, 'e2e-test-user');
     await page.getByTestId('quick-workout-start').click();
     await expect(page).toHaveURL(/adhoc-/);
+    // X38 WP-B: szybki trening dostaje arkusz rozgrzewki po autostarcie (sesja
+    // w mock e2e powstaje po ~2 s timeoutu sieci): czekamy na arkusz i pomijamy.
+    await page.getByTestId('prestart-skip').click({ timeout: 10_000 });
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
 
     // Plank: typ duration — kolumna Czas, bez kolumny kg/Powt.
     await page.getByTestId('adhoc-add-exercise').click();
@@ -1198,11 +1208,13 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
+    // X38 WP-A: start z planu bez domyślnej W; chip widoczny, bo brak serii W.
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
     await firstCard.getByTestId('warmup-generate').click();
     // X37 WP-B: rampa wg sprzętu; pierwsze ćwiczenie to hantle: 50 x8, 75 x3 (2 wiersze W).
     await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
     await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ }).first()).toHaveValue('50');
-    // Po wygenerowaniu (wypełnione warmupy) przycisk znika — brak duplikacji.
+    // Po wygenerowaniu (są serie W) chip znika — brak duplikacji.
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
   });
 });
@@ -1636,13 +1648,18 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     const firstCard = planCards.first();
     await firstCard.getByLabel(/Set 1, (kg|lbs)/).first().fill('62.5');
     await firstCard.getByLabel(/Set 1, Powt\./).first().fill('7');
-    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    // X38: bez domyślnej W pierwszy checkmark = Set 1.
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
     await expect(page.getByTestId('session-stats')).toContainText('1');
 
     // 2. Wyjście z treningu i szybki trening obok.
     await navigateAndWait(page, '/');
     await page.getByTestId('quick-workout-start').click();
     await expect(page).toHaveURL(/adhoc-/);
+    // X38 WP-B: szybki trening dostaje arkusz rozgrzewki po autostarcie (sesja
+    // w mock e2e powstaje po ~2 s timeoutu sieci): czekamy na arkusz i pomijamy.
+    await page.getByTestId('prestart-skip').click({ timeout: 10_000 });
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
     await page.getByTestId('adhoc-add-exercise').click();
     const picker = page.getByRole('dialog');
     await picker.getByPlaceholder(/Szukaj|Find/).fill('wioslowanie hantlami');
@@ -1666,8 +1683,9 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     const logged = Object.values(draft!.exerciseSets ?? {}).flat().find((s) => s.completed && !s.isWarmup);
     expect(logged).toMatchObject({ weight: 62.5, reps: 7 });
 
-    // 4. Nowy układ X17A na miejscu po powrocie: nagłówki kolumn nad rozgrzewką,
-    // „Dodaj serię" pod seriami, menu ⋯ w nagłówku, trzy metryki sesji.
+    // 4. Nowy układ X17A na miejscu po powrocie: nagłówki kolumn nad serią 1
+    // (X38: bez domyślnej W), „Dodaj serię" pod seriami, menu ⋯ w nagłówku,
+    // trzy metryki sesji.
     // X30 (bug 4, draft per strona treningu): powrót z szybkiego treningu HYDRUJE
     // żywą sesję planu od razu — tryb edycji z zalogowaną serią w polach, bez
     // ponownego "Kontynuuj" (dawne "pola puste do wznowienia" było znaleziskiem
@@ -1677,11 +1695,12 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     await expect(backCard.getByLabel(/Set 1, (kg|lbs)/).first()).toHaveValue('62.5');
     await expect(backCard.getByLabel(/Set 1, Powt\./).first()).toHaveValue('7');
 
+    await expect(backCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
     const setHeader = await backCard.getByText('Ser.', { exact: true }).first().boundingBox();
-    const warmupLabel = await backCard.getByText('W', { exact: true }).first().boundingBox();
+    const firstSet = await backCard.getByLabel(/Set 1, Powt\./).first().boundingBox();
     const addSet = await backCard.getByRole('button', { name: /Dodaj serię/i }).boundingBox();
-    expect(setHeader!.y).toBeLessThan(warmupLabel!.y);
-    expect(warmupLabel!.y).toBeLessThan(addSet!.y);
+    expect(setHeader!.y).toBeLessThan(firstSet!.y);
+    expect(firstSet!.y).toBeLessThan(addSet!.y);
     await expect(backCard.getByRole('button', { name: 'Więcej akcji' })).toBeVisible();
     await expect(page.getByTestId('session-stats')).toBeVisible();
 
@@ -1757,7 +1776,10 @@ test.describe('Auto-resume (Z49)', () => {
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByText('Trening zakończony lokalnie')).toBeVisible({ timeout: 7000 });
+    // WP-C (X38): zamiast karty sync z CTA Dashboard pokazuje pasywną chmurkę
+    // (AutoSync domknie sam); niezmiennik Z49 bez zmian: brak auto-resume.
+    await expect(page.getByTestId('cloud-pending-indicator')).toBeVisible({ timeout: 7000 });
+    await expect(page.getByText('Trening zakończony lokalnie')).toHaveCount(0);
     await expect(page).toHaveURL(/#\/?$/);
   });
 });

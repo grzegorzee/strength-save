@@ -77,6 +77,11 @@ export const describeUserEvent = (event: UserEvent, ctx: UserEventDisplayCtx): U
             : ctx.t('inbox.plan.changed', params),
       };
     }
+    case 'sync':
+      return {
+        title: ctx.t('sync.cloudSavedTitle'),
+        body: ctx.t('sync.cloudSavedBody', { day: str(p.dayName) || str(p.date) }),
+      };
     case 'announcement':
       // T15: świadomy wyjątek od semantycznego payloadu — treść ogłoszenia pisze
       // admin w jednym języku, payload niesie gotowy tekst (bez t()).

@@ -8,6 +8,7 @@ import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { CloudPendingIndicator } from '@/components/CloudPendingIndicator';
 import type { HistoryRowMeta } from '@/lib/history-stats';
 import type { WorkoutSession } from '@/types';
 
@@ -38,6 +39,8 @@ interface HistorySessionRowProps {
   surface: 'low' | 'container';
   /** Wyróżnienie tintem akcentu (pierwsza sesja bieżącego tygodnia w karcie cyklu). */
   highlight?: boolean;
+  /** WP-C (X38): sesja zakończona lokalnie, czeka na zapis w chmurze (finalSyncPending). */
+  pendingCloud?: boolean;
   resolveExerciseName: (workout: WorkoutSession, exerciseId: string) => string;
   onOpen: () => void;
   onToggleCompare: () => void;
@@ -55,7 +58,7 @@ const setWordKey = (n: number) =>
 
 export const HistorySessionRow = ({
   workout, title, focusLabel, meta, tonnage, totalSets, isSelected, isExpanded, compareMode,
-  surface, highlight, resolveExerciseName, onOpen, onToggleCompare, onToggleExpanded, onEmail, onDelete,
+  surface, highlight, pendingCloud, resolveExerciseName, onOpen, onToggleCompare, onToggleExpanded, onEmail, onDelete,
 }: HistorySessionRowProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
@@ -112,6 +115,7 @@ export const HistorySessionRow = ({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-medium">{title}</span>
+            {pendingCloud && <CloudPendingIndicator compact className="shrink-0" />}
             {!workout.completed && (
               <span className="chip-mono shrink-0 px-2 py-0.5">{t('history.badgeDraft')}</span>
             )}

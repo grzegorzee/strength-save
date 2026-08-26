@@ -92,4 +92,21 @@ describe('useSyncCenterEntries (Z52)', () => {
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
     expect(result.current.listedEntries).toEqual([]);
   });
+
+  // WP-C (X38): Sync Center w Profilu tylko dla wpisów trwałych/konfliktów;
+  // zwykłe "czeka na sieć" zostaje w listedEntries, ale nie w attentionEntries.
+  it('attentionEntries: tylko permanent i konflikt rewizji, zwykłe pending poza', async () => {
+    mockDrafts = [makeDraft({ sessionId: 's-pending' }), makeDraft({ sessionId: 's-perm' })];
+    mockQueue = [
+      makeQueueEntry({ sessionId: 's-pending', lastError: 'OFFLINE' }),
+      makeQueueEntry({ sessionId: 's-perm', lastError: 'permission-denied', permanent: true }),
+      makeQueueEntry({ sessionId: 'q-conflict', lastError: 'WORKOUT_CONFLICT' }),
+    ];
+
+    const { result } = renderHook(() => useSyncCenterEntries('u1'));
+
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    expect(result.current.listedEntries.map(e => e.sessionId)).toEqual(['s-pending', 's-perm', 'q-conflict']);
+    expect(result.current.attentionEntries.map(e => e.sessionId)).toEqual(['s-perm', 'q-conflict']);
+  });
 });

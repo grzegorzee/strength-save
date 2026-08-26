@@ -517,19 +517,25 @@ const ExerciseCardInner = ({
     handleSetChange(targetIndex, 'weight', weight);
   };
 
-  // Z108: generator rozgrzewki %1RM — zastępuje pustą serię rozgrzewkową rampą
-  // od pierwszego ciężaru roboczego. X37 WP-B: schemat 50/70/85 wg sprzętu
-  // (sztanga z gryfem; hantle/maszyna 50% x8, 75% x3), ten sam co w arkuszu przed startem.
+  // Z108: generator rozgrzewki %1RM od pierwszego ciężaru roboczego. X37 WP-B:
+  // schemat 50/70/85 wg sprzętu (sztanga z gryfem; hantle/maszyna 50% x8, 75% x3),
+  // ten sam co w arkuszu przed startem. X38 WP-A: nowa lista serii nie ma domyślnej
+  // W, więc chip działa też BEZ ciężaru roboczego: wtedy dokłada 1 pustą serię W
+  // na górze (user wpisze sam). Chip zawsze coś robi (zasada 6).
   const handleGenerateWarmup = () => {
     const workingWeight = sets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
     // Z134.2: inwentarz idzie do generatora, żeby nie proponował ciężarów,
     // których na tej siłowni nie da się złożyć.
     const inventory = loadPlateInventory();
     const equipment = detectWarmupEquipment(exercise.name, isBodyweight);
-    const generated = generateWarmupSets(workingWeight, tracking, inventory.barKg, inventory.plates, equipment);
-    if (!generated) return;
+    const generated = workingWeight > 0
+      ? generateWarmupSets(workingWeight, tracking, inventory.barKg, inventory.plates, equipment)
+      : null;
+    const warmupRows: SetData[] = generated && generated.length > 0
+      ? generated
+      : [{ reps: 0, weight: 0, completed: false, isWarmup: true }];
     hasLocalChanges.current = true;
-    const newSets = [...generated, ...sets.filter((s) => !s.isWarmup)];
+    const newSets = [...warmupRows, ...sets.filter((s) => !s.isWarmup)];
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
   };
@@ -573,20 +579,19 @@ const ExerciseCardInner = ({
   // Fala 2 (2026-08-20, mockup 2a): kaskada celu w JEDNYM target boxie zamiast
   // rzędu badge. Priorytety i dane identyczne jak dawny łańcuch badge'ów:
   // RZA > cel tygodnia (Z120, kind !== 'start') > cel z trendu > progresja.
-  // Etykieta rodzaju w kolorze semantycznym przy deload/pain (CLAUDE.md #8),
-  // box zawsze na tincie akcentu bg-primary/10.
-  const targetBox = ((): { label: string; labelClass?: string; value: string; reason?: string } | null => {
+  // X38 WP-A: cały wiersz (ikona, etykieta, wartość) w JEDNYM kolorze wg tonu:
+  // progress/maintain/repeat = primary, deload = warning, pain = destructive;
+  // tło zawsze z przezroczystością /10 (CLAUDE.md #8).
+  type TargetTone = 'primary' | 'warning' | 'destructive';
+  const targetBox = ((): { label: string; tone: TargetTone; value: string; reason?: string } | null => {
     const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
     if (rzaAdvice) {
       const labels: Record<RzaAdvice['decision'], string> = {
         progress: t('card.rzaProgress'), deload: t('card.rzaDeload'), repeat: t('card.rzaRepeat'),
       };
-      const cls: Partial<Record<RzaAdvice['decision'], string>> = {
-        deload: 'text-fitness-warning', repeat: 'text-fitness-warning',
-      };
       return {
         label: labels[rzaAdvice.decision],
-        labelClass: cls[rzaAdvice.decision],
+        tone: rzaAdvice.decision === 'deload' ? 'warning' : 'primary',
         value: disp(rzaAdvice.nextKg),
         reason: t('card.rzaReason', { last: disp(rzaAdvice.lastKg) }),
       };
@@ -596,8 +601,8 @@ const ExerciseCardInner = ({
         start: t('card.weekTarget'), progress: t('card.weekTarget'), hold: t('card.weekTarget'),
         deload: t('card.deload'), pain: t('card.weekPain'), 'deload-week': t('card.weekDeload'),
       };
-      const cls: Partial<Record<WeeklyTarget['kind'], string>> = {
-        deload: 'text-fitness-warning', pain: 'text-destructive',
+      const tones: Partial<Record<WeeklyTarget['kind'], TargetTone>> = {
+        deload: 'warning', pain: 'destructive',
       };
       const head = weeklyTarget.targetSets != null && weeklyTarget.targetReps != null
         ? `${weeklyTarget.targetSets}×${weeklyTarget.targetReps}`
@@ -611,7 +616,7 @@ const ExerciseCardInner = ({
       if (!value) return null;
       return {
         label: labels[weeklyTarget.kind],
-        labelClass: cls[weeklyTarget.kind],
+        tone: tones[weeklyTarget.kind] ?? 'primary',
         value,
         reason: t(weeklyTarget.reasonKey as TranslationKey),
       };
@@ -619,7 +624,7 @@ const ExerciseCardInner = ({
     if (nextAdvice) {
       return {
         label: nextAdvice.kind === 'deload' ? t('card.deload') : t('card.target'),
-        labelClass: nextAdvice.kind === 'progress' ? undefined : 'text-fitness-warning',
+        tone: nextAdvice.kind === 'deload' ? 'warning' : 'primary',
         value: nextAdvice.isBodyweight
           ? t('card.repsValue', { n: nextAdvice.targetReps })
           : `${disp(nextAdvice.targetWeight)} × ${nextAdvice.targetReps}`,
@@ -627,13 +632,15 @@ const ExerciseCardInner = ({
       };
     }
     if (progressionAdvice) {
-      const cls: Partial<Record<typeof progressionAdvice.type, string>> = {
-        repeat: 'text-fitness-warning', maintain: 'text-destructive',
-      };
-      return { label: t('card.target'), labelClass: cls[progressionAdvice.type], value: progressionAdvice.label };
+      return { label: t('card.target'), tone: 'primary', value: progressionAdvice.label };
     }
     return null;
   })();
+  const targetToneClass: Record<TargetTone, string> = {
+    primary: 'bg-primary/10 text-primary',
+    warning: 'bg-fitness-warning/10 text-fitness-warning',
+    destructive: 'bg-destructive/10 text-destructive',
+  };
 
   // Hint kolumny POPRZ. dla N-tej serii ROBOCZEJ (workingIndex), nie globalnej —
   // inaczej różna liczba rozgrzewek między sesjami rozjeżdża wartości.
@@ -727,9 +734,9 @@ const ExerciseCardInner = ({
           // aktywna = tint tła + obrys na inputach. Wykluczają się: aktywna to
           // pierwsza NIEukończona.
           set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
-          // WP-D (X37): aktywna seria = wyróżnienie CAŁEGO wiersza (obrys + lewy
-          // pasek akcentu z .set-row-active), nie sam ring na inputach.
-          isActive && 'set-row-active ring-1 ring-primary/70',
+          // WP-D (X37): aktywna seria = wyróżnienie CAŁEGO wiersza (obrys), nie sam
+          // ring na inputach. X38 WP-A: bez lewego paska akcentu.
+          isActive && 'ring-1 ring-primary/70',
         )}
       >
         <span className={cn(
@@ -929,7 +936,7 @@ const ExerciseCardInner = ({
           // Z128.1: patrz renderTrackedSetRow — ta sama reguła tła na obu ścieżkach.
           set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
           // WP-D (X37): wyróżnienie całego aktywnego wiersza, jak w renderTrackedSetRow.
-          isActive && 'set-row-active ring-1 ring-primary/70',
+          isActive && 'ring-1 ring-primary/70',
         )}
       >
         {/* SET */}
@@ -1208,11 +1215,14 @@ const ExerciseCardInner = ({
       {(targetBox || lastNote) && (
         <div className="space-y-2 px-4 pt-3.5 sm:px-5">
           {targetBox && (
-            <div className="flex items-start gap-2.5 rounded-xl bg-primary/10 px-3 py-2.5">
-              <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <div
+              data-testid="exercise-card-target"
+              className={cn('flex items-start gap-2.5 rounded-xl px-3 py-2.5', targetToneClass[targetBox.tone])}
+            >
+              <Target className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <div className="min-w-0">
-                <p className="font-heading text-[15px] font-bold leading-tight text-primary">
-                  <span className={targetBox.labelClass}>{targetBox.label}</span>: {targetBox.value}
+                <p className="font-heading text-[15px] font-bold leading-tight">
+                  <span>{targetBox.label}</span>: {targetBox.value}
                 </p>
                 {targetBox.reason && completedSets === 0 && (
                   <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">{targetBox.reason}</p>
@@ -1344,14 +1354,15 @@ const ExerciseCardInner = ({
               ikonie nie było widać, że dysk to kalkulator talerzy. */}
           <div className="flex items-stretch gap-1.5" data-testid="exercise-card-chips">
             {(() => {
-              // Z108: generator rozgrzewki — tylko weight_reps z ciężarem roboczym,
-              // gdy nie ma jeszcze wypełnionych serii rozgrzewkowych (bez duplikacji).
-              const hasFilledWarmup = warmupSets.some((s) => s.weight > 0 || s.reps > 0 || s.completed);
+              // Z108 / X38 WP-A: chip „Rozgrzewka" pierwszy od lewej, dla weight_reps
+              // gdy w karcie NIE MA żadnej serii W (z ciężarem: rampa; bez: pusty
+              // wiersz W). Po dodaniu znika, usunięcie wszystkich W przywraca go.
+              const hasWarmupRows = warmupSets.length > 0;
               const hasWorkingWeight = workingSets.some((s) => s.weight > 0);
-              return tracking === 'weight_reps' && hasWorkingWeight && !hasFilledWarmup ? (
+              return tracking === 'weight_reps' && !hasWarmupRows ? (
                 <button
                   onClick={handleGenerateWarmup}
-                  aria-label={t('warmupgen.button')}
+                  aria-label={hasWorkingWeight ? t('warmupgen.button') : t('warmupgen.addEmpty')}
                   data-testid="warmup-generate"
                   className={cn(chipClass, 'bg-surface-low text-foreground/80 hover:text-foreground')}
                 >

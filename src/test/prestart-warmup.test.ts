@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   buildPreStartWarmup,
   detectWarmupEquipment,
+  rampSchemeFor,
   shouldOfferPreStartWarmup,
   warmupVariantForCategory,
 } from '@/lib/prestart-warmup';
@@ -62,11 +63,21 @@ describe('X37: treść rozgrzewki wg szablonu (tętno -> mobilność -> aktywacj
     }
   });
 
-  it('tętno: pajacyki 60 s + pięty do pośladków z krążeniami ramion 30 s (pozycje czasowe)', () => {
+  // X38 WP-B: rozgrzewka siłowa bez pajacyków. Tętno standard = spokojne cardio
+  // (rower / wioślarz / marsz na bieżni) 120 s + pięty do pośladków z krążeniami 30 s.
+  it('tętno standard: spokojne cardio 120 s + pięty do pośladków z krążeniami ramion 30 s; bez pajacyków', () => {
     const plan = buildPreStartWarmup({ exerciseName: 'Wyciskanie sztangi', category: 'chest' });
     const pulse = plan.items.filter((i) => i.phase === 'pulse');
-    expect(pulse.map((i) => i.durationSec)).toEqual([60, 30]);
-    expect(pulse[0].key).toBe('warmup.v3.jacks');
+    expect(pulse.map((i) => i.durationSec)).toEqual([120, 30]);
+    expect(pulse.map((i) => i.key)).toEqual(['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles']);
+    expect(plan.items.map((i) => i.key)).not.toContain('warmup.v3.jacks');
+  });
+
+  it('X38: plan opisuje tylko fazy (bez rampy i notki sprzętowej), szacunek minut zostaje', () => {
+    const plan = buildPreStartWarmup({ exerciseName: 'Przysiad ze sztangą', category: 'legs', workingWeightKg: 100 });
+    expect('ramp' in plan).toBe(false);
+    expect('rampNoteKey' in plan).toBe(false);
+    expect(plan.estMinutes).toBe(6);
   });
 
   it('góra: mobilność barków (krążenia, rotacje zewnętrzne), aktywacja z pull-apart i pompkami; bez wymachów nóg', () => {
@@ -104,14 +115,16 @@ describe('X37: treść rozgrzewki wg szablonu (tętno -> mobilność -> aktywacj
     expect(keys).toContain('warmup.v3.gluteBridge');
   });
 
-  it('początkujący: wariant 4 min, max 6 pozycji, marsz zamiast pajacyków (bez skoków), mniej powtórzeń', () => {
+  it('początkujący: wariant 4 min, max 6 pozycji, marsz z wysokimi kolanami 60 s + pięty 30 s (bez cardio 120 s), mniej powtórzeń', () => {
     for (const category of ['chest', 'legs', 'core']) {
       const plan = buildPreStartWarmup({ exerciseName: 'X', category, level: 'beginner' });
       expect(plan.estMinutes).toBe(4);
       expect(plan.items.length).toBeLessThanOrEqual(6);
       expect(plan.items.length).toBeGreaterThanOrEqual(5);
       expect(plan.items[0]).toMatchObject({ key: 'warmup.v3.marchHighKnees', durationSec: 60 });
+      expect(plan.items[1]).toMatchObject({ key: 'warmup.v3.heelsArmCircles', durationSec: 30 });
       expect(plan.items.map((i) => i.key)).not.toContain('warmup.v3.jacks');
+      expect(plan.items.map((i) => i.key)).not.toContain('warmup.v3.cardioEasy');
       expect(phasesInOrder(plan.items.map((i) => i.phase))).toBe(true);
     }
     const lower = buildPreStartWarmup({ exerciseName: 'X', category: 'legs', level: 'beginner' });
@@ -127,61 +140,33 @@ describe('X37: treść rozgrzewki wg szablonu (tętno -> mobilność -> aktywacj
   });
 });
 
-// Rampa pod pierwsze ćwiczenie (Nippard + RP + Barbell Logic): sztanga gryf x8,
-// 50% x5, 70% x3, 85% x1; roboczy <60 kg: gryf x8, 60% x4, 85% x1; >150 kg
-// dodatkowo 40% x5. Hantle/maszyna: 50% x8, 75% x3. Bodyweight: bez rampy.
-describe('X37: rampa w planie rozgrzewki (50/70/85)', () => {
-  it('sztanga 100 kg: gryf x8, 50% x5, 70% x3, 85% x1 z kg', () => {
-    const plan = buildPreStartWarmup({
-      exerciseName: 'Przysiad ze sztangą (High Bar)',
-      category: 'legs',
-      workingWeightKg: 100,
-    });
-    expect(plan.rampNoteKey).toBe('warmup.v2.rampBar');
-    expect(plan.ramp.map((r) => [r.pctOfWorking, r.reps])).toEqual([[0, 8], [50, 5], [70, 3], [85, 1]]);
-    expect(plan.ramp[1].weightKg).toBe(50);
-    expect(plan.ramp[3].weightKg).toBe(85);
+// Schemat rampy (Nippard + RP + Barbell Logic): sztanga gryf x8, 50% x5, 70% x3,
+// 85% x1; roboczy <60 kg: gryf x8, 60% x4, 85% x1; >150 kg dodatkowo 40% x5.
+// Hantle/maszyna: 50% x8, 75% x3. Bodyweight: bez rampy. X38: rampa zniknęła
+// z dialogu rozgrzewki, schemat żyje dalej jako źródło chipa "Rozgrzewka" w karcie
+// (warmup-generator.ts), stąd test na rampSchemeFor.
+describe('X37/X38: schemat rampy (50/70/85) dla chipa w karcie', () => {
+  it('sztanga 100 kg: gryf x8, 50% x5, 70% x3, 85% x1', () => {
+    expect(rampSchemeFor('barbell', 100).map((r) => [r.pct, r.reps])).toEqual([[0, 8], [50, 5], [70, 3], [85, 1]]);
   });
 
   it('sztanga <60 kg: gryf x8, 60% x4, 85% x1 (mniej serii)', () => {
-    const plan = buildPreStartWarmup({ exerciseName: 'Wyciskanie sztangi', workingWeightKg: 50 });
-    expect(plan.ramp.map((r) => [r.pctOfWorking, r.reps])).toEqual([[0, 8], [60, 4], [85, 1]]);
-    expect(plan.ramp[1].weightKg).toBe(30);
-    expect(plan.ramp[2].weightKg).toBe(42.5);
+    expect(rampSchemeFor('barbell', 50).map((r) => [r.pct, r.reps])).toEqual([[0, 8], [60, 4], [85, 1]]);
   });
 
   it('sztanga >150 kg: dodatkowo 40% x5 przed 50%', () => {
-    const plan = buildPreStartWarmup({ exerciseName: 'Martwy ciąg ze sztangą', workingWeightKg: 180 });
-    expect(plan.ramp.map((r) => r.pctOfWorking)).toEqual([0, 40, 50, 70, 85]);
+    expect(rampSchemeFor('barbell', 180).map((r) => r.pct)).toEqual([0, 40, 50, 70, 85]);
   });
 
   it('hantle i maszyny: BEZ pustego gryfu, 50% x8 i 75% x3', () => {
-    for (const name of ['Wyciskanie hantli na ławce płaskiej', 'Hack squat maszyna']) {
-      const plan = buildPreStartWarmup({ exerciseName: name, workingWeightKg: 60 });
-      expect(plan.rampNoteKey).toBe('warmup.v2.rampLight');
-      expect(plan.ramp.map((r) => [r.pctOfWorking, r.reps])).toEqual([[50, 8], [75, 3]]);
-      expect(plan.ramp[0].weightKg).toBe(30);
-      expect(plan.ramp[1].weightKg).toBe(45);
+    for (const equipment of ['dumbbell', 'machine', 'other'] as const) {
+      expect(rampSchemeFor(equipment, 60).map((r) => [r.pct, r.reps])).toEqual([[50, 8], [75, 3]]);
     }
   });
 
-  it('bodyweight: pozycje szablonu bez rampy', () => {
-    const plan = buildPreStartWarmup({ exerciseName: 'Podciąganie', isBodyweight: true, category: 'back' });
-    expect(plan.ramp).toEqual([]);
-    expect(plan.rampNoteKey).toBeNull();
-    expect(plan.items.length).toBeGreaterThanOrEqual(6);
-  });
-
-  it('brak ciężaru roboczego: schemat standardowy, % bez kg (weightKg null)', () => {
-    const plan = buildPreStartWarmup({ exerciseName: 'Przysiad ze sztangą', workingWeightKg: 0 });
-    expect(plan.ramp.map((r) => r.pctOfWorking)).toEqual([0, 50, 70, 85]);
-    expect(plan.ramp[1].weightKg).toBeNull();
-  });
-
-  it('zaokrąglenie do 0,5 kg', () => {
-    const plan = buildPreStartWarmup({ exerciseName: 'Przysiad ze sztangą', workingWeightKg: 82.5 });
-    expect(plan.ramp[1].weightKg).toBe(41.5);
-    expect(plan.ramp[2].weightKg).toBe(58);
+  it('bodyweight: bez rampy; brak ciężaru roboczego = schemat standardowy', () => {
+    expect(rampSchemeFor('bodyweight', 0)).toEqual([]);
+    expect(rampSchemeFor('barbell', 0).map((r) => r.pct)).toEqual([0, 50, 70, 85]);
   });
 });
 
@@ -202,6 +187,19 @@ describe('C-T2 + X37: kiedy pokazać prompt pre-start', () => {
     expect(shouldOfferPreStartWarmup({ ...base, autostart: true })).toBe(false);
     expect(shouldOfferPreStartWarmup({ ...base, alreadyStarted: true })).toBe(false);
     expect(shouldOfferPreStartWarmup({ ...base, viewingPast: true })).toBe(false);
+  });
+
+  // X38 WP-B: szybki trening z Dashboardu to autostart ad-hoc; arkusz ma się
+  // pojawić (po utworzeniu sesji), o ile sesja świeża i proponowanie włączone.
+  it('X38: autostart ad-hoc (szybki trening) NIE blokuje arkusza; reszta bramek działa jak przy planie', () => {
+    const adhoc = { ...base, autostart: true, isAdhoc: true };
+    expect(shouldOfferPreStartWarmup(adhoc)).toBe(true);
+    expect(shouldOfferPreStartWarmup({ ...adhoc, warmupPrompt: false })).toBe(false);
+    expect(shouldOfferPreStartWarmup({ ...adhoc, hasDraftContent: true })).toBe(false);
+    expect(shouldOfferPreStartWarmup({ ...adhoc, alreadyStarted: true })).toBe(false);
+    expect(shouldOfferPreStartWarmup({ ...adhoc, viewingPast: true })).toBe(false);
+    // Autostart z planu (Dashboard "dzisiejszy trening", Watch/Garmin) bez zmian: bez arkusza.
+    expect(shouldOfferPreStartWarmup({ ...base, autostart: true, isAdhoc: false })).toBe(false);
   });
 
   it('X37: preferencja wyłączona = bez promptu mimo świeżego startu', () => {

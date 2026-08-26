@@ -129,3 +129,75 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await clearWorkoutDraftDb(page, E2E_UID);
   });
 });
+
+// X38 WP-B: szybki trening (Dashboard -> autostart ad-hoc) dostaje ten sam arkusz
+// co start z planu, ale PO utworzeniu sesji; trzy akcje bez zmian; wyłączone
+// proponowanie = prosto do sesji.
+test.describe('Rozgrzewka w szybkim treningu (X38 WP-B)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: MONDAY_MS });
+    await setE2EAuthScenario(page, 'active-admin');
+    await blockFirebase(page);
+  });
+
+  const expectAdhocSessionStarted = async (page: import('@playwright/test').Page) => {
+    await expect(page).toHaveURL(/adhoc-/);
+    await expect(page.getByTestId('adhoc-add-exercise')).toBeVisible({ timeout: 10_000 });
+  };
+
+  test('Dashboard -> Szybki trening: arkusz prestart PO autostarcie, "Pomiń dziś" zostawia sesję bez arkusza', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    await clearWorkoutDraftDb(page, E2E_UID);
+
+    await page.getByTestId('quick-workout-start').click();
+    const sheet = page.getByTestId('prestart-sheet');
+    await expect(sheet).toBeVisible({ timeout: 10_000 });
+    // Sesja już istnieje (autostart), arkusz jej nie blokuje.
+    await expectAdhocSessionStarted(page);
+    // Te same 3 akcje co przy planie; opis bez wzmianki o rampie.
+    await expect(sheet.getByTestId('prestart-yes')).toBeVisible();
+    await expect(sheet.getByTestId('prestart-skip')).toBeVisible();
+    await expect(sheet.getByTestId('prestart-never')).toBeVisible();
+    await expect(sheet).not.toContainText(/rampuj/i);
+
+    await sheet.getByTestId('prestart-skip').click();
+    await expect(sheet).toHaveCount(0);
+    await expectAdhocSessionStarted(page);
+    // Arkusz nie wraca (autostart skonsumowany, sesja żywa).
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
+    await clearWorkoutDraftDb(page, E2E_UID);
+  });
+
+  test('Dashboard -> Szybki trening: "Tak, rozgrzewka" otwiera dialog rozgrzewki (wariant full, bez rampy i stretchingu)', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    await clearWorkoutDraftDb(page, E2E_UID);
+
+    await page.getByTestId('quick-workout-start').click();
+    await expect(page.getByTestId('prestart-sheet')).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId('prestart-yes').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByTestId('warmup-phase-pulse')).toBeVisible({ timeout: 10_000 });
+    await expect(dialog.getByTestId('warmup-phase-mobility')).toBeVisible();
+    await expect(dialog.getByTestId('warmup-phase-activation')).toBeVisible();
+    await expect(dialog.getByTestId('warmup-ramp')).toHaveCount(0);
+    await expect(dialog.getByTestId('warmup-stretch-toggle')).toHaveCount(0);
+    await expect(dialog).not.toContainText('Pajacyki');
+    await dialog.getByTestId('warmup-finish').click();
+    await expectAdhocSessionStarted(page);
+    await clearWorkoutDraftDb(page, E2E_UID);
+  });
+
+  test('cache OFF -> szybki trening prosto do sesji, bez arkusza', async ({ page }) => {
+    await page.addInitScript((key) => localStorage.setItem(key, 'false'), WARMUP_PROMPT_KEY);
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    await clearWorkoutDraftDb(page, E2E_UID);
+
+    await page.getByTestId('quick-workout-start').click();
+    await expectAdhocSessionStarted(page);
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
+    await clearWorkoutDraftDb(page, E2E_UID);
+  });
+});
