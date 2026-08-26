@@ -4,6 +4,7 @@ import {
   createEmptySets,
   sanitizeSets,
   parseRepRange,
+  parseDurationRange,
   getProgressionAdvice,
   isIsolationExercise,
   getRestDuration,
@@ -170,6 +171,40 @@ describe('parseRepRange', () => {
   it('parses "3 x MAX" as isMax', () => {
     const result = parseRepRange('3 x MAX');
     expect(result).toEqual({ min: 0, max: 0, isMax: true });
+  });
+
+  // WP-C (X37): sekundy serii czasowej NIE sa powtorzeniami. Bez tego "3 x 30-60s"
+  // dawalo cel 30-60 powtorzen planka (progresja, cel tygodnia, placeholder).
+  it('duration strings ("3 x 30s", "1 x 30-90s") do not become rep ranges', () => {
+    expect(parseRepRange('3 x 30s')).toEqual({ min: 0, max: 0, isMax: true });
+    expect(parseRepRange('1 x 30-90s')).toEqual({ min: 0, max: 0, isMax: true });
+    expect(parseRepRange('3 x 45 sek')).toEqual({ min: 0, max: 0, isMax: true });
+  });
+
+  it('"/strona" suffix still parses as reps (s inside a word is not seconds)', () => {
+    expect(parseRepRange('1 x 10/strona')).toEqual({ min: 10, max: 10, isFixed: true });
+  });
+});
+
+describe('parseDurationRange (WP-C X37: serie na czas z planu)', () => {
+  it('"3 x 30s" -> 3 serie po 30 s', () => {
+    expect(parseDurationRange('3 x 30s')).toEqual({ sets: 3, min: 30, max: 30 });
+  });
+
+  it('"1 x 30-90s" -> zakres sekund', () => {
+    expect(parseDurationRange('1 x 30-90s')).toEqual({ sets: 1, min: 30, max: 90 });
+  });
+
+  it('akceptuje sufiksy s / sek / sec i spacje', () => {
+    expect(parseDurationRange('3 x 45 sek')).toEqual({ sets: 3, min: 45, max: 45 });
+    expect(parseDurationRange('2x60sec')).toEqual({ sets: 2, min: 60, max: 60 });
+  });
+
+  it('zapis powtorzen / MAX / rundy = null (nie jest zakresem czasu)', () => {
+    expect(parseDurationRange('3 x 8-12')).toBeNull();
+    expect(parseDurationRange('3 x MAX')).toBeNull();
+    expect(parseDurationRange('1 x 10/strona')).toBeNull();
+    expect(parseDurationRange('3 rundy 40s')).toBeNull();
   });
 });
 

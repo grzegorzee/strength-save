@@ -41,11 +41,12 @@ vi.mock('@/lib/app-lifecycle', () => ({
 
 // Chain operacji w module jest asynchroniczny — po sygnale tła trzeba
 // odczekać mikrotaski, zanim schedule/cancel dojadą do pluginu.
+// WP-C (X37): dwa kanały (przerwa + odliczanie serii) potrafią zakolejkować dwa
+// schedule naraz, więc flush ma zapas mikrotasków.
 const flushChain = async () => {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 16; i += 1) {
+    await Promise.resolve();
+  }
 };
 
 describe('rest-notification: uzbrajanie i planowanie w tle (bug 8, X30)', () => {
@@ -141,6 +142,90 @@ describe('rest-notification: uzbrajanie i planowanie w tle (bug 8, X30)', () => 
   });
 });
 
+// WP-C (X37): odliczanie serii na czas ma WLASNY kanal (id 90002, osobny slot
+// uzbrojenia). Start odliczania w trakcie przerwy nie moze rozbroic przerwy,
+// a koniec przerwy (cancelRestEndNotification z RestBar) nie moze rozbroic
+// odliczania (zasada #5 CLAUDE.md: nowa funkcja nic nie zabiera).
+describe('rest-notification: kanal odliczania serii (WP-C X37)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    appState.callback = null;
+    checkPermissions.mockResolvedValue({ display: 'granted' });
+  });
+
+  it('arm odliczania w foregroundzie nie planuje; tlo planuje na id 90002', async () => {
+    const { armSetCountdownNotification } = await import('@/lib/rest-notification');
+
+    armSetCountdownNotification(Date.now() + 30_000, 'Koniec serii', 'Plank');
+    await flushChain();
+    expect(schedule).not.toHaveBeenCalled();
+
+    appState.callback?.(false);
+    await flushChain();
+    expect(schedule).toHaveBeenCalledTimes(1);
+    const payload = schedule.mock.calls[0][0] as { notifications: Array<{ id: number; title: string; schedule: { at: Date } }> };
+    expect(payload.notifications[0].id).toBe(90002);
+    expect(payload.notifications[0].title).toBe('Koniec serii');
+    expect(payload.notifications[0].schedule.at.getTime()).toBeGreaterThan(Date.now() + 25_000);
+  });
+
+  it('przerwa i odliczanie uzbrojone razem: tlo planuje OBA (90001 i 90002)', async () => {
+    const { armRestEndNotification, armSetCountdownNotification } = await import('@/lib/rest-notification');
+
+    armRestEndNotification(Date.now() + 90_000, 'Koniec przerwy', 'Przysiad');
+    armSetCountdownNotification(Date.now() + 30_000, 'Koniec serii', 'Plank');
+    appState.callback?.(false);
+    await flushChain();
+
+    const ids = schedule.mock.calls.map((call) => (call[0] as { notifications: Array<{ id: number }> }).notifications[0].id).sort();
+    expect(ids).toEqual([90001, 90002]);
+  });
+
+  it('cancel przerwy NIE rozbraja odliczania serii (i odwrotnie)', async () => {
+    const {
+      armRestEndNotification, armSetCountdownNotification, cancelRestEndNotification, cancelSetCountdownNotification,
+    } = await import('@/lib/rest-notification');
+
+    armRestEndNotification(Date.now() + 90_000, 'Koniec przerwy', 'Przysiad');
+    armSetCountdownNotification(Date.now() + 30_000, 'Koniec serii', 'Plank');
+    await cancelRestEndNotification();
+    expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 90001 }] });
+    expect(cancel).not.toHaveBeenCalledWith({ notifications: [{ id: 90002 }] });
+
+    appState.callback?.(false);
+    await flushChain();
+    expect(schedule).toHaveBeenCalledTimes(1);
+    expect((schedule.mock.calls[0][0] as { notifications: Array<{ id: number }> }).notifications[0].id).toBe(90002);
+
+    appState.callback?.(true);
+    await flushChain();
+    vi.clearAllMocks();
+    await cancelSetCountdownNotification();
+    expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 90002 }] });
+    appState.callback?.(false);
+    await flushChain();
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it('powrot na pierwszy plan sprzata pending/dostarczone odliczania, ale zostaje uzbrojone', async () => {
+    const { armSetCountdownNotification } = await import('@/lib/rest-notification');
+
+    armSetCountdownNotification(Date.now() + 30_000, 'Koniec serii', 'Plank');
+    appState.callback?.(false);
+    await flushChain();
+    expect(schedule).toHaveBeenCalledTimes(1);
+
+    appState.callback?.(true);
+    await flushChain();
+    expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 90002 }] });
+
+    appState.callback?.(false);
+    await flushChain();
+    expect(schedule).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('rest-notification: tap w powiadomienie końca przerwy (bug 53, X30)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -160,6 +245,9 @@ describe('rest-notification: tap w powiadomienie końca przerwy (bug 53, X30)', 
     expect(onTap).not.toHaveBeenCalled();
     listeners.action?.({ actionId: 'tap', notification: { id: 90001 } });
     expect(onTap).toHaveBeenCalledTimes(1);
+    // WP-C (X37): tap w "Koniec serii" (90002) tez wraca do treningu.
+    listeners.action?.({ actionId: 'tap', notification: { id: 90002 } });
+    expect(onTap).toHaveBeenCalledTimes(2);
   });
 
   it('funkcja zwrotna zdejmuje listener pluginu', async () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo, useMemo } from 'react';
+import { useState, useEffect, useRef, memo, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +14,7 @@ import { Exercise } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
-import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
+import { parseSetCount, sanitizeSets, parseRepRange, parseDurationRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl, getExercisePosterUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { buildRecordBadges, formatEst1RMBadge, formatMaxLiftBadge } from '@/lib/record-labels';
@@ -23,7 +23,7 @@ import { IntervalTimer } from './IntervalTimer';
 import { Haptics, NotificationType } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
-import { hapticImpactLight } from '@/lib/haptics';
+import { hapticImpactLight, hapticRestEnd } from '@/lib/haptics';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
@@ -43,6 +43,8 @@ import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 import { generateWarmupSets } from '@/lib/warmup-generator';
 import { loadPlateInventory } from '@/lib/plate-calculator';
+import { SetCountdown } from '@/components/SetCountdown';
+import { createSetCountdown, resolveSetCountdownTarget, type SetCountdownRun } from '@/lib/set-countdown';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -221,7 +223,7 @@ const ExerciseCardInner = ({
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
   // Link do instrukcji tylko dla ćwiczeń z biblioteki (custom/nieznane nie mają strony szczegółów).
   const detailSlug = useMemo(() => {
     const slug = slugifyExercise(exercise.name);
@@ -268,6 +270,9 @@ const ExerciseCardInner = ({
   // X17C Z136 → Z143: stan przerwy przeniesiony do rodzica (jeden timer na sesję);
   // karta dostaje restRun propsem tylko, gdy przerwa należy do niej.
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
+  // WP-C (X37): odliczanie serii na czas, jedno naraz w karcie. Stan tu (karta
+  // jest właścicielem serii), SetCountdown tylko tyka i uzbraja notyfikację.
+  const [countdown, setCountdown] = useState<(SetCountdownRun & { setIndex: number }) | null>(null);
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
   const hasMetricValue = (m?: ExerciseMetrics) => m?.rpe !== undefined || m?.pain !== undefined || m?.quality !== undefined;
@@ -330,11 +335,17 @@ const ExerciseCardInner = ({
   };
 
   // ── Toggle a set as done. Confirms the (pre-filled) value without retyping. ──
-  const handleToggleComplete = (setIndex: number) => {
+  // WP-C (X37): `override` = dane dopisywane w tym samym kroku co odhaczenie
+  // (koniec odliczania: durationSec = cel). Jedna ścieżka dla ręcznego
+  // i automatycznego odhaczenia: przerwa, PR-y, telemetria spójne.
+  const handleToggleComplete = (setIndex: number, override?: Partial<SetData>) => {
     if (!isEditable) return;
     hasLocalChanges.current = true;
 
-    const currentSet = sets[setIndex];
+    // Ręczne odhaczenie w trakcie odliczania tej serii kończy odliczanie.
+    if (countdown?.setIndex === setIndex) setCountdown(null);
+
+    const currentSet: SetData = { ...sets[setIndex], ...override };
     const turningOn = !currentSet.completed;
 
     // If confirming an empty set and we have last time's value, adopt it.
@@ -404,6 +415,41 @@ const ExerciseCardInner = ({
     }
   };
 
+  // ── WP-C (X37): odliczanie serii na czas ──
+  const startSetCountdown = (setIndex: number, targetSec: number) => {
+    if (!isEditable || targetSec <= 0 || countdown) return;
+    // Gest usera: odblokowanie audio (koniec odliczania gra jak koniec przerwy).
+    unlockTimerSound();
+    setCountdown({ setIndex, ...createSetCountdown(targetSec) });
+  };
+
+  // Stop w trakcie: zapis upłyniętego czasu do pola, bez odhaczenia.
+  const stopSetCountdown = (elapsedSec: number) => {
+    if (!countdown) return;
+    setCountdown(null);
+    handleSetChange(countdown.setIndex, 'durationSec', elapsedSec);
+  };
+
+  // Zero: sygnały jak koniec przerwy (chyba że JS był wstrzymany i sygnał
+  // dostarczyła notyfikacja systemowa), zapis celu + odhaczenie tą samą
+  // ścieżką co ręczne (przerwa startuje z handleToggleComplete).
+  const finishSetCountdown = ({ late }: { late: boolean }) => {
+    if (!countdown) return;
+    const { setIndex, totalSeconds } = countdown;
+    setCountdown(null);
+    const target = sets[setIndex];
+    if (!target || target.completed) return;
+    if (!late) {
+      void hapticRestEnd();
+      // Ostatnia seria robocza gra "complete" z handleToggleComplete, więc bez
+      // nakładania dwóch sygnałów naraz.
+      const willBeAllDone = !target.isWarmup
+        && sets.every((s, i) => s.isWarmup || s.completed || i === setIndex);
+      if (!willBeAllDone) playTimerSound('finish');
+    }
+    handleToggleComplete(setIndex, { durationSec: totalSeconds });
+  };
+
   const handleNotesChange = (value: string) => {
     hasLocalChanges.current = true;
     setNotes(value);
@@ -439,6 +485,8 @@ const ExerciseCardInner = ({
       return;
     }
     hasLocalChanges.current = true;
+    // WP-C: indeksy serii się przesuwają, biegnące odliczanie traci adresata.
+    if (countdown) setCountdown(null);
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
   };
@@ -508,6 +556,9 @@ const ExerciseCardInner = ({
     const { min, max } = range;
     return min === max ? String(min) : `${min}-${max}`;
   }, [exercise.sets]);
+
+  // WP-C (X37): sekundy z zapisu planu ("3 x 45s" → 45) jako fallback celu odliczania.
+  const planDurationSec = useMemo(() => parseDurationRange(exercise.sets)?.min ?? null, [exercise.sets]);
 
   const progressionAdvice = useMemo(() => {
     if (!previousSets) return null;
@@ -604,8 +655,12 @@ const ExerciseCardInner = ({
   // Naprawa r3 (2026-08-21, sędzia struktury): POWT. z 0.85fr na 1fr (kosztem KG
   // 1.25fr→1.1fr, wnętrze KG dalej mieści "122.5" przy px-1) — placeholder zakresu
   // z planu ("10-12", "12-15", 5 znaków) był obcinany do "10-1" na 390 px.
+  // WP-C (X37): duration dostaje kolumnę 44px na przycisk odliczania obok pola
+  // czasu; POPRZ. węższe (0.8fr), pole czasu szersze (1.2fr): na 393 px zostaje
+  // ~44/67 px, "1:30" bold 16px mieści się bez przewijania. wdd (3 pola liczbowe)
+  // nie ma miejsca na kolejną kolumnę: odliczanie idzie w pasku pod aktywną serią.
   const gridCols = tracking === 'duration'
-    ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
+    ? 'grid-cols-[26px_minmax(0,0.8fr)_minmax(0,1.2fr)_44px_40px_44px]'
     : tracking === 'weight_distance_duration'
       ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_40px_44px]'
       : tracking === 'assisted_bodyweight'
@@ -625,6 +680,17 @@ const ExerciseCardInner = ({
     }
     return null;
   };
+
+  // WP-C (X37): cel odliczania serii czasowej. Kaskada: wartość w polu > cel
+  // tygodnia (silnik progresji) > ostatni wynik tej serii roboczej > sekundy
+  // z planu > poziom z onboardingu (30/45/60 s). Cel jest też placeholderem pola.
+  const countdownTargetFor = (set: SetData, workingIndex: number): number => resolveSetCountdownTarget({
+    valueSec: set.durationSec,
+    weeklyTargetSec: weeklyTarget?.targetDurationSec,
+    previousSec: workingIndex >= 0 ? previousWorkingSet(previousSets, workingIndex)?.durationSec : undefined,
+    planSec: planDurationSec,
+    level: profile?.trainingProfile?.level,
+  });
 
   // Wiersz serii dla nowych typów śledzenia (Z105) — osobna gałąź, ścieżka
   // weight_reps/bodyweight_reps renderuje się dokładnie jak dotąd.
@@ -730,15 +796,37 @@ const ExerciseCardInner = ({
           />
         )}
 
-        {(tracking === 'duration' || tracking === 'weight_distance_duration') && (
-          <DurationInput
-            valueSec={set.durationSec}
-            onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
-            disabled={!isEditable}
-            ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDuration')}`}
-            className={cn(warmupInputClass, activeInputClass)}
-          />
-        )}
+        {(tracking === 'duration' || tracking === 'weight_distance_duration') && (() => {
+          // WP-C (X37): placeholder pola = cel odliczania. Dla duration obok pola
+          // stoi przycisk odliczania (44 px); w trakcie biegu SetCountdown pokazuje
+          // licznik zamiast pola. wdd: samo pole (odliczanie w pasku pod wierszem).
+          const targetSec = countdownTargetFor(set, workingIndex);
+          const durationInput = (
+            <DurationInput
+              valueSec={set.durationSec}
+              onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
+              disabled={!isEditable}
+              ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDuration')}`}
+              placeholder={formatDurationSec(targetSec)}
+              className={cn(warmupInputClass, activeInputClass)}
+            />
+          );
+          if (tracking !== 'duration') return durationInput;
+          return (
+            <SetCountdown
+              run={countdown?.setIndex === globalIndex ? countdown : null}
+              targetSec={targetSec}
+              disabled={!isEditable || set.completed || countdown !== null}
+              setLabel={setLabel}
+              exerciseLabel={localizedName}
+              onStart={() => startSetCountdown(globalIndex, targetSec)}
+              onStop={stopSetCountdown}
+              onFinished={finishSetCountdown}
+            >
+              {durationInput}
+            </SetCountdown>
+          );
+        })()}
 
         <div className="flex justify-center">
           <button
@@ -777,7 +865,37 @@ const ExerciseCardInner = ({
 
   // ── Render set row ──
   const renderSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
-    if (isNewTrackingUi) return renderTrackedSetRow(set, globalIndex, label, isWarmupRow, workingIndex);
+    if (isNewTrackingUi) {
+      const row = renderTrackedSetRow(set, globalIndex, label, isWarmupRow, workingIndex);
+      if (tracking !== 'weight_distance_duration') return row;
+      // WP-C (X37): wdd ma trzy pola liczbowe i na 393 px nie zmieści kolumny
+      // 44 px: odliczanie jako pasek pełnej szerokości pod AKTYWNĄ serią roboczą
+      // (albo pod tą, która właśnie biegnie). Wiersz zawsze we Fragmencie, żeby
+      // pojawienie się paska nie remountowało pól.
+      const running = countdown?.setIndex === globalIndex;
+      const showStrip = countdown
+        ? running
+        : isEditable && !isWarmupRow && !set.completed && globalIndex === activeSetIndex;
+      const targetSec = showStrip ? countdownTargetFor(set, workingIndex) : 0;
+      return (
+        <Fragment key={globalIndex}>
+          {row}
+          {showStrip && (
+            <SetCountdown
+              variant="strip"
+              run={running ? countdown : null}
+              targetSec={targetSec}
+              disabled={!isEditable || countdown !== null}
+              setLabel={`${t('card.setAria')} ${label}`}
+              exerciseLabel={localizedName}
+              onStart={() => startSetCountdown(globalIndex, targetSec)}
+              onStop={stopSetCountdown}
+              onFinished={finishSetCountdown}
+            />
+          )}
+        </Fragment>
+      );
+    }
     const prevHint = !isWarmupRow ? getPreviousHint(workingIndex) : null;
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
     // Naprawa r2 (2026-08-21): obrys akcentowy na inputach KG/POWT., nie na wierszu.
@@ -1139,6 +1257,8 @@ const ExerciseCardInner = ({
             {(tracking === 'duration' || tracking === 'weight_distance_duration') && (
               <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDuration')}</span>
             )}
+            {/* WP-C (X37): pusta komórka nad kolumną przycisku odliczania. */}
+            {tracking === 'duration' && <span aria-hidden />}
             <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
             {/* Fala 2 (mockup 2a): licznik odhaczonych serii w ostatniej kolumnie nagłówka. */}
             <span className="self-center text-center font-mono text-[9px] font-bold tabular-nums text-muted-foreground">

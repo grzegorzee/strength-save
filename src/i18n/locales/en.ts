@@ -1644,6 +1644,12 @@ export const en: Record<keyof typeof pl, string> = {
   'card.uncheckSet': 'Unmark set',
   'card.removeSet': 'Remove set',
   'card.showAnimation': 'Show animation: {name}',
+  // WP-C (X37): timed set countdown.
+  'setCountdown.start': 'Start countdown: {set}, target {time}',
+  'setCountdown.stop': 'Stop countdown: {set}',
+  'setCountdown.remaining': '{time} left',
+  'setCountdown.label': 'Countdown',
+  'setCountdown.notificationTitle': 'Set done',
   'workout.dayNotFound': 'Workout day not found',
   'workout.dayNotFoundHint': 'Check the address or go back to your training plan.',
   'workout.backToPlan': 'Back to plan',
