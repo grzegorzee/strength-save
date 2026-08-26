@@ -1273,7 +1273,7 @@ export const pl = {
   'warmup.v2.rampSetKg': '{weight} {unit} ({pct}% ciężaru roboczego) × {reps}',
   'warmup.v2.stretchToggle': 'Pokaż stretching (opcjonalnie)',
   'warmup.prestart.title': 'Rozgrzewka przed treningiem?',
-  'warmup.prestart.desc': 'Ok. {n} min: podniesienie tętna, mobilność pod pierwsze ćwiczenie i aktywacja. Serie rampujące zrobisz już w pierwszym ćwiczeniu.',
+  'warmup.prestart.desc': 'Około {n} min: podniesienie tętna, mobilność pod pierwsze ćwiczenie i aktywacja. Serie rampujące zrobisz już w pierwszym ćwiczeniu.',
   'warmup.prestart.firstWhy': 'Rozgrzane mięśnie i stawy pracują lepiej i rzadziej się kontuzjują. To 4-6 minut, które zwracają się w każdej serii.',
   'warmup.prestart.yes': 'Tak, rozgrzewka',
   'warmup.prestart.skip': 'Pomiń dziś',
