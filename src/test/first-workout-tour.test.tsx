@@ -188,7 +188,7 @@ describe('ExerciseCard: atrybuty data-tour tylko na aktywnej serii', () => {
     expect(rows[0].querySelectorAll('input').length).toBeGreaterThanOrEqual(2);
     const checks = container.querySelectorAll('[data-tour="set-check"]');
     expect(checks).toHaveLength(1);
-    expect(checks[0].getAttribute('aria-label')).toBe('Zaznacz serię jako zrobioną');
+    expect(checks[0].getAttribute('aria-label')).toBe('Zaznacz serię jako zrobioną (aktywna)');
     // Aktywny wiersz = drugi (pierwszy ukończony): checkmark siedzi w tym samym wierszu.
     expect(rows[0].contains(checks[0])).toBe(true);
   });

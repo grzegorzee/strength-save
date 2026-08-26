@@ -125,13 +125,19 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
   }, [step, stepIndex, finish]);
 
   // Krok 2: odhaczenie serii (klik w cel) samo prowadzi do kroku 3. Escape zamyka.
+  // X37 QA: zdarzenia sprzed montażu (np. Escape, które właśnie zamknęło dialog
+  // rozgrzewki i w tym samym dispatchu trafiło w świeży listener) są ignorowane;
+  // bez tego "Tak, rozgrzewka" + Escape paliło tour jako "widziany".
+  const mountedAtRef = useRef(performance.now());
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
+      if (event.timeStamp < mountedAtRef.current) return;
       if (step.id !== 'set-check') return;
       const target = event.target as Element | null;
       if (target?.closest(step.target)) next();
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.timeStamp < mountedAtRef.current) return;
       if (event.key === 'Escape') finish();
     };
     document.addEventListener('click', onClick, true);

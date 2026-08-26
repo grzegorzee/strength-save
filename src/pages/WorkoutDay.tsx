@@ -503,6 +503,11 @@ const WorkoutDay = () => {
   // arkusz i dialog rozgrzewki są zamknięte. Liczba ukończonych: agregat all-time,
   // fallback okno recent (mock E2E i brak dokumentu agregatu).
   const [firstWorkoutTourArmed, setFirstWorkoutTourArmed] = useState(false);
+  // X37 QA: "Tak, rozgrzewka" otwiera dialog dopiero PO asynchronicznym starcie
+  // sesji. W tej luce tour montował się na ułamek sekundy, a dialog rozgrzewki
+  // (ekskluzywny overlay) natychmiast go kończył jako "widziany". Flaga trzyma
+  // tour w kolejce do zamknięcia rozgrzewki.
+  const [warmupQueued, setWarmupQueued] = useState(false);
   const preStartPlan = useMemo(() => {
     const first = day?.exercises[0];
     if (!first) return buildPreStartWarmup({ exerciseName: '', level: trainingLevel });
@@ -3074,8 +3079,11 @@ const WorkoutDay = () => {
               data-testid="prestart-yes"
               disabled={isExplicitSaving}
               onClick={() => {
+                setWarmupQueued(true);
                 setPreStartOpen(false);
-                void handleStartWorkout().then(() => setShowWarmup(true));
+                void handleStartWorkout()
+                  .then(() => { setShowWarmup(true); setWarmupQueued(false); })
+                  .catch(() => setWarmupQueued(false));
               }}
             >
               {t('warmup.prestart.yes')}
@@ -3403,7 +3411,7 @@ const WorkoutDay = () => {
 
       {/* WP-E (X37): tour pierwszego treningu (3 spotlighty) po starcie sesji,
           dopiero gdy arkusz pre-start i dialog rozgrzewki są zamknięte. */}
-      {firstWorkoutTourArmed && isWorkoutStarted && !isCompleted && !preStartOpen && !showWarmup && (
+      {firstWorkoutTourArmed && isWorkoutStarted && !isCompleted && !preStartOpen && !showWarmup && !warmupQueued && (
         <FirstWorkoutTour onClose={() => setFirstWorkoutTourArmed(false)} />
       )}
 

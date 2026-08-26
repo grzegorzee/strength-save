@@ -52,6 +52,26 @@ test.describe('Tour pierwszego treningu (WP-E X37)', () => {
     await setE2EWorkouts(page, []);
   });
 
+  // X37 QA: ścieżka "Tak, rozgrzewka" nie może spalić toura (dialog rozgrzewki
+  // jest ekskluzywnym overlayem; tour ma czekać na jego zamknięcie).
+  test('"Tak, rozgrzewka": tour pojawia się dopiero po zamknięciu dialogu rozgrzewki', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await clearWorkoutDraftDb(page, E2E_UID);
+    await page.reload();
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    await page.getByTestId('prestart-yes').click();
+    await expect(page.getByTestId('warmup-item').first()).toBeVisible();
+    await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('warmup-item')).toHaveCount(0);
+    // Klucz "widziane" NIE może być zapisany przez samo otwarcie/zamknięcie rozgrzewki.
+    expect(await page.evaluate((key) => localStorage.getItem(key), TOUR_KEY)).toBeNull();
+    await expect(page.getByTestId('tour-step-1')).toBeVisible();
+  });
+
+
   test('świeży user: 3 kroki po starcie, Pomiń zapisuje klucz, po reloadzie brak toura', async ({ page }) => {
     await startFreshWorkout(page);
 
