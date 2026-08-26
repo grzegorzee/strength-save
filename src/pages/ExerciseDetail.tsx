@@ -178,7 +178,7 @@ const ExerciseDetail = () => {
                 onError={() => setMuscleImageFailed(true)}
               />
               <figcaption className="px-4 py-3 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
-                {t('muscle.primary')}: {t(`muscle.${primaryMuscle}` as Parameters<typeof t>[0])}
+                {t('muscle.primary', { muscle: t(`muscle.${primaryMuscle}` as Parameters<typeof t>[0]) })}
               </figcaption>
             </figure>
           )}
