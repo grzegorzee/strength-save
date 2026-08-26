@@ -42,6 +42,7 @@ import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingTy
 import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 import { generateWarmupSets } from '@/lib/warmup-generator';
+import { detectWarmupEquipment } from '@/lib/prestart-warmup';
 import { loadPlateInventory } from '@/lib/plate-calculator';
 import { SetCountdown } from '@/components/SetCountdown';
 import { createSetCountdown, resolveSetCountdownTarget, type SetCountdownRun } from '@/lib/set-countdown';
@@ -516,14 +517,16 @@ const ExerciseCardInner = ({
     handleSetChange(targetIndex, 'weight', weight);
   };
 
-  // Z108: generator rozgrzewki %1RM — zastępuje pustą serię rozgrzewkową schematem
-  // gryf x10 / 50% x8 / 70% x5 / 90% x2 od pierwszego ciężaru roboczego.
+  // Z108: generator rozgrzewki %1RM — zastępuje pustą serię rozgrzewkową rampą
+  // od pierwszego ciężaru roboczego. X37 WP-B: schemat 50/70/85 wg sprzętu
+  // (sztanga z gryfem; hantle/maszyna 50% x8, 75% x3), ten sam co w arkuszu przed startem.
   const handleGenerateWarmup = () => {
     const workingWeight = sets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
     // Z134.2: inwentarz idzie do generatora, żeby nie proponował ciężarów,
     // których na tej siłowni nie da się złożyć.
     const inventory = loadPlateInventory();
-    const generated = generateWarmupSets(workingWeight, tracking, inventory.barKg, inventory.plates);
+    const equipment = detectWarmupEquipment(exercise.name, isBodyweight);
+    const generated = generateWarmupSets(workingWeight, tracking, inventory.barKg, inventory.plates, equipment);
     if (!generated) return;
     hasLocalChanges.current = true;
     const newSets = [...generated, ...sets.filter((s) => !s.isWarmup)];

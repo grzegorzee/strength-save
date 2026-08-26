@@ -69,7 +69,6 @@ import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
-import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
@@ -517,9 +516,6 @@ const WorkoutDay = () => {
       level: trainingLevel,
     });
   }, [day, exerciseSets, resolveIsBodyweight, trainingLevel]);
-  // X37 WP-B: pierwszy trening (0 ukończonych) dostaje w arkuszu zdanie
-  // "dlaczego rozgrzewka". Agregat all-time, fallback okno recent (e2e/offline).
-  const workoutAggregate = useWorkoutAggregate(uid);
   const completedWorkoutsCount = workoutAggregate?.totals.workoutCount
     ?? workouts.filter((w) => w.completed).length;
 
