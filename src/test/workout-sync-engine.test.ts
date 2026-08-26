@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
+import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { resolveWriteAttempt } from '@/lib/workout-write-attempt';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
@@ -488,5 +489,95 @@ describe('syncWorkoutSession', () => {
       const saveOptions = deps.saveWorkout.mock.calls[0][2] as { durationSec?: number };
       expect(saveOptions.durationSec).toBe(176_400); // pełna różnica, jak dotąd
     });
+  });
+});
+
+// WP-C (X38): incydent 2026-08-26 (skorupy ad-hoc revision 0, zero błędów).
+// Zawieszona obietnica SDK trzymała inFlight na zawsze, a CLOUD_NOT_CONFIRMED
+// po zatwierdzonej transakcji ponawiał cały final i trzymał draft w pending.
+describe('WP-C (X38): timeouty i potwierdzenie po commicie', () => {
+  it('timeout zapisu zwalnia lock in-flight i zwraca kod retryable timeout', async () => {
+    const deps = makeDeps();
+    let hangs = true;
+    deps.saveWorkout.mockImplementation(() => new Promise((resolve) => {
+      if (!hangs) resolve({ success: true, updatedAt: 999, revision: 2 });
+    }));
+    const timedDeps = { ...deps, timeouts: { checkpointMs: 20, finalMs: 20 } };
+
+    const first = await syncWorkoutSession('u1', 's1', 'checkpoint', timedDeps);
+    expect(first.success).toBe(false);
+    expect(classifyWorkoutSyncError(first.error)).toBe('timeout');
+    expect(first.error).toContain('checkpoint-save');
+
+    // Lock zwolniony: kolejna próba realnie wykonuje zapis (drugi call), nie
+    // dołącza do zawieszonej obietnicy.
+    hangs = false;
+    const second = await syncWorkoutSession('u1', 's1', 'checkpoint', timedDeps);
+    expect(deps.saveWorkout).toHaveBeenCalledTimes(2);
+    expect(second.success).toBe(true);
+  });
+
+  it('timeout promocji provisional nie blokuje kolejnej próby', async () => {
+    const draft = makeDraft({ sessionOrigin: 'provisional', remoteSessionId: null, cloudRevision: undefined });
+    const deps = makeDeps({ draft });
+    deps.createSession.mockImplementation(() => new Promise(() => undefined));
+    const timedDeps = { ...deps, timeouts: { checkpointMs: 20, finalMs: 20 } };
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'checkpoint', timedDeps);
+    expect(outcome.success).toBe(false);
+    expect(classifyWorkoutSyncError(outcome.error)).toBe('timeout');
+    expect(outcome.error).toContain('promote-session');
+
+    await syncWorkoutSession('u1', 's1', 'checkpoint', timedDeps);
+    expect(deps.createSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('final: transakcja zatwierdzona, odczyt potwierdzający pada -> sukces z cloudUnconfirmed, draft sprzątnięty', async () => {
+    const draft = makeDraft({ finalSyncPending: true, completedLocally: true, finalizedAt: 4000 });
+    const deps = makeDeps({ draft, serverWorkout: makeCloudWorkout({ completed: false }) });
+    // Pierwszy odczyt (przed zapisem) OK, potwierdzenie po zapisie: sieć znika.
+    deps.getFromServer
+      .mockImplementationOnce(async () => makeCloudWorkout({ completed: false }))
+      .mockImplementation(async () => { throw new Error('Failed to get document because the client is offline.'); });
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'final', deps);
+
+    expect(outcome.success).toBe(true);
+    expect(outcome.cloudUnconfirmed).toBe(true);
+    expect(outcome.unconfirmedReason).toContain('read-failed');
+    expect(outcome.error).toBeUndefined();
+    expect(deps.clearDraftIfVersion).toHaveBeenCalledWith('u1', 's1', draft.version);
+    expect(deps.queue.remove).toHaveBeenCalledWith('u1', 's1');
+  });
+
+  it('final: transakcja zatwierdzona, odczyt zwraca rozjazd -> sukces z cloudUnconfirmed (nie CLOUD_NOT_CONFIRMED)', async () => {
+    const draft = makeDraft({ finalSyncPending: true, completedLocally: true, finalizedAt: 4000 });
+    const deps = makeDeps({ draft, serverWorkout: makeCloudWorkout({ completed: false }) });
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'final', deps);
+
+    expect(outcome.success).toBe(true);
+    expect(outcome.cloudUnconfirmed).toBe(true);
+    expect(outcome.unconfirmedReason).toBe('not-completed');
+    expect(deps.clearDraftIfVersion).toHaveBeenCalled();
+  });
+
+  it('niezmiennik: final z potwierdzoną treścią nie niesie cloudUnconfirmed', async () => {
+    const draft = makeDraft({ finalSyncPending: true, completedLocally: true, finalizedAt: 4000, startedAt: 1000 });
+    const deps = makeDeps({ draft, serverWorkout: makeCloudWorkout({ completed: false }) });
+    deps.getFromServer
+      .mockImplementationOnce(async () => makeCloudWorkout({ completed: false }))
+      .mockImplementation(async () => makeCloudWorkout({
+        completed: true,
+        revision: 2,
+        startedAt: 1000,
+        durationSec: 3,
+        exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] }],
+      }));
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'final', deps);
+
+    expect(outcome.success).toBe(true);
+    expect(outcome.cloudUnconfirmed).toBeUndefined();
   });
 });

@@ -2,6 +2,14 @@ import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 
 export const WORKOUT_SYNC_STATE_CHANGED_EVENT = 'strength-save-workout-sync-state-changed';
+// WP-C (X38): prośba o natychmiastowy bieg AutoSync (zakończenie offline,
+// unmount WorkoutDay z finalSyncPending). Bez tego final czekał na timer/sieć.
+export const WORKOUT_SYNC_REQUESTED_EVENT = 'strength-save-workout-sync-requested';
+
+export const requestWorkoutAutoSync = (): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(WORKOUT_SYNC_REQUESTED_EVENT));
+};
 
 export type WorkoutSyncEntrySource = 'active' | 'queue';
 
@@ -18,17 +26,39 @@ const isRetryable = (entry: ActiveWorkoutDraft | WorkoutSyncQueueEntry): boolean
 // i kazdy onSnapshot melil trwale bledy (validation/unknown) bez granic,
 // palac siec/baterie w docelowym srodowisku apki (slaby zasieg na silowni)
 // i wysycajac limit client_errors (20/sesje), ktory maskowal nowe kody.
-// min(2^retryCount * 30s, 1h) liczone od lastErrorAt (markRetry ustawia oba).
-const RETRY_BACKOFF_BASE_MS = 30_000;
-const RETRY_BACKOFF_MAX_MS = 60 * 60 * 1000;
+//
+// WP-C (X38): full jitter (AWS): losowo z [0, min(cap, 5s * 2^n)], cap 60 s
+// w foregroundzie. Poprzedni sufit 1 h trzymal zakonczony trening poza chmura
+// przez godzine po jednym zlym strzale. Jitter jest DETERMINISTYCZNY per
+// (sessionId, retryCount): kolejne wywolania collectRetryableSyncEntries
+// widza to samo okno, a testy sa powtarzalne. Kazde realne zdarzenie
+// (siec/resume/reczny sync) zeruje retryCount (queue.resetBackoff).
+export const RETRY_BACKOFF_BASE_MS = 5_000;
+export const RETRY_BACKOFF_MAX_MS = 60_000;
+// Dolna granica: pelny jitter dopuszcza 0 ms; 1 s chroni przed petla
+// natychmiastowych prob w jednym biegu timera.
+const RETRY_BACKOFF_MIN_MS = 1_000;
 
-export const workoutSyncRetryDelayMs = (retryCount: number): number =>
-  Math.min(RETRY_BACKOFF_BASE_MS * 2 ** Math.min(Math.max(retryCount, 0), 12), RETRY_BACKOFF_MAX_MS);
+// Hash FNV-1a -> [0, 1). Tani, stabilny, bez zaleznosci.
+const jitterUnit = (seed: string): number => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash / 0x100000000;
+};
+
+export const workoutSyncRetryDelayMs = (retryCount: number, jitterSeed = ''): number => {
+  const ceiling = Math.min(RETRY_BACKOFF_BASE_MS * 2 ** Math.min(Math.max(retryCount, 0), 12), RETRY_BACKOFF_MAX_MS);
+  const unit = jitterSeed ? jitterUnit(`${jitterSeed}:${retryCount}`) : 1;
+  return Math.max(RETRY_BACKOFF_MIN_MS, Math.round(ceiling * unit));
+};
 
 const isInBackoff = (entry: WorkoutSyncQueueEntry, now: number): boolean => (
   entry.retryCount > 0
   && entry.lastErrorAt !== null
-  && now - entry.lastErrorAt < workoutSyncRetryDelayMs(entry.retryCount)
+  && now - entry.lastErrorAt < workoutSyncRetryDelayMs(entry.retryCount, entry.sessionId)
 );
 
 export const collectRetryableSyncEntries = (

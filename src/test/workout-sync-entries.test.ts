@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { collectRetryableSyncEntries, recordWorkoutSyncFailure } from '@/lib/workout-sync-entries';
+import {
+  RETRY_BACKOFF_BASE_MS,
+  RETRY_BACKOFF_MAX_MS,
+  collectRetryableSyncEntries,
+  recordWorkoutSyncFailure,
+  workoutSyncRetryDelayMs,
+} from '@/lib/workout-sync-entries';
+import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 
@@ -70,35 +77,43 @@ describe('permanent wpisy poza auto-retry (R2-17)', () => {
 // przy kazdym flapie sieci i kazdym onSnapshot — retryCount byl tylko Badge w UI.
 // Backoff dziala WYLACZNIE gdy caller poda `now` (AutoSyncOnReconnect); reczne
 // "Ponow" w Sync Center wola bez `now` i ma zawsze pelna pule.
-describe('backoff auto-retry z retryCount + lastErrorAt (bug 37)', () => {
+// WP-C (X38): full jitter min(60 s, 5 s * 2^n), deterministyczny per sesja.
+describe('backoff auto-retry z retryCount + lastErrorAt (bug 37, jitter X38)', () => {
   const NOW = 1_700_000_000_000;
 
-  it('wpis tuz po porazce jest wstrzymany (2^1 * 30s = 60s)', () => {
-    const entry = queueEntry({ finalSyncPending: true, retryCount: 1, lastErrorAt: NOW - 30_000 });
+  it('okno backoffu miesci sie w [1 s, min(60 s, 5 s * 2^n)] i jest deterministyczne', () => {
+    for (let n = 1; n <= 12; n += 1) {
+      const delay = workoutSyncRetryDelayMs(n, 'workout-1');
+      expect(delay).toBeGreaterThanOrEqual(1_000);
+      expect(delay).toBeLessThanOrEqual(Math.min(RETRY_BACKOFF_MAX_MS, RETRY_BACKOFF_BASE_MS * 2 ** n));
+      expect(workoutSyncRetryDelayMs(n, 'workout-1')).toBe(delay);
+    }
+  });
+
+  it('rozne sesje dostaja rozne okna (jitter rozklada retry w czasie)', () => {
+    const windows = new Set(['a', 'b', 'c', 'd', 'e'].map((id) => workoutSyncRetryDelayMs(6, id)));
+    expect(windows.size).toBeGreaterThan(1);
+  });
+
+  it('wpis tuz po porazce jest wstrzymany (w oknie jittera)', () => {
+    const entry = queueEntry({ finalSyncPending: true, retryCount: 1, lastErrorAt: NOW - 500 });
     expect(collectRetryableSyncEntries([], [entry], { now: NOW })).toEqual([]);
   });
 
   it('po uplywie okna backoffu wpis wraca do puli', () => {
-    const entry = queueEntry({ finalSyncPending: true, retryCount: 1, lastErrorAt: NOW - 61_000 });
+    const entry = queueEntry({ finalSyncPending: true, retryCount: 1, lastErrorAt: NOW - 11_000 });
     expect(collectRetryableSyncEntries([], [entry], { now: NOW })).toHaveLength(1);
   });
 
-  it('okno rosnie wykladniczo z retryCount (2^4 * 30s = 8 min)', () => {
-    const inWindow = queueEntry({ finalSyncPending: true, retryCount: 4, lastErrorAt: NOW - 5 * 60_000 });
-    expect(collectRetryableSyncEntries([], [inWindow], { now: NOW })).toEqual([]);
-    const pastWindow = queueEntry({ finalSyncPending: true, retryCount: 4, lastErrorAt: NOW - 9 * 60_000 });
-    expect(collectRetryableSyncEntries([], [pastWindow], { now: NOW })).toHaveLength(1);
-  });
-
-  it('sufit 1h: melacy wpis wraca najpozniej po godzinie', () => {
-    const inWindow = queueEntry({ finalSyncPending: true, retryCount: 20, lastErrorAt: NOW - 59 * 60_000 });
-    expect(collectRetryableSyncEntries([], [inWindow], { now: NOW })).toEqual([]);
-    const pastCap = queueEntry({ finalSyncPending: true, retryCount: 20, lastErrorAt: NOW - 61 * 60_000 });
+  it('sufit 60 s: melacy wpis wraca najpozniej po minucie (nie po godzinie)', () => {
+    const pastCap = queueEntry({ finalSyncPending: true, retryCount: 20, lastErrorAt: NOW - 61_000 });
     expect(collectRetryableSyncEntries([], [pastCap], { now: NOW })).toHaveLength(1);
+    const fresh = queueEntry({ finalSyncPending: true, retryCount: 20, lastErrorAt: NOW - 200 });
+    expect(collectRetryableSyncEntries([], [fresh], { now: NOW })).toEqual([]);
   });
 
   it('backoff wstrzymuje tez aktywny draft tej samej sesji (jak permanent)', () => {
-    const entry = queueEntry({ retryCount: 2, lastErrorAt: NOW - 10_000 });
+    const entry = queueEntry({ retryCount: 2, lastErrorAt: NOW - 200 });
     expect(collectRetryableSyncEntries([draft()], [entry], { now: NOW })).toEqual([]);
   });
 
@@ -109,6 +124,20 @@ describe('backoff auto-retry z retryCount + lastErrorAt (bug 37)', () => {
   it('niezmiennik recznego Ponow: bez `now` backoff nie filtruje (Sync Center)', () => {
     const entry = queueEntry({ finalSyncPending: true, retryCount: 5, lastErrorAt: NOW - 1000 });
     expect(collectRetryableSyncEntries([], [entry])).toHaveLength(1);
+  });
+
+  it('reset backoffu (realne zdarzenie): retryCount 0, wpis trwaly nietkniety', () => {
+    localStorage.clear();
+    const retryable = queueEntry({ sessionId: 'w-retry', queueId: 'w-retry', retryCount: 4, lastErrorAt: NOW, lastError: 'unavailable' });
+    const permanent = queueEntry({ sessionId: 'w-perm', queueId: 'w-perm', retryCount: 2, lastErrorAt: NOW, lastError: 'permission-denied', permanent: true });
+    localStorage.setItem('fittracker_workout_sync_queue_v1_user-1', JSON.stringify([retryable, permanent]));
+
+    workoutSyncQueue.resetBackoff('user-1');
+
+    const after = workoutSyncQueue.list('user-1');
+    expect(after.find((e) => e.sessionId === 'w-retry')).toMatchObject({ retryCount: 0, lastErrorAt: null, lastError: 'unavailable' });
+    expect(after.find((e) => e.sessionId === 'w-perm')).toMatchObject({ retryCount: 2, permanent: true });
+    expect(collectRetryableSyncEntries([], after, { now: NOW })).toHaveLength(1);
   });
 });
 

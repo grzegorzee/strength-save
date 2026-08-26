@@ -1,5 +1,5 @@
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
-import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
+import { isPermanentWorkoutSyncError } from '@/lib/workout-sync-conflict';
 
 const SYNC_QUEUE_KEY_PREFIX = 'fittracker_workout_sync_queue_v1';
 
@@ -139,18 +139,32 @@ export const workoutSyncQueue = {
     let updatedEntry: WorkoutSyncQueueEntry | null = null;
     const nextEntries = entries.map(entry => {
       if (entry.sessionId !== sessionId) return entry;
-      const errorClass = error ? classifyWorkoutSyncError(error) : null;
+      const permanentError = !!error && isPermanentWorkoutSyncError(error);
       updatedEntry = {
         ...entry,
         retryCount: entry.retryCount + 1,
         lastError: error,
         lastErrorAt: error ? Date.now() : entry.lastErrorAt,
-        ...((entry.permanent || errorClass === 'not-found' || errorClass === 'permission') && { permanent: true }),
+        ...((entry.permanent || permanentError) && { permanent: true }),
       };
       return updatedEntry;
     });
     writeQueue(userId, nextEntries);
     return updatedEntry;
+  },
+
+  // WP-C (X38): realne zdarzenie (powrot sieci, wznowienie apki, reczny sync)
+  // zeruje backoff wpisow retryable. Wpisy trwale i konflikty zostaja bez zmian
+  // (retryCount to dla nich informacja w UI, nie hamulec).
+  resetBackoff(userId: string): void {
+    if (!userId) return;
+    const entries = this.list(userId);
+    if (entries.length === 0) return;
+    writeQueue(userId, entries.map(entry => (
+      entry.permanent || entry.retryCount === 0
+        ? entry
+        : { ...entry, retryCount: 0, lastErrorAt: null }
+    )));
   },
 
   pendingCount(userId: string): number {

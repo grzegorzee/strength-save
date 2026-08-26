@@ -85,8 +85,9 @@ test.describe('Celebracje: pierwszy trening + kamienie milowe (WP-F)', () => {
     await expect(banner).toContainText('Ukończyłeś 1. trening!');
     await expect(page.getByText('Trening ukończony!')).toBeVisible();
 
-    // Zasada 6: celebracja ma wyjście bez czekania (tap w overlay; X w rogu
-    // bywa pod toastem "zapisano lokalnie") i prowadzi do oceny, potem podsumowanie.
+    // Zasada 6: celebracja ma wyjście bez czekania (tap w overlay) i prowadzi
+    // do oceny, potem podsumowanie. WP-C (X38): zakończenie offline jest ciche,
+    // bez toastu "zapisano lokalnie" (nic nie zasłania sekwencji).
     await banner.click();
     await expect(banner).toBeHidden();
     await page.getByRole('button', { name: 'Pomiń ocenę' }).click();

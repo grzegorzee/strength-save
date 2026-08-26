@@ -18,6 +18,8 @@ import { CycleTile } from '@/components/history/CycleTile';
 import { CycleDetailView, type CycleDetailStats } from '@/components/history/CycleDetailView';
 import { HistoryExportSheet } from '@/components/history/HistoryExportSheet';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { workoutDraftDb } from '@/lib/workout-draft-db';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -298,6 +300,33 @@ const WorkoutHistory = () => {
     window.scrollTo(0, 0);
   }, [view, rawCycleParam]);
 
+  // WP-C (X38): sesje zakończone lokalnie, które czekają na zapis w chmurze
+  // (draft finalSyncPending) dostają pasywną chmurkę przy wierszu. Odświeżane
+  // po każdym biegu AutoSync (WORKOUT_SYNC_STATE_CHANGED_EVENT) i focusie.
+  const [pendingCloudIds, setPendingCloudIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    if (!uid) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const drafts = await workoutDraftDb.listDrafts(uid);
+        if (cancelled) return;
+        setPendingCloudIds(new Set(drafts.filter((draft) => draft.finalSyncPending).map((draft) => draft.sessionId)));
+      } catch {
+        // Brak IDB (np. tryb prywatny): bez wskaźnika, lista działa dalej.
+      }
+    };
+    void load();
+    const handle = () => { void load(); };
+    window.addEventListener('focus', handle);
+    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handle);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', handle);
+      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handle);
+    };
+  }, [uid]);
+
   // Edge 4: wejście w przeszły cykl dociąga jego sesje (istniejący mechanizm).
   useEffect(() => {
     if (!detailCycle || detailCycle.status !== 'completed') return;
@@ -328,6 +357,7 @@ const WorkoutHistory = () => {
         compareMode={compareMode}
         surface={surface}
         highlight={options?.highlight}
+        pendingCloud={pendingCloudIds.has(workout.id)}
         resolveExerciseName={(w, exerciseId) => resolver.resolveExerciseName(w, exerciseId)}
         onOpen={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}
         onToggleCompare={() => toggleCompare(workout.id)}

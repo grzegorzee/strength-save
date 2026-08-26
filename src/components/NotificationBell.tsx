@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CalendarCheck, ClipboardList, Info, Megaphone, Trophy } from 'lucide-react';
+import { Bell, CalendarCheck, ClipboardList, Cloud, Info, Megaphone, Trophy } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   countUnreadUserEvents,
@@ -20,6 +20,8 @@ const TYPE_ICONS = {
   week: CalendarCheck,
   plan: ClipboardList,
   announcement: Megaphone,
+  // WP-C (X38): trening doniesiony do chmury po odroczonym zapisie.
+  sync: Cloud,
 } as const;
 
 // B-T6: dzwonek czyta serwerowe user_events (offline cache daje persistence

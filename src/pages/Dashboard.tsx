@@ -46,6 +46,8 @@ import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDra
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
+import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
+import { CloudPendingIndicator } from '@/components/CloudPendingIndicator';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
@@ -177,6 +179,8 @@ const Dashboard = () => {
 
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  // WP-C (X38): kolejka ma wpis trwały (permission/not-found) albo konflikt.
+  const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
 
   // Z217: kafle all-time z agregatu backendu (poprawne też przy >500 treningach);
   // brak/uszkodzony dokument = fallback na dotychczasowe liczenie z okna listenera.
@@ -717,7 +721,9 @@ const Dashboard = () => {
       const draft = await workoutDraftDb.loadActiveDraft(uid);
       if (!cancelled) {
         setLocalDraft(draft);
-        setPendingSyncCount(workoutSyncQueue.pendingCount(uid));
+        const queueEntries = workoutSyncQueue.list(uid);
+        setPendingSyncCount(queueEntries.length);
+        setSyncNeedsAttention(queueEntries.some((entry) => entry.permanent || isRevisionConflictError(entry.lastError)));
       }
     };
 
@@ -807,7 +813,20 @@ const Dashboard = () => {
   // PRO-E T2: banery stanu w jednym slocie priorytetowym. Warunki i JSX 1:1
   // z dotychczasowych bloków — zmienia się wyłącznie miejsce renderu.
   const statusEntries: StatusEntry[] = [];
-  if ((localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0) {
+  const hasPendingCloudWork = (localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0;
+  // WP-C (X38): zwykłe "czeka na sieć" = pasywna chmurka z kropką, zero CTA
+  // (AutoSync domknie sam). Karta z "Otwórz Sync Center"/"Kontynuuj" zostaje
+  // TYLKO gdy user ma coś do zrobienia: wpis trwały/konflikt albo żywy draft
+  // do wznowienia.
+  if (hasPendingCloudWork && !syncNeedsAttention && !draftResume.resume) {
+    statusEntries.push({
+      id: 'cloud-pending', priority: 100, node: (
+        <div className="flex justify-end px-1">
+          <CloudPendingIndicator />
+        </div>
+      ),
+    });
+  } else if (hasPendingCloudWork) {
     statusEntries.push({
       id: 'offline-sync', priority: 100, node: (
         <Card className="border-primary/30 bg-primary/5">

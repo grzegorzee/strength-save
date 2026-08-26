@@ -41,6 +41,8 @@ const draftFixture = vi.hoisted(() => ({
   draft: null as unknown,
   // Bug 4 (X30): drafty per strona (dayId:date) dla loadDraftForDay.
   pageDrafts: {} as Record<string, unknown>,
+  // WP-C (X38): wpisy kolejki syncu (permanent/konflikt decyduje o kartcie vs chmurce).
+  queue: [] as unknown[],
 }));
 
 vi.mock('@/contexts/UserContext', () => ({
@@ -111,7 +113,7 @@ vi.mock('@/lib/workout-draft-db', () => ({
   },
 }));
 vi.mock('@/lib/workout-sync-queue', () => ({
-  workoutSyncQueue: { pendingCount: () => 0 },
+  workoutSyncQueue: { pendingCount: () => draftFixture.queue.length, list: () => draftFixture.queue },
 }));
 
 const planFixture = vi.hoisted(() => ({
@@ -176,6 +178,43 @@ beforeEach(() => {
   planFixture.plan = [dayForToday()];
   draftFixture.draft = null;
   draftFixture.pageDrafts = {};
+  draftFixture.queue = [];
+});
+
+// WP-C (X38): zakończenie offline jest ciche. Zamiast banera z CTA "Otwórz Sync
+// Center" Dashboard pokazuje pasywną chmurkę z kropką; karta z CTA zostaje
+// wyłącznie dla wpisów trwałych/konfliktów (stan wymagający decyzji usera).
+describe('WP-C (X38): wskaźnik chmurki zamiast banera sync', () => {
+  it('draft zakończony lokalnie (finalSyncPending) → chmurka, bez "Otwórz Sync Center" i bez "Kontynuuj"', async () => {
+    draftFixture.draft = { ...provisionalDraft('day-1'), completedLocally: true, finalSyncPending: true, finalizedAt: Date.now() };
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByTestId('cloud-pending-indicator')).toBeTruthy());
+    expect(screen.getByTestId('cloud-pending-indicator').getAttribute('aria-label')).toBe('Czeka na zapis w chmurze, zapisze się sam');
+    expect(screen.queryByText('Otwórz Sync Center')).toBeNull();
+    expect(screen.queryByText('Masz trening zakończony lokalnie')).toBeNull();
+    expect(screen.queryByText('Kontynuuj trening')).toBeNull();
+  });
+
+  it('wpis trwały w kolejce (permission) → karta z "Otwórz Sync Center" zostaje (zasada 6: wyjście)', async () => {
+    draftFixture.queue = [{
+      queueId: 'q1', userId: 'u1', sessionId: 'q1', dayId: 'day-1', date: '2026-08-01',
+      sessionOrigin: 'remote', dirty: true, finalSyncPending: true, updatedAt: 1, enqueuedAt: 1,
+      retryCount: 2, lastError: 'permission-denied', lastErrorAt: 1, permanent: true,
+    }];
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByText('Otwórz Sync Center')).toBeTruthy());
+    expect(screen.queryByTestId('cloud-pending-indicator')).toBeNull();
+  });
+
+  it('niezmiennik Z174: żywy draft dnia nadal ma kartę z kontynuacją, nie chmurkę', async () => {
+    draftFixture.draft = provisionalDraft('day-1');
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getAllByText('Kontynuuj trening').length).toBeGreaterThan(0));
+    expect(screen.queryByTestId('cloud-pending-indicator')).toBeNull();
+  });
 });
 
 describe('Z174: jedna prawda o aktywnej sesji', () => {
