@@ -71,7 +71,7 @@ import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/Worko
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
-import { buildDayFromDraft, hasAnyCompletedSet, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
+import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -2092,10 +2092,37 @@ const WorkoutDay = () => {
     if (!sessionId || !uid || !day) return;
     if (isCompleted || isExplicitSaving) return;
 
+    // WP-D (X37): serie z kompletem danych, ale bez odhaczenia, odhaczają się same
+    // (research sekcja 4: Hevy pomija je po cichu, my liczymy i mówimy ile).
+    // Ta sama ścieżka co ręczne odhaczenie (handleSetsChange: ref + stan + draft
+    // + PR na żywo), żeby IDB i podsumowanie widziały to samo. Źródło: ref, bo
+    // jest świeższy od stanu w tym samym kliknięciu.
+    const autoCompletion = autoCompleteFilledSets(exerciseSetsRef.current, (exerciseId) => {
+      const name = day.exercises.find((exercise) => exercise.id === exerciseId)?.name ?? exerciseId;
+      const tracking = resolveTracking(name);
+      // Karta chowa kolumnę KG dla bodyweight niezależnie od trackingu (isBodyweight prop).
+      return tracking === 'weight_reps' && resolveIsBodyweight(name) ? 'bodyweight_reps' : tracking;
+    });
+    for (const exerciseId of autoCompletion.changedExerciseIds) {
+      handleSetsChange(exerciseId, autoCompletion.exerciseSets[exerciseId]);
+    }
+    if (autoCompletion.autoCompleted > 0) {
+      const form = plSetsPluralForm(autoCompletion.autoCompleted);
+      toast({
+        title: t(
+          form === 'one'
+            ? 'workout.toast.autoCompletedOne'
+            : form === 'few' ? 'workout.toast.autoCompletedFew' : 'workout.toast.autoCompletedMany',
+          { n: autoCompletion.autoCompleted },
+        ),
+        description: t('workout.toast.autoCompletedDesc'),
+      });
+    }
+
     // Trening bez ANI JEDNEJ odhaczonej serii nie ma czego zapisać: walidacja finalna
     // odrzuci go jako 'empty-final-payload' i draft zawiesi się na zawsze z banerem
     // "czeka na synchronizację" (incydent 2026-07-20 — pusty szybki trening).
-    if (!hasAnyCompletedSet(exerciseSets)) {
+    if (!hasAnyCompletedSet(autoCompletion.exerciseSets)) {
       setShowCompleteConfirm(false);
       toast({
         title: t('workout.toast.emptyWorkoutTitle'),
