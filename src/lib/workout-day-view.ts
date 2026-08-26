@@ -1,5 +1,6 @@
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
+import type { TrackingType } from '@/lib/set-tracking';
 
 // Widok dnia treningu składany z planu + draftu.
 //
@@ -122,3 +123,60 @@ export const sessionStats = (
  *  rozgrzewką i rozjeżdżał się z ekranem treningu ("Odhaczone serie: 0/4"). */
 export const countCompletedWorkingSets = (exerciseSets: Record<string, SetData[]>): number =>
   sessionStats(exerciseSets).completedSets;
+
+/** WP-D (X37): komplet danych serii wg typu śledzenia. Progi zgodne z tym, co
+ *  karta pokazuje jako wpisaną wartość (0 = puste pole). */
+const hasCompleteSetData = (set: SetData, tracking: TrackingType): boolean => {
+  switch (tracking) {
+    case 'weight_reps':
+      return set.reps > 0 && set.weight > 0;
+    case 'bodyweight_reps':
+    case 'assisted_bodyweight':
+      return set.reps > 0;
+    case 'duration':
+      return (set.durationSec ?? 0) > 0;
+    case 'weight_distance_duration':
+      return (set.distanceM ?? 0) > 0 || (set.durationSec ?? 0) > 0;
+  }
+};
+
+/**
+ * WP-D (X37): przy "Zakończ trening" serie ROBOCZE z kompletem danych, ale bez
+ * odhaczenia, dostają completed=true (świadomie inaczej niż Hevy, które pomija
+ * je po cichu). Puste zostają puste, rozgrzewka (`isWarmup`) nietknięta.
+ * Czysta: nie mutuje wejścia; ćwiczenia bez zmian zachowują tę samą referencję
+ * tablicy, a `changedExerciseIds` mówi, które trzeba przepuścić przez ścieżkę
+ * zapisu (handleSetsChange), żeby draft/IDB i PR-y były spójne z ręcznym odhaczeniem.
+ */
+export const autoCompleteFilledSets = (
+  exerciseSets: Record<string, SetData[]>,
+  trackingOf: (exerciseId: string) => TrackingType,
+): { exerciseSets: Record<string, SetData[]>; autoCompleted: number; changedExerciseIds: string[] } => {
+  const next: Record<string, SetData[]> = {};
+  const changedExerciseIds: string[] = [];
+  let autoCompleted = 0;
+
+  for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
+    const tracking = trackingOf(exerciseId);
+    let changed = false;
+    const nextSets = sets.map((set) => {
+      if (set.isWarmup || set.completed || !hasCompleteSetData(set, tracking)) return set;
+      changed = true;
+      autoCompleted += 1;
+      return { ...set, completed: true };
+    });
+    next[exerciseId] = changed ? nextSets : sets;
+    if (changed) changedExerciseIds.push(exerciseId);
+  }
+
+  return { exerciseSets: next, autoCompleted, changedExerciseIds };
+};
+
+/** Forma liczebnika PL dla "N serii" (1 seria / 2-4 serie / 5+ serii, z regułą 22-24). */
+export const plSetsPluralForm = (n: number): 'one' | 'few' | 'many' => {
+  if (n === 1) return 'one';
+  const lastDigit = n % 10;
+  const lastTwo = n % 100;
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14)) return 'few';
+  return 'many';
+};

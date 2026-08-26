@@ -656,6 +656,9 @@ const ExerciseCardInner = ({
           // aktywna = tint tła + obrys na inputach. Wykluczają się: aktywna to
           // pierwsza NIEukończona.
           set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
+          // WP-D (X37): aktywna seria = wyróżnienie CAŁEGO wiersza (obrys + lewy
+          // pasek akcentu z .set-row-active), nie sam ring na inputach.
+          isActive && 'set-row-active ring-1 ring-primary/70',
         )}
       >
         <span className={cn(
@@ -744,12 +747,14 @@ const ExerciseCardInner = ({
           <button
             onClick={() => handleToggleComplete(globalIndex)}
             disabled={!isEditable}
-            aria-label={set.completed ? t('card.uncheckSet') : t('card.checkSet')}
+            aria-label={set.completed ? t('card.uncheckSet') : isActive ? `${t('card.checkSet')} ${t('card.activeSetSuffix')}` : t('card.checkSet')}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-surface-low text-muted-foreground/40 hover:text-primary',
+              // WP-D (X37): checkmark aktywnej serii z obrysem akcentu.
+              isActive && 'ring-1 ring-primary',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -797,6 +802,8 @@ const ExerciseCardInner = ({
           gridCols,
           // Z128.1: patrz renderTrackedSetRow — ta sama reguła tła na obu ścieżkach.
           set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
+          // WP-D (X37): wyróżnienie całego aktywnego wiersza, jak w renderTrackedSetRow.
+          isActive && 'set-row-active ring-1 ring-primary/70',
         )}
       >
         {/* SET */}
@@ -857,12 +864,14 @@ const ExerciseCardInner = ({
           <button
             onClick={() => handleToggleComplete(globalIndex)}
             disabled={!isEditable}
-            aria-label={set.completed ? t('card.uncheckSet') : t('card.checkSet')}
+            aria-label={set.completed ? t('card.uncheckSet') : isActive ? `${t('card.checkSet')} ${t('card.activeSetSuffix')}` : t('card.checkSet')}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-surface-low text-muted-foreground/40 hover:text-primary',
+              // WP-D (X37): checkmark aktywnej serii z obrysem akcentu.
+              isActive && 'ring-1 ring-primary',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
