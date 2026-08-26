@@ -715,6 +715,8 @@ const ExerciseCardInner = ({
     return (
       <div
         key={globalIndex}
+        // WP-E (X37): cel spotlightu toura pierwszego treningu (tylko aktywna seria).
+        data-tour={isActive ? 'set-inputs' : undefined}
         className={cn(
           'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
@@ -835,6 +837,7 @@ const ExerciseCardInner = ({
           <button
             onClick={() => handleToggleComplete(globalIndex)}
             disabled={!isEditable}
+            data-tour={isActive ? 'set-check' : undefined}
             aria-label={set.completed ? t('card.uncheckSet') : isActive ? `${t('card.checkSet')} ${t('card.activeSetSuffix')}` : t('card.checkSet')}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
@@ -915,6 +918,8 @@ const ExerciseCardInner = ({
     return (
       <div
         key={globalIndex}
+        // WP-E (X37): cel spotlightu toura pierwszego treningu (tylko aktywna seria).
+        data-tour={isActive ? 'set-inputs' : undefined}
         className={cn(
           'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
@@ -982,6 +987,7 @@ const ExerciseCardInner = ({
           <button
             onClick={() => handleToggleComplete(globalIndex)}
             disabled={!isEditable}
+            data-tour={isActive ? 'set-check' : undefined}
             aria-label={set.completed ? t('card.uncheckSet') : isActive ? `${t('card.checkSet')} ${t('card.activeSetSuffix')}` : t('card.checkSet')}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',

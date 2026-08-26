@@ -84,6 +84,8 @@ import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { RestBar } from '@/components/RestBar';
+import { FirstWorkoutTour } from '@/components/FirstWorkoutTour';
+import { isDesktopViewport, isFirstWorkoutTourSeen, shouldShowFirstWorkoutTour } from '@/lib/first-workout-tour';
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
@@ -483,6 +485,11 @@ const WorkoutDay = () => {
   // poziom z onboardingu (początkujący = 4 min).
   const [preStartOpen, setPreStartOpen] = useState(false);
   const trainingLevel = profile?.trainingProfile?.level;
+  // WP-E (X37): tour pierwszego treningu uzbrajany WYŁĄCZNIE w kliku "Rozpocznij
+  // trening" (resume/autostart go nie dostają); montowany po starcie sesji, gdy
+  // arkusz i dialog rozgrzewki są zamknięte. Liczba ukończonych: agregat all-time,
+  // fallback okno recent (mock E2E i brak dokumentu agregatu).
+  const [firstWorkoutTourArmed, setFirstWorkoutTourArmed] = useState(false);
   const preStartPlan = useMemo(() => {
     const first = day?.exercises[0];
     if (!first) return buildPreStartWarmup({ exerciseName: '', level: trainingLevel });
@@ -3265,6 +3272,7 @@ const WorkoutDay = () => {
             onClick={() => setShowCompleteConfirm(true)}
             disabled={isExplicitSaving}
             data-testid="finish-workout"
+            data-tour="finish"
           >
             <Check className="h-5 w-5 mr-2" />
             {t('workout.finishWorkout')}
@@ -3291,6 +3299,15 @@ const WorkoutDay = () => {
                 window.location.reload();
                 return;
               }
+              // WP-E (X37): decyzja o tourze pierwszego treningu zapada w momencie
+              // jawnego startu (resume = draft z treścią, autostart = bez przycisku).
+              setFirstWorkoutTourArmed(shouldShowFirstWorkoutTour({
+                completedCount: workoutAggregate?.totals.workoutCount ?? livePRSourceWorkouts.length,
+                seen: isFirstWorkoutTourSeen(),
+                isResume: currentPageDraft ? draftHasLiveContent(currentPageDraft) : false,
+                isAutostart: autostart,
+                isDesktop: isDesktopViewport(),
+              }));
               // C-T2: sheet rozgrzewki PRZED utworzeniem sesji — tylko świeży,
               // jawny start; resume/autostart (Watch/Garmin) idą prosto do startu.
               // X37: wyłączone proponowanie (Profil > Trening) = prosto do startu.
@@ -3354,6 +3371,12 @@ const WorkoutDay = () => {
 
       {/* FIX-B T2: zawsze zamontowany overlay celebracji live PR (dane sterują). */}
       <LivePRCelebration data={livePRCelebration} onDone={() => setLivePRCelebration(null)} />
+
+      {/* WP-E (X37): tour pierwszego treningu (3 spotlighty) po starcie sesji,
+          dopiero gdy arkusz pre-start i dialog rozgrzewki są zamknięte. */}
+      {firstWorkoutTourArmed && isWorkoutStarted && !isCompleted && !preStartOpen && !showWarmup && (
+        <FirstWorkoutTour onClose={() => setFirstWorkoutTourArmed(false)} />
+      )}
 
     </div>
   );
