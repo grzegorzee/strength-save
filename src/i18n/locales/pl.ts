@@ -1648,6 +1648,12 @@ export const pl = {
   'card.uncheckSet': 'Odznacz serię',
   'card.removeSet': 'Usuń serię',
   'card.showAnimation': 'Pokaż animację: {name}',
+  // WP-C (X37): odliczanie serii na czas.
+  'setCountdown.start': 'Start odliczania: {set}, cel {time}',
+  'setCountdown.stop': 'Stop odliczania: {set}',
+  'setCountdown.remaining': 'Pozostało {time}',
+  'setCountdown.label': 'Odliczanie',
+  'setCountdown.notificationTitle': 'Koniec serii',
   'workout.dayNotFound': 'Nie znaleziono dnia treningowego',
   'workout.dayNotFoundHint': 'Sprawdź adres lub wróć do planu treningowego.',
   'workout.backToPlan': 'Wróć do planu',

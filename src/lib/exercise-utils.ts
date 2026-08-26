@@ -12,9 +12,34 @@ export interface RepRange {
   isMax?: boolean;
 }
 
+// WP-C (X37): zapis serii czasowej z planu: "3 x 30s", "1 x 30-90s", "3 x 45 sek".
+// Sufiks sekund MUSI stac bezposrednio po liczbie (ze spacja lub bez) i konczyc
+// slowo: "10/strona" to nadal powtorzenia.
+export interface DurationRange {
+  sets: number;
+  min: number;
+  max: number;
+}
+
+const DURATION_RANGE_RE = /(\d+)\s*x\s*(\d+)(?:\s*-\s*(\d+))?\s*(?:s|sek|sec)\b/i;
+
+export const parseDurationRange = (setsStr: string): DurationRange | null => {
+  const match = setsStr.match(DURATION_RANGE_RE);
+  if (!match) return null;
+  const min = parseInt(match[2], 10);
+  const max = match[3] ? parseInt(match[3], 10) : min;
+  return { sets: parseInt(match[1], 10), min, max };
+};
+
 export const parseRepRange = (setsStr: string): RepRange => {
   // "3 x MAX" or "3 x max"
   if (/max/i.test(setsStr)) {
+    return { min: 0, max: 0, isMax: true };
+  }
+  // WP-C (X37): sekundy serii czasowej to nie powtorzenia. Zwracamy "bez celu
+  // liczbowego" (jak MAX): progresja, cel tygodnia i placeholder POWT. milcza,
+  // a cel czasu czyta parseDurationRange.
+  if (parseDurationRange(setsStr)) {
     return { min: 0, max: 0, isMax: true };
   }
   // "3 x 6-8"
