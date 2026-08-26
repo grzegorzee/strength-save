@@ -3,8 +3,9 @@
 // zewnętrznych wejść lądują na kotwicach Profilu (id="profile-<sekcja>").
 const LEGACY_SETTINGS_SECTIONS: Record<string, string> = {
   notifications: 'notifications',
+  // X36: Strava scalona z urządzeniami w jednej sekcji "Urządzenia i połączenia".
   connections: 'devices',
-  strava: 'connections',
+  strava: 'devices',
   consents: 'consents',
   data: 'backup',
   account: 'account',

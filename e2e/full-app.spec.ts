@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish, openProfileSection } from './helpers';
 
 // X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
 // dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
@@ -197,6 +197,7 @@ test('profile allows self-service export for regular user flow', async ({ page }
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
+    await openProfileSection(page, 'backup');
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Eksportuj kopię' }).click();
     const download = await downloadPromise;
@@ -389,15 +390,29 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     await blockFirebase(page);
   });
 
-  test('Profil ma wszystkie 11 sekcji w kolejnosci specu', async ({ page }) => {
+  test('Profil ma wszystkie sekcje X36 w kolejnosci, ustawienia zwiniete do jednej linii', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
-    const labels = await page.getByRole('main').locator('h2').allTextContents();
+    // X36: etykieta zwijanej sekcji siedzi w h2 > button > [data-section-label].
+    const labels = await page.getByRole('main').locator('h2').evaluateAll((headings) =>
+      headings.map((h) => (h.querySelector('[data-section-label]') ?? h).textContent?.trim()));
     expect(labels).toEqual([
-      'Osiągnięcia', 'Kolor przewodni aplikacji', 'Powiadomienia', 'Urządzenia i dostęp', 'Trening',
-      'Przerwy między seriami', 'Kalkulator talerzy', 'Połączenia', 'Trener', 'Subskrypcja',
-      'Twoje dane', 'Konto i pomoc',
+      'Osiągnięcia', 'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy', 'Kalkulator talerzy',
+      'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
+      'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
     ]);
+    // Wszystkie sekcje ustawień zwiniete: 12 wierszy, zero zamontowanych kart.
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(12);
+    await expect(page.getByTestId('device-settings')).toHaveCount(0);
+    // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
+    await openProfileSection(page, 'timer');
+    await expect(page.getByLabel('Timer przerwy')).toBeVisible();
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
+    await page.getByTestId('profile-toggle-timer').click();
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(12);
+    // Profil bez dolnego paska Wstecz (strzalka w naglowku zostaje).
+    await expect(page.getByTestId('back-bar')).toHaveCount(0);
+    await expect(page.locator('header').getByRole('button', { name: 'Wstecz' })).toBeVisible();
     // Bez duplikatu wejscia do edycji imienia (tylko naglowek tozsamosci).
     await expect(page.getByText('Imię i avatar')).toHaveCount(0);
     await expect(page.getByText('Ustawienia zaawansowane')).toHaveCount(0);
@@ -837,7 +852,8 @@ test.describe('Linki krzyżowe (Z67)', () => {
     await page.getByRole('tab', { name: 'Wykresy' }).click();
     await page.getByText('Progresja', { exact: true }).first().click();
     await page.getByRole('button', { name: 'Wszystkie rekordy' }).click();
-    await expect(page).toHaveURL(/#\/achievements$/);
+    // X36: Analityka domyślna w Postępach — rekordy pod ?view=records.
+    await expect(page).toHaveURL(/#\/achievements\?view=records&section=records$/);
   });
 });
 
@@ -1199,6 +1215,7 @@ test.describe('Import CSV (Z110)', () => {
 
   test('pełny scenariusz: import fixture Strong, idempotencja 2x, historia, cofnięcie', async ({ page }) => {
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'backup');
 
     // Krok 1: wybór pliku
     await page.getByTestId('import-wizard-open').click();
@@ -1226,6 +1243,7 @@ test.describe('Import CSV (Z110)', () => {
 
     // Idempotencja: ten sam plik drugi raz => te same id, liczba treningów bez zmian.
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'backup');
     await page.getByTestId('import-wizard-open').click();
     await page.getByTestId('import-file-input').setInputFiles('src/test/fixtures/strong-sample.csv');
     await page.getByTestId('import-to-confirm').click();
@@ -1267,7 +1285,7 @@ test.describe('Import CSV (Z110)', () => {
         sets: [{ reps: 8, weight: 80, completed: true }],
       }],
     }]);
-    await navigateAndWait(page, '/achievements');
+    await navigateAndWait(page, '/achievements?view=records');
     await expect(page.getByText('Wyciskanie sztangi na ławce płaskiej').first()).toBeVisible();
   });
 });
@@ -1534,6 +1552,8 @@ test.describe('Parowanie Garmin (Z125)', () => {
 
     await navigateAndWait(page, '/profile');
     // Z227: Garmin i Apple Watch są w jednym panelu urządzeń i entitlementu.
+    // X36: panel w zwijanej sekcji "Urządzenia i połączenia".
+    await openProfileSection(page, 'devices');
     const section = page.getByTestId('device-settings');
     await expect(section).toBeVisible();
 

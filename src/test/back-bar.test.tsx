@@ -16,7 +16,9 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ logout: vi.fn() }) }));
 vi.mock('@/components/AppHeader', () => ({
-  AppHeader: () => <header data-testid="app-header" />,
+  AppHeader: ({ onBack }: { onBack?: () => void }) => (
+    <header data-testid="app-header" data-has-back={onBack ? 'yes' : 'no'} />
+  ),
 }));
 
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
@@ -50,7 +52,7 @@ const renderAt = (entries: string[]) =>
   );
 
 describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
-  it.each(['/profile', '/measurements', '/cycles', '/plan/edit', '/admin', '/exercise/x'])(
+  it.each(['/measurements', '/cycles', '/plan/edit', '/admin', '/exercise/x'])(
     'trasa spoza bottom nav %s: pasek widoczny z etykietą nav.back',
     (path) => {
       renderAt([path]);
@@ -67,6 +69,15 @@ describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
       expect(screen.queryByTestId('back-bar')).toBeNull();
     },
   );
+
+  // X36 (głosówka po 124): Profil bez dolnego paska — wejście z avatara,
+  // strzałka wstecz w nagłówku zostaje jedynym powrotem.
+  it('/profile: bez paska, ale nagłówek dostaje onBack (strzałka w headerze)', () => {
+    renderAt(['/profile']);
+    expect(screen.queryByTestId('back-bar')).toBeNull();
+    expect(screen.getByTestId('app-header').getAttribute('data-has-back')).toBe('yes');
+    expect(screen.getByRole('main').className).toContain('7.5rem');
+  });
 
   it('sesja treningowa (/workout/day-1): bez paska (slot 6rem zajmuje RestBar / CTA startu)', () => {
     renderAt(['/workout/day-1']);
@@ -88,21 +99,21 @@ describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
 
   it('klik = navigate(-1), gdy jest historia (idx > 0)', () => {
     window.history.replaceState({ idx: 1 }, '');
-    renderAt(['/plan', '/profile']);
-    expect(screen.getByTestId('probe').textContent).toBe('profile:/profile');
+    renderAt(['/plan', '/measurements']);
+    expect(screen.getByTestId('probe').textContent).toBe('measurements:/measurements');
     fireEvent.click(screen.getByRole('button', { name: 'nav.back' }));
     expect(screen.getByTestId('probe').textContent).toBe('plan:/plan');
   });
 
   it('klik z deep linka (idx 0) = fallback na Dashboard', () => {
     window.history.replaceState({ idx: 0 }, '');
-    renderAt(['/plan', '/profile']);
+    renderAt(['/plan', '/measurements']);
     fireEvent.click(screen.getByRole('button', { name: 'nav.back' }));
     expect(screen.getByTestId('probe').textContent).toBe('dashboard:/');
   });
 
   it('gdy pasek widoczny, main ma większą rezerwę dolną (treść nie chowa się pod paskiem)', () => {
-    const { unmount } = renderAt(['/profile']);
+    const { unmount } = renderAt(['/measurements']);
     const withBar = screen.getByRole('main').className;
     unmount();
     renderAt(['/plan']);

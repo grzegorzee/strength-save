@@ -28,7 +28,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ProfileAccordionSection } from '@/components/profile/ProfileAccordionSection';
 import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
@@ -37,7 +37,8 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   Lock, Globe, HelpCircle, Mail, Info, LogOut, Plus, Loader2,
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
-  Dumbbell, ChevronRight, ChevronDown, Watch, Eye, EyeOff,
+  Dumbbell, ChevronRight, Watch, Eye, EyeOff, Palette, Timer, Weight,
+  UserRound, Bell, Database, DatabaseBackup, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
@@ -62,27 +63,21 @@ import { ConsentSettings } from '@/components/ConsentSettings';
 import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { loadRestSettings } from '@/lib/rest-timer';
+import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
 
 import { SOUND_KEY } from '@/lib/workout-preferences';
 
-// Fala 2 (artboard 1a): grupa zwartych wierszy — mono label + kontener surface-low
-// (mockupowe #131313). Sekcja z h2 dla a11y i testów (sectionByLabel).
-// X35b: każda sekcja ma kotwicę id="profile-<sekcja>" dla deep linków ?section=.
-const ProfileGroup = ({ id, label, children }: { id: string; label: string; children: ReactNode }) => (
-  <section id={`profile-${id}`} className="scroll-mt-20 space-y-2">
-    <h2 className="eyebrow-mono text-muted-foreground">{label}</h2>
-    <div className="rounded-2xl bg-surface-low px-3.5 py-1">{children}</div>
-  </section>
-);
-
-// X35b: sekcja na karty przeniesione z dawnych Ustawień (własne nagłówki kart,
-// eyebrow trzyma spójny rytm Profilu i daje kotwicę).
-const ProfileSection = ({ id, label, children }: { id: string; label: string; children: ReactNode }) => (
-  <section id={`profile-${id}`} className="scroll-mt-20 space-y-2">
-    <h2 className="eyebrow-mono text-muted-foreground">{label}</h2>
-    {children}
-  </section>
-);
+// X36 (głosówka właściciela po buildzie 124): Profil = tożsamość + kafle dumy
+// (zawsze otwarte) i lista ZWIJANYCH sekcji (ProfileAccordionSection), każda
+// z kotwicą id="profile-<sekcja>" dla deep linków ?section=. Stare kotwice
+// (Połączenia, Przerwy) mapowane na nowe sekcje.
+const SECTION_ALIASES: Record<string, string> = {
+  connections: 'devices',
+  strava: 'devices',
+  rest: 'timer',
+  preferences: 'training',
+};
+const resolveSection = (section: string): string => SECTION_ALIASES[section] ?? section;
 
 const TRAINER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -97,12 +92,25 @@ const Profile = () => {
   const [searchParams] = useSearchParams();
   const syncEntries = useSyncCenterEntries(uid);
 
+  // X36: stan zwinięcia sekcji (domyślnie wszystkie zwinięte — jedna linia
+  // na sekcję, jak chciał właściciel).
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
+  const isSectionOpen = (id: string) => openSections.has(id);
+  const setSectionOpen = (id: string, open: boolean) => setOpenSections((prev) => {
+    const next = new Set(prev);
+    if (open) next.add(id); else next.delete(id);
+    return next;
+  });
+
   // X35b: deep linki ?section=<kotwica> (dawne /settings?section=, powiadomienia,
-  // karty Pomiarów). Sekcje wyżej dociągają dane asynchronicznie (agregat,
-  // subskrypcja) i przesuwają layout, więc przewinięcie powtarzamy.
+  // karty Pomiarów). X36: sekcja docelowa najpierw się ROZWIJA, potem przewijamy;
+  // sekcje wyżej dociągają dane asynchronicznie i przesuwają layout, więc
+  // przewinięcie powtarzamy.
   useEffect(() => {
-    const section = searchParams.get('section');
-    if (!section) return;
+    const raw = searchParams.get('section');
+    if (!raw) return;
+    const section = resolveSection(raw);
+    setOpenSections((prev) => (prev.has(section) ? prev : new Set(prev).add(section)));
     const scroll = () => {
       document.getElementById(`profile-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
@@ -110,9 +118,6 @@ const Profile = () => {
     const timers = [300, 900].map((ms) => window.setTimeout(scroll, ms));
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [searchParams]);
-  const scrollToSection = (section: string) => {
-    document.getElementById(`profile-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   // Z216/Z217: licznik all-time z agregatu; okno recent tylko fallbackiem.
   const aggregate = useWorkoutAggregate(uid);
@@ -189,14 +194,20 @@ const Profile = () => {
     setWorkoutTimersEnabled(value);
     setTimersOn(value);
   };
-  // X35b: sekcja przerw zwinięta; nagłówek pokazuje bieżącą przerwę między
+  // X35b → X36: wiersz sekcji "Timer i przerwy" pokazuje bieżącą przerwę między
   // seriami. Wartość odczytywana na nowo przy każdym zwinięciu/rozwinięciu
   // (RestSettingsCard zapisuje sama, bez callbacku — WP-C scala magazyny).
-  const [restOpen, setRestOpen] = useState(false);
   const [restWorkingSeconds, setRestWorkingSeconds] = useState(() => loadRestSettings().workingSeconds);
-  const handleRestOpenChange = (open: boolean) => {
-    setRestOpen(open);
+  const handleTimerSectionOpenChange = (open: boolean) => {
+    setSectionOpen('timer', open);
     setRestWorkingSeconds(loadRestSettings().workingSeconds);
+  };
+  // X36: blokada wygaszania ekranu przeszła z karty przerw do sekcji Trening
+  // (per urządzenie, localStorage — jak keep-awake od zawsze).
+  const [keepAwake, setKeepAwake] = useState<boolean>(() => isKeepAwakeEnabled());
+  const handleKeepAwake = (value: boolean) => {
+    setKeepAwakeEnabled(value);
+    setKeepAwake(value);
   };
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
@@ -551,7 +562,7 @@ const Profile = () => {
           <h2 className="eyebrow-mono text-muted-foreground">{t('profile.pride.label')}</h2>
           <button
             type="button"
-            onClick={() => navigate('/achievements')}
+            onClick={() => navigate('/achievements?view=records')}
             className="flex items-center gap-0.5 text-xs font-semibold text-primary"
           >
             {t('profile.pride.all')} <ChevronRight className="h-3.5 w-3.5" />
@@ -591,101 +602,100 @@ const Profile = () => {
         )}
       </section>
 
-      {/* WYGLĄD (F-T2 + fala 2): kolor przewodni — grid 12 swatchy (paleta 11 + custom) + hex.
-          X35b: zostaje pod Tożsamością (personalizacja: avatar, imię, kolor). */}
-      <section id="profile-accent" className="scroll-mt-20 rounded-xl bg-surface-container px-4 py-4">
-        <h2 className="eyebrow-mono pb-3 text-muted-foreground">{t('profile.appearance.accent')}</h2>
-        <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
-          {ACCENTS.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              role="radio"
-              aria-checked={accentId === a.id}
-              aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
-              data-testid={`accent-${a.id}`}
-              onClick={() => handleAccent(a.id)}
+      {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej
+          karty. X36: NAD listą zwijanych sekcji — to alert o niezsynchronizowanych
+          sesjach, nie ustawienie, więc nie może chować się w zwiniętej sekcji. */}
+      {syncEntries.listedEntries.length > 0 && (
+        <div id="profile-sync" className="scroll-mt-20">
+          <SyncCenterCard uid={uid} />
+        </div>
+      )}
+
+      {/* 3. KOLOR PRZEWODNI (F-T2 + fala 2 → X36 zwijany): grid 12 swatchy + hex. */}
+      <ProfileAccordionSection
+        id="accent"
+        icon={Palette}
+        label={t('profile.appearance.accent')}
+        open={isSectionOpen('accent')}
+        onOpenChange={(open) => setSectionOpen('accent', open)}
+      >
+        <div className="rounded-xl bg-surface-container px-4 py-4">
+          <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
+            {ACCENTS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                role="radio"
+                aria-checked={accentId === a.id}
+                aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
+                data-testid={`accent-${a.id}`}
+                onClick={() => handleAccent(a.id)}
+                className={cn(
+                  'aspect-square w-full rounded-lg transition-transform active:scale-95',
+                  accentId === a.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+                )}
+                style={{ backgroundColor: a.hex }}
+              />
+            ))}
+            {/* Dowolny kolor: systemowy picker (na iOS ma też wpis po #). */}
+            <label
+              aria-label={t('accent.custom')}
+              data-testid="accent-custom"
               className={cn(
-                'aspect-square w-full rounded-lg transition-transform active:scale-95',
-                accentId === a.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+                'relative aspect-square w-full cursor-pointer rounded-lg transition-transform active:scale-95',
+                isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
               )}
-              style={{ backgroundColor: a.hex }}
+              style={{
+                background: isCustomAccentHex(accentId)
+                  ? accentId
+                  : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
+              }}
+            >
+              <input
+                type="color"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
+                onChange={(e) => handleAccent(e.target.value.toLowerCase())}
+                data-testid="accent-custom-input"
+              />
+            </label>
+          </div>
+          {/* Wpis po # dla tych, którzy znają swój kolor. */}
+          <div className="mt-3 flex items-center gap-2">
+            <Input
+              value={hexInput}
+              onChange={(e) => setHexInput(e.target.value.trim())}
+              placeholder="#1e90ff"
+              inputMode="text"
+              autoCapitalize="none"
+              className="h-10 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
+              aria-label={t('profile.appearance.hexLabel')}
+              data-testid="accent-hex-input"
             />
-          ))}
-          {/* Dowolny kolor: systemowy picker (na iOS ma też wpis po #). */}
-          <label
-            aria-label={t('accent.custom')}
-            data-testid="accent-custom"
-            className={cn(
-              'relative aspect-square w-full cursor-pointer rounded-lg transition-transform active:scale-95',
-              isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
-            )}
-            style={{
-              background: isCustomAccentHex(accentId)
-                ? accentId
-                : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
-            }}
-          >
-            <input
-              type="color"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
-              onChange={(e) => handleAccent(e.target.value.toLowerCase())}
-              data-testid="accent-custom-input"
-            />
-          </label>
+            <Button
+              variant="outline"
+              disabled={!isCustomAccentHex(hexInput)}
+              onClick={() => handleAccent(hexInput.toLowerCase())}
+              data-testid="accent-hex-apply"
+              className="h-10 rounded-lg border-0 bg-surface-highest px-4"
+            >
+              {t('profile.appearance.hexApply')}
+            </Button>
+          </div>
         </div>
-        {/* Wpis po # dla tych, którzy znają swój kolor. */}
-        <div className="mt-3 flex items-center gap-2">
-          <Input
-            value={hexInput}
-            onChange={(e) => setHexInput(e.target.value.trim())}
-            placeholder="#1e90ff"
-            inputMode="text"
-            autoCapitalize="none"
-            className="h-10 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
-            aria-label={t('profile.appearance.hexLabel')}
-            data-testid="accent-hex-input"
-          />
-          <Button
-            variant="outline"
-            disabled={!isCustomAccentHex(hexInput)}
-            onClick={() => handleAccent(hexInput.toLowerCase())}
-            data-testid="accent-hex-apply"
-            className="h-10 rounded-lg border-0 bg-surface-highest px-4"
-          >
-            {t('profile.appearance.hexApply')}
-          </Button>
-        </div>
-      </section>
+      </ProfileAccordionSection>
 
-      {/* 2. POWIADOMIENIA (X35b: karta z dawnych Ustawień; X35c dokłada przełączniki). */}
-      <ProfileSection id="notifications" label={t('profile.app.notifications')}>
-        <NotificationSettings />
-      </ProfileSection>
-
-      {/* 3. URZĄDZENIA I DOSTĘP + ZEGAREK (Z118 Zdrowie tylko natywnie, Z227 Garmin
-          + Apple Watch w jednym panelu). */}
-      <ProfileSection id="devices" label={t('profile.section.devices')}>
-        <HealthSettings />
-        <GarminSettings />
-      </ProfileSection>
-
-      {/* 4. TRENING (fala 2, mockup DURING A WORKOUT): to, co user rusza w trakcie
-          sesji, jako realne kontrolki w jednej karcie. X35b: długość przerwy
-          przeszła do sekcji Przerwy (RestSettingsCard), tu zostaje przełącznik. */}
-      <section id="profile-training" className="scroll-mt-20 rounded-xl bg-surface-container px-4 py-4">
-        <h2 className="eyebrow-mono pb-2 text-muted-foreground">{t('profile.section.preferences')}</h2>
-        <SettingRow
-          compact
-          label={t('profile.restTimerToggle')}
-          right={<Switch checked={timersOn} onCheckedChange={handleTimersToggle} aria-label={t('profile.restTimerToggle')} />}
-        />
-        {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
-            „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
-            = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
-            zakończenia ćwiczenia, nie tylko timera przerwy. */}
-        <SettingRow compact label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
+      {/* 4. TRENING (fala 2 → X36): to, co user rusza poza timerem — jednostki,
+          blokada wygaszania ekranu (z karty przerw), tryby. */}
+      <ProfileAccordionSection
+        id="training"
+        icon={Dumbbell}
+        label={t('profile.section.preferences')}
+        value={unit.toUpperCase()}
+        open={isSectionOpen('training')}
+        onOpenChange={(open) => setSectionOpen('training', open)}
+        rows
+      >
         <SettingRow
           compact
           label={t('profile.pref.units')}
@@ -709,6 +719,12 @@ const Profile = () => {
             </div>
           )}
         />
+        <SettingRow
+          compact
+          label={t('rest.keepAwake')}
+          description={t('rest.keepAwakeHint')}
+          right={<Switch checked={keepAwake} onCheckedChange={handleKeepAwake} aria-label={t('rest.keepAwake')} data-testid="profile-keep-awake" />}
+        />
         {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
         <SettingRow
           compact
@@ -727,54 +743,58 @@ const Profile = () => {
             : undefined}
           onClick={() => setVacOpen(true)}
         />
-      </section>
+      </ProfileAccordionSection>
 
-      {/* 5. PRZERWY MIĘDZY SERIAMI (X35b): zwijane, nagłówek z bieżącą wartością.
-          Wnętrze (RestSettingsCard) i domyślne wg celu planu to WP-C. */}
-      <section id="profile-rest" className="scroll-mt-20 space-y-2">
-        <h2 className="eyebrow-mono text-muted-foreground">{t('rest.settings.title')}</h2>
-        <Collapsible open={restOpen} onOpenChange={handleRestOpenChange}>
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              data-testid="profile-rest-toggle"
-              className="flex min-h-[46px] w-full items-center gap-3 rounded-2xl bg-surface-low px-3.5 py-2 text-left transition-colors hover:opacity-80"
-            >
-              <p className="min-w-0 flex-1 truncate text-[13.5px] leading-snug">
-                {t('profile.rest.current', { n: restWorkingSeconds })}
-              </p>
-              <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform', restOpen && 'rotate-180')} />
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
-            <RestSettingsCard />
-          </CollapsibleContent>
-        </Collapsible>
-      </section>
-
-      {/* 6. KALKULATOR TALERZY (Z107): inwentarz per urządzenie. */}
-      <ProfileSection id="plates" label={t('plates.settingsTitle')}>
-        <PlateInventorySettings />
-      </ProfileSection>
-
-      {/* 7. POŁĄCZENIA (X35b): pełny panel Strava (flaga canUseStrava) + skrót do
-          urządzeń (Garmin / zegarek żyją w sekcji 3, bez dublowania kart). */}
-      <ProfileSection id="connections" label={t('profile.section.connections')}>
-        {canUseStrava && <StravaConnectionCard />}
-        <div className="rounded-2xl bg-surface-low px-3.5 py-1">
+      {/* 5. TIMER I PRZERWY (X36): przełączniki timera i dźwięku (dawniej w
+          Treningu) + długości przerw, dźwięk, głośność (RestSettingsCard). */}
+      <ProfileAccordionSection
+        id="timer"
+        icon={Timer}
+        label={t('profile.section.timer')}
+        value={timersOn ? t('profile.rest.current', { n: restWorkingSeconds }) : t('profile.timer.off')}
+        open={isSectionOpen('timer')}
+        onOpenChange={handleTimerSectionOpenChange}
+      >
+        <div className="rounded-2xl bg-surface-container px-3.5 py-1">
           <SettingRow
             compact
-            icon={Watch}
-            label={t('profile.connections.devicesShortcut')}
-            value={t('profile.section.devices')}
-            onClick={() => scrollToSection('devices')}
+            label={t('profile.restTimerToggle')}
+            description={t('profile.restTimerToggleDesc')}
+            right={<Switch checked={timersOn} onCheckedChange={handleTimersToggle} aria-label={t('profile.restTimerToggle')} />}
           />
+          {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
+              „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
+              = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
+              zakończenia ćwiczenia, nie tylko timera przerwy. */}
+          <SettingRow compact label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
         </div>
-      </ProfileSection>
+        <RestSettingsCard hideTitle />
+      </ProfileAccordionSection>
 
-      {/* 8. TRENER (WP-I + X35b): zapisany odbiorca maili (adres zamaskowany jak
-          email konta); bez adresu pusty stan z formularzem "Dodaj trenera". */}
-      <ProfileGroup id="trainer" label={t('profile.trainer.title')}>
+      {/* 6. KALKULATOR TALERZY (Z107): inwentarz per urządzenie. */}
+      <ProfileAccordionSection
+        id="plates"
+        icon={Weight}
+        label={t('plates.settingsTitle')}
+        open={isSectionOpen('plates')}
+        onOpenChange={(open) => setSectionOpen('plates', open)}
+      >
+        <PlateInventorySettings />
+      </ProfileAccordionSection>
+
+      {/* 7. TRENER (WP-I + X35b + X36): wiersz pokazuje imię / zamaskowany adres /
+          "Nie ustawiono"; w środku zapisany adres albo formularz "Dodaj trenera".
+          Popup "Zapisać jako trenera?" po pierwszej wysyłce żyje w EmailWorkoutDialog. */}
+      <ProfileAccordionSection
+        id="trainer"
+        icon={UserRound}
+        label={t('profile.trainer.title')}
+        value={trainerEmail ? (trainerName || maskEmail(trainerEmail)) : t('profile.trainer.notSet')}
+        valueAccent={!!trainerEmail}
+        open={isSectionOpen('trainer')}
+        onOpenChange={(open) => setSectionOpen('trainer', open)}
+        rows
+      >
         {trainerEmail ? (
           <>
             <SettingRow
@@ -846,10 +866,44 @@ const Profile = () => {
             <SettingRow compact icon={Mail} label={t('profile.trainer.add')} onClick={openTrainerForm} />
           </>
         )}
-      </ProfileGroup>
+      </ProfileAccordionSection>
 
-      {/* 9. SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
-      <ProfileGroup id="subscription" label={t('subscription.section')}>
+      {/* 8. URZĄDZENIA I POŁĄCZENIA (X36: Z118 Zdrowie + Z227 Garmin/Apple Watch
+          + Strava w JEDNEJ sekcji — user nie zgaduje, gdzie szukać zegarka). */}
+      <ProfileAccordionSection
+        id="devices"
+        icon={Watch}
+        label={t('profile.section.devicesConnections')}
+        open={isSectionOpen('devices')}
+        onOpenChange={(open) => setSectionOpen('devices', open)}
+      >
+        <HealthSettings />
+        <GarminSettings hideTitle />
+        {canUseStrava && <StravaConnectionCard />}
+      </ProfileAccordionSection>
+
+      {/* 9. POWIADOMIENIA (X35b/X35c → X36 niżej: nie są najważniejsze). */}
+      <ProfileAccordionSection
+        id="notifications"
+        icon={Bell}
+        label={t('profile.app.notifications')}
+        open={isSectionOpen('notifications')}
+        onOpenChange={(open) => setSectionOpen('notifications', open)}
+      >
+        <NotificationSettings hideTitle />
+      </ProfileAccordionSection>
+
+      {/* 10. SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
+      <ProfileAccordionSection
+        id="subscription"
+        icon={Gem}
+        label={t('subscription.section')}
+        value={t(subSummary.planKey)}
+        valueAccent={hasProPlan(subSummary.planKey)}
+        open={isSectionOpen('subscription')}
+        onOpenChange={(open) => setSectionOpen('subscription', open)}
+        rows
+      >
         <SettingRow compact icon={Gem} label={t(subSummary.planKey)} description={subDescription || undefined} />
         {isPaywallPlatform() && subSummary.hasStoreSubscription && (
           <SettingRow
@@ -862,12 +916,17 @@ const Profile = () => {
         {isPaywallPlatform() && !subscriptionInfo.isPro && (
           <SettingRow compact icon={CreditCard} label={t('subscription.upgrade')} onClick={() => navigate('/paywall')} />
         )}
-      </ProfileGroup>
+      </ProfileAccordionSection>
 
-      {/* 10. TWOJE DANE (Z90 + fala 2 + X35b): dojścia do danych, backup i
-          przywracanie, zgody, Sync Center przy zaległościach. */}
-      <ProfileSection id="data" label={t('profile.section.data')}>
-        <div className="rounded-2xl bg-surface-low px-3.5 py-1">
+      {/* 11. TWOJE DANE (Z90 + fala 2 + X35b): dojścia do danych + Sync Center przy zaległościach. */}
+      <ProfileAccordionSection
+        id="data"
+        icon={Database}
+        label={t('profile.section.data')}
+        open={isSectionOpen('data')}
+        onOpenChange={(open) => setSectionOpen('data', open)}
+      >
+        <div className="rounded-2xl bg-surface-container px-3.5 py-1">
           <SettingRow compact icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
           <SettingRow compact icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
           <SettingRow compact icon={Trophy} label={t('nav.progress')} onClick={() => navigate('/achievements')} />
@@ -880,19 +939,40 @@ const Profile = () => {
           />
           {isAdmin && <SettingRow compact icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
         </div>
-        <div id="profile-backup" className="scroll-mt-20">
-          <BackupSettings />
-        </div>
-        {/* Zgody (pakiet prawny v2): marketing + dane zdrowotne, art. 7 ust. 3 RODO */}
-        <div id="profile-consents" className="scroll-mt-20">
-          <ConsentSettings />
-        </div>
-        {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej karty. */}
-        {syncEntries.listedEntries.length > 0 && <SyncCenterCard uid={uid} />}
-      </ProfileSection>
+      </ProfileAccordionSection>
 
-      {/* 11. KONTO I POMOC (X35b: język przeszedł tu z dawnej sekcji Aplikacja). */}
-      <ProfileGroup id="account" label={t('profile.section.accountSupport')}>
+      {/* 12. BACKUP I PRZYWRACANIE (X35b → X36 własna sekcja). */}
+      <ProfileAccordionSection
+        id="backup"
+        icon={DatabaseBackup}
+        label={t('settings.backup.title')}
+        open={isSectionOpen('backup')}
+        onOpenChange={(open) => setSectionOpen('backup', open)}
+      >
+        <BackupSettings />
+      </ProfileAccordionSection>
+
+      {/* 13. ZGODY I PRYWATNOŚĆ (pakiet prawny v2): marketing + dane zdrowotne, art. 7 ust. 3 RODO */}
+      <ProfileAccordionSection
+        id="consents"
+        icon={ShieldCheck}
+        label={t('consent.settingsTitle')}
+        open={isSectionOpen('consents')}
+        onOpenChange={(open) => setSectionOpen('consents', open)}
+      >
+        <ConsentSettings hideTitle />
+      </ProfileAccordionSection>
+
+      {/* 14. KONTO I POMOC (X35b: język przeszedł tu z dawnej sekcji Aplikacja). */}
+      <ProfileAccordionSection
+        id="account"
+        icon={UserCog}
+        label={t('profile.section.accountSupport')}
+        value={LANGUAGES.find((language) => language.code === lang)?.label}
+        open={isSectionOpen('account')}
+        onOpenChange={(open) => setSectionOpen('account', open)}
+        rows
+      >
         <SettingRow
           compact
           icon={Globe}
@@ -913,7 +993,7 @@ const Profile = () => {
         <SettingRow compact icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://strengthsave.app/', '_blank')} />
         <SettingRow compact icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:contact@strengthsave.app'; }} />
         <SettingRow compact icon={Info} label={t('profile.support.about')} value={__APP_VERSION__} onClick={() => setAboutOpen(true)} />
-      </ProfileGroup>
+      </ProfileAccordionSection>
 
       {/* Stopka (fala 2): neutralny Wyloguj wg mockupu (dialog potwierdzenia Z237
           bez zmian), Usuń konto tekstowo, wersja aplikacji. */}

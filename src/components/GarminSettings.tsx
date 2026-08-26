@@ -24,8 +24,10 @@ const nativePlatform = (): 'web' | 'ios' | 'android' => {
   return Capacitor.getPlatform() === 'ios' ? 'ios' : 'android';
 };
 
-/** Z227: one device/access panel rendered by the same React client on web/iOS/Android. */
-export const GarminSettings = () => {
+/** Z227: one device/access panel rendered by the same React client on web/iOS/Android.
+ *  X36: `hideTitle` — karta w zwijanej sekcji Profilu "Urządzenia i połączenia"
+ *  (tytuł dawał dwie linie obok "Odśwież" na 393 px). */
+export const GarminSettings = ({ hideTitle = false }: { hideTitle?: boolean } = {}) => {
   const { t, lang } = useTranslation();
   const subscription = useSubscription();
   const [devices, setDevices] = useState<LinkedDevice[]>([]);
@@ -124,10 +126,12 @@ export const GarminSettings = () => {
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Watch className="h-5 w-5 text-primary" />
-              {t('devices.title')}
-            </CardTitle>
+            {!hideTitle && (
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Watch className="h-5 w-5 text-primary" />
+                {t('devices.title')}
+              </CardTitle>
+            )}
             <CardDescription>{t('devices.description')}</CardDescription>
           </div>
           <Button

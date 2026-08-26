@@ -1,7 +1,7 @@
 // F-T2: kolor przewodni — wybór w Profilu barwi tokeny całej aplikacji
 // i przeżywa reload (localStorage od splashu).
 import { test, expect } from '@playwright/test';
-import { blockFirebase, expectPageRendered, navigateAndWait } from './helpers';
+import { blockFirebase, expectPageRendered, navigateAndWait, openProfileSection } from './helpers';
 
 const primaryVar = (page: import('@playwright/test').Page) => page.evaluate(() =>
   getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
@@ -17,6 +17,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
   test('wybór sky barwi tokeny, działa na Dashboard i przeżywa reload; limonka wraca do domyślnych', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
+    await openProfileSection(page, 'accent');
 
     await expect(page.getByTestId('accent-swatches')).toBeVisible();
     await page.getByTestId('accent-sky').click();
@@ -34,6 +35,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
 
     // Powrót do limonki = czyste tokeny z index.css.
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'accent');
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });
@@ -93,6 +95,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
   test('własny kolor po hex barwi tokeny i przeżywa reload', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
+    await openProfileSection(page, 'accent');
     await page.getByTestId('accent-hex-input').fill('#1e90ff');
     await page.getByTestId('accent-hex-apply').click();
     const applied = await primaryVar(page);
@@ -104,6 +107,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     expect(await primaryVar(page)).toBe(applied);
 
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'accent');
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });

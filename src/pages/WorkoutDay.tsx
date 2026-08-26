@@ -2247,7 +2247,7 @@ const WorkoutDay = () => {
             type: 'pr',
             key: prEventKey(dayId ?? 'adhoc', targetDate, pr.exerciseId, pr.type),
             payload: { name: pr.exerciseName, prType: pr.type, newValue: pr.newValue },
-            deepLink: '/achievements',
+            deepLink: '/achievements?view=records',
           });
         });
       } else {
@@ -2284,7 +2284,7 @@ const WorkoutDay = () => {
             type: 'badge',
             key: badgeEventKey(m.category, m.threshold),
             payload: { category: m.category, threshold: m.threshold },
-            deepLink: '/achievements',
+            deepLink: '/achievements?view=records',
           });
         });
     } else {

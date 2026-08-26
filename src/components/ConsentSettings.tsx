@@ -18,7 +18,8 @@ import { recordConsents } from '@/lib/consents-api';
 // (log z IP i timestampem serwerowym); stan UI napędza mirror
 // users/{uid}.consents przez onSnapshot, lokalny stan jest tylko optymistyczny.
 
-export const ConsentSettings = () => {
+// X36: `hideTitle` — karta w zwijanej sekcji Profilu (wiersz sekcji = tytuł).
+export const ConsentSettings = ({ hideTitle = false }: { hideTitle?: boolean } = {}) => {
   const { t, lang } = useTranslation();
   const { profile } = useCurrentUser();
   const { toast } = useToast();
@@ -65,13 +66,15 @@ export const ConsentSettings = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          {t('consent.settingsTitle')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      {!hideTitle && (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            {t('consent.settingsTitle')}
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={hideTitle ? 'space-y-5 pt-6' : 'space-y-5'}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{t('consent.settingsMarketing')}</p>

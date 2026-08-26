@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, setE2EAuthScenario } from './helpers';
+import { blockFirebase, navigateAndWait, setE2EAuthScenario, openProfileSection } from './helpers';
 
 // Strava tylko dla admina (feature flag canUseStrava w UserContext):
 // zwykły user nie widzi żadnych wejść Strava (Analytics tab, karta w Profilu),
@@ -30,6 +30,8 @@ test.describe('Strava visibility (feature flag)', () => {
     await expect(page.getByRole('tab', { name: 'Strava' })).toBeVisible();
 
     await navigateAndWait(page, '/profile');
+    // X36: Strava w zwijanej sekcji "Urządzenia i połączenia".
+    await openProfileSection(page, 'devices');
     await expect(page.getByTestId('strava-connection-card')).toBeVisible();
   });
 });

@@ -4,6 +4,7 @@ import {
   expectHashRoute,
   expectPageRendered,
   navigateAndWait,
+  openProfileSection,
   setE2EAuthScenario,
 } from './helpers';
 
@@ -39,23 +40,27 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/profile');
   });
 
-  test('z Profilu: Historia, Pomiary, Postępy, Admin (X35b: bez osobnych Ustawień)', async ({ page }) => {
+  test('z Profilu: Historia, Pomiary, Postępy, Admin (X35b: bez osobnych Ustawień; X36: sekcja Twoje dane zwijana)', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
+    await openProfileSection(page, 'data');
     await page.getByRole('button', { name: 'Historia', exact: true }).click();
     await expectHashRoute(page, '/history');
 
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'data');
     await page.getByRole('button', { name: 'Pomiary ciała', exact: true }).click();
     await expectHashRoute(page, '/measurements');
 
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'data');
     await page.getByRole('button', { name: 'Postępy', exact: true }).click();
     await expectHashRoute(page, '/achievements');
 
     // Admin widoczny, bo scenariusz e2e to active-admin.
     await navigateAndWait(page, '/profile');
+    await openProfileSection(page, 'data');
     await page.getByRole('button', { name: 'Admin', exact: true }).click();
     await expectHashRoute(page, '/admin');
   });

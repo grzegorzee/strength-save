@@ -52,12 +52,13 @@ type WeightMode = 'max' | '1rm';
 
 // X28 WP-D: rejestr kafli menu wykresów (jeden wykres na raz, deep-link ?chart=).
 // Bez grafik w tym pakiecie — kafle na fallbacku gradient + ikona.
+// X36: Tonaż i Progresja na początku (najczęściej oglądane, skróty w Analityce).
 const CHART_MENU: { id: ChartsSubTab; labelKey: TranslationKey; descKey: TranslationKey; icon: LucideIcon }[] = [
-  { id: 'workouts', labelKey: 'analytics.subtab.workouts', descKey: 'analytics.chart.desc.workouts', icon: Dumbbell },
   { id: 'tonnage', labelKey: 'analytics.subtab.tonnage', descKey: 'analytics.chart.desc.tonnage', icon: Trophy },
+  { id: 'progression', labelKey: 'analytics.subtab.progression', descKey: 'analytics.chart.desc.progression', icon: TrendingUp },
+  { id: 'workouts', labelKey: 'analytics.subtab.workouts', descKey: 'analytics.chart.desc.workouts', icon: Dumbbell },
   { id: 'weight', labelKey: 'analytics.subtab.weight', descKey: 'analytics.chart.desc.weight', icon: Scale },
   { id: 'streak', labelKey: 'analytics.subtab.streak', descKey: 'analytics.chart.desc.streak', icon: Flame },
-  { id: 'progression', labelKey: 'analytics.subtab.progression', descKey: 'analytics.chart.desc.progression', icon: TrendingUp },
 ];
 
 const StatSummary = ({ items }: { items: { label: string; value: string | number }[] }) => (
@@ -569,7 +570,7 @@ const AnalyticsChartsTab = () => {
             variant="outline"
             size="sm"
             className="w-full gap-1"
-            onClick={() => navigate('/achievements')}
+            onClick={() => navigate('/achievements?view=records&section=records')}
           >
             <Trophy className="h-3.5 w-3.5" />
             {t('charts.allRecords')}

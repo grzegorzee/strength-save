@@ -79,7 +79,8 @@ const medalLabelKey: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
   bronze: 'achievements.seasons.bronze',
 };
 
-// D-T4: jeden ekran Postępy — segment widoku (rekordy/odznaki | analityka).
+// D-T4: jeden ekran Postępy — segment widoku (analityka | rekordy/odznaki).
+// X36 (głosówka po 124): Analityka PIERWSZA i domyślna; rekordy przez ?view=records.
 const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -93,18 +94,6 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'records'}
-          data-testid="progress-view-records"
-          onClick={() => navigate('/achievements', { replace: true })}
-          className={view === 'records'
-            ? 'rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-background'
-            : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
-        >
-          {t('progress.viewRecords')}
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={view === 'analytics'}
           data-testid="progress-view-analytics"
           onClick={() => navigate('/achievements?view=analytics', { replace: true })}
@@ -113,6 +102,18 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
             : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
         >
           {t('progress.viewAnalytics')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'records'}
+          data-testid="progress-view-records"
+          onClick={() => navigate('/achievements?view=records', { replace: true })}
+          className={view === 'records'
+            ? 'rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-background'
+            : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
+        >
+          {t('progress.viewRecords')}
         </button>
       </div>
     </div>
@@ -155,11 +156,16 @@ type ProgressSection = 'records' | 'badges';
 
 const Achievements = () => {
   // D-T4: ?view=analytics renderuje osadzoną Analitykę pod wspólnym nagłówkiem.
+  // X36: Analityka jest DOMYŚLNA (bez ?view=). Rekordy: ?view=records, a także
+  // stare deep linki ?section=records|badges bez view (powiadomienia, Profil).
   const [achSearchParams, setAchSearchParams] = useSearchParams();
-  const progressView = achSearchParams.get('view') === 'analytics' ? 'analytics' : 'records';
   const rawSection = achSearchParams.get('section');
   const activeSection: ProgressSection | null =
     rawSection === 'records' || rawSection === 'badges' ? rawSection : null;
+  const viewParam = achSearchParams.get('view');
+  const progressView: 'records' | 'analytics' = viewParam === 'analytics'
+    ? 'analytics'
+    : viewParam === 'records' || activeSection !== null ? 'records' : 'analytics';
 
   // Wejście/wyjście z sekcji zaczyna od góry (wzorzec ExerciseLibrary).
   useEffect(() => {
@@ -403,13 +409,13 @@ const Achievements = () => {
           label={t('progress.tile.records')}
           count={exerciseRecords.length}
           icon={Trophy}
-          onClick={() => setAchSearchParams({ section: 'records' })}
+          onClick={() => setAchSearchParams({ view: 'records', section: 'records' })}
         />
         <SectionTile
           label={t('progress.tile.badges')}
           count={`${earnedBadges}/${totalBadges}`}
           icon={Medal}
-          onClick={() => setAchSearchParams({ section: 'badges' })}
+          onClick={() => setAchSearchParams({ view: 'records', section: 'badges' })}
         />
         <SectionTile
           label={t('progress.tile.analytics')}
@@ -433,7 +439,7 @@ const Achievements = () => {
         countLabel={t('progress.badges.count', { earned: earnedBadges, total: totalBadges })}
         imageUrl={getProgressTileImageUrl('badges')}
         imageFit="contain"
-        onBack={() => setAchSearchParams({})}
+        onBack={() => setAchSearchParams({ view: 'records' })}
         backLabel={t('common.back')}
       />
 
@@ -544,7 +550,7 @@ const Achievements = () => {
         countLabel={t('progress.records.count', { n: exerciseRecords.length })}
         imageUrl={getProgressTileImageUrl('records')}
         imageFit="contain"
-        onBack={() => setAchSearchParams({})}
+        onBack={() => setAchSearchParams({ view: 'records' })}
         backLabel={t('common.back')}
       />
 

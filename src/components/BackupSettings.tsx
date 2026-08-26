@@ -43,6 +43,7 @@ export const BackupSettings = () => {
         existingWorkoutIds={workouts.map((w) => w.id)}
         disabled={!workoutsLoaded}
         title={t('settings.backup.title')}
+        hideTitle
         description={t('settings.backup.description')}
         exportLabel={t('settings.backup.export')}
         importLabel={t('settings.backup.import')}

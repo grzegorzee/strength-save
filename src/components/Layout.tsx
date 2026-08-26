@@ -40,7 +40,9 @@ export const Layout = () => {
   // treningowej (/workout/*) NIE: ten sam slot 6rem zajmują RestBar i CTA startu,
   // a ekran ma własny przycisk wstecz w nagłówku sesji. /exercise/* dostaje pasek,
   // bo bez AppHeader po przewinięciu nie ma tam żadnego powrotu.
-  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/');
+  // X36 (głosówka po 124): Profil BEZ paska — wejście z avatara, strzałka w
+  // nagłówku wystarcza; pasek na dole właściciel uznał za zbędny.
+  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/') && location.pathname !== '/profile';
 
   const handleBack = () => {
     // React Router v6 trzyma indeks historii w window.history.state.idx.
