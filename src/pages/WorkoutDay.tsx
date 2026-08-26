@@ -1369,11 +1369,25 @@ const WorkoutDay = () => {
     // resume: draft z treścią dla tej strony — hydracja robi swoje, bez handleStartWorkout
     if (decision !== 'start') return;
 
+    // X38 WP-B: szybki trening (Dashboard -> autostart ad-hoc) dostaje arkusz
+    // rozgrzewki jak start z planu, ale PO utworzeniu sesji (decyzja 'start' =
+    // sesja świeża, bez treści). Start z Watch (quickExercise) i autostart z
+    // planu bez zmian: prosto do treningu.
+    const offerAdhocPreStart = shouldOfferPreStartWarmup({
+      alreadyStarted: false,
+      hasDraftContent: false,
+      autostart: true,
+      isAdhoc: isAdhocDay && !watchQuickExercise,
+      viewingPast: isViewingPastWorkout,
+      warmupPrompt: isWarmupPromptEnabled(),
+    });
+
     // Auto-start the workout and scroll
     handleStartWorkout().then(() => {
       setTimeout(() => {
         firstExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 300);
+      if (offerAdhocPreStart && !requiresPaywall) setPreStartOpen(true);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, startSourcesReady, day, isViewingPastWorkout, isCompleted, sessionId]);
@@ -2485,6 +2499,10 @@ const WorkoutDay = () => {
 
   const isWorkoutStarted = sessionId !== null;
   const isFinalSyncPending = !!currentPageDraft?.finalSyncPending;
+  // X38 WP-B: akcje arkusza pre-start. Start z planu: sesja powstaje tu (raz).
+  // Szybki trening: sesja już istnieje po autostarcie, drugi start dałby
+  // toast "kontynuujesz trening" i zbędny zapis.
+  const startFromPreStart = (): Promise<void> => (isWorkoutStarted ? Promise.resolve() : handleStartWorkout());
 
 
   // Calculate stats from exerciseSets
@@ -3061,7 +3079,9 @@ const WorkoutDay = () => {
 
       {/* C-T2: prompt pre-start: sesja powstaje DOKŁADNIE raz, po decyzji.
           X37 WP-B: trzy akcje (rozgrzewka / pomiń dziś / nie proponuj więcej),
-          przy pierwszym treningu zdanie "dlaczego rozgrzewka". */}
+          przy pierwszym treningu zdanie "dlaczego rozgrzewka".
+          X38 WP-B: w szybkim treningu arkusz otwiera się PO autostarcie (sesja
+          już istnieje), więc akcje nie startują sesji drugi raz. */}
       <Dialog open={preStartOpen} onOpenChange={setPreStartOpen}>
         <DialogContent className="max-w-sm" data-testid="prestart-sheet">
           <DialogHeader>
@@ -3081,7 +3101,7 @@ const WorkoutDay = () => {
               onClick={() => {
                 setWarmupQueued(true);
                 setPreStartOpen(false);
-                void handleStartWorkout()
+                void startFromPreStart()
                   .then(() => { setShowWarmup(true); setWarmupQueued(false); })
                   .catch(() => setWarmupQueued(false));
               }}
@@ -3095,7 +3115,7 @@ const WorkoutDay = () => {
               disabled={isExplicitSaving}
               onClick={() => {
                 setPreStartOpen(false);
-                void handleStartWorkout();
+                void startFromPreStart();
               }}
             >
               {t('warmup.prestart.skip')}
@@ -3110,7 +3130,7 @@ const WorkoutDay = () => {
                 // Cache od razu (następny start bez arkusza), mirror w profilu w tle.
                 void persistWarmupPrompt(uid, false);
                 // Toast PO starcie: TOAST_LIMIT = 1, toast startu sesji by go nadpisał.
-                void handleStartWorkout().then(() => toast({ title: t('warmup.prestart.neverToast') }));
+                void startFromPreStart().then(() => toast({ title: t('warmup.prestart.neverToast') }));
               }}
             >
               {t('warmup.prestart.never')}

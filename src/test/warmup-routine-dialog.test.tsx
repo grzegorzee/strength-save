@@ -63,13 +63,14 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(item().className).toContain('line-through');
   });
 
-  it('licznik liczy pozycje szablonu (9 dla góry), stretching zwinięty i nie zawyża', () => {
+  // X38 WP-B: dialog opisuje TYLKO fazy; stary klucz stretchingu w drafcie nie zawyża licznika.
+  it('licznik liczy pozycje szablonu (9 dla góry); bez sekcji stretchingu i rampy (X38)', () => {
     const checked = new Set(['warmup.v3.armCircles', 'stretch.pigeonPose']);
     renderDialog({ checked });
     expect(screen.getByText(/1\/9/)).toBeTruthy();
-    expect(screen.queryByText(translate('pl', 'comp.warmup.stretching'))).toBeNull();
-    fireEvent.click(screen.getByTestId('warmup-stretch-toggle'));
-    expect(screen.getAllByTestId('warmup-item').length).toBeGreaterThan(9);
+    expect(screen.getAllByTestId('warmup-item').length).toBe(9);
+    expect(screen.queryByTestId('warmup-stretch-toggle')).toBeNull();
+    expect(screen.queryByTestId('warmup-ramp')).toBeNull();
   });
 
   it('X37: fazy w kolejności tętno -> mobilność -> aktywacja; badge z czasem albo powtórzeniami ("na stronę")', () => {
@@ -78,14 +79,17 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(phases[0].compareDocumentPosition(phases[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(phases[1].compareDocumentPosition(phases[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(phases[0].textContent).toContain('Tętno');
-    expect(phases[0].textContent).toContain('60 s');
+    // X38: spokojne cardio 120 s zamiast pajacyków.
+    expect(phases[0].textContent).toContain(translate('pl', 'warmup.v3.cardioEasy'));
+    expect(phases[0].textContent).toContain('120 s');
+    expect(phases[0].textContent).not.toContain('Pajacyki');
     expect(phases[1].textContent).toContain('× 10 na stronę');
     expect(phases[2].textContent).toContain('× 15');
   });
 
   it('X37: aktywna = pierwsza nieodhaczona; "Dalej" odhacza ją (onToggle z jej kluczem)', () => {
     const onToggle = vi.fn();
-    renderDialog({ onToggle, checked: new Set(['warmup.v3.jacks']) });
+    renderDialog({ onToggle, checked: new Set(['warmup.v3.cardioEasy']) });
     const active = document.querySelector('[data-testid="warmup-item"][data-active="true"]');
     expect(active?.textContent).toContain(translate('pl', 'warmup.v3.heelsArmCircles'));
     fireEvent.click(screen.getByTestId('warmup-next'));
@@ -107,23 +111,22 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(screen.getByTestId('warmup-next')).toBeTruthy();
   });
 
-  it('sztanga dostaje gryf w rampie, copy mówi o % ciężaru roboczego (50/70/85)', () => {
-    renderDialog({});
-    const ramp = screen.getByTestId('warmup-ramp');
-    expect(ramp.textContent).toContain(translate('pl', 'warmup.v2.rampTitle'));
-    expect(ramp.textContent).toContain('ciężaru roboczego');
-    expect(ramp.textContent).toContain(translate('pl', 'warmup.v2.rampBar'));
-    expect(ramp.textContent).toContain('85%');
-    expect(ramp.textContent).not.toContain('1RM');
-  });
-
-  it('hantle bez pustego gryfu (start od lekkiego ciężaru)', () => {
-    renderDialog({
-      plan: buildPreStartWarmup({ exerciseName: 'Wyciskanie hantli', category: 'chest', workingWeightKg: 30 }),
-    });
-    const ramp = screen.getByTestId('warmup-ramp');
-    expect(ramp.textContent).toContain(translate('pl', 'warmup.v2.rampLight'));
-    expect(ramp.textContent).not.toContain(translate('pl', 'warmup.v2.rampBar'));
+  // X38 WP-B: rampa zostaje TYLKO jako chip "Rozgrzewka" w karcie ćwiczenia;
+  // dialog nie wspomina o gryfie ani % ciężaru roboczego (sztanga i hantle).
+  it('X38: bez sekcji rampy i stretchingu, zero wzmianek o gryfie i % ciężaru roboczego', () => {
+    for (const plan of [
+      chestPlan(),
+      buildPreStartWarmup({ exerciseName: 'Wyciskanie hantli', category: 'chest', workingWeightKg: 30 }),
+    ]) {
+      const view = renderDialog({ plan });
+      const content = document.body.textContent ?? '';
+      expect(screen.queryByTestId('warmup-ramp')).toBeNull();
+      expect(screen.queryByTestId('warmup-stretch-toggle')).toBeNull();
+      expect(content).not.toContain('ciężaru roboczego');
+      expect(content).not.toContain('gryf');
+      expect(content).not.toContain('stretching');
+      view.unmount();
+    }
   });
 });
 
@@ -139,16 +142,16 @@ describe('WarmupRoutineDialog: odliczanie pozycji czasowej za flagą intervalTim
     flags.intervalTimers = false;
   });
 
-  it('start odliczania 60 s -> po upływie czasu pozycja odhaczona (onToggle), deadline-based', () => {
+  it('start odliczania 120 s (cardio) -> po upływie czasu pozycja odhaczona (onToggle), deadline-based', () => {
     const onToggle = vi.fn();
     renderDialog({ onToggle });
     fireEvent.click(screen.getByTestId('warmup-countdown-start'));
-    expect(screen.getByTestId('warmup-countdown').textContent).toContain('60s');
+    expect(screen.getByTestId('warmup-countdown').textContent).toContain('120s');
     act(() => { vi.advanceTimersByTime(30_000); });
-    expect(screen.getByTestId('warmup-countdown').textContent).toContain('30s');
+    expect(screen.getByTestId('warmup-countdown').textContent).toContain('90s');
     expect(onToggle).not.toHaveBeenCalled();
-    act(() => { vi.advanceTimersByTime(31_000); });
-    expect(onToggle).toHaveBeenCalledWith('warmup.v3.jacks');
+    act(() => { vi.advanceTimersByTime(91_000); });
+    expect(onToggle).toHaveBeenCalledWith('warmup.v3.cardioEasy');
     expect(screen.queryByTestId('warmup-countdown')).toBeNull();
   });
 
@@ -161,7 +164,7 @@ describe('WarmupRoutineDialog: odliczanie pozycji czasowej za flagą intervalTim
     expect(screen.queryByTestId('warmup-countdown')).toBeNull();
     expect(onToggle).not.toHaveBeenCalled();
     // Aktywna = krążenia ramion (powtórzenia): bez odliczania.
-    rerender(dialog({ onToggle, checked: new Set(['warmup.v3.jacks', 'warmup.v3.heelsArmCircles']) }));
+    rerender(dialog({ onToggle, checked: new Set(['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles']) }));
     expect(screen.queryByTestId('warmup-countdown-start')).toBeNull();
     expect(screen.getByTestId('warmup-next')).toBeTruthy();
   });
@@ -228,7 +231,7 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
 
     // 2. Odhaczenie 3 pozycji przechodzi przez builder snapshotu (jak saveDraftSnapshot).
     const afterToggles = buildWorkoutDraftSnapshot(contextFor(start), {
-      warmupChecked: ['warmup.v3.jacks', 'warmup.v3.heelsArmCircles', 'warmup.v3.armCircles'],
+      warmupChecked: ['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles', 'warmup.v3.armCircles'],
     });
     expect(afterToggles?.warmupChecked).toHaveLength(3);
     expect(afterToggles?.version).toBe(4); // zmiana treści = bump wersji
@@ -253,10 +256,13 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
     expect(snapshot?.version).toBe(3); // brak pola nie udaje zmiany treści
     expect(snapshot?.exerciseSets).toEqual(legacy.exerciseSets);
 
-    render(dialog({ checked: new Set(snapshot?.warmupChecked ?? []) }));
+    const legacyView = render(dialog({ checked: new Set(snapshot?.warmupChecked ?? []) }));
     expect(struckItems()).toBe(0);
-    // Stare klucze v2 z draftu sprzed X37: nic nie pasuje, lista czysta, zero wyjątków.
-    render(dialog({ checked: new Set(['warmup.v2.cardio', 'warmup.v2.dynArmCircles']) }));
+    legacyView.unmount();
+    // Stare klucze v2 z draftu sprzed X37 i pajacyki sprzed X38 (warmup.v3.jacks):
+    // nic nie pasuje, lista czysta, zero wyjątków, licznik od zera.
+    render(dialog({ checked: new Set(['warmup.v2.cardio', 'warmup.v2.dynArmCircles', 'warmup.v3.jacks', 'stretch.pigeonPose']) }));
     expect(struckItems()).toBe(0);
+    expect(screen.getByText(/0\/9/)).toBeTruthy();
   });
 });

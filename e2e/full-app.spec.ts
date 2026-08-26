@@ -967,6 +967,10 @@ test.describe('Szybki trening (Z104)', () => {
 
     await page.getByTestId('quick-workout-start').click();
     await expect(page).toHaveURL(/adhoc-/);
+    // X38 WP-B: szybki trening dostaje arkusz rozgrzewki po autostarcie (sesja
+    // w mock e2e powstaje po ~2 s timeoutu sieci): czekamy na arkusz i pomijamy.
+    await page.getByTestId('prestart-skip').click({ timeout: 10_000 });
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /Szybki trening/i }).first()).toBeVisible();
 
     // Dodaj 2 ćwiczenia w locie przez wspólny picker (Z69).
@@ -1091,6 +1095,10 @@ test.describe('Typy serii (Z105)', () => {
     await clearWorkoutDraftDb(page, 'e2e-test-user');
     await page.getByTestId('quick-workout-start').click();
     await expect(page).toHaveURL(/adhoc-/);
+    // X38 WP-B: szybki trening dostaje arkusz rozgrzewki po autostarcie (sesja
+    // w mock e2e powstaje po ~2 s timeoutu sieci): czekamy na arkusz i pomijamy.
+    await page.getByTestId('prestart-skip').click({ timeout: 10_000 });
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
 
     // Plank: typ duration — kolumna Czas, bez kolumny kg/Powt.
     await page.getByTestId('adhoc-add-exercise').click();
@@ -1648,6 +1656,10 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     await navigateAndWait(page, '/');
     await page.getByTestId('quick-workout-start').click();
     await expect(page).toHaveURL(/adhoc-/);
+    // X38 WP-B: szybki trening dostaje arkusz rozgrzewki po autostarcie (sesja
+    // w mock e2e powstaje po ~2 s timeoutu sieci): czekamy na arkusz i pomijamy.
+    await page.getByTestId('prestart-skip').click({ timeout: 10_000 });
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
     await page.getByTestId('adhoc-add-exercise').click();
     const picker = page.getByRole('dialog');
     await picker.getByPlaceholder(/Szukaj|Find/).fill('wioslowanie hantlami');
