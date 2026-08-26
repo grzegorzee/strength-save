@@ -3,8 +3,10 @@ import {
   blockFirebase,
   expectHashRoute,
   expectPageRendered,
+  localToday,
   navigateAndWait,
   openProfileSection,
+  plWeekdayName,
   setE2EAuthScenario,
 } from './helpers';
 
@@ -94,7 +96,8 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/plan');
     await page.goBack();
     await expectHashRoute(page, '/workout/day-1');
-    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    // X30 WP-L: nagłówek = dzień daty sesji (dziś), nie dzień planu.
+    await expect(page.getByRole('heading', { name: plWeekdayName(localToday()) })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Rozpocznij trening' })).toBeVisible();
     await expect(bottomNav).toBeVisible();
   });

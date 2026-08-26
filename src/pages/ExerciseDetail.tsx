@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
-import { slugifyExercise, getExerciseAnimationUrl } from '@/lib/exercise-media';
+import { slugifyExercise, getExerciseAnimationUrl, getMuscleImageUrl } from '@/lib/exercise-media';
 import { getExerciseDetails, preloadExerciseDetailsEn, categoryToPrimaryMuscle } from '@/data/exercise-details';
 import { localizeExerciseName, localizeExerciseInstruction, localizeCategory } from '@/data/exercise-i18n';
 import { MuscleMap } from '@/components/MuscleMap';
@@ -22,6 +22,8 @@ const ExerciseDetail = () => {
   const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
   // Z176: fallback hero — odmowa autoplay pokazuje natywne controls (reguła 6).
   const [heroControls, setHeroControls] = useState(false);
+  // X37 WP-G: obraz partii miesniowej; blad ladowania = fallback do MuscleMap.
+  const [muscleImageFailed, setMuscleImageFailed] = useState(false);
 
   const exercise = useMemo(
     () => exerciseLibrary.find((e) => slugifyExercise(e.name) === slug),
@@ -161,7 +163,25 @@ const ExerciseDetail = () => {
               <span key={m} className="rounded-full bg-surface-highest px-3 py-1.5 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">{m}</span>
             ))}
           </div>
-          <MuscleMap primary={primaryMuscle} />
+          {/* X37 WP-G (decyzja wlasciciela): zdjecie partii zamiast ludzika; ludzik
+              zostaje jako fallback, gdy plik nie wczyta sie (offline bez cache, brak pliku). */}
+          {muscleImageFailed ? (
+            <MuscleMap primary={primaryMuscle} />
+          ) : (
+            <figure className="overflow-hidden rounded-xl bg-surface-low" data-testid="muscle-image">
+              <img
+                src={getMuscleImageUrl(primaryMuscle)}
+                alt={t('muscle.mapLabel', { muscle: t(`muscle.${primaryMuscle}` as Parameters<typeof t>[0]) })}
+                loading="lazy"
+                decoding="async"
+                className="aspect-square w-full object-cover"
+                onError={() => setMuscleImageFailed(true)}
+              />
+              <figcaption className="px-4 py-3 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
+                {t('muscle.primary')}: {t(`muscle.${primaryMuscle}` as Parameters<typeof t>[0])}
+              </figcaption>
+            </figure>
+          )}
         </section>
 
         {/* Equipment */}
