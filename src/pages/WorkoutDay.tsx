@@ -90,7 +90,7 @@ import { isDesktopViewport, isFirstWorkoutTourSeen, shouldShowFirstWorkoutTour }
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
-import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT, requestWorkoutAutoSync } from '@/lib/workout-sync-entries';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { classifyWorkoutSyncError, shouldAutoResolveConflict, workoutSyncErrorDetail, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
@@ -541,17 +541,29 @@ const WorkoutDay = () => {
     const prevSets = getPreviousSets(newId, pick.name);
     const sets = createPrefilledSets(3, prevSets, resolveIsBodyweight(pick.name));
 
+    // WP-C (X38): pierwsze ćwiczenie w szybkim treningu = checkpoint OD RAZU.
+    // Incydent 2026-08-26: skorupa sesji w chmurze (revision 0, zero ćwiczeń)
+    // czekała na checkpoint 15 s / 5 min, który nigdy nie doszedł.
+    const isFirstExercise = Object.keys(exerciseSetsRef.current).length === 0;
+
     const nextSets = { ...exerciseSetsRef.current, [newId]: sets };
     exerciseSetsRef.current = nextSets;
     setExerciseSets(nextSets);
 
-    saveDraftSnapshot({
+    const draftOverrides: Partial<ActiveWorkoutDraft> = {
       exerciseNames: {
         ...(activeDraftRef.current?.exerciseNames ?? daySnapshotRef.current.names),
         [newId]: pick.name,
       },
       lastTouchedExerciseId: newId,
-    });
+    };
+    if (isFirstExercise && sessionId && uid) {
+      void persistDraftSnapshot(draftOverrides, { showStatus: true })
+        .then((saved) => (saved ? syncDraftToFirebaseRef.current('checkpoint') : null))
+        .catch(() => { /* best effort: rytm checkpointów i AutoSync ponowią */ });
+    } else {
+      saveDraftSnapshot(draftOverrides);
+    }
     setShowAddExercise(false);
   };
 
@@ -943,7 +955,20 @@ const WorkoutDay = () => {
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
         return { success: false, error: outcome.error };
       }
-      if (classifyWorkoutSyncError(outcome.error) === 'offline') {
+      const errorCode = classifyWorkoutSyncError(outcome.error);
+      if (errorCode === 'offline' || errorCode === 'timeout') {
+        // WP-C (X38): dziura offline ma zostawić ślad w telemetrii (incydent
+        // 2026-08-26: zero sygnału). Timeout dodatkowo do client_errors.
+        trackTelemetryEvent(uid, 'sync_offline_deferred');
+        if (errorCode === 'timeout') {
+          trackTelemetryEvent(uid, 'sync_timeout');
+          void reportClientError(uid, {
+            code: 'timeout',
+            phase: requiresFinalSync ? 'final' : 'checkpoint',
+            detail: outcome.error,
+            sessionId: targetSessionId,
+          });
+        }
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
         return { success: false, error: t('workout.err.offline') };
       }
@@ -967,6 +992,17 @@ const WorkoutDay = () => {
     setSaveError(null);
     // Udany sync domyka sesję zapisu: limit auto-resolve liczy się od nowa.
     conflictAutoResolveAttemptsRef.current = 0;
+    if (outcome.cloudUnconfirmed) {
+      // WP-C (X38): transakcja zatwierdzona, potwierdzenie nie doszło. Sukces
+      // dla usera, ślad dla nas (nowy kod w client_errors = alarm po wydaniu).
+      trackTelemetryEvent(uid, 'sync_validation_failed');
+      void reportClientError(uid, {
+        code: 'validation',
+        phase: requiresFinalSync ? 'final' : 'checkpoint',
+        detail: `cloud-unconfirmed: ${outcome.unconfirmedReason ?? 'unknown'}`,
+        sessionId: targetSessionId,
+      });
+    }
 
     if (outcome.skipped) {
       // Brak draftu w IndexedDB = nic do zapisania (silnik sprzątnął referencję z kolejki).
@@ -1400,6 +1436,10 @@ const WorkoutDay = () => {
         void persistDraftSnapshotRef.current({}, { showStatus: false })
           .then(() => syncDraftToFirebaseRef.current('checkpoint'))
           .catch(() => { /* best effort — kolejny checkpoint/AutoSync ponowi */ });
+      } else if (draft?.finalSyncPending) {
+        // WP-C (X38): wyjście z ekranu po zakończeniu offline = natychmiastowa
+        // prośba do AutoSync (nie czekamy na timer/sieć).
+        requestWorkoutAutoSync();
       }
     };
   }, []);
@@ -2244,10 +2284,11 @@ const WorkoutDay = () => {
         completedSessionLockRef.current = sessionId;
         setQueuedDraft(pendingDraft);
         setSaveError(null);
-        toast({
-          title: t('workout.toast.savedLocallyTitle'),
-          description: t('workout.toast.savedLocallyDesc'),
-        });
+        // WP-C (X38): CISZA. Zakończenie offline pokazuje normalną sekwencję
+        // celebracji (jak Hevy/Strong); zamiast toastu "zapisano lokalnie"
+        // Dashboard/Historia mają pasywną chmurkę, a AutoSync dostaje prośbę
+        // o natychmiastową próbę (offline padnie szybko, sieć wróci = sync sam).
+        requestWorkoutAutoSync();
       } else {
         setSaveError(t('workout.err.saveAllFailed'));
         toast({

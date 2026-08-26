@@ -253,6 +253,8 @@ test.describe('Batch Save Workflow', () => {
       version: 1,
     });
 
+    // WP-C (X38): Sync Center w Profilu renderuje się TYLKO przy wpisie trwałym
+    // albo konflikcie (zwykłe "czeka na sieć" domyka AutoSync po cichu).
     await writeWorkoutSyncQueue(page, E2E_USER_ID, [{
       queueId: 'queued-1',
       sessionId: 'queued-session-1',
@@ -264,9 +266,10 @@ test.describe('Batch Save Workflow', () => {
       finalSyncPending: true,
       updatedAt: Date.now(),
       enqueuedAt: Date.now(),
-      retryCount: 0,
-      lastError: null,
-      lastErrorAt: null,
+      retryCount: 2,
+      lastError: 'permission-denied',
+      lastErrorAt: Date.now(),
+      permanent: true,
     }]);
 
     await page.reload();
@@ -313,8 +316,109 @@ test.describe('Batch Save Workflow', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.getByText('Masz trening rozpoczęty offline')).toBeVisible();
+    // WP-C (X38): zwykłe "czeka na sieć" = pasywna chmurka z kropką, bez CTA
+    // (AutoSync domknie sam); karta "Otwórz Sync Center" tylko dla wpisów trwałych.
+    const indicator = page.getByTestId('cloud-pending-indicator');
+    await expect(indicator).toBeVisible();
+    await expect(indicator).toHaveAttribute('aria-label', 'Czeka na zapis w chmurze, zapisze się sam');
+    await expect(page.getByText('Masz trening rozpoczęty offline')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toHaveCount(0);
+  });
+
+  test('permanent sync error keeps the Sync Center card with an exit on the dashboard', async ({ page }) => {
+    await navigateAndWait(page, '/');
+
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'perm-session-1',
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: '2026-04-03',
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'perm-session-1',
+      exerciseSets: { 'ex-1-1': [{ reps: 8, weight: 25, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: 'permanent',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      cloudRevision: 1,
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: true,
+      finalSyncPending: true,
+      version: 1,
+    });
+    await writeWorkoutSyncQueue(page, E2E_USER_ID, [{
+      queueId: 'perm-1',
+      sessionId: 'perm-session-1',
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: '2026-04-03',
+      sessionOrigin: 'remote',
+      dirty: true,
+      finalSyncPending: true,
+      updatedAt: Date.now(),
+      enqueuedAt: Date.now(),
+      retryCount: 3,
+      lastError: 'permission-denied',
+      lastErrorAt: Date.now(),
+      permanent: true,
+    }]);
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+
     await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toBeVisible();
+    await expect(page.getByTestId('cloud-pending-indicator')).toHaveCount(0);
+  });
+
+  // WP-C (X38): sekwencja właściciela z 2026-08-26. Zakończenie offline jest
+  // CICHE (celebracja jak zwykle, bez toastu "zapisano lokalnie"), Dashboard ma
+  // chmurkę, a po powrocie sieci AutoSync domyka trening SAM (promocja
+  // provisional + final przez mock chmury e2e), chmurka znika, jest toast
+  // "Trening zapisany w chmurze".
+  test('offline finish is silent, cloud indicator shows, reconnect syncs by itself', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('fittracker_e2e_cloud_writes', 'true'));
+    const today = localToday();
+    // Rozgrzanie lazy chunków (Dashboard + WorkoutDay) ONLINE: offline nie da
+    // się ich dociągnąć, a nawigacja odbywa się zmianą hasha bez reloadu.
+    await navigateAndWait(page, '/');
+    await expect(page.getByTestId('dash-hero')).toBeVisible();
+    await navigateAndWait(page, `/workout/day-1?date=${today}`);
+    await expect(page.getByRole('button', { name: 'Rozpocznij trening' })).toBeEnabled();
+    await clearWorkoutDraftDb(page, E2E_USER_ID);
+
+    await page.context().setOffline(true);
+    await page.evaluate((route) => { window.location.hash = `#${route}`; }, `/workout/day-1?date=${today}&autostart=true`);
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard).toBeVisible();
+    await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('40');
+    await firstCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).first().fill('8');
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
+    await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(1);
+
+    await page.getByTestId('finish-workout').click();
+    await page.getByRole('button', { name: 'Tak, zakończ' }).click();
+
+    // Cisza: normalna sekwencja celebracji, zero toastu o zapisie lokalnym.
+    await expect(page.getByText('Trening ukończony!')).toBeVisible();
+    await expect(page.getByText('Trening zapisano lokalnie')).toHaveCount(0);
+
+    await page.evaluate(() => { window.location.hash = '#/'; });
+    await expect(page.getByTestId('cloud-pending-indicator')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toHaveCount(0);
+
+    // Sieć wraca: bez klikania trening ląduje w chmurze (mock), draft znika.
+    await page.context().setOffline(false);
+    await expect(page.getByTestId('cloud-pending-indicator')).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.getByText('Trening zapisany w chmurze').first()).toBeVisible();
+    await expect.poll(async () => readWorkoutDraftDb(page, E2E_USER_ID), { timeout: 10_000 }).toBeNull();
+    const cloud = await page.evaluate(() => JSON.parse(localStorage.getItem('fittracker_e2e_workouts') ?? '[]') as Array<{ dayId: string; completed: boolean; exercises: unknown[] }>);
+    const synced = cloud.find((w) => w.dayId === 'day-1' && w.completed);
+    expect(synced).toBeTruthy();
+    expect(synced?.exercises.length).toBeGreaterThan(0);
   });
 
   test('can start workout offline with provisional session and local-only status', async ({ page }) => {

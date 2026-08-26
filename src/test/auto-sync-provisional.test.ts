@@ -42,8 +42,14 @@ vi.mock('@/lib/workout-sync-queue', () => ({
     list: vi.fn(() => fixtures.queue),
     markRetry: vi.fn(),
     upsertFromDraft: vi.fn(),
+    // WP-C (X38): no-op w tym teście — backoff z fixtures ma zostać (test bug 37).
+    resetBackoff: vi.fn(),
+    remove: vi.fn(),
   },
 }));
+vi.mock('@/lib/sync-notification', () => ({ notifyDeferredSyncSuccess: vi.fn(async () => 'none') }));
+vi.mock('@/lib/app-lifecycle', () => ({ addAppStateListener: () => () => {} }));
+vi.mock('@/lib/network-status', () => ({ addNetworkListener: () => () => {} }));
 vi.mock('@/lib/workout-sync-engine', () => ({
   syncWorkoutSession: (...args: unknown[]) => fixtures.syncSpy(...(args as [string, string])),
 }));
@@ -111,7 +117,7 @@ describe('Z175: AutoSyncOnReconnect promuje provisional bez wchodzenia w trening
     expect((fixtures.syncSpy.mock.calls[0] as unknown[])[2]).toBe('final');
   });
 
-  it('bug 37 (X30): wpis w oknie backoffu (retryCount + swiezy lastErrorAt) nie jest auto-ponawiany', async () => {
+  it('bug 37 (X30): wpis w oknie backoffu (retryCount + swiezy lastErrorAt) nie jest auto-ponawiany (resetBackoff zamockowany jako no-op)', async () => {
     const finalDraft = draft({ sessionOrigin: 'remote', finalSyncPending: true, completedLocally: true });
     fixtures.drafts = [];
     fixtures.queue = [{
@@ -120,7 +126,8 @@ describe('Z175: AutoSyncOnReconnect promuje provisional bez wchodzenia w trening
       enqueuedAt: Date.now(),
       retryCount: 3,
       lastError: 'CLOUD_NOT_CONFIRMED: brak potwierdzenia',
-      lastErrorAt: Date.now() - 5_000,
+      // WP-C (X38): okno jittera moze byc krotkie; 200 ms jest ponizej dolnej granicy 1 s.
+      lastErrorAt: Date.now() - 200,
     }];
     renderComponent();
 
@@ -143,22 +150,28 @@ describe('Z175: AutoSyncOnReconnect promuje provisional bez wchodzenia w trening
       lastError: null,
       lastErrorAt: null,
     }];
-    fixtures.syncSpy.mockImplementationOnce(async (_uid: string, sessionId: string) => {
-      // Realny silnik po potwierdzonym final usuwa draft i odpowiadający wpis kolejki.
-      fixtures.drafts = [];
-      fixtures.queue = [];
-      return { success: true, sessionId };
-    });
+    // WP-C (X38): bez bramki navigator.onLine — próba idzie od razu (silnik
+    // sam mówi OFFLINE), a po 'online' final leci dokładnie raz mimo kopii w kolejce.
+    fixtures.syncSpy
+      .mockImplementationOnce(async (_uid: string, sessionId: string) => ({ success: false, error: 'OFFLINE', sessionId }))
+      .mockImplementationOnce(async (_uid: string, sessionId: string) => {
+        // Realny silnik po potwierdzonym final usuwa draft i odpowiadający wpis kolejki.
+        fixtures.drafts = [];
+        fixtures.queue = [];
+        return { success: true, sessionId };
+      });
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     renderComponent();
 
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    expect(fixtures.syncSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(fixtures.syncSpy).toHaveBeenCalledTimes(1));
+    expect((fixtures.syncSpy.mock.calls[0] as unknown[]).slice(0, 3)).toEqual(['u1', 's1', 'final']);
 
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     window.dispatchEvent(new Event('online'));
 
-    await waitFor(() => expect(fixtures.syncSpy).toHaveBeenCalledTimes(1));
-    expect((fixtures.syncSpy.mock.calls[0] as unknown[]).slice(0, 3)).toEqual(['u1', 's1', 'final']);
+    await waitFor(() => expect(fixtures.syncSpy).toHaveBeenCalledTimes(2));
+    expect((fixtures.syncSpy.mock.calls[1] as unknown[]).slice(0, 3)).toEqual(['u1', 's1', 'final']);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(fixtures.syncSpy).toHaveBeenCalledTimes(2);
   });
 });

@@ -1757,7 +1757,10 @@ test.describe('Auto-resume (Z49)', () => {
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByText('Trening zakończony lokalnie')).toBeVisible({ timeout: 7000 });
+    // WP-C (X38): zamiast karty sync z CTA Dashboard pokazuje pasywną chmurkę
+    // (AutoSync domknie sam); niezmiennik Z49 bez zmian: brak auto-resume.
+    await expect(page.getByTestId('cloud-pending-indicator')).toBeVisible({ timeout: 7000 });
+    await expect(page.getByText('Trening zakończony lokalnie')).toHaveCount(0);
     await expect(page).toHaveURL(/#\/?$/);
   });
 });

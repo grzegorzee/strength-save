@@ -98,7 +98,7 @@ vi.mock('@/hooks/useCustomExercises', () => ({
   useCustomExercises: () => ({ customExercises: [], addCustomExercise: vi.fn() }),
 }));
 vi.mock('@/hooks/useSyncCenterEntries', () => ({
-  useSyncCenterEntries: () => ({ listedEntries: [] }),
+  useSyncCenterEntries: () => ({ listedEntries: [], attentionEntries: [] }),
 }));
 vi.mock('@/lib/garmin-api', () => ({
   listLinkedDevices: vi.fn(async () => []),

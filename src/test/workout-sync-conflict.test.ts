@@ -28,6 +28,9 @@ describe('workout sync conflicts', () => {
     ['cloud validation mismatch', 'validation'],
     ['permission-denied', 'permission'],
     ['network timeout', 'offline'],
+    ['final save timed out after 30000 ms', 'timeout'],
+    ['FirebaseError: unauthenticated', 'permission'],
+    ['FirebaseError: invalid-argument: bad payload', 'invalid-argument'],
     ['unexpected', 'unknown'],
   ] as const)('classifies %s', (message, expected) => {
     expect(classifyWorkoutSyncError(message)).toBe(expected);

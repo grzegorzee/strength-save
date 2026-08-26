@@ -507,6 +507,7 @@ service cloud.firestore {
         'sync_retry_batch', 'sync_retry_auto',
         'sync_success', 'sync_failure',
         'sync_validation_failed', 'final_sync_pending',
+        'sync_offline_deferred', 'sync_success_deferred', 'sync_timeout',
         'sync_queue_enqueued', 'revision_conflict',
         'revision_conflict_auto_resolved', 'orphan_workout',
         'mixed_plan_exercise_set',
@@ -585,7 +586,7 @@ service cloud.firestore {
         && eventId == request.auth.uid + '-' + request.resource.data.key
         && request.resource.data.keys().hasOnly(['v', 'userId', 'type', 'key', 'payload', 'deepLink', 'createdAt', 'readAt'])
         && request.resource.data.v == 1
-        && request.resource.data.type in ['pr', 'badge', 'week', 'plan']
+        && request.resource.data.type in ['pr', 'badge', 'week', 'plan', 'sync']
         && request.resource.data.key is string
         && request.resource.data.key.size() >= 1
         && request.resource.data.key.size() <= 200

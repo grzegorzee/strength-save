@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
+import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
 
 // Wpisy Sync Center (Z52, ekstrakcja 1:1 z SyncCenterCard): aktywne drafty i wpisy
 // kolejki w jednej liście, z dedupem po sessionId (treść żyje wyłącznie w drafcie).
@@ -57,5 +58,18 @@ export const useSyncCenterEntries = (uid: string) => {
     return [...drafts, ...dedupedQueue];
   }, [drafts, queueEntries]);
 
-  return { isLoaded, drafts, queueEntries, setDrafts, setQueueEntries, listedEntries, reload };
+  // WP-C (X38): wpisy wymagające decyzji usera (błąd trwały albo konflikt
+  // rewizji). Zwykłe "czeka na sieć" obsługuje AutoSync po cichu; Sync Center
+  // w Profilu renderuje się TYLKO gdy ta lista jest niepusta (zasada 6: stan
+  // trwały ma wyjście: Spróbuj ponownie / Usuń szkic / Eksportuj).
+  const attentionEntries = useMemo<ListedSyncEntry[]>(() => {
+    const attentionIds = new Set(
+      queueEntries
+        .filter(entry => entry.permanent || isRevisionConflictError(entry.lastError))
+        .map(entry => entry.sessionId),
+    );
+    return listedEntries.filter(entry => attentionIds.has(entry.sessionId));
+  }, [listedEntries, queueEntries]);
+
+  return { isLoaded, drafts, queueEntries, setDrafts, setQueueEntries, listedEntries, attentionEntries, reload };
 };

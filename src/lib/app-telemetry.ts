@@ -16,6 +16,11 @@ export type TelemetryEventName =
   | 'sync_success'
   | 'sync_failure'
   | 'sync_validation_failed'
+  // WP-C (X38): dziura offline widoczna w telemetrii (incydent 2026-08-26:
+  // skorupy ad-hoc bez ćwiczeń i zero sygnału). Liczniki, nie treść.
+  | 'sync_offline_deferred'
+  | 'sync_success_deferred'
+  | 'sync_timeout'
   | 'final_sync_pending'
   | 'sync_queue_enqueued'
   | 'revision_conflict'

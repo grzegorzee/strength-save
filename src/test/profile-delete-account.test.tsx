@@ -80,7 +80,7 @@ vi.mock('@/components/StravaConnectionCard', () => ({ StravaConnectionCard: () =
 vi.mock('@/components/BackupSettings', () => ({ BackupSettings: () => null }));
 vi.mock('@/components/ConsentSettings', () => ({ ConsentSettings: () => null }));
 vi.mock('@/components/SyncCenterCard', () => ({ SyncCenterCard: () => null }));
-vi.mock('@/hooks/useSyncCenterEntries', () => ({ useSyncCenterEntries: () => ({ listedEntries: [] }) }));
+vi.mock('@/hooks/useSyncCenterEntries', () => ({ useSyncCenterEntries: () => ({ listedEntries: [], attentionEntries: [] }) }));
 
 import Profile from '@/pages/Profile';
 

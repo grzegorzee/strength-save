@@ -613,8 +613,10 @@ const Profile = () => {
 
       {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej
           karty. X36: NAD listą zwijanych sekcji — to alert o niezsynchronizowanych
-          sesjach, nie ustawienie, więc nie może chować się w zwiniętej sekcji. */}
-      {syncEntries.listedEntries.length > 0 && (
+          sesjach, nie ustawienie, więc nie może chować się w zwiniętej sekcji.
+          WP-C (X38): WYŁĄCZNIE wpisy trwałe/konflikty; zwykłe "czeka na sieć"
+          domyka AutoSync po cichu (wskaźnik chmurki na Dashboardzie/Historii). */}
+      {syncEntries.attentionEntries.length > 0 && (
         <div id="profile-sync" className="scroll-mt-20">
           <SyncCenterCard uid={uid} />
         </div>

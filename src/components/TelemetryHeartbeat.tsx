@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { flushTelemetryEvents } from '@/lib/app-telemetry';
+import { addAppStateListener } from '@/lib/app-lifecycle';
 
 export const TelemetryHeartbeat = () => {
   const { uid } = useCurrentUser();
@@ -17,22 +18,24 @@ export const TelemetryHeartbeat = () => {
     // domykają resztę: online (retry po offline), przejście w tło i pagehide
     // (ostatnia szansa przed ubiciem JS przez iOS). Powrót do foreground nie
     // flushuje — nic nowego nie mogło się zebrać, gdy JS był wstrzymany.
-    const flushWhenHidden = () => {
-      if (document.hidden) flush();
-    };
-
     flush();
 
     const interval = window.setInterval(flush, 5 * 60_000);
     window.addEventListener('online', flush);
     window.addEventListener('pagehide', flush);
-    document.addEventListener('visibilitychange', flushWhenHidden);
+    // WP-C (X38): przejście w tło przez app-lifecycle: natywnie appStateChange
+    // (visibilitychange w WKWebView bywa zawodne; to ostatnia szansa na flush
+    // liczników offline, np. sync_offline_deferred, zanim JS stanie), na webie
+    // ten sam helper nasłuchuje visibilitychange (jak dotąd).
+    const removeAppState = addAppStateListener((isActive) => {
+      if (!isActive) flush();
+    });
 
     return () => {
       window.clearInterval(interval);
       window.removeEventListener('online', flush);
       window.removeEventListener('pagehide', flush);
-      document.removeEventListener('visibilitychange', flushWhenHidden);
+      removeAppState();
     };
   }, [uid]);
 
