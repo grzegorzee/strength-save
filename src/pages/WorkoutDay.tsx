@@ -4,6 +4,9 @@ import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildPreStartWarmup, shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
+import { isWarmupPromptEnabled } from '@/lib/warmup-prompt';
+import { persistWarmupPrompt } from '@/lib/warmup-prompt-sync';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
 import { computeMilestones, diffMilestones } from '@/lib/achievements-utils';
@@ -476,10 +479,13 @@ const WorkoutDay = () => {
     displayDayNameForDateISO(d.dayName, d.weekday, targetDate, lang);
 
   // C-T2: prompt pre-start + plan rozgrzewki pod pierwsze ćwiczenie dnia.
+  // X37 WP-B: wariant (góra/dół/full body) z kategorii pierwszego ćwiczenia,
+  // poziom z onboardingu (początkujący = 4 min).
   const [preStartOpen, setPreStartOpen] = useState(false);
+  const trainingLevel = profile?.trainingProfile?.level;
   const preStartPlan = useMemo(() => {
     const first = day?.exercises[0];
-    if (!first) return buildPreStartWarmup({ exerciseName: '' });
+    if (!first) return buildPreStartWarmup({ exerciseName: '', level: trainingLevel });
     const firstSets = exerciseSets[first.id] ?? [];
     const workingWeightKg = firstSets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
     return buildPreStartWarmup({
@@ -487,8 +493,14 @@ const WorkoutDay = () => {
       category: exerciseLibrary.find((e) => e.name === first.name)?.category,
       isBodyweight: resolveIsBodyweight(first.name),
       workingWeightKg,
+      level: trainingLevel,
     });
-  }, [day, exerciseSets, resolveIsBodyweight]);
+  }, [day, exerciseSets, resolveIsBodyweight, trainingLevel]);
+  // X37 WP-B: pierwszy trening (0 ukończonych) dostaje w arkuszu zdanie
+  // "dlaczego rozgrzewka". Agregat all-time, fallback okno recent (e2e/offline).
+  const workoutAggregate = useWorkoutAggregate(uid);
+  const completedWorkoutsCount = workoutAggregate?.totals.workoutCount
+    ?? workouts.filter((w) => w.completed).length;
 
   useEffect(() => {
     daySnapshotRef.current = day
@@ -2979,13 +2991,20 @@ const WorkoutDay = () => {
 
       <DraftStatusNotice />
 
-      {/* C-T2: prompt pre-start — sesja powstaje DOKŁADNIE raz, po decyzji. */}
+      {/* C-T2: prompt pre-start: sesja powstaje DOKŁADNIE raz, po decyzji.
+          X37 WP-B: trzy akcje (rozgrzewka / pomiń dziś / nie proponuj więcej),
+          przy pierwszym treningu zdanie "dlaczego rozgrzewka". */}
       <Dialog open={preStartOpen} onOpenChange={setPreStartOpen}>
         <DialogContent className="max-w-sm" data-testid="prestart-sheet">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase">{t('warmup.prestart.title')}</DialogTitle>
-            <DialogDescription>{t('warmup.prestart.desc')}</DialogDescription>
+            <DialogDescription>{t('warmup.prestart.desc', { n: preStartPlan.estMinutes })}</DialogDescription>
           </DialogHeader>
+          {completedWorkoutsCount === 0 && (
+            <p className="rounded-lg bg-primary/[0.08] px-3 py-2 text-sm" data-testid="prestart-first-why">
+              {t('warmup.prestart.firstWhy')}
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             <Button
               className="kinetic-primary-button w-full"
@@ -3009,6 +3028,21 @@ const WorkoutDay = () => {
               }}
             >
               {t('warmup.prestart.skip')}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground"
+              data-testid="prestart-never"
+              disabled={isExplicitSaving}
+              onClick={() => {
+                setPreStartOpen(false);
+                // Cache od razu (następny start bez arkusza), mirror w profilu w tle.
+                void persistWarmupPrompt(uid, false);
+                // Toast PO starcie: TOAST_LIMIT = 1, toast startu sesji by go nadpisał.
+                void handleStartWorkout().then(() => toast({ title: t('warmup.prestart.neverToast') }));
+              }}
+            >
+              {t('warmup.prestart.never')}
             </Button>
           </div>
         </DialogContent>
@@ -3232,11 +3266,13 @@ const WorkoutDay = () => {
               }
               // C-T2: sheet rozgrzewki PRZED utworzeniem sesji — tylko świeży,
               // jawny start; resume/autostart (Watch/Garmin) idą prosto do startu.
+              // X37: wyłączone proponowanie (Profil > Trening) = prosto do startu.
               if (shouldOfferPreStartWarmup({
                 alreadyStarted: isWorkoutStarted,
                 hasDraftContent: currentPageDraft ? draftHasLiveContent(currentPageDraft) : false,
                 autostart,
                 viewingPast: isViewingPastWorkout,
+                warmupPrompt: isWarmupPromptEnabled(),
               })) {
                 setPreStartOpen(true);
                 return;

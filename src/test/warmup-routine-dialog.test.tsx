@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { buildPreStartWarmup } from '@/lib/prestart-warmup';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -10,14 +10,22 @@ import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 
 // Z162: dialog rozgrzewki jest KONTROLOWANY — stan odhaczeń mieszka w drafcie sesji
 // (WorkoutDay), nie w lokalnym useState dialogu. Zamknięcie dialogu nie kasuje postępu.
+// X37 WP-B: lista wg szablonu (tętno -> mobilność -> aktywacja) z aktywną
+// pozycją i "Dalej"; odliczanie pozycji czasowych TYLKO za flagą intervalTimers.
+
+const flags = vi.hoisted(() => ({ intervalTimers: false }));
+vi.mock('@/lib/feature-flags', () => ({
+  FEATURE_FLAGS: { get intervalTimers() { return flags.intervalTimers; }, workoutTimers: true },
+}));
 
 const noop = () => {};
+const chestPlan = () => buildPreStartWarmup({ exerciseName: 'Wyciskanie sztangi na ławce płaskiej', category: 'chest', workingWeightKg: 80 });
 
 const dialog = (over: Record<string, unknown> = {}) => (
   <LanguageProvider><UnitProvider>
     <WarmupRoutineDialog
       focus="Klatka"
-      plan={buildPreStartWarmup({ exerciseName: 'Wyciskanie sztangi na ławce płaskiej', category: 'chest', workingWeightKg: 80 })}
+      plan={chestPlan()}
       open
       onOpenChange={noop}
       checked={new Set<string>()}
@@ -33,19 +41,20 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
+    flags.intervalTimers = false;
   });
 
-  it('klik w pozycję woła onToggle z nameKey (C-T2: klucz i18n pozycji)', () => {
+  it('klik w pozycję woła onToggle z nameKey (klucz i18n pozycji)', () => {
     const onToggle = vi.fn();
     renderDialog({ onToggle });
-    fireEvent.click(screen.getByText(translate('pl', 'warmup.v2.dynArmCircles')));
-    expect(onToggle).toHaveBeenCalledWith('warmup.v2.dynArmCircles');
+    fireEvent.click(screen.getByText(translate('pl', 'warmup.v3.armCircles')));
+    expect(onToggle).toHaveBeenCalledWith('warmup.v3.armCircles');
   });
 
   it('odhaczenia przychodzą z propsa i przeżywają cykl zamknij/otwórz', () => {
-    const checked = new Set(['warmup.v2.dynArmCircles']);
+    const checked = new Set(['warmup.v3.armCircles']);
     const { rerender } = renderDialog({ checked });
-    const item = () => screen.getByText(translate('pl', 'warmup.v2.dynArmCircles'));
+    const item = () => screen.getByText(translate('pl', 'warmup.v3.armCircles'));
     expect(item().className).toContain('line-through');
 
     rerender(dialog({ checked, open: false }));
@@ -54,32 +63,107 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(item().className).toContain('line-through');
   });
 
-  it('C-T2: licznik liczy pozycje domyślne (cardio+dynamiczne), stretching zwinięty', () => {
-    // Klucz stretchingu nie zawyża licznika; stretching wymaga jawnego rozwinięcia.
-    const checked = new Set(['warmup.v2.dynArmCircles', 'stretch.pigeonPose']);
+  it('licznik liczy pozycje szablonu (9 dla góry), stretching zwinięty i nie zawyża', () => {
+    const checked = new Set(['warmup.v3.armCircles', 'stretch.pigeonPose']);
     renderDialog({ checked });
-    expect(screen.getByText(/1\/4/)).toBeTruthy();
+    expect(screen.getByText(/1\/9/)).toBeTruthy();
     expect(screen.queryByText(translate('pl', 'comp.warmup.stretching'))).toBeNull();
     fireEvent.click(screen.getByTestId('warmup-stretch-toggle'));
-    expect(screen.getAllByTestId('warmup-item').length).toBeGreaterThan(4);
+    expect(screen.getAllByTestId('warmup-item').length).toBeGreaterThan(9);
   });
 
-  it('C-T2: sztanga dostaje gryf w rampie, copy mówi o % ciężaru roboczego', () => {
+  it('X37: fazy w kolejności tętno -> mobilność -> aktywacja; badge z czasem albo powtórzeniami ("na stronę")', () => {
+    renderDialog();
+    const phases = ['pulse', 'mobility', 'activation'].map((p) => screen.getByTestId(`warmup-phase-${p}`));
+    expect(phases[0].compareDocumentPosition(phases[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(phases[1].compareDocumentPosition(phases[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(phases[0].textContent).toContain('Tętno');
+    expect(phases[0].textContent).toContain('60 s');
+    expect(phases[1].textContent).toContain('× 10 na stronę');
+    expect(phases[2].textContent).toContain('× 15');
+  });
+
+  it('X37: aktywna = pierwsza nieodhaczona; "Dalej" odhacza ją (onToggle z jej kluczem)', () => {
+    const onToggle = vi.fn();
+    renderDialog({ onToggle, checked: new Set(['warmup.v3.jacks']) });
+    const active = document.querySelector('[data-testid="warmup-item"][data-active="true"]');
+    expect(active?.textContent).toContain(translate('pl', 'warmup.v3.heelsArmCircles'));
+    fireEvent.click(screen.getByTestId('warmup-next'));
+    expect(onToggle).toHaveBeenCalledWith('warmup.v3.heelsArmCircles');
+  });
+
+  it('X37: wszystko odhaczone = bez "Dalej", komunikat "Rozgrzewka zrobiona", Zakończ zostaje', () => {
+    const checked = new Set(chestPlan().items.map((i) => i.key));
+    renderDialog({ checked });
+    expect(screen.queryByTestId('warmup-next')).toBeNull();
+    expect(screen.getByText('Rozgrzewka zrobiona')).toBeTruthy();
+    expect(screen.getByTestId('warmup-finish')).toBeTruthy();
+  });
+
+  it('X37: bez flagi intervalTimers pozycja czasowa NIE ma odliczania (tylko Dalej)', () => {
+    renderDialog();
+    expect(screen.queryByTestId('warmup-countdown-start')).toBeNull();
+    expect(screen.queryByTestId('warmup-countdown')).toBeNull();
+    expect(screen.getByTestId('warmup-next')).toBeTruthy();
+  });
+
+  it('sztanga dostaje gryf w rampie, copy mówi o % ciężaru roboczego (50/70/85)', () => {
     renderDialog({});
     const ramp = screen.getByTestId('warmup-ramp');
     expect(ramp.textContent).toContain(translate('pl', 'warmup.v2.rampTitle'));
     expect(ramp.textContent).toContain('ciężaru roboczego');
     expect(ramp.textContent).toContain(translate('pl', 'warmup.v2.rampBar'));
+    expect(ramp.textContent).toContain('85%');
     expect(ramp.textContent).not.toContain('1RM');
   });
 
-  it('C-T2: hantle bez pustego gryfu (start od lekkiego ciężaru)', () => {
+  it('hantle bez pustego gryfu (start od lekkiego ciężaru)', () => {
     renderDialog({
       plan: buildPreStartWarmup({ exerciseName: 'Wyciskanie hantli', category: 'chest', workingWeightKg: 30 }),
     });
     const ramp = screen.getByTestId('warmup-ramp');
     expect(ramp.textContent).toContain(translate('pl', 'warmup.v2.rampLight'));
     expect(ramp.textContent).not.toContain(translate('pl', 'warmup.v2.rampBar'));
+  });
+});
+
+describe('WarmupRoutineDialog: odliczanie pozycji czasowej za flagą intervalTimers (X37)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('app-language', 'pl');
+    flags.intervalTimers = true;
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    flags.intervalTimers = false;
+  });
+
+  it('start odliczania 60 s -> po upływie czasu pozycja odhaczona (onToggle), deadline-based', () => {
+    const onToggle = vi.fn();
+    renderDialog({ onToggle });
+    fireEvent.click(screen.getByTestId('warmup-countdown-start'));
+    expect(screen.getByTestId('warmup-countdown').textContent).toContain('60s');
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByTestId('warmup-countdown').textContent).toContain('30s');
+    expect(onToggle).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(31_000); });
+    expect(onToggle).toHaveBeenCalledWith('warmup.v3.jacks');
+    expect(screen.queryByTestId('warmup-countdown')).toBeNull();
+  });
+
+  it('Stop w trakcie = bez odhaczenia; pozycja na powtórzenia nie ma przycisku odliczania', () => {
+    const onToggle = vi.fn();
+    const { rerender } = renderDialog({ onToggle });
+    fireEvent.click(screen.getByTestId('warmup-countdown-start'));
+    act(() => { vi.advanceTimersByTime(5_000); });
+    fireEvent.click(screen.getByText(translate('pl', 'comp.warmup.stop')));
+    expect(screen.queryByTestId('warmup-countdown')).toBeNull();
+    expect(onToggle).not.toHaveBeenCalled();
+    // Aktywna = krążenia ramion (powtórzenia): bez odliczania.
+    rerender(dialog({ onToggle, checked: new Set(['warmup.v3.jacks', 'warmup.v3.heelsArmCircles']) }));
+    expect(screen.queryByTestId('warmup-countdown-start')).toBeNull();
+    expect(screen.getByTestId('warmup-next')).toBeTruthy();
   });
 });
 
@@ -129,6 +213,7 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
+    flags.intervalTimers = false;
   });
 
   // Radix renderuje treść dialogu w portalu (poza container z render()).
@@ -143,7 +228,7 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
 
     // 2. Odhaczenie 3 pozycji przechodzi przez builder snapshotu (jak saveDraftSnapshot).
     const afterToggles = buildWorkoutDraftSnapshot(contextFor(start), {
-      warmupChecked: ['warmup.v2.dynArmCircles', 'warmup.v2.dynPushups', 'warmup.v2.cardio'],
+      warmupChecked: ['warmup.v3.jacks', 'warmup.v3.heelsArmCircles', 'warmup.v3.armCircles'],
     });
     expect(afterToggles?.warmupChecked).toHaveLength(3);
     expect(afterToggles?.version).toBe(4); // zmiana treści = bump wersji
@@ -160,7 +245,7 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
     expect(struckItems()).toBe(0);
   });
 
-  it('niezmiennik: legacy draft bez warmupChecked hydratuje się bez błędu i nie gubi ćwiczeń dnia', () => {
+  it('niezmiennik: legacy draft bez warmupChecked (albo ze starymi kluczami v2) hydratuje się bez błędu i nie gubi ćwiczeń dnia', () => {
     const legacy = draftBase();
     const snapshot = buildWorkoutDraftSnapshot(contextFor(legacy));
 
@@ -169,6 +254,9 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
     expect(snapshot?.exerciseSets).toEqual(legacy.exerciseSets);
 
     render(dialog({ checked: new Set(snapshot?.warmupChecked ?? []) }));
+    expect(struckItems()).toBe(0);
+    // Stare klucze v2 z draftu sprzed X37: nic nie pasuje, lista czysta, zero wyjątków.
+    render(dialog({ checked: new Set(['warmup.v2.cardio', 'warmup.v2.dynArmCircles']) }));
     expect(struckItems()).toBe(0);
   });
 });

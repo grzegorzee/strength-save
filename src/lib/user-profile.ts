@@ -99,6 +99,8 @@ export interface UserProfile {
     /** X35b: jedno źródło prawdy o przerwach (RestSettings; walidacja normalizeRestSettings). */
     rest?: Partial<RestSettings>;
     timerSound?: boolean;
+    /** X37 WP-B: proponuj rozgrzewkę przed treningiem (arkusz przed startem); brak pola = true. */
+    warmupPrompt?: boolean;
     /** F-T2: id koloru przewodniego (accent-theme); brak = limonka. */
     accentColor?: string;
     /** F-T3: zapamiętany adres odbiorcy maili z podsumowaniem (np. trener). */
