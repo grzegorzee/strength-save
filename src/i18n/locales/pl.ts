@@ -997,6 +997,7 @@ export const pl = {
   'import.done': 'Zaimportowano {n} treningów. Znajdziesz je w Historii, rekordach i na wykresach.',
   // generator rozgrzewki (Z108)
   'warmupgen.button': 'Wygeneruj rozgrzewkę (% ciężaru roboczego)',
+  'warmupgen.addEmpty': 'Wstaw pustą serię rozgrzewkową (ciężar wpiszesz sam)',
   // kalkulator talerzy (Z107)
   'rest.bar.title': 'Przerwa',
   'rest.bar.next': 'Następne: {value}',

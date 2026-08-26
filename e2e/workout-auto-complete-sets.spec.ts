@@ -33,9 +33,13 @@ test.describe('WP-D (X37): aktywna seria i auto-odhaczanie przy Zakończ', () =>
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
 
-    // Dokładnie jeden aktywny wiersz w karcie, z obrysem i checkmarkiem "(aktywna)".
-    const activeRow = firstCard.locator('.set-row-active');
+    // Dokładnie jeden aktywny wiersz w karcie (cel toura `data-tour="set-inputs"`
+    // siedzi tylko na aktywnym wierszu), z obrysem i checkmarkiem "(aktywna)".
+    // X38 WP-A: bez lewego paska akcentu (.set-row-active usunięte), obrys zostaje.
+    const activeRow = firstCard.locator('[data-tour="set-inputs"]');
     await expect(activeRow).toHaveCount(1);
+    await expect(activeRow).toHaveClass(/ring-primary\/70/);
+    await expect(firstCard.locator('.set-row-active')).toHaveCount(0);
     await expect(activeRow.getByRole('button', { name: /\(aktywna\)/ })).toBeVisible();
     await expect(activeRow.getByLabel(/Set 1, Powt\./)).toBeVisible();
 
@@ -43,10 +47,11 @@ test.describe('WP-D (X37): aktywna seria i auto-odhaczanie przy Zakończ', () =>
     await firstCard.getByLabel(/Set 1, (kg|lbs)/).first().fill('60');
     await firstCard.getByLabel(/Set 1, Powt\./).first().fill('8');
     await activeRow.getByRole('button', { name: /\(aktywna\)/ }).click();
-    await expect(firstCard.locator('.set-row-active')).toHaveCount(1);
-    await expect(firstCard.locator('.set-row-active').getByLabel(/Set 2, Powt\./)).toBeVisible();
+    await expect(firstCard.locator('[data-tour="set-inputs"]')).toHaveCount(1);
+    await expect(firstCard.locator('[data-tour="set-inputs"]')).toHaveClass(/ring-primary\/70/);
+    await expect(firstCard.locator('[data-tour="set-inputs"]').getByLabel(/Set 2, Powt\./)).toBeVisible();
 
-    // Zero poziomego scrolla po wyróżnieniu wiersza (pasek akcentu to pseudo-element).
+    // Zero poziomego scrolla po wyróżnieniu wiersza.
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
@@ -70,8 +75,8 @@ test.describe('WP-D (X37): aktywna seria i auto-odhaczanie przy Zakończ', () =>
       await firstCard.getByLabel(new RegExp(`Set ${n}, Powt\\.`)).first().fill('8');
     }
 
-    // Odhacz tylko serię 1 (kolejność checkmarków: [0] = rozgrzewka W, [1] = Set 1).
-    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    // Odhacz tylko serię 1 (X38: bez domyślnej W pierwszy checkmark = Set 1).
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
     await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(1);
     await expect(page.getByTestId('session-stats')).toContainText('1');
 
@@ -83,8 +88,8 @@ test.describe('WP-D (X37): aktywna seria i auto-odhaczanie przy Zakończ', () =>
     // `.first()`: Radix duplikuje treść toastu w regionie aria-live.
     await expect(page.getByText(new RegExp(`Odhaczono ${workingCount - 1} seri`)).first()).toBeVisible();
 
-    // Draft (ta sama ścieżka co ręczne odhaczenie): komplet serii roboczych odhaczony,
-    // rozgrzewka (pusta) nietknięta.
+    // Draft (ta sama ścieżka co ręczne odhaczenie): komplet serii roboczych odhaczony.
+    // X38 WP-A: start z planu nie fabrykuje żadnej serii W w drafcie.
     await expect.poll(async () => {
       const draft = await readWorkoutDraftDb(page, 'e2e-test-user') as DraftShape;
       const sets = Object.values(draft?.exerciseSets ?? {}).flat();
@@ -92,7 +97,7 @@ test.describe('WP-D (X37): aktywna seria i auto-odhaczanie przy Zakończ', () =>
     }, { timeout: 10000 }).toBe(workingCount);
     const draft = await readWorkoutDraftDb(page, 'e2e-test-user') as DraftShape;
     const warmups = Object.values(draft?.exerciseSets ?? {}).flat().filter((s) => s.isWarmup);
-    expect(warmups.every((s) => !s.completed)).toBe(true);
+    expect(warmups).toHaveLength(0);
   });
 
   test('puste serie zostają puste: Zakończ bez żadnej odhaczonej serii daje toast pustego treningu', async ({ page }) => {

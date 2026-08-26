@@ -159,10 +159,11 @@ export const parseSetCount = (setsStr: string): number => {
   return match ? parseInt(match[1], 10) : 3;
 };
 
+// X38 WP-A: nowa lista serii = TYLKO serie robocze. Rozgrzewkę dokłada user
+// chipem „Rozgrzewka" w karcie (rampa z ciężaru albo pusty wiersz W); import CSV
+// i generator rampy tworzą W jawnie.
 export const createEmptySets = (count: number): SetData[] => {
-  const sets: SetData[] = [
-    { reps: 0, weight: 0, completed: false, isWarmup: true },
-  ];
+  const sets: SetData[] = [];
   for (let i = 0; i < count; i++) {
     sets.push({ reps: 0, weight: 0, completed: false });
   }
@@ -202,16 +203,8 @@ export const createPrefilledSets = (
     return createEmptySets(setCount);
   }
 
+  // X38 WP-A: historyczne serie W z poprzedniej sesji NIE są kopiowane.
   const prevWorking = previousSets.filter(s => !s.isWarmup);
-
-  // Warmup set from previous
-  const prevWarmup = previousSets.find(s => s.isWarmup);
-  const warmupSet: SetData = {
-    reps: prevWarmup?.reps ?? 0,
-    weight: isBodyweight ? 0 : (prevWarmup?.weight ?? 0),
-    completed: false,
-    isWarmup: true,
-  };
 
   // Working sets: pre-fill OSTATNIĄ wagą (powtórzenie poprzedniego treningu), bez auto-progresji.
   // Sugestię podbicia (+1/+2.5 kg) pokazuje osobno badge "CEL" — user sam decyduje, czy podnieść.
@@ -230,7 +223,7 @@ export const createPrefilledSets = (
     }
   }
 
-  return [warmupSet, ...workingSets];
+  return workingSets;
 };
 
 export const sanitizeSets = (
@@ -241,8 +234,8 @@ export const sanitizeSets = (
     return createEmptySets(expectedCount);
   }
   // Z184: ZERO fabrykowania wiersza rozgrzewkowego. Draft jest jedynym źródłem prawdy
-  // o seriach — W przy tworzeniu NOWEJ listy dodają createEmptySets/createPrefilledSets,
-  // a usunięta przez usera rozgrzewka nie może wracać po resume.
+  // o seriach — W dokłada wyłącznie user (chip „Rozgrzewka", X38), a usunięta
+  // przez usera rozgrzewka nie może wracać po resume.
   return sets.map(set => ({
     reps: set?.reps ?? 0,
     weight: set?.weight ?? 0,

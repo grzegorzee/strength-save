@@ -74,13 +74,12 @@ describe('parseSetCount', () => {
 });
 
 describe('createEmptySets', () => {
-  it('creates warmup + working sets', () => {
+  // X38 WP-A: bez domyślnej serii W. Rozgrzewkę dokłada user chipem „Rozgrzewka"
+  // w karcie (rampa albo pusty wiersz), nie fabryka pustych serii.
+  it('creates only working sets (no default warm-up row)', () => {
     const sets = createEmptySets(3);
-    expect(sets).toHaveLength(4); // 1 warmup + 3 working
-    expect(sets[0].isWarmup).toBe(true);
-    expect(sets[1].isWarmup).toBeUndefined();
-    expect(sets[2].isWarmup).toBeUndefined();
-    expect(sets[3].isWarmup).toBeUndefined();
+    expect(sets).toHaveLength(3);
+    expect(sets.some(s => s.isWarmup)).toBe(false);
   });
 
   it('all sets start at 0 reps, 0 weight, not completed', () => {
@@ -92,23 +91,27 @@ describe('createEmptySets', () => {
     });
   });
 
-  it('creates at least warmup set even with 0 count', () => {
-    const sets = createEmptySets(0);
-    expect(sets).toHaveLength(1);
-    expect(sets[0].isWarmup).toBe(true);
+  it('0 count = 0 rows (no fabricated warm-up)', () => {
+    expect(createEmptySets(0)).toHaveLength(0);
+  });
+
+  it('start z planu: liczba serii z zapisu planu, zero W (X38)', () => {
+    const sets = createPrefilledSets(parseSetCount('4 x 8-10'), undefined, false, { weight: 60, reps: 8 });
+    expect(sets).toHaveLength(4);
+    expect(sets.some(s => s.isWarmup)).toBe(false);
   });
 });
 
 describe('sanitizeSets', () => {
-  it('returns empty sets when undefined', () => {
+  it('returns empty sets when undefined (X38: only working rows, no W)', () => {
     const sets = sanitizeSets(undefined, 3);
-    expect(sets).toHaveLength(4); // 1 warmup + 3 working
-    expect(sets[0].isWarmup).toBe(true);
+    expect(sets).toHaveLength(3);
+    expect(sets.some(s => s.isWarmup)).toBe(false);
   });
 
   it('returns empty sets when empty array', () => {
     const sets = sanitizeSets([], 3);
-    expect(sets).toHaveLength(4);
+    expect(sets).toHaveLength(3);
   });
 
   it('Z184: NIE dopisuje wiersza rozgrzewkowego, gdy zapis go nie ma (usunięta W nie wraca po resume)', () => {
@@ -443,8 +446,9 @@ describe('createPrefilledSets with bodyweight', () => {
       { reps: 15, weight: 0, completed: true },
     ];
     const result = createPrefilledSets(2, prev, true);
+    expect(result).toHaveLength(2);
+    expect(result[0].weight).toBe(0);
     expect(result[1].weight).toBe(0);
-    expect(result[2].weight).toBe(0);
   });
 
   it('pre-fill bierze OSTATNIĄ wagę bez auto-progresji (regresja #7: 14 → 14, nie 15)', () => {
@@ -454,9 +458,32 @@ describe('createPrefilledSets with bodyweight', () => {
       { reps: 15, weight: 14, completed: true },
     ];
     const result = createPrefilledSets(2, prev, false);
-    // [warmup, set1, set2] — working sety mają ostatnią wagę 14, nie podbite do 15.
+    // [set1, set2] — working sety mają ostatnią wagę 14, nie podbite do 15.
+    expect(result[0].weight).toBe(14);
     expect(result[1].weight).toBe(14);
-    expect(result[2].weight).toBe(14);
+  });
+
+  it('X38: historyczna seria W z poprzedniej sesji NIE jest kopiowana do nowej listy', () => {
+    const prev = [
+      { reps: 8, weight: 40, completed: true, isWarmup: true },
+      { reps: 3, weight: 60, completed: true, isWarmup: true },
+      { reps: 8, weight: 80, completed: true },
+    ];
+    const result = createPrefilledSets(3, prev, false);
+    expect(result).toHaveLength(3);
+    expect(result.some(s => s.isWarmup)).toBe(false);
+    expect(result.every(s => s.weight === 80 && s.reps === 8)).toBe(true);
+  });
+
+  it('X38: dodanie ćwiczenia ad-hoc (3 serie z historii po nazwie) daje same robocze', () => {
+    const prev = [
+      { reps: 0, weight: 0, completed: false, isWarmup: true },
+      { reps: 10, weight: 22.5, completed: true },
+    ];
+    const result = createPrefilledSets(3, prev, false);
+    expect(result).toHaveLength(3);
+    expect(result.some(s => s.isWarmup)).toBe(false);
+    expect(result[0]).toMatchObject({ weight: 22.5, reps: 10, completed: false });
   });
 
   it('pre-fill przenosi nowe pola typów serii: durationSec/distanceM/assistWeight (Z105)', () => {
@@ -465,17 +492,18 @@ describe('createPrefilledSets with bodyweight', () => {
       { reps: 8, weight: 0, completed: true, assistWeight: 25 },
     ];
     const result = createPrefilledSets(2, prev, false);
-    expect(result[1].durationSec).toBe(60);
-    expect(result[1].distanceM).toBe(40);
-    expect(result[2].assistWeight).toBe(25);
+    expect(result[0].durationSec).toBe(60);
+    expect(result[0].distanceM).toBe(40);
+    expect(result[1].assistWeight).toBe(25);
     // Pola nieobecne w źródle nie pojawiają się jako undefined-klucze.
-    expect(Object.keys(result[2])).not.toContain('durationSec');
+    expect(Object.keys(result[1])).not.toContain('durationSec');
   });
 
   it('pre-fill działa dla serii czysto czasowej (reps=0, weight=0, tylko durationSec)', () => {
     const prev = [{ reps: 0, weight: 0, completed: true, durationSec: 90 }];
     const result = createPrefilledSets(1, prev, false);
-    expect(result[1].durationSec).toBe(90);
+    expect(result).toHaveLength(1);
+    expect(result[0].durationSec).toBe(90);
   });
 });
 
@@ -486,25 +514,25 @@ describe('createPrefilledSets z celem tygodniowym (Z120)', () => {
     { reps: 8, weight: 60, completed: true },
   ];
 
-  it('cel nadpisuje wagę i powtórzenia working setów (warmup bez zmian)', () => {
+  it('cel nadpisuje wagę i powtórzenia working setów (bez W z historii, X38)', () => {
     const result = createPrefilledSets(2, prev, false, { weight: 62.5, reps: 6 });
-    expect(result[0].isWarmup).toBe(true);
-    expect(result[0].weight).toBe(40);
-    expect(result[1]).toMatchObject({ weight: 62.5, reps: 6, completed: false });
-    expect(result[2]).toMatchObject({ weight: 62.5, reps: 6 });
+    expect(result).toHaveLength(2);
+    expect(result.some(s => s.isWarmup)).toBe(false);
+    expect(result[0]).toMatchObject({ weight: 62.5, reps: 6, completed: false });
+    expect(result[1]).toMatchObject({ weight: 62.5, reps: 6 });
   });
 
   it('cel tylko z powtórzeniami (bodyweight): waga zostaje 0', () => {
     const bwPrev = [{ reps: 10, weight: 0, completed: true }];
     const result = createPrefilledSets(2, bwPrev, true, { weight: null, reps: 11 });
-    expect(result[1].weight).toBe(0);
-    expect(result[1].reps).toBe(11);
+    expect(result[0].weight).toBe(0);
+    expect(result[0].reps).toBe(11);
   });
 
   it('bez celu zachowanie jak dotychczas (powtórzenie poprzedniego treningu)', () => {
     const result = createPrefilledSets(2, prev, false, null);
-    expect(result[1].weight).toBe(60);
-    expect(result[1].reps).toBe(8);
+    expect(result[0].weight).toBe(60);
+    expect(result[0].reps).toBe(8);
   });
 
   it('cel nie wypełnia serii, gdy nie ma poprzednich (start = puste sety)', () => {

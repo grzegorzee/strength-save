@@ -982,6 +982,7 @@ export const en: Record<keyof typeof pl, string> = {
   'import.writing': 'Writing... {pct}%',
   'import.done': 'Imported {n} workouts. Find them in History, records and charts.',
   'warmupgen.button': 'Generate warmup (% of working weight)',
+  'warmupgen.addEmpty': 'Insert an empty warm-up set (enter the weight yourself)',
   'rest.bar.title': 'Rest',
   'rest.bar.next': 'Next: {value}',
   'rest.bar.skip': 'Skip',
