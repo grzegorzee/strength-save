@@ -2,30 +2,63 @@ import { describe, expect, it } from 'vitest';
 import { generateWarmupSets } from '@/lib/warmup-generator';
 import { computePlates } from '@/lib/plate-calculator';
 
-describe('generateWarmupSets (Z108)', () => {
-  it('schemat: pusty gryf x10, 50% x8, 70% x5, 90% x2 (zaokrąglanie do 2.5)', () => {
+// X37 WP-B: procenty rampy wg researchu (Nippard, RP, Barbell Logic):
+// sztanga gryf x8, 50% x5, 70% x3, 85% x1; roboczy <60 kg: gryf x8, 60% x4,
+// 85% x1; >150 kg dodatkowo 40% x5. Hantle/maszyna: 50% x8, 75% x3.
+describe('generateWarmupSets (Z108 -> X37)', () => {
+  it('schemat: pusty gryf x8, 50% x5, 70% x3, 85% x1 (zaokrąglanie do 2.5)', () => {
     const sets = generateWarmupSets(100, 'weight_reps', 20)!;
     expect(sets).toEqual([
-      { reps: 10, weight: 20, completed: false, isWarmup: true },
-      { reps: 8, weight: 50, completed: false, isWarmup: true },
-      { reps: 5, weight: 70, completed: false, isWarmup: true },
-      { reps: 2, weight: 90, completed: false, isWarmup: true },
+      { reps: 8, weight: 20, completed: false, isWarmup: true },
+      { reps: 5, weight: 50, completed: false, isWarmup: true },
+      { reps: 3, weight: 70, completed: false, isWarmup: true },
+      { reps: 1, weight: 85, completed: false, isWarmup: true },
     ]);
   });
 
-  it('zaokrągla do 2.5 kg', () => {
+  it('zaokrągla do 2.5 kg w dół', () => {
     const sets = generateWarmupSets(87.5, 'weight_reps', 20)!;
-    // 50% z 87.5 = 43.75 -> 42.5 (najbliższe 2.5); 70% = 61.25 -> 60; 90% = 78.75 -> 77.5
-    expect(sets.map((s) => s.weight)).toEqual([20, 42.5, 60, 77.5]);
+    // 50% z 87.5 = 43.75 -> 42.5; 70% = 61.25 -> 60; 85% = 74.375 -> 72.5
+    expect(sets.map((s) => s.weight)).toEqual([20, 42.5, 60, 72.5]);
+  });
+
+  it('roboczy <60 kg: krótsza rampa gryf x8, 60% x4, 85% x1', () => {
+    const sets = generateWarmupSets(50, 'weight_reps', 20)!;
+    expect(sets).toEqual([
+      { reps: 8, weight: 20, completed: false, isWarmup: true },
+      { reps: 4, weight: 30, completed: false, isWarmup: true },
+      { reps: 1, weight: 42.5, completed: false, isWarmup: true },
+    ]);
+  });
+
+  it('roboczy >150 kg: dodatkowo 40% x5 przed 50%', () => {
+    const sets = generateWarmupSets(180, 'weight_reps', 20)!;
+    // 40% = 72 -> 70; 50% = 90; 70% = 126 -> 125; 85% = 153 -> 152.5
+    expect(sets.map((s) => [s.weight, s.reps])).toEqual([[20, 8], [70, 5], [90, 5], [125, 3], [152.5, 1]]);
   });
 
   it('pomija serie z ciężarem nie większym niż gryf', () => {
-    // 50% z 30 = 15 <= 20 (gryf) -> pominięte; 70% = 21 -> 20 (floor) pominięte; 90% = 27 -> 25.
+    // Roboczy 30 (<60): 60% = 18 -> 17.5 <= 20 (gryf) pominięte; 85% = 25.5 -> 25.
     const sets = generateWarmupSets(30, 'weight_reps', 20)!;
     expect(sets).toEqual([
-      { reps: 10, weight: 20, completed: false, isWarmup: true },
-      { reps: 2, weight: 25, completed: false, isWarmup: true },
+      { reps: 8, weight: 20, completed: false, isWarmup: true },
+      { reps: 1, weight: 25, completed: false, isWarmup: true },
     ]);
+  });
+
+  it('hantle / maszyna: bez pustego gryfu, 50% x8 i 75% x3', () => {
+    for (const equipment of ['dumbbell', 'machine'] as const) {
+      const sets = generateWarmupSets(60, 'weight_reps', 20, undefined, equipment)!;
+      expect(sets).toEqual([
+        { reps: 8, weight: 30, completed: false, isWarmup: true },
+        { reps: 3, weight: 45, completed: false, isWarmup: true },
+      ]);
+    }
+  });
+
+  it('hantle: lekkie ciężary nie znikają przez próg gryfu (12 kg -> 5 kg x8)', () => {
+    const sets = generateWarmupSets(12, 'weight_reps', 20, undefined, 'dumbbell')!;
+    expect(sets.map((s) => s.weight)).toEqual([5, 7.5]);
   });
 
   it('bodyweight/duration => null (rozgrzewka procentowa nie ma sensu)', () => {
@@ -36,7 +69,7 @@ describe('generateWarmupSets (Z108)', () => {
 
   it('ciężar roboczy nie większy niż gryf => tylko pusty gryf', () => {
     const sets = generateWarmupSets(20, 'weight_reps', 20)!;
-    expect(sets).toEqual([{ reps: 10, weight: 20, completed: false, isWarmup: true }]);
+    expect(sets).toEqual([{ reps: 8, weight: 20, completed: false, isWarmup: true }]);
   });
 
   it('zero/ujemny ciężar roboczy => null', () => {
@@ -47,17 +80,16 @@ describe('generateWarmupSets (Z108)', () => {
 
 // X17B Z134.2: rozgrzewka zaokrąglana do REALNIE dostępnych talerzy, nie do
 // abstrakcyjnych 2,5 kg. Wzorzec Hevy: nie proponuj ciężaru, którego user nie złoży.
-describe('generateWarmupSets — zaokrąglanie do inwentarza (Z134.2)', () => {
+describe('generateWarmupSets: zaokrąglanie do inwentarza (Z134.2)', () => {
   const inv = (...items: Array<[number, number]>) => items.map(([weightKg, count]) => ({ weightKg, count }));
 
   it('bez inwentarza zachowuje dotychczasowe zaokrąglanie do 2.5', () => {
     const sets = generateWarmupSets(87.5, 'weight_reps', 20)!;
-    expect(sets.map((s) => s.weight)).toEqual([20, 42.5, 60, 77.5]);
+    expect(sets.map((s) => s.weight)).toEqual([20, 42.5, 60, 72.5]);
   });
 
   it('KAŻDY zaproponowany ciężar da się złożyć z posiadanych talerzy', () => {
     // Siłownia z samymi 20 kg (bar 20): składalne wyłącznie 20, 60, 100, 140...
-    // Stare zaokrąglanie do 2,5 dawało 60/84/108 — 84 i 108 nie do złożenia.
     const inventory = inv([20, 8]);
     const sets = generateWarmupSets(120, 'weight_reps', 20, inventory)!;
     for (const s of sets) {
@@ -80,7 +112,7 @@ describe('generateWarmupSets — zaokrąglanie do inwentarza (Z134.2)', () => {
   });
 
   it('ubogi inwentarz nie generuje duplikatów serii', () => {
-    // Tylko 25 kg: składalne 20 i 70. Zaokrąglenie w dół zbiłoby 50→20 i 90→70,
+    // Tylko 25 kg: składalne 20 i 70. Zaokrąglenie w dół zbija 50->20 i 85->70,
     // więc bez deduplikacji powstałyby powtórzone wiersze.
     const sets = generateWarmupSets(100, 'weight_reps', 20, inv([25, 2]))!;
     const weights = sets.map((s) => s.weight);

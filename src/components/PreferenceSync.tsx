@@ -8,6 +8,7 @@ import { applyAccent, hasStoredAccent, storeAccentId } from '@/lib/accent-theme'
 import { deriveAccentFromAvatar, shouldAutoDeriveAccent } from '@/lib/avatar-accent';
 import { normalizeRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { buildMigratedRestSettings, toRestPreference } from '@/lib/rest-preferences';
+import { setWarmupPromptEnabled } from '@/lib/warmup-prompt';
 
 // Synchronizacja preferencji (jednostki, język, przerwy, dźwięk) z users/{uid}.preferences.
 // localStorage zostaje cache per urządzenie; chmura jest źródłem prawdy między web i iOS.
@@ -32,6 +33,9 @@ export const PreferenceSync = () => {
     } catch {
       // localStorage niedostępny — preferencje i tak działają w tej sesji
     }
+    // X37 WP-B: proponowanie rozgrzewki. Chmura -> cache (arkusz przed startem
+    // czyta cache synchronicznie); brak pola = włączone, cache bez zmian.
+    if (typeof prefs?.warmupPrompt === 'boolean') setWarmupPromptEnabled(prefs.warmupPrompt);
     // X35b: przerwy. Chmura ma preferences.rest -> cache. Brak pola -> migracja
     // RAZ z legacy restTimerSec albo z cache tego urządzenia (custom: true, żeby
     // start cyklu nie nadpisał świadomego wyboru); świeży user bez zapisów = nic.

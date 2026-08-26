@@ -64,6 +64,7 @@ import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { loadRestSettings } from '@/lib/rest-timer';
 import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
+import { isWarmupPromptEnabled, setWarmupPromptEnabled } from '@/lib/warmup-prompt';
 
 import { SOUND_KEY } from '@/lib/workout-preferences';
 
@@ -208,6 +209,14 @@ const Profile = () => {
   const handleKeepAwake = (value: boolean) => {
     setKeepAwakeEnabled(value);
     setKeepAwake(value);
+  };
+  // X37 WP-B: proponowanie rozgrzewki przed treningiem: cache localStorage
+  // (arkusz czyta synchronicznie) + mirror preferences.warmupPrompt (jak dźwięk).
+  const [warmupPrompt, setWarmupPrompt] = useState<boolean>(() => isWarmupPromptEnabled());
+  const handleWarmupPrompt = (value: boolean) => {
+    setWarmupPromptEnabled(value);
+    setWarmupPrompt(value);
+    persistPreference({ 'preferences.warmupPrompt': value });
   };
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
@@ -719,6 +728,13 @@ const Profile = () => {
           label={t('rest.keepAwake')}
           description={t('rest.keepAwakeHint')}
           right={<Switch checked={keepAwake} onCheckedChange={handleKeepAwake} aria-label={t('rest.keepAwake')} data-testid="profile-keep-awake" />}
+        />
+        {/* X37 WP-B: arkusz rozgrzewki przed startem (płomyk w sesji zostaje zawsze). */}
+        <SettingRow
+          compact
+          label={t('profile.warmupPrompt')}
+          description={t('profile.warmupPromptHint')}
+          right={<Switch checked={warmupPrompt} onCheckedChange={handleWarmupPrompt} aria-label={t('profile.warmupPrompt')} data-testid="profile-warmup-prompt" />}
         />
         {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
         <SettingRow
