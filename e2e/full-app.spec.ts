@@ -401,15 +401,16 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
       'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
       'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
     ]);
-    // Wszystkie sekcje ustawień zwiniete: 12 wierszy, zero zamontowanych kart.
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(12);
+    // Wszystkie sekcje ustawień zwiniete: 11 wierszy (X37: kolor zawsze rozwiniety), zero zamontowanych kart.
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
+    await expect(page.getByTestId('accent-swatches')).toBeVisible();
     await expect(page.getByTestId('device-settings')).toHaveCount(0);
     // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
     await openProfileSection(page, 'timer');
     await expect(page.getByLabel('Timer przerwy')).toBeVisible();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(10);
     await page.getByTestId('profile-toggle-timer').click();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(12);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
     // Profil bez dolnego paska Wstecz (strzalka w naglowku zostaje).
     await expect(page.getByTestId('back-bar')).toHaveCount(0);
     await expect(page.locator('header').getByRole('button', { name: 'Wstecz' })).toBeVisible();
@@ -1198,8 +1199,9 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
     await firstCard.getByTestId('warmup-generate').click();
-    // Schemat: gryf 20 x10, 50 x8, 70 x5, 90 x2 — 4 wiersze rozgrzewkowe.
-    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
+    // X37 WP-B: rampa wg sprzętu; pierwsze ćwiczenie to hantle: 50 x8, 75 x3 (2 wiersze W).
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ }).first()).toHaveValue('50');
     // Po wygenerowaniu (wypełnione warmupy) przycisk znika — brak duplikacji.
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
   });

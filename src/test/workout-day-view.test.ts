@@ -178,3 +178,122 @@ describe('seedSetsFromSession — pelny ksztalt serii Z105 przezywa seed widoku'
     expect(seeded[0]).not.toBe(source[0]);
   });
 });
+
+import { autoCompleteFilledSets, plSetsPluralForm } from '@/lib/workout-day-view';
+
+// WP-D (X37): przy "Zakończ" serie robocze z kompletem danych, ale bez odhaczenia,
+// odhaczają się same (Hevy pomija je po cichu; my liczymy i mówimy ile).
+describe('autoCompleteFilledSets: auto-odhaczanie serii z danymi przy Zakończ', () => {
+  const weightReps = () => 'weight_reps' as const;
+
+  it('weight_reps: seria z wagą i powtórzeniami dostaje completed, pusta zostaje pusta', () => {
+    const result = autoCompleteFilledSets({
+      a: [
+        { reps: 8, weight: 60, completed: true },
+        { reps: 8, weight: 60, completed: false },
+        { reps: 0, weight: 60, completed: false },
+        { reps: 0, weight: 0, completed: false },
+      ],
+    }, weightReps);
+    expect(result.autoCompleted).toBe(1);
+    expect(result.changedExerciseIds).toEqual(['a']);
+    expect(result.exerciseSets.a.map((s) => s.completed)).toEqual([true, true, false, false]);
+  });
+
+  it('weight_reps: same powtórzenia bez wagi to NIE komplet danych', () => {
+    const result = autoCompleteFilledSets({ a: [{ reps: 8, weight: 0, completed: false }] }, weightReps);
+    expect(result.autoCompleted).toBe(0);
+    expect(result.changedExerciseIds).toEqual([]);
+  });
+
+  it('bodyweight_reps: powtórzenia bez wagi wystarczą', () => {
+    const result = autoCompleteFilledSets(
+      { pullups: [{ reps: 10, weight: 0, completed: false }, { reps: 0, weight: 0, completed: false }] },
+      () => 'bodyweight_reps',
+    );
+    expect(result.autoCompleted).toBe(1);
+    expect(result.exerciseSets.pullups.map((s) => s.completed)).toEqual([true, false]);
+  });
+
+  it('assisted_bodyweight: powtórzenia wystarczą (asysta opcjonalna)', () => {
+    const result = autoCompleteFilledSets(
+      { dips: [{ reps: 8, weight: 0, completed: false, assistWeight: 20 }, { reps: 0, weight: 0, completed: false, assistWeight: 20 }] },
+      () => 'assisted_bodyweight',
+    );
+    expect(result.exerciseSets.dips.map((s) => s.completed)).toEqual([true, false]);
+  });
+
+  it('duration: czas > 0 odhacza, brak czasu nie', () => {
+    const result = autoCompleteFilledSets(
+      { plank: [{ reps: 0, weight: 0, completed: false, durationSec: 45 }, { reps: 0, weight: 0, completed: false, durationSec: 0 }] },
+      () => 'duration',
+    );
+    expect(result.autoCompleted).toBe(1);
+    expect(result.exerciseSets.plank.map((s) => s.completed)).toEqual([true, false]);
+  });
+
+  it('weight_distance_duration: dystans albo czas odhacza, sama waga nie', () => {
+    const result = autoCompleteFilledSets(
+      {
+        farmer: [
+          { reps: 0, weight: 24, completed: false, distanceM: 40 },
+          { reps: 0, weight: 24, completed: false, durationSec: 30 },
+          { reps: 0, weight: 24, completed: false },
+        ],
+      },
+      () => 'weight_distance_duration',
+    );
+    expect(result.autoCompleted).toBe(2);
+    expect(result.exerciseSets.farmer.map((s) => s.completed)).toEqual([true, true, false]);
+  });
+
+  it('rozgrzewka NIETKNIĘTA nawet z kompletem danych', () => {
+    const result = autoCompleteFilledSets(
+      { a: [{ reps: 10, weight: 20, completed: false, isWarmup: true }, { reps: 8, weight: 60, completed: false }] },
+      weightReps,
+    );
+    expect(result.autoCompleted).toBe(1);
+    expect(result.exerciseSets.a[0]).toEqual({ reps: 10, weight: 20, completed: false, isWarmup: true });
+    expect(result.exerciseSets.a[1].completed).toBe(true);
+  });
+
+  it('niezmiennik: nic nie zmienia => te same referencje tablic, zero zmienionych ćwiczeń', () => {
+    const untouched: SetData[] = [{ reps: 0, weight: 0, completed: false }, { reps: 8, weight: 60, completed: true }];
+    const result = autoCompleteFilledSets({ a: untouched }, weightReps);
+    expect(result.autoCompleted).toBe(0);
+    expect(result.changedExerciseIds).toEqual([]);
+    expect(result.exerciseSets.a).toBe(untouched);
+  });
+
+  it('nie mutuje wejścia i przenosi pola serii bez zmian (durationSec, updatedAt)', () => {
+    const source: SetData[] = [{ reps: 8, weight: 60, completed: false, durationSec: 12, updatedAt: 5 }];
+    const result = autoCompleteFilledSets({ a: source }, weightReps);
+    expect(source[0].completed).toBe(false);
+    expect(result.exerciseSets.a[0]).toEqual({ reps: 8, weight: 60, completed: true, durationSec: 12, updatedAt: 5 });
+  });
+
+  it('resolver trackingu dostaje id ćwiczenia (różne typy w jednej sesji)', () => {
+    const result = autoCompleteFilledSets(
+      {
+        bench: [{ reps: 8, weight: 0, completed: false }],
+        plank: [{ reps: 0, weight: 0, completed: false, durationSec: 30 }],
+      },
+      (id) => (id === 'plank' ? 'duration' : 'weight_reps'),
+    );
+    expect(result.changedExerciseIds).toEqual(['plank']);
+    expect(result.autoCompleted).toBe(1);
+  });
+});
+
+describe('plSetsPluralForm: forma liczebnika do toastu "Odhaczono N serii"', () => {
+  it('1 => one, 2-4 => few, 5-21 => many, 22-24 => few, 25 => many', () => {
+    expect(plSetsPluralForm(1)).toBe('one');
+    expect(plSetsPluralForm(2)).toBe('few');
+    expect(plSetsPluralForm(4)).toBe('few');
+    expect(plSetsPluralForm(5)).toBe('many');
+    expect(plSetsPluralForm(12)).toBe('many');
+    expect(plSetsPluralForm(21)).toBe('many');
+    expect(plSetsPluralForm(22)).toBe('few');
+    expect(plSetsPluralForm(25)).toBe('many');
+  });
+});

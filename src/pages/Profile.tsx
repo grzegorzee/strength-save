@@ -37,7 +37,7 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   Lock, Globe, HelpCircle, Mail, Info, LogOut, Plus, Loader2,
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
-  Dumbbell, ChevronRight, Watch, Eye, EyeOff, Palette, Timer, Weight,
+  Dumbbell, ChevronRight, Watch, Eye, EyeOff, Timer, Weight,
   UserRound, Bell, Database, DatabaseBackup, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
@@ -64,6 +64,7 @@ import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { loadRestSettings } from '@/lib/rest-timer';
 import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
+import { isWarmupPromptEnabled, setWarmupPromptEnabled } from '@/lib/warmup-prompt';
 
 import { SOUND_KEY } from '@/lib/workout-preferences';
 
@@ -208,6 +209,14 @@ const Profile = () => {
   const handleKeepAwake = (value: boolean) => {
     setKeepAwakeEnabled(value);
     setKeepAwake(value);
+  };
+  // X37 WP-B: proponowanie rozgrzewki przed treningiem: cache localStorage
+  // (arkusz czyta synchronicznie) + mirror preferences.warmupPrompt (jak dźwięk).
+  const [warmupPrompt, setWarmupPrompt] = useState<boolean>(() => isWarmupPromptEnabled());
+  const handleWarmupPrompt = (value: boolean) => {
+    setWarmupPromptEnabled(value);
+    setWarmupPrompt(value);
+    persistPreference({ 'preferences.warmupPrompt': value });
   };
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
@@ -611,79 +620,74 @@ const Profile = () => {
         </div>
       )}
 
-      {/* 3. KOLOR PRZEWODNI (F-T2 + fala 2 → X36 zwijany): grid 12 swatchy + hex. */}
-      <ProfileAccordionSection
-        id="accent"
-        icon={Palette}
-        label={t('profile.appearance.accent')}
-        open={isSectionOpen('accent')}
-        onOpenChange={(open) => setSectionOpen('accent', open)}
-      >
-        <div className="rounded-xl bg-surface-container px-4 py-4">
-          <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
-            {ACCENTS.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                role="radio"
-                aria-checked={accentId === a.id}
-                aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
-                data-testid={`accent-${a.id}`}
-                onClick={() => handleAccent(a.id)}
-                className={cn(
-                  'aspect-square w-full rounded-lg transition-transform active:scale-95',
-                  accentId === a.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
-                )}
-                style={{ backgroundColor: a.hex }}
-              />
-            ))}
-            {/* Dowolny kolor: systemowy picker (na iOS ma też wpis po #). */}
-            <label
-              aria-label={t('accent.custom')}
-              data-testid="accent-custom"
+      {/* 3. KOLOR PRZEWODNI (F-T2 + fala 2): grid 12 swatchy + hex. X37 (uwaga
+          właściciela po 125): ZAWSZE rozwinięty, jak przed X36 — wybór koloru
+          ma być widoczny od razu, nie za ptaszkiem. */}
+      <section id="profile-accent" className="scroll-mt-20 rounded-xl bg-surface-container px-4 py-4">
+        <h2 className="eyebrow-mono pb-3 text-muted-foreground">{t('profile.appearance.accent')}</h2>
+        <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              role="radio"
+              aria-checked={accentId === a.id}
+              aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
+              data-testid={`accent-${a.id}`}
+              onClick={() => handleAccent(a.id)}
               className={cn(
-                'relative aspect-square w-full cursor-pointer rounded-lg transition-transform active:scale-95',
-                isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+                'aspect-square w-full rounded-lg transition-transform active:scale-95',
+                accentId === a.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
               )}
-              style={{
-                background: isCustomAccentHex(accentId)
-                  ? accentId
-                  : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
-              }}
-            >
-              <input
-                type="color"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
-                onChange={(e) => handleAccent(e.target.value.toLowerCase())}
-                data-testid="accent-custom-input"
-              />
-            </label>
-          </div>
-          {/* Wpis po # dla tych, którzy znają swój kolor. */}
-          <div className="mt-3 flex items-center gap-2">
-            <Input
-              value={hexInput}
-              onChange={(e) => setHexInput(e.target.value.trim())}
-              placeholder="#1e90ff"
-              inputMode="text"
-              autoCapitalize="none"
-              className="h-10 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
-              aria-label={t('profile.appearance.hexLabel')}
-              data-testid="accent-hex-input"
+              style={{ backgroundColor: a.hex }}
             />
-            <Button
-              variant="outline"
-              disabled={!isCustomAccentHex(hexInput)}
-              onClick={() => handleAccent(hexInput.toLowerCase())}
-              data-testid="accent-hex-apply"
-              className="h-10 rounded-lg border-0 bg-surface-highest px-4"
-            >
-              {t('profile.appearance.hexApply')}
-            </Button>
-          </div>
+          ))}
+          {/* Dowolny kolor: systemowy picker (na iOS ma też wpis po #). */}
+          <label
+            aria-label={t('accent.custom')}
+            data-testid="accent-custom"
+            className={cn(
+              'relative aspect-square w-full cursor-pointer rounded-lg transition-transform active:scale-95',
+              isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+            )}
+            style={{
+              background: isCustomAccentHex(accentId)
+                ? accentId
+                : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
+            }}
+          >
+            <input
+              type="color"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
+              onChange={(e) => handleAccent(e.target.value.toLowerCase())}
+              data-testid="accent-custom-input"
+            />
+          </label>
         </div>
-      </ProfileAccordionSection>
+        {/* Wpis po # dla tych, którzy znają swój kolor. */}
+        <div className="mt-3 flex items-center gap-2">
+          <Input
+            value={hexInput}
+            onChange={(e) => setHexInput(e.target.value.trim())}
+            placeholder="#1e90ff"
+            inputMode="text"
+            autoCapitalize="none"
+            className="h-10 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
+            aria-label={t('profile.appearance.hexLabel')}
+            data-testid="accent-hex-input"
+          />
+          <Button
+            variant="outline"
+            disabled={!isCustomAccentHex(hexInput)}
+            onClick={() => handleAccent(hexInput.toLowerCase())}
+            data-testid="accent-hex-apply"
+            className="h-10 rounded-lg border-0 bg-surface-highest px-4"
+          >
+            {t('profile.appearance.hexApply')}
+          </Button>
+        </div>
+      </section>
 
       {/* 4. TRENING (fala 2 → X36): to, co user rusza poza timerem — jednostki,
           blokada wygaszania ekranu (z karty przerw), tryby. */}
@@ -724,6 +728,13 @@ const Profile = () => {
           label={t('rest.keepAwake')}
           description={t('rest.keepAwakeHint')}
           right={<Switch checked={keepAwake} onCheckedChange={handleKeepAwake} aria-label={t('rest.keepAwake')} data-testid="profile-keep-awake" />}
+        />
+        {/* X37 WP-B: arkusz rozgrzewki przed startem (płomyk w sesji zostaje zawsze). */}
+        <SettingRow
+          compact
+          label={t('profile.warmupPrompt')}
+          description={t('profile.warmupPromptHint')}
+          right={<Switch checked={warmupPrompt} onCheckedChange={handleWarmupPrompt} aria-label={t('profile.warmupPrompt')} data-testid="profile-warmup-prompt" />}
         />
         {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
         <SettingRow
@@ -968,7 +979,6 @@ const Profile = () => {
         id="account"
         icon={UserCog}
         label={t('profile.section.accountSupport')}
-        value={LANGUAGES.find((language) => language.code === lang)?.label}
         open={isSectionOpen('account')}
         onOpenChange={(open) => setSectionOpen('account', open)}
         rows

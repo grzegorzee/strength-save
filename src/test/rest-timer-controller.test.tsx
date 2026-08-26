@@ -350,7 +350,8 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
     const runId = () => Number(view.getByTestId('run-id').textContent);
 
     // 1. Odhacz W w A → sticky pasek 45 s, wlasnosc A (martwa gałąź warmupSeconds ożyła, Z187).
-    fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    //    Regex prefiksu: WP-D (X37) dokleja "(aktywna)" do etykiety checkmarka aktywnej serii.
+    fireEvent.click(within(cardA).getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[0]);
     await flushNotificationChain();
     expect(view.getByTestId('rest-bar')).toHaveTextContent('0:45');
     expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
@@ -358,7 +359,7 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
 
     // 2. Odhacz pierwszą roboczą w A → pasek restartuje na 90 s (runId rośnie;
     //    w A zostaje jeszcze jedna otwarta robocza, więc to NIE koniec ćwiczenia).
-    fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    fireEvent.click(within(cardA).getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[0]);
     await flushNotificationChain();
     expect(view.getByTestId('rest-bar')).toHaveTextContent('1:30');
     expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
@@ -366,7 +367,7 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
 
     // 3. Odhacz jedyną serię w B → przerwa przechodzi do B (koniec ćwiczenia B =
     //    2:30 przejścia), JEDNA notyfikacja z czasem B.
-    fireEvent.click(within(cardB).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    fireEvent.click(within(cardB).getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[0]);
     await flushNotificationChain();
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
     expect(view.getByTestId('rest-bar')).toHaveTextContent('2:30');
@@ -382,7 +383,7 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
 
     // 4. OSTATNIA seria treningu (druga robocza w A) → stan null, zero pasków,
     //    zero notyfikacji (także po zejściu w tło), localStorage wyczyszczony.
-    fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    fireEvent.click(within(cardA).getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[0]);
     await flushNotificationChain();
     expect(view.queryByTestId('rest-bar')).toBeNull();
     expect(runId()).toBe(0);
@@ -456,7 +457,7 @@ describe('Z187: przerwa po serii rozgrzewkowej', () => {
 
     const view = renderCardWithWarmup(onRestStart);
     // Wiersz W jest pierwszy w tabeli — pierwszy przycisk "Zaznacz".
-    fireEvent.click(view.getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    fireEvent.click(view.getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[0]);
 
     expect(onRestStart).toHaveBeenCalledWith('ex-a', 45);
     // Rozgrzewka nie jest pracą: zero dźwięku "complete" i zero allDone.
@@ -467,7 +468,7 @@ describe('Z187: przerwa po serii rozgrzewkowej', () => {
     const onRestStart = vi.fn();
     const view = renderCardWithWarmup(onRestStart);
     // Drugi przycisk = pierwsza seria robocza.
-    fireEvent.click(view.getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[1]);
+    fireEvent.click(view.getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[1]);
 
     expect(onRestStart).toHaveBeenCalledWith('ex-a', 90);
   });
@@ -499,7 +500,7 @@ const TwoCardsHarness = () => {
 const checkFirstOpenSet = (container: HTMLElement) => {
   // Z184: sanitizeSets niczego nie fabrykuje — savedSets bez W renderuje same serie
   // robocze, więc pierwsza otwarta seria jest pod indeksem [0].
-  fireEvent.click(within(container).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+  fireEvent.click(within(container).getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })[0]);
 };
 
 describe('jeden RestBar na sesję (Z143)', () => {

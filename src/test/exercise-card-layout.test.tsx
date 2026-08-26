@@ -219,6 +219,61 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(repsInputs[1].className).not.toContain('accent-ring');
     });
 
+    // WP-D (X37, research sekcja 4): aktywna seria to wyróżnienie WIERSZA (obrys +
+    // lewy pasek akcentu + checkmark z obrysem), nie sam ring na inputach.
+    it('WP-D: aktywna seria ma obrys wiersza, pasek akcentu i wyróżniony checkmark; inne wiersze bez ramek', () => {
+      const sets: SetData[] = [
+        workingSet({ isWarmup: true }),
+        workingSet({ weight: 60, reps: 8, completed: true }),
+        workingSet({ weight: 60, reps: 8 }),
+        workingSet({ weight: 60, reps: 8 }),
+      ];
+      const { card } = renderCard({ savedSets: sets });
+      const repsInputs = within(card).getAllByLabelText(/Powt\./) as HTMLElement[];
+      const warmupRow = rowOf(repsInputs[0]);
+      const doneRow = rowOf(repsInputs[1]);
+      const activeRow = rowOf(repsInputs[2]);
+      const nextRow = rowOf(repsInputs[3]);
+
+      expect(activeRow.className).toContain('set-row-active');
+      expect(activeRow.className).toContain('ring-1');
+      expect(activeRow.className).toContain('ring-primary/70');
+      for (const row of [warmupRow, doneRow, nextRow]) {
+        expect(row.className).not.toContain('set-row-active');
+        expect(row.className).not.toContain('ring-');
+      }
+      // Inputy aktywnej serii nadal z accent-ring (kontrakt r2 zostaje).
+      expect(repsInputs[2].className).toContain('accent-ring');
+
+      // Checkmark aktywnej serii: obrys akcentu + aria z dopiskiem "(aktywna)".
+      const activeCheck = within(activeRow).getByRole('button', { name: /Zaznacz serię jako zrobioną \(aktywna\)/ });
+      expect(activeCheck.className).toContain('ring-1');
+      expect(activeCheck.className).toContain('ring-primary');
+      const nextCheck = within(nextRow).getByRole('button', { name: /Zaznacz serię jako zrobioną/ });
+      expect(nextCheck.getAttribute('aria-label')).not.toContain('(aktywna)');
+      expect(nextCheck.className).not.toContain('ring-');
+      // Etykieta bazowa zostaje prefiksem na KAŻDYM nieodhaczonym checkmarku (W, aktywna,
+      // następna): kontrakt e2e `name: 'Zaznacz serię jako zrobioną'` (substring w Playwright).
+      expect(within(card).getAllByRole('button', { name: /^Zaznacz serię jako zrobioną/ })).toHaveLength(3);
+    });
+
+    it('WP-D: to samo wyróżnienie aktywnej serii na ścieżce renderTrackedSetRow (duration)', () => {
+      const sets: SetData[] = [
+        workingSet({ durationSec: 60, completed: true }),
+        workingSet({ durationSec: 60 }),
+        workingSet({ durationSec: 60 }),
+      ];
+      const { card } = renderCard({ savedSets: sets, trackingType: 'duration' });
+      const timeInputs = within(card).getAllByLabelText(/Czas/) as HTMLElement[];
+      const activeRow = rowOf(timeInputs[1]);
+      expect(activeRow.className).toContain('set-row-active');
+      expect(activeRow.className).toContain('ring-primary/70');
+      expect(rowOf(timeInputs[0]).className).not.toContain('set-row-active');
+      expect(rowOf(timeInputs[2]).className).not.toContain('set-row-active');
+      const activeCheck = within(activeRow).getByRole('button', { name: /\(aktywna\)/ });
+      expect(activeCheck.className).toContain('ring-primary');
+    });
+
     it('ukończona seria ma tło także na ścieżce renderTrackedSetRow (duration)', () => {
       const sets: SetData[] = [
         workingSet({ isWarmup: true }),

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, openProfileSection } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, openProfileSection, localToday, plWeekdayName } from './helpers';
 
 test.describe('Critical Routing and Shell', () => {
   test.beforeEach(async ({ page }) => {
@@ -35,17 +35,13 @@ test.describe('Critical Routing and Shell', () => {
     await expect(page.getByText(/Tydzień \d+\/\d+/)).toBeVisible();
   });
 
-  test('training day pages render their specific plan labels', async ({ page }) => {
-    const cases = [
-      ['/workout/day-1', 'Poniedziałek'],
-      ['/workout/day-2', 'Środa'],
-      ['/workout/day-3', 'Piątek'],
-    ] as const;
-
-    for (const [route, label] of cases) {
+  test('training day pages render their plan day heading', async ({ page }) => {
+    // X30 WP-L: nagłówek sesji podąża za DATĄ (bez ?date= = dziś), nie za
+    // dniem planu; test był datozależny (zielony tylko w poniedziałek).
+    for (const route of ['/workout/day-1', '/workout/day-2', '/workout/day-3']) {
       await navigateAndWait(page, route);
       await expectPageRendered(page);
-      await expect(page.getByText(label, { exact: false })).toBeVisible();
+      await expect(page.getByRole('heading', { name: plWeekdayName(localToday()) })).toBeVisible();
     }
   });
 

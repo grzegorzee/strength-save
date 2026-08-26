@@ -118,3 +118,35 @@ describe('computeCompletionSummary', () => {
     expect(summary.prevDate).toBeNull();
   });
 });
+
+import { autoCompleteFilledSets } from '@/lib/workout-day-view';
+
+// WP-D (X37): sekwencja "3 serie wpisane, 1 odhaczona -> Zakończ": auto-odhaczenie
+// idzie PRZED podsumowaniem, więc hero pokazuje 3/3, nie 1/3.
+describe('sekwencja Zakończ: auto-odhaczone serie z danymi wchodzą do podsumowania', () => {
+  it('3 serie z danymi, 1 odhaczona ręcznie => podsumowanie liczy 3/3', () => {
+    const before = {
+      'ex-1': [
+        set(10, 20, false, true),
+        set(8, 60, true),
+        set(8, 60, false),
+        set(7, 60, false),
+      ],
+    };
+    const auto = autoCompleteFilledSets(before, () => 'weight_reps');
+    expect(auto.autoCompleted).toBe(2);
+
+    const summary = computeCompletionSummary({
+      exerciseSets: auto.exerciseSets,
+      dayExercises: [{ id: 'ex-1', sets: '3 x 6-8' }],
+      workouts: [],
+      sessionId: 's1',
+      dayId: 'day-1',
+    });
+    expect(summary.completedSets).toBe(3);
+    expect(summary.plannedSets).toBe(3);
+    expect(summary.planPct).toBe(100);
+    // Rozgrzewka z danymi nadal poza tonażem i licznikiem: 480 + 480 + 420.
+    expect(summary.volumeKg).toBe(1380);
+  });
+});

@@ -152,6 +152,12 @@ export const getExerciseAnimationUrl = (name?: string): string | null => {
 export const getGroupImageUrl = (categoryId: string): string =>
   `${import.meta.env.BASE_URL ?? '/'}exercise-groups/${categoryId}.webp`;
 
+/** X37 WP-G: ilustracja glownej grupy miesniowej (public/muscles/<PrimaryMuscle>.webp,
+ *  512x512, poza precache). Zastepuje ludzika MuscleMap w szczegolach cwiczenia;
+ *  brak/blad pliku obsluguje UI (onError -> MuscleMap), test kompletnosci pilnuje 12 id. */
+export const getMuscleImageUrl = (primaryMuscle: string): string =>
+  `${import.meta.env.BASE_URL ?? '/'}muscles/${primaryMuscle}.webp`;
+
 /** X28 WP-F: hero szablonu planu (Browse plans). Pliki w public/plan-templates/
  *  nazwane 1:1 id szablonu (tpl-*.webp); brak/błąd pliku obsługuje UI
  *  (onError → karta jak dotąd), test kompletności pilnuje pełnej listy. */

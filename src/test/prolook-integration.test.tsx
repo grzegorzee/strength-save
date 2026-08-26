@@ -4,7 +4,7 @@
 // Obrazy są DEKORACYJNE: alt="" + aria-hidden + loading="lazy", a błąd pliku
 // (onError) przywraca dotychczasowy wygląd — żaden ekran nie może się zepsuć
 // od brakującego webp. Scaffolding mocków wg wzorca route-smoke (canonical-states).
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -16,6 +16,7 @@ import { planTemplates } from '@/data/planTemplates';
 import {
   getEmptyStateImageUrl,
   getGroupImageUrl,
+  getMuscleImageUrl,
   getPaywallHeroUrl,
   getPlanTemplateImageUrl,
 } from '@/lib/exercise-media';
@@ -215,6 +216,17 @@ describe('F1: assety pro-look skopiowane do public/', () => {
     }
     expect(existsSync(join(pub, 'paywall', 'hero.webp'))).toBe(true);
     expect(existsSync(join(pub, 'exercise-groups', 'custom.webp'))).toBe(true);
+  });
+
+  // X37 WP-G: 12 ilustracji grup miesniowych (PrimaryMuscle) zamiast ludzika.
+  it('każda grupa PrimaryMuscle ma ilustrację public/muscles/<id>.webp (max 70 KB)', () => {
+    const dir = join(process.cwd(), 'public', 'muscles');
+    const ids = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes', 'calves', 'core', 'fullbody'];
+    const missing = ids.filter((id) => !existsSync(join(dir, `${id}.webp`)));
+    expect(missing).toEqual([]);
+    const tooBig = ids.filter((id) => statSync(join(dir, `${id}.webp`)).size > 70 * 1024);
+    expect(tooBig).toEqual([]);
+    expect(getMuscleImageUrl('chest')).toBe('/muscles/chest.webp');
   });
 
   it('helpery URL wskazują na public/ (BASE_URL)', () => {

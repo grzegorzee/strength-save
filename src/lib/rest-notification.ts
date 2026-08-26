@@ -14,8 +14,14 @@ import { addAppStateListener } from '@/lib/app-lifecycle';
 // Model: RestBar UZBRAJA przerwę (armRestEndNotification), a schedule leci
 // dopiero przy przejściu apki w tło; powrót na pierwszy plan anuluje pending
 // i sprząta dostarczone wpisy z Centrum Powiadomień.
+//
+// WP-C (X37): ten sam mechanizm obsługuje DRUGI kanał: odliczanie serii na czas
+// (plank, hollow hold). Kanały są niezależne (osobny id i osobny slot uzbrojenia):
+// start odliczania w trakcie przerwy nie rozbraja przerwy, a koniec przerwy
+// (cancel z RestBar) nie rozbraja odliczania. Zasada #5 CLAUDE.md.
 
 const REST_NOTIFICATION_ID = 90001;
+const SET_COUNTDOWN_NOTIFICATION_ID = 90002;
 
 // DŹWIĘK POWIADOMIENIA: nazwa PLIKU w bundlu aplikacji, nigdy alias.
 //
@@ -46,34 +52,51 @@ const ensurePermission = async (): Promise<boolean> => {
   return permissionGranted === true;
 };
 
+interface ArmedEnd {
+  deadlineAt: number;
+  title: string;
+  body: string;
+}
+
+// Kanał = jeden id powiadomienia + jeden slot uzbrojenia + własny token generacji.
 // Wyścig schedule vs cancel (R2-25): schedule ma w środku awaity (uprawnienia, cancel
 // poprzedniego) — pauza w tym oknie nie może przegrać z dokończeniem schedule.
-// Token generacji unieważnia trwający schedule, wspólny chain serializuje operacje.
-let operationGeneration = 0;
+// Token generacji unieważnia trwający schedule TEGO kanału; wspólny chain
+// serializuje operacje na pluginie.
+interface NotificationChannel {
+  id: number;
+  armed: ArmedEnd | null;
+  generation: number;
+}
+
+const restChannel: NotificationChannel = { id: REST_NOTIFICATION_ID, armed: null, generation: 0 };
+const setCountdownChannel: NotificationChannel = { id: SET_COUNTDOWN_NOTIFICATION_ID, armed: null, generation: 0 };
+const CHANNELS: NotificationChannel[] = [restChannel, setCountdownChannel];
+
 let operationChain: Promise<void> = Promise.resolve();
 
-/** Zaplanuj systemowe powiadomienie (dźwięk + wibracja) na koniec przerwy za `seconds` sekund. */
-export const scheduleRestEndNotification = async (
+const scheduleEndNotification = async (
+  channel: NotificationChannel,
   seconds: number,
   title: string,
-  body: string
+  body: string,
 ): Promise<void> => {
   if (!Capacitor.isNativePlatform() || seconds <= 0) return;
-  operationGeneration += 1;
-  const myGeneration = operationGeneration;
+  channel.generation += 1;
+  const myGeneration = channel.generation;
 
   operationChain = operationChain.then(async () => {
-    if (myGeneration !== operationGeneration) return;
+    if (myGeneration !== channel.generation) return;
     if (!(await ensurePermission())) return;
-    if (myGeneration !== operationGeneration) return;
+    if (myGeneration !== channel.generation) return;
 
     try {
-      // Nadpisz ewentualne wcześniejsze (jeden aktywny timer przerwy naraz).
-      await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] });
-      if (myGeneration !== operationGeneration) return;
+      // Nadpisz ewentualne wcześniejsze (jeden aktywny timer na kanał naraz).
+      await LocalNotifications.cancel({ notifications: [{ id: channel.id }] });
+      if (myGeneration !== channel.generation) return;
       await LocalNotifications.schedule({
         notifications: [{
-          id: REST_NOTIFICATION_ID,
+          id: channel.id,
           title,
           body,
           schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
@@ -81,33 +104,30 @@ export const scheduleRestEndNotification = async (
         }],
       });
     } catch {
-      // Brak local notifications — koniec przerwy zasygnalizuje tylko in-app dźwięk/haptic.
+      // Brak local notifications: koniec zasygnalizuje tylko in-app dźwięk/haptic.
     }
   });
   await operationChain;
 };
 
-// ---- Bug 8 (X30): uzbrajanie przerwy + planowanie dopiero w tle ----
+/** Zaplanuj systemowe powiadomienie (dźwięk + wibracja) na koniec przerwy za `seconds` sekund. */
+export const scheduleRestEndNotification = (seconds: number, title: string, body: string): Promise<void> =>
+  scheduleEndNotification(restChannel, seconds, title, body);
 
-interface ArmedRestEnd {
-  deadlineAt: number;
-  title: string;
-  body: string;
-}
+// ---- Bug 8 (X30): uzbrajanie + planowanie dopiero w tle ----
 
-let armedRestEnd: ArmedRestEnd | null = null;
 let lifecycleListenerRegistered = false;
 
 // Anuluj pending + sprzątnij DOSTARCZONE wpisy (bug 8: stare "Koniec przerwy"
 // kumulowały się w Centrum Powiadomień — plugin cancel usuwa tylko pending).
-const cancelSystemNotification = async (): Promise<void> => {
+const cancelSystemNotification = async (channel: NotificationChannel): Promise<void> => {
   // Unieważnij trwający schedule i dołącz do chaina (cancel czeka na jego zakończenie).
-  operationGeneration += 1;
+  channel.generation += 1;
   operationChain = operationChain.then(async () => {
     try {
-      await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] });
+      await LocalNotifications.cancel({ notifications: [{ id: channel.id }] });
       await LocalNotifications.removeDeliveredNotifications({
-        notifications: [{ id: REST_NOTIFICATION_ID, title: '', body: '' }],
+        notifications: [{ id: channel.id, title: '', body: '' }],
       });
     } catch {
       // Nic do anulowania.
@@ -116,30 +136,39 @@ const cancelSystemNotification = async (): Promise<void> => {
   await operationChain;
 };
 
-/** Anuluj powiadomienie końca przerwy (pauza/reset/zamknięcie/koniec w foreground). Rozbraja przerwę. */
-export const cancelRestEndNotification = async (): Promise<void> => {
+const disarmChannel = async (channel: NotificationChannel): Promise<void> => {
   if (!Capacitor.isNativePlatform()) return;
   // Rozbrojenie: po skip/finish/unmount przejście w tło NIE ma prawa zaplanować
-  // notyfikacji dla przerwy, której już nie ma.
-  armedRestEnd = null;
-  await cancelSystemNotification();
+  // notyfikacji dla przerwy/odliczania, których już nie ma.
+  channel.armed = null;
+  await cancelSystemNotification(channel);
 };
 
+/** Anuluj powiadomienie końca przerwy (pauza/reset/zamknięcie/koniec w foreground). Rozbraja przerwę. */
+export const cancelRestEndNotification = (): Promise<void> => disarmChannel(restChannel);
+
+/** WP-C (X37): anuluj powiadomienie końca odliczania serii (stop/koniec w foreground/unmount). */
+export const cancelSetCountdownNotification = (): Promise<void> => disarmChannel(setCountdownChannel);
+
 const handleAppActiveChange = (isActive: boolean): void => {
-  if (isActive) {
-    // Powrót na pierwszy plan: odliczanie przejmuje UI — pending nie ma prawa
-    // wystrzelić drugi raz, dostarczone wpisy sprzątamy. Przerwa ZOSTAJE
-    // uzbrojona (kolejne zejście w tło planuje od nowa).
-    void cancelSystemNotification();
-    return;
+  for (const channel of CHANNELS) {
+    // Nieuzbrojony kanał nie ma nic pending (schedule leci tylko z uzbrojenia,
+    // rozbrojenie samo anuluje), więc nie zaśmiecamy chaina pustymi cancelami.
+    const armed = channel.armed;
+    if (!armed) continue;
+    if (isActive) {
+      // Powrót na pierwszy plan: odliczanie przejmuje UI, pending nie ma prawa
+      // wystrzelić drugi raz, dostarczone wpisy sprzątamy. Kanał ZOSTAJE
+      // uzbrojony (kolejne zejście w tło planuje od nowa).
+      void cancelSystemNotification(channel);
+      continue;
+    }
+    const msLeft = armed.deadlineAt - Date.now();
+    // Deadline za nami = sygnał już poszedł (albo zaraz pójdzie z UI w foregroundzie).
+    if (msLeft <= 0) continue;
+    // Zaokrąglenie W GÓRĘ: ułamek sekundy przed deadline nie ma prawa zgubić sygnału.
+    void scheduleEndNotification(channel, Math.max(1, Math.ceil(msLeft / 1000)), armed.title, armed.body);
   }
-  const armed = armedRestEnd;
-  if (!armed) return;
-  const msLeft = armed.deadlineAt - Date.now();
-  // Deadline za nami = sygnał już poszedł (albo zaraz pójdzie z RestBar w foregroundzie).
-  if (msLeft <= 0) return;
-  // Zaokrąglenie W GÓRĘ: ułamek sekundy przed deadline nie ma prawa zgubić sygnału.
-  void scheduleRestEndNotification(Math.max(1, Math.ceil(msLeft / 1000)), armed.title, armed.body);
 };
 
 /**
@@ -148,13 +177,15 @@ const handleAppActiveChange = (isActive: boolean): void => {
  * listenera cold start lądował na Dashboardzie. Zdarzenie jest retencjonowane
  * przez plugin do pierwszego listenera (retainUntilConsumed), więc rejestracja
  * po starcie apki łapie też tap, który ją uruchomił.
+ * WP-C (X37): tap w "Koniec serii" (odliczanie) wraca do treningu tą samą drogą.
  */
 export const addRestNotificationTapListener = (onTap: () => void): (() => void) => {
   if (!Capacitor.isNativePlatform()) return () => {};
   let removed = false;
   let removeNative: (() => void) | null = null;
   LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
-    if (Number(event.notification?.id) !== REST_NOTIFICATION_ID) return;
+    const id = Number(event.notification?.id);
+    if (id !== REST_NOTIFICATION_ID && id !== SET_COUNTDOWN_NOTIFICATION_ID) return;
     onTap();
   })
     .then((handle) => {
@@ -173,19 +204,29 @@ export const addRestNotificationTapListener = (onTap: () => void): (() => void) 
   };
 };
 
-/**
- * Uzbrój systemowy sygnał końca przerwy: zapamiętaj deadline i treść, zaplanuj
- * DOPIERO gdy apka zejdzie w tło (appStateChange/visibilitychange). W foregroundzie
- * koniec sygnalizuje wyłącznie apka (gong + haptyka w RestBar).
- */
-export const armRestEndNotification = (deadlineAt: number, title: string, body: string): void => {
+const armChannel = (channel: NotificationChannel, deadlineAt: number, title: string, body: string): void => {
   if (!Capacitor.isNativePlatform()) return;
-  armedRestEnd = { deadlineAt, title, body };
-  // Prompt o uprawnienia ma paść w foregroundzie przy starcie przerwy (jak
-  // dotąd przy natychmiastowym schedule), nie w oknie przejścia w tło.
+  channel.armed = { deadlineAt, title, body };
+  // Prompt o uprawnienia ma paść w foregroundzie przy starcie (jak dotąd przy
+  // natychmiastowym schedule), nie w oknie przejścia w tło.
   void ensurePermission();
   if (!lifecycleListenerRegistered) {
     lifecycleListenerRegistered = true;
     addAppStateListener(handleAppActiveChange);
   }
 };
+
+/**
+ * Uzbrój systemowy sygnał końca przerwy: zapamiętaj deadline i treść, zaplanuj
+ * DOPIERO gdy apka zejdzie w tło (appStateChange/visibilitychange). W foregroundzie
+ * koniec sygnalizuje wyłącznie apka (gong + haptyka w RestBar).
+ */
+export const armRestEndNotification = (deadlineAt: number, title: string, body: string): void =>
+  armChannel(restChannel, deadlineAt, title, body);
+
+/**
+ * WP-C (X37): uzbrój systemowy sygnał końca odliczania serii na czas. Ten sam
+ * model co przerwa (schedule dopiero w tle, sprzątanie po powrocie), osobny kanał.
+ */
+export const armSetCountdownNotification = (deadlineAt: number, title: string, body: string): void =>
+  armChannel(setCountdownChannel, deadlineAt, title, body);

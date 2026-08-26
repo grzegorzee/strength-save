@@ -154,7 +154,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: 'Pallof Press', category: 'core', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka z boku. Wypychaj ramiona przed siebie opierając się rotacji tułowia. Antyrotacyjna stabilizacja core.' }] },
   { name: 'Cable Woodchopper', category: 'core', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka od góry do dołu (lub odwrotnie) po skosie. Rotuj tułów kontrolowanie, ruch z brzucha nie z rąk.' }] },
   { name: 'Mountain Climbers', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Pozycja deski. Przyciągaj kolana naprzemiennie do klatki. Biodra nisko, brzuch napięty.' }] },
-  { name: 'Hollow Hold', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Leżąc, unieś nogi i barki, lędźwie wciśnięte w podłogę. Trzymaj pozycję łódki, napięty brzuch.' }] },
+  { name: 'Hollow Hold', category: 'core', type: 'isolation', isBodyweight: true, tracking: 'duration', instructions: [{ title: '💡 Technika', content: 'Leżąc, unieś nogi i barki, lędźwie wciśnięte w podłogę. Trzymaj pozycję łódki, napięty brzuch.' }] },
 
   // Calves
   { name: 'Wspięcia na palce na suwnicy', category: 'calves', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Palce na platformie, pięty w dół do rozciągnięcia, wspięcie maksymalne. Pauza 1s na górze i na dole.' }] },

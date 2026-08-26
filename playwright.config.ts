@@ -36,7 +36,14 @@ export default defineConfig({
       cookies: [],
       origins: [{
         origin: 'http://localhost:8080',
-        localStorage: [{ name: 'fittracker_lapse_dismissed_v1', value: lapseDismissedSeed }],
+        localStorage: [
+          { name: 'fittracker_lapse_dismissed_v1', value: lapseDismissedSeed },
+          // WP-E (X37): tour pierwszego treningu pokazałby się w każdym specu
+          // startującym sesję na 390 px (mock ma 0 ukończonych treningów) i jego
+          // panele przechwytywałyby kliki. Seed "widziane"; first-workout-tour.spec
+          // czyści klucz u siebie.
+          { name: 'fittracker_first_workout_tour_v1', value: '1' },
+        ],
       }],
     },
   },

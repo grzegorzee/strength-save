@@ -125,6 +125,8 @@ import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { loadRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { readWorkoutTimersSetting } from '@/lib/workout-timers-setting';
+import { isWarmupPromptEnabled } from '@/lib/warmup-prompt';
+import { shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
 
 const renderProfile = (entry = '/profile') =>
   render(
@@ -158,8 +160,9 @@ const PROFILE_SECTIONS = [
   'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
   'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
 ];
+// X37: Kolor przewodni znów zawsze rozwinięty (uwaga właściciela po 125).
 const COLLAPSIBLE_IDS = [
-  'accent', 'training', 'timer', 'plates', 'trainer', 'devices', 'notifications',
+  'training', 'timer', 'plates', 'trainer', 'devices', 'notifications',
   'subscription', 'data', 'backup', 'consents', 'account',
 ];
 
@@ -206,7 +209,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByLabelText('Timer przerwy')).toBeNull();
     expect(queryByLabelText('Jednostki: kg')).toBeNull();
     expect(queryByTestId('device-settings')).toBeNull();
-    expect(queryByTestId('accent-swatches')).toBeNull();
+    // X37: kolor przewodni widoczny bez rozwijania.
+    expect(screen.getByTestId('accent-swatches')).toBeTruthy();
   });
 
   it('klik wiersza rozwija sekcję, drugi klik zwija (chevron); inne sekcje bez zmian', () => {
@@ -247,13 +251,14 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(await third.findByLabelText('Przerwa między seriami')).toBeTruthy();
   });
 
-  it('TRENING: jednostki, nie wygaszaj ekranu, tryby — w tej kolejności; wiersz pokazuje jednostkę', () => {
+  it('TRENING: jednostki, nie wygaszaj ekranu, proponuj rozgrzewkę, tryby, w tej kolejności; wiersz pokazuje jednostkę', () => {
     const { container, queryByLabelText } = renderProfile();
     expect(screen.getByTestId('profile-toggle-training').textContent).toContain('KG');
     openSection('training');
     const trening = sectionByLabel(container, 'Trening');
     const text = trening.textContent ?? '';
-    const order = ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Nie na 100%?', 'Urlop / wyjazd']
+    // X37 WP-B: przełącznik rozgrzewki między "Nie wygaszaj ekranu" a "Nie na 100%?".
+    const order = ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Proponuj rozgrzewkę przed treningiem', 'Nie na 100%?', 'Urlop / wyjazd']
       .map((l) => text.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -272,6 +277,43 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     fireEvent.click(toggle);
     expect(localStorage.getItem('fittracker_keep_awake_v1')).toBe('false');
     expect(toggle.getAttribute('aria-checked')).toBe('false');
+  });
+
+  // X37 WP-B: przełącznik "Proponuj rozgrzewkę przed treningiem" pisze cache
+  // fittracker_warmup_prompt_v1 (ten sam klucz, który czyta start treningu) i
+  // mirror preferences.warmupPrompt; domyślnie włączony.
+  it('TRENING: przełącznik "Proponuj rozgrzewkę" domyślnie ON; wyłączenie = cache false + preferences.warmupPrompt false', async () => {
+    renderProfile();
+    openSection('training');
+    const toggle = screen.getByTestId('profile-warmup-prompt');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByLabelText('Proponuj rozgrzewkę przed treningiem')).toBe(toggle);
+    fireEvent.click(toggle);
+    expect(localStorage.getItem('fittracker_warmup_prompt_v1')).toBe('false');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.warmupPrompt': false },
+    ));
+    fireEvent.click(toggle);
+    expect(localStorage.getItem('fittracker_warmup_prompt_v1')).toBe('true');
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.warmupPrompt': true },
+    ));
+  });
+
+  it('sekwencja (zasada #5): wyłącz w Profilu -> start treningu nie proponuje arkusza; cache off z innego urządzenia = przełącznik OFF', () => {
+    const { unmount } = renderProfile();
+    openSection('training');
+    fireEvent.click(screen.getByTestId('profile-warmup-prompt'));
+    // Ta sama decyzja, którą podejmuje przycisk "Rozpocznij trening" (WorkoutDay).
+    const startCtx = { alreadyStarted: false, hasDraftContent: false, autostart: false, viewingPast: false };
+    expect(shouldOfferPreStartWarmup({ ...startCtx, warmupPrompt: isWarmupPromptEnabled() })).toBe(false);
+    unmount();
+
+    // Kierunek odwrotny: cache z PreferenceSync (chmura false) -> Profil pokazuje OFF.
+    const again = renderProfile();
+    openSection('training');
+    expect(again.getByTestId('profile-warmup-prompt').getAttribute('aria-checked')).toBe('false');
   });
 
   it('TIMER I PRZERWY: wiersz pokazuje bieżącą przerwę; w środku timer, dźwięk i RestSettingsCard BEZ przełącznika wygaszania', async () => {
@@ -326,10 +368,9 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(within(notif).getAllByText('Powiadomienia')).toHaveLength(1);
   });
 
-  it('F-T2: sekcja Kolor przewodni — po rozwinięciu wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
+  it('F-T2: sekcja Kolor przewodni (zawsze rozwinięta) — wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
     // Plan I: paleta wg wzoru właściciela — cyan zastąpiony przez sky (#29b6f6).
     const { getByTestId } = renderProfile();
-    openSection('accent');
     fireEvent.click(getByTestId('accent-sky'));
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('199 92% 56%');
     expect(document.documentElement.dataset.accent).toBe('sky');
@@ -343,7 +384,6 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
 
   it('F-T2b: własny kolor po hex — walidacja i zastosowanie + mirror', async () => {
     const { getByTestId } = renderProfile();
-    openSection('accent');
     const input = getByTestId('accent-hex-input') as HTMLInputElement;
     const apply = getByTestId('accent-hex-apply') as HTMLButtonElement;
     fireEvent.change(input, { target: { value: '#12' } });
@@ -379,7 +419,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     // KAFLE DUMY (fala 2): 4 realne statystyki, renderowane zawsze.
     ['Treningi', 'Seria', 'Tonaż', 'Serie'].forEach((l) => expect(getByText(l)).toBeTruthy());
     // TRENING + TIMER (dawna karta Trening + Przerwy)
-    ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Nie na 100%?', 'Urlop / wyjazd']
+    ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Proponuj rozgrzewkę przed treningiem', 'Nie na 100%?', 'Urlop / wyjazd']
       .forEach((l) => expect(within(sectionByLabel(container, 'Trening')).getByText(l)).toBeTruthy());
     const timer = sectionByLabel(container, 'Timer i przerwy');
     ['Timer przerwy', 'Dźwięk timera'].forEach((l) => expect(within(timer).getByLabelText(l)).toBeTruthy());
@@ -404,6 +444,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     const konto = sectionByLabel(container, 'Konto i pomoc');
     ['Język', 'Zmień hasło', 'Centrum pomocy', 'Kontakt', 'O aplikacji']
       .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
+    // X37: wiersz "Konto i pomoc" bez wartości języka ("Polski" myliło właściciela).
+    expect(getByTestId('profile-toggle-account').textContent).not.toContain('Polski');
     // Stopka akcji + wersja
     expect(getByText('Wyloguj')).toBeTruthy();
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();

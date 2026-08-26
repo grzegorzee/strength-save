@@ -4,6 +4,9 @@ import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildPreStartWarmup, shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
+import { isWarmupPromptEnabled } from '@/lib/warmup-prompt';
+import { persistWarmupPrompt } from '@/lib/warmup-prompt-sync';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
 import { computeMilestones, diffMilestones } from '@/lib/achievements-utils';
@@ -66,9 +69,10 @@ import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
+import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
-import { buildDayFromDraft, hasAnyCompletedSet, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
+import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -81,6 +85,8 @@ import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { RestBar } from '@/components/RestBar';
+import { FirstWorkoutTour } from '@/components/FirstWorkoutTour';
+import { isDesktopViewport, isFirstWorkoutTourSeen, shouldShowFirstWorkoutTour } from '@/lib/first-workout-tour';
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
@@ -191,6 +197,9 @@ const WorkoutDay = () => {
     return getTrackingType({ isBodyweight: isBodyweightExercise(name) });
   }, [customExercises]);
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
+  // WP-F (X37): licznik ukończonych treningów all-time (kamienie milowe);
+  // null = brak agregatu, fallback na okno recent.
+  const workoutAggregate = useWorkoutAggregate(uid);
   // Przypięte notatki per ćwiczenie (Z103): trwałe, klucz = kanoniczna nazwa.
   const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
   // T10: notatka przypięta do DNIA treningu (planowanie przyszłej sesji) —
@@ -228,6 +237,15 @@ const WorkoutDay = () => {
   // Runna p.1 (spec A1): sekwencja completion tylko dla ŚWIEŻO zakończonej sesji.
   // Wejście w ukończony trening z historii NIE dostaje celebracji ani oceny.
   const [justCompleted, setJustCompleted] = useState(false);
+  // WP-F (X37): numer porządkowy ŚWIEŻO zakończonego treningu + kamień milowy do
+  // celebracji. Liczone raz w handleCompleteWorkout (przed zapisem); baner
+  // renderuje się tylko przy justCompleted, więc resume/wejście z historii go
+  // nie dostaje; hasCelebrated (localStorage) blokuje powtórkę tego samego n.
+  const [completionCelebration, setCompletionCelebration] = useState<{
+    sessionId: string;
+    ordinal: number;
+    milestone: WorkoutMilestone | null;
+  } | null>(null);
   // Runna p.1 (spec A4): PR na żywo — badge per ćwiczenie + jednorazowy toast.
   const [livePRWeights, setLivePRWeights] = useState<Record<string, number>>({});
   const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number; bestBefore: number } | null>(null);
@@ -476,10 +494,23 @@ const WorkoutDay = () => {
     displayDayNameForDateISO(d.dayName, d.weekday, targetDate, lang);
 
   // C-T2: prompt pre-start + plan rozgrzewki pod pierwsze ćwiczenie dnia.
+  // X37 WP-B: wariant (góra/dół/full body) z kategorii pierwszego ćwiczenia,
+  // poziom z onboardingu (początkujący = 4 min).
   const [preStartOpen, setPreStartOpen] = useState(false);
+  const trainingLevel = profile?.trainingProfile?.level;
+  // WP-E (X37): tour pierwszego treningu uzbrajany WYŁĄCZNIE w kliku "Rozpocznij
+  // trening" (resume/autostart go nie dostają); montowany po starcie sesji, gdy
+  // arkusz i dialog rozgrzewki są zamknięte. Liczba ukończonych: agregat all-time,
+  // fallback okno recent (mock E2E i brak dokumentu agregatu).
+  const [firstWorkoutTourArmed, setFirstWorkoutTourArmed] = useState(false);
+  // X37 QA: "Tak, rozgrzewka" otwiera dialog dopiero PO asynchronicznym starcie
+  // sesji. W tej luce tour montował się na ułamek sekundy, a dialog rozgrzewki
+  // (ekskluzywny overlay) natychmiast go kończył jako "widziany". Flaga trzyma
+  // tour w kolejce do zamknięcia rozgrzewki.
+  const [warmupQueued, setWarmupQueued] = useState(false);
   const preStartPlan = useMemo(() => {
     const first = day?.exercises[0];
-    if (!first) return buildPreStartWarmup({ exerciseName: '' });
+    if (!first) return buildPreStartWarmup({ exerciseName: '', level: trainingLevel });
     const firstSets = exerciseSets[first.id] ?? [];
     const workingWeightKg = firstSets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
     return buildPreStartWarmup({
@@ -487,8 +518,11 @@ const WorkoutDay = () => {
       category: exerciseLibrary.find((e) => e.name === first.name)?.category,
       isBodyweight: resolveIsBodyweight(first.name),
       workingWeightKg,
+      level: trainingLevel,
     });
-  }, [day, exerciseSets, resolveIsBodyweight]);
+  }, [day, exerciseSets, resolveIsBodyweight, trainingLevel]);
+  const completedWorkoutsCount = workoutAggregate?.totals.workoutCount
+    ?? workouts.filter((w) => w.completed).length;
 
   useEffect(() => {
     daySnapshotRef.current = day
@@ -2080,10 +2114,37 @@ const WorkoutDay = () => {
     if (!sessionId || !uid || !day) return;
     if (isCompleted || isExplicitSaving) return;
 
+    // WP-D (X37): serie z kompletem danych, ale bez odhaczenia, odhaczają się same
+    // (research sekcja 4: Hevy pomija je po cichu, my liczymy i mówimy ile).
+    // Ta sama ścieżka co ręczne odhaczenie (handleSetsChange: ref + stan + draft
+    // + PR na żywo), żeby IDB i podsumowanie widziały to samo. Źródło: ref, bo
+    // jest świeższy od stanu w tym samym kliknięciu.
+    const autoCompletion = autoCompleteFilledSets(exerciseSetsRef.current, (exerciseId) => {
+      const name = day.exercises.find((exercise) => exercise.id === exerciseId)?.name ?? exerciseId;
+      const tracking = resolveTracking(name);
+      // Karta chowa kolumnę KG dla bodyweight niezależnie od trackingu (isBodyweight prop).
+      return tracking === 'weight_reps' && resolveIsBodyweight(name) ? 'bodyweight_reps' : tracking;
+    });
+    for (const exerciseId of autoCompletion.changedExerciseIds) {
+      handleSetsChange(exerciseId, autoCompletion.exerciseSets[exerciseId]);
+    }
+    if (autoCompletion.autoCompleted > 0) {
+      const form = plSetsPluralForm(autoCompletion.autoCompleted);
+      toast({
+        title: t(
+          form === 'one'
+            ? 'workout.toast.autoCompletedOne'
+            : form === 'few' ? 'workout.toast.autoCompletedFew' : 'workout.toast.autoCompletedMany',
+          { n: autoCompletion.autoCompleted },
+        ),
+        description: t('workout.toast.autoCompletedDesc'),
+      });
+    }
+
     // Trening bez ANI JEDNEJ odhaczonej serii nie ma czego zapisać: walidacja finalna
     // odrzuci go jako 'empty-final-payload' i draft zawiesi się na zawsze z banerem
     // "czeka na synchronizację" (incydent 2026-07-20 — pusty szybki trening).
-    if (!hasAnyCompletedSet(exerciseSets)) {
+    if (!hasAnyCompletedSet(autoCompletion.exerciseSets)) {
       setShowCompleteConfirm(false);
       toast({
         title: t('workout.toast.emptyWorkoutTitle'),
@@ -2095,6 +2156,21 @@ const WorkoutDay = () => {
 
     setIsExplicitSaving(true);
     setSaveError(null);
+
+    // WP-F (X37): numer tego treningu = ukończone PRZED nim + 1. Źródło: agregat
+    // all-time (Z217), fallback okno recent bez tej sesji (wzorzec Z83 niżej).
+    // Liczone PRZED zapisem: po nim onSnapshot i trigger agregatu dołożą tę
+    // sesję. Ponowne "Zakończ" tej samej sesji (draftRetained) trzyma numer.
+    const completionOrdinal = completionCelebration?.sessionId === sessionId
+      ? completionCelebration.ordinal
+      : (workoutAggregate?.totals.workoutCount
+        ?? workouts.filter(w => w.completed && w.id !== sessionId).length) + 1;
+    const markCompletionCelebration = () => {
+      const milestone = workoutMilestoneFor(completionOrdinal);
+      const celebrate = milestone !== null && !hasCelebrated(milestone.n);
+      if (milestone && celebrate) markCelebrated(milestone.n);
+      setCompletionCelebration({ sessionId, ordinal: completionOrdinal, milestone: celebrate ? milestone : null });
+    };
 
     const finalizedAt = activeDraftRef.current?.finalizedAt ?? Date.now();
 
@@ -2160,6 +2236,7 @@ const WorkoutDay = () => {
         workoutSyncQueue.upsertFromDraft(pendingDraft, { lastError: result.error || 'final-sync-pending' });
         trackTelemetryEvent(uid, 'final_sync_pending');
         trackTelemetryEvent(uid, 'sync_queue_enqueued');
+        markCompletionCelebration();
         setIsCompleted(true);
         setJustCompleted(true);
         setShowCompleteConfirm(false);
@@ -2183,6 +2260,7 @@ const WorkoutDay = () => {
       return;
     }
 
+    markCompletionCelebration();
     setIsCompleted(true);
     setJustCompleted(true);
     completedSessionLockRef.current = sessionId;
@@ -2622,6 +2700,8 @@ const WorkoutDay = () => {
           prs={derivedSessionPRs}
           onRate={handleSessionRate}
           onEditSets={isFinalSyncPending ? undefined : handleEditFromSummary}
+          milestone={justCompleted ? completionCelebration?.milestone ?? null : null}
+          workoutNumber={completionCelebration?.ordinal ?? null}
         >
 
         {dayNotes && (
@@ -2979,21 +3059,31 @@ const WorkoutDay = () => {
 
       <DraftStatusNotice />
 
-      {/* C-T2: prompt pre-start — sesja powstaje DOKŁADNIE raz, po decyzji. */}
+      {/* C-T2: prompt pre-start: sesja powstaje DOKŁADNIE raz, po decyzji.
+          X37 WP-B: trzy akcje (rozgrzewka / pomiń dziś / nie proponuj więcej),
+          przy pierwszym treningu zdanie "dlaczego rozgrzewka". */}
       <Dialog open={preStartOpen} onOpenChange={setPreStartOpen}>
         <DialogContent className="max-w-sm" data-testid="prestart-sheet">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase">{t('warmup.prestart.title')}</DialogTitle>
-            <DialogDescription>{t('warmup.prestart.desc')}</DialogDescription>
+            <DialogDescription>{t('warmup.prestart.desc', { n: preStartPlan.estMinutes })}</DialogDescription>
           </DialogHeader>
+          {completedWorkoutsCount === 0 && (
+            <p className="rounded-lg bg-primary/[0.08] px-3 py-2 text-sm" data-testid="prestart-first-why">
+              {t('warmup.prestart.firstWhy')}
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             <Button
               className="kinetic-primary-button w-full"
               data-testid="prestart-yes"
               disabled={isExplicitSaving}
               onClick={() => {
+                setWarmupQueued(true);
                 setPreStartOpen(false);
-                void handleStartWorkout().then(() => setShowWarmup(true));
+                void handleStartWorkout()
+                  .then(() => { setShowWarmup(true); setWarmupQueued(false); })
+                  .catch(() => setWarmupQueued(false));
               }}
             >
               {t('warmup.prestart.yes')}
@@ -3009,6 +3099,21 @@ const WorkoutDay = () => {
               }}
             >
               {t('warmup.prestart.skip')}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground"
+              data-testid="prestart-never"
+              disabled={isExplicitSaving}
+              onClick={() => {
+                setPreStartOpen(false);
+                // Cache od razu (następny start bez arkusza), mirror w profilu w tle.
+                void persistWarmupPrompt(uid, false);
+                // Toast PO starcie: TOAST_LIMIT = 1, toast startu sesji by go nadpisał.
+                void handleStartWorkout().then(() => toast({ title: t('warmup.prestart.neverToast') }));
+              }}
+            >
+              {t('warmup.prestart.never')}
             </Button>
           </div>
         </DialogContent>
@@ -3204,6 +3309,7 @@ const WorkoutDay = () => {
             onClick={() => setShowCompleteConfirm(true)}
             disabled={isExplicitSaving}
             data-testid="finish-workout"
+            data-tour="finish"
           >
             <Check className="h-5 w-5 mr-2" />
             {t('workout.finishWorkout')}
@@ -3230,13 +3336,24 @@ const WorkoutDay = () => {
                 window.location.reload();
                 return;
               }
+              // WP-E (X37): decyzja o tourze pierwszego treningu zapada w momencie
+              // jawnego startu (resume = draft z treścią, autostart = bez przycisku).
+              setFirstWorkoutTourArmed(shouldShowFirstWorkoutTour({
+                completedCount: workoutAggregate?.totals.workoutCount ?? livePRSourceWorkouts.length,
+                seen: isFirstWorkoutTourSeen(),
+                isResume: currentPageDraft ? draftHasLiveContent(currentPageDraft) : false,
+                isAutostart: autostart,
+                isDesktop: isDesktopViewport(),
+              }));
               // C-T2: sheet rozgrzewki PRZED utworzeniem sesji — tylko świeży,
               // jawny start; resume/autostart (Watch/Garmin) idą prosto do startu.
+              // X37: wyłączone proponowanie (Profil > Trening) = prosto do startu.
               if (shouldOfferPreStartWarmup({
                 alreadyStarted: isWorkoutStarted,
                 hasDraftContent: currentPageDraft ? draftHasLiveContent(currentPageDraft) : false,
                 autostart,
                 viewingPast: isViewingPastWorkout,
+                warmupPrompt: isWarmupPromptEnabled(),
               })) {
                 setPreStartOpen(true);
                 return;
@@ -3291,6 +3408,12 @@ const WorkoutDay = () => {
 
       {/* FIX-B T2: zawsze zamontowany overlay celebracji live PR (dane sterują). */}
       <LivePRCelebration data={livePRCelebration} onDone={() => setLivePRCelebration(null)} />
+
+      {/* WP-E (X37): tour pierwszego treningu (3 spotlighty) po starcie sesji,
+          dopiero gdy arkusz pre-start i dialog rozgrzewki są zamknięte. */}
+      {firstWorkoutTourArmed && isWorkoutStarted && !isCompleted && !preStartOpen && !showWarmup && !warmupQueued && (
+        <FirstWorkoutTour onClose={() => setFirstWorkoutTourArmed(false)} />
+      )}
 
     </div>
   );

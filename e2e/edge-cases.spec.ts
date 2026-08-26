@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, localToday, skipPreStartWarmupIfShown } from './helpers';
+import { blockFirebase, navigateAndWait, localToday, plWeekdayName, skipPreStartWarmupIfShown } from './helpers';
 
 // =====================================================
 // EDGE CASES & BOUNDARY CONDITIONS
@@ -12,7 +12,8 @@ test.describe('Edge Cases: URL Manipulation', () => {
 
   test('special chars in URL params do not crash app', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1?date=2026-01-01&test=%3Cscript%3Ealert(1)%3C/script%3E');
-    await expect(page.getByText('Poniedziałek', { exact: false }).first()).toBeVisible();
+    // Nagłówek = dzień DATY z query (2026-01-01 = czwartek), nie dzień planu.
+    await expect(page.getByText(plWeekdayName('2026-01-01'), { exact: false }).first()).toBeVisible();
   });
 
   test('SQL injection attempt in route param is harmless', async ({ page }) => {
@@ -54,7 +55,7 @@ test.describe('Edge Cases: LocalStorage', () => {
 
     // Navigate to workout — should handle draft save failure gracefully
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByText('Poniedziałek', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText(plWeekdayName(localToday()), { exact: false }).first()).toBeVisible();
 
     // Cleanup
     await page.evaluate(() => {
@@ -94,7 +95,7 @@ test.describe('Edge Cases: LocalStorage', () => {
     });
 
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByText('Poniedziałek', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText(plWeekdayName(localToday()), { exact: false }).first()).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
     await page.evaluate(() => localStorage.removeItem('fittracker_workout_draft'));
@@ -122,7 +123,7 @@ test.describe('Edge Cases: Multiple Rapid Actions', () => {
     await button.dblclick();
     // C-T2: świeży start otwiera prompt rozgrzewki; dblclick nie może go zdublować.
     await skipPreStartWarmupIfShown(page);
-    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: plWeekdayName(localToday()) })).toBeVisible();
   });
 });
 
