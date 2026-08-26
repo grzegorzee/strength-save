@@ -401,15 +401,16 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
       'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
       'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
     ]);
-    // Wszystkie sekcje ustawień zwiniete: 12 wierszy, zero zamontowanych kart.
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(12);
+    // Wszystkie sekcje ustawień zwiniete: 11 wierszy (X37: kolor zawsze rozwiniety), zero zamontowanych kart.
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
+    await expect(page.getByTestId('accent-swatches')).toBeVisible();
     await expect(page.getByTestId('device-settings')).toHaveCount(0);
     // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
     await openProfileSection(page, 'timer');
     await expect(page.getByLabel('Timer przerwy')).toBeVisible();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(10);
     await page.getByTestId('profile-toggle-timer').click();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(12);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
     // Profil bez dolnego paska Wstecz (strzalka w naglowku zostaje).
     await expect(page.getByTestId('back-bar')).toHaveCount(0);
     await expect(page.locator('header').getByRole('button', { name: 'Wstecz' })).toBeVisible();

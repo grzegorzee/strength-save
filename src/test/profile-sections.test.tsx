@@ -158,8 +158,9 @@ const PROFILE_SECTIONS = [
   'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
   'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
 ];
+// X37: Kolor przewodni znów zawsze rozwinięty (uwaga właściciela po 125).
 const COLLAPSIBLE_IDS = [
-  'accent', 'training', 'timer', 'plates', 'trainer', 'devices', 'notifications',
+  'training', 'timer', 'plates', 'trainer', 'devices', 'notifications',
   'subscription', 'data', 'backup', 'consents', 'account',
 ];
 
@@ -206,7 +207,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByLabelText('Timer przerwy')).toBeNull();
     expect(queryByLabelText('Jednostki: kg')).toBeNull();
     expect(queryByTestId('device-settings')).toBeNull();
-    expect(queryByTestId('accent-swatches')).toBeNull();
+    // X37: kolor przewodni widoczny bez rozwijania.
+    expect(screen.getByTestId('accent-swatches')).toBeTruthy();
   });
 
   it('klik wiersza rozwija sekcję, drugi klik zwija (chevron); inne sekcje bez zmian', () => {
@@ -326,10 +328,9 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(within(notif).getAllByText('Powiadomienia')).toHaveLength(1);
   });
 
-  it('F-T2: sekcja Kolor przewodni — po rozwinięciu wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
+  it('F-T2: sekcja Kolor przewodni (zawsze rozwinięta) — wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
     // Plan I: paleta wg wzoru właściciela — cyan zastąpiony przez sky (#29b6f6).
     const { getByTestId } = renderProfile();
-    openSection('accent');
     fireEvent.click(getByTestId('accent-sky'));
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('199 92% 56%');
     expect(document.documentElement.dataset.accent).toBe('sky');
@@ -343,7 +344,6 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
 
   it('F-T2b: własny kolor po hex — walidacja i zastosowanie + mirror', async () => {
     const { getByTestId } = renderProfile();
-    openSection('accent');
     const input = getByTestId('accent-hex-input') as HTMLInputElement;
     const apply = getByTestId('accent-hex-apply') as HTMLButtonElement;
     fireEvent.change(input, { target: { value: '#12' } });
@@ -404,6 +404,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     const konto = sectionByLabel(container, 'Konto i pomoc');
     ['Język', 'Zmień hasło', 'Centrum pomocy', 'Kontakt', 'O aplikacji']
       .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
+    // X37: wiersz "Konto i pomoc" bez wartości języka ("Polski" myliło właściciela).
+    expect(getByTestId('profile-toggle-account').textContent).not.toContain('Polski');
     // Stopka akcji + wersja
     expect(getByText('Wyloguj')).toBeTruthy();
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();
