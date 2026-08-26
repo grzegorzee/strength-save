@@ -1639,6 +1639,10 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.completedTitle': 'Workout completed!',
   'workout.completedLocallyTitle': 'Workout completed locally',
   'workout.greatJob': 'Great job!',
+  // WP-F (X37): first workout and milestone celebration + ordinal in the summary.
+  'workout.milestone.first': 'You finished your 1st workout!',
+  'workout.milestone.nth': '{n} workouts behind you!',
+  'workout.summary.workoutNumber': 'Workout #{n}',
   // Completion sequence (Runna pack 1): 1-tap rating + summary.
   'workout.holdToFinishHint': 'Hold to finish the workout.',
   'workout.completion.rateTitle': 'How was it?',

@@ -1664,6 +1664,10 @@ export const pl = {
   'workout.completedTitle': 'Trening ukończony!',
   'workout.completedLocallyTitle': 'Trening ukończony lokalnie',
   'workout.greatJob': 'Świetna robota!',
+  // WP-F (X37): celebracja pierwszego treningu i kamieni milowych + numer w podsumowaniu.
+  'workout.milestone.first': 'Ukończyłeś 1. trening!',
+  'workout.milestone.nth': '{n}. trening za Tobą!',
+  'workout.summary.workoutNumber': 'Trening nr {n}',
   // Sekwencja completion (Runna pakiet 1): ocena 1 tapem + podsumowanie.
   'workout.holdToFinishHint': 'Przytrzymaj, aby zakończyć trening.',
   'workout.completion.rateTitle': 'Jak było?',
