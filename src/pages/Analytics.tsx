@@ -26,7 +26,7 @@ import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
-  ChevronRight, FileDown, FileSpreadsheet, Loader2,
+  ChevronRight, FileDown, FileSpreadsheet, Loader2, TrendingUp,
 } from 'lucide-react';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
 import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
@@ -323,12 +323,12 @@ const SummaryTab = () => {
         </CardContent></Card>
       </div>
 
-      {/* FIX-B T5: ostatni PR (z Dashboardu) — dom rekordów to Achievements. */}
+      {/* FIX-B T5: ostatni PR (z Dashboardu) — dom rekordów to Achievements (X36: ?view=records). */}
       {latestPR && (
         <Card
           data-testid="analytics-last-pr"
           className="cursor-pointer hover:border-primary/40 transition-all duration-200 border-primary/20"
-          onClick={() => navigate('/achievements')}
+          onClick={() => navigate('/achievements?view=records')}
         >
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
@@ -353,7 +353,7 @@ const SummaryTab = () => {
 
       {/* Świeżość PR zostaje tu, ale dom rekordów to Achievements (Z79) — klik prowadzi tam. */}
       {periodPRs.length > 0 && (
-        <Card className="cursor-pointer hover:border-primary/30 transition-all duration-200" onClick={() => navigate('/achievements')}>
+        <Card className="cursor-pointer hover:border-primary/30 transition-all duration-200" onClick={() => navigate('/achievements?view=records')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between gap-2 text-base">
               <span className="flex items-center gap-2">
@@ -485,6 +485,34 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
           <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
         </div>
       )}
+
+      {/* X36 (głosówka po 124): skróty do najczęściej oglądanych wykresów — jedno
+          tapnięcie z Postępów zamiast Analityka → Wykresy → kafel. */}
+      <div className="grid grid-cols-2 gap-2" data-testid="analytics-quick-access">
+        {([
+          { id: 'tonnage', icon: Trophy, labelKey: 'analytics.subtab.tonnage' },
+          { id: 'progression', icon: TrendingUp, labelKey: 'analytics.subtab.progression' },
+        ] as const).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            data-testid={`analytics-quick-${item.id}`}
+            onClick={() => setSearchParams(embedded
+              ? { view: 'analytics', tab: 'charts', chart: item.id }
+              : { tab: 'charts', chart: item.id })}
+            className="flex items-center gap-2.5 rounded-2xl bg-surface-low px-3 py-3 text-left transition-colors hover:bg-surface-high"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <item.icon className="h-4.5 w-4.5 text-primary" />
+            </span>
+            {/* Bez chevrona: na 393 px "Progresja" ucinała się do "PROGRES…" (QA X36). */}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-heading text-[13px] font-bold uppercase leading-tight tracking-tight">{t(item.labelKey)}</span>
+              <span className="block truncate text-[10px] text-muted-foreground">{t('analytics.quick.hint')}</span>
+            </span>
+          </button>
+        ))}
+      </div>
 
       <Tabs value={currentTab} onValueChange={(value) => {
         if (value === 'strava') trackTelemetryEvent(uid, 'action_strava_opened');

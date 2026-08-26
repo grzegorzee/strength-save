@@ -26,7 +26,7 @@ describe('legacySettingsPath: mapa starych sekcji Ustawień na kotwice Profilu',
   it.each([
     ['notifications', '/profile?section=notifications'],
     ['connections', '/profile?section=devices'],
-    ['strava', '/profile?section=connections'],
+    ['strava', '/profile?section=devices'],
     ['consents', '/profile?section=consents'],
     ['data', '/profile?section=backup'],
     ['account', '/profile?section=account'],

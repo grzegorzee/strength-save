@@ -83,6 +83,9 @@ describe('D3: wykresy jako kafle z deep-linkiem ?chart=', () => {
     ['Treningi', 'Tonaż', 'Waga', 'Seria', 'Progresja'].forEach((label) => {
       expect(tileByLabel(label), `kafel ${label}`).toBeTruthy();
     });
+    // X36: Tonaż i Progresja na początku menu (najczęściej oglądane).
+    expect(within(tiles()[0]).getByText('Tonaż')).toBeInTheDocument();
+    expect(within(tiles()[1]).getByText('Progresja')).toBeInTheDocument();
     // Rza przypisany do poziomu menu.
     expect(screen.getByText('MASZYNA · tygodnie')).toBeInTheDocument();
     // Żaden wykres się nie renderuje (StatSummary wykresów nieobecne).

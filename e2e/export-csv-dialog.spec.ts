@@ -7,6 +7,7 @@ import {
   expectPageRendered,
   localDaysAgo,
   navigateAndWait,
+  openProfileSection,
   setE2EWorkouts,
 } from './helpers';
 
@@ -80,6 +81,7 @@ test.describe('Eksport CSV z wyborem zakresu (J-T5)', () => {
     await setE2EWorkouts(page, [workout('w-1', localDaysAgo(1))]);
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
+    await openProfileSection(page, 'backup');
 
     const button = page.getByTestId('data-export-csv');
     await button.scrollIntoViewIfNeeded();

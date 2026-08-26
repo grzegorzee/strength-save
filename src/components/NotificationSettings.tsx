@@ -44,7 +44,8 @@ const initialPrefs = (prefs: NotificationPrefs | undefined): Record<Notification
 // typu powiadomienia (X35c / WP-E) z opisem kanału. Preferencje są per konto
 // (users/{uid}.notificationPrefs), więc przełączniki działają też na webie:
 // user ustawia z laptopa to, co dostanie na telefon.
-export const NotificationSettings = () => {
+// X36: `hideTitle` — karta żyje w zwijanej sekcji Profilu, której wiersz jest tytułem.
+export const NotificationSettings = ({ hideTitle = false }: { hideTitle?: boolean } = {}) => {
   const { uid, profile } = useCurrentUser();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -94,9 +95,11 @@ export const NotificationSettings = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-heading font-bold uppercase tracking-tight">
-          <Bell className="h-5 w-5 text-primary" />{t('settings.notif.title')}
-        </CardTitle>
+        {!hideTitle && (
+          <CardTitle className="flex items-center gap-2 font-heading font-bold uppercase tracking-tight">
+            <Bell className="h-5 w-5 text-primary" />{t('settings.notif.title')}
+          </CardTitle>
+        )}
         <CardDescription>{t('settings.notif.desc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

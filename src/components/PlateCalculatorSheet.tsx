@@ -19,9 +19,6 @@ import {
 import { lbsToKg } from '@/lib/units';
 import { parseDecimalInput } from '@/lib/decimal-input';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
 
 interface PlateCalculatorSheetProps {
   open: boolean;
@@ -333,24 +330,11 @@ export const PlateInventorySettings = () => {
 
   const label = (kg: number) => formatPlateNominal(kg, inventoryUnit);
 
-  // WP-F Task F3 (X27): długa sekcja przytłaczała Ustawienia — domyślnie zwinięta,
-  // trigger wzorem karty "Narzędzia naprawcze" w Settings.tsx (tytuł + chevron).
+  // WP-F Task F3 (X27) → X36: zwijanie przejął wiersz sekcji Profilu
+  // (ProfileAccordionSection), tu zostaje sama treść z opisem.
   return (
-    <Card>
-      <Collapsible>
-        <CollapsibleTrigger asChild>
-          <button type="button" className="w-full text-left">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center justify-between gap-2">
-                <span>{t('plates.settingsTitle')}</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </CardTitle>
-              <CardDescription>{t('plates.settingsDesc')}</CardDescription>
-            </CardHeader>
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-      <CardContent className="space-y-5">
+    <div className="space-y-5 rounded-xl bg-surface-container px-4 py-4" data-testid="plate-inventory-settings">
+      <p className="text-sm text-muted-foreground">{t('plates.settingsDesc')}</p>
         {/* Gryf: presety + własny */}
         <div className="space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.bar')}</p>
@@ -464,9 +448,6 @@ export const PlateInventorySettings = () => {
             {t('plates.addPlate')}
           </button>
         </div>
-      </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+    </div>
   );
 };

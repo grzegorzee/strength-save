@@ -51,7 +51,8 @@ const LocationProbe = () => {
   return <div data-testid="loc">{location.search}</div>;
 };
 
-const renderPage = (initialEntry = '/achievements') => render(
+// X36: Analityka domyślna — poziom 1 rekordów pod ?view=records.
+const renderPage = (initialEntry = '/achievements?view=records') => render(
   <MemoryRouter initialEntries={[initialEntry]}>
     <LanguageProvider>
       <UnitProvider>
@@ -118,23 +119,25 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     fireEvent.click(tileByLabel('Rekordy')!);
 
     expect(screen.getByTestId('loc').textContent).toContain('section=records');
+    expect(screen.getByTestId('loc').textContent).toContain('view=records');
     expect(screen.getByText('Rekordy wszystkich ćwiczeń')).toBeInTheDocument();
     expect(screen.getByText('Rekordy osobiste (szacowane 1RM)')).toBeInTheDocument();
     expect(screen.queryByText('Mapa treningowa')).toBeNull();
     expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
   });
 
-  it('back z sekcji wraca na poziom 1 (kafle)', () => {
-    renderPage('/achievements?section=records');
+  it('back z sekcji wraca na poziom 1 (kafle), zostaje w widoku rekordów', () => {
+    renderPage('/achievements?view=records&section=records');
 
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
 
     expect(screen.getByTestId('loc').textContent).not.toContain('section=');
+    expect(screen.getByTestId('loc').textContent).toContain('view=records');
     expect(tiles()).toHaveLength(4);
     expect(screen.queryByText('Mapa treningowa')).toBeNull();
   });
 
-  it('?section=badges pokazuje kamienie milowe, odznaki specjalne i półkę sezonów', () => {
+  it('?section=badges (stary deep link bez view) pokazuje kamienie milowe, odznaki specjalne i półkę sezonów', () => {
     renderPage('/achievements?section=badges');
 
     // Tytuł sekcji w hero (h1); "Odznaki" występuje też jako CardTitle (h3).
@@ -145,7 +148,7 @@ describe('D2: poziom 1 — kafle sekcji', () => {
   });
 
   it('nieznany ?section= renderuje poziom 1 (edge case 1)', () => {
-    renderPage('/achievements?section=nie-ma-takiej');
+    renderPage('/achievements?view=records&section=nie-ma-takiej');
 
     expect(tiles()).toHaveLength(4);
     expect(screen.queryByText('Mapa treningowa')).toBeNull();
@@ -173,9 +176,47 @@ describe('D2: poziom 1 — kafle sekcji', () => {
 
   it('pusty stan (0 treningów) bez kafli — zaproszenie jak dotąd (edge case 2)', () => {
     fixtures.state = buildCanonicalState('empty-history', TODAY);
-    renderPage();
+    renderPage('/achievements?view=records');
 
     expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
     expect(screen.getByText('Rekordy pojawią się po pierwszych treningach.')).toBeInTheDocument();
+  });
+});
+
+// X36 (głosówka właściciela po buildzie 124): Analityka PIERWSZA w segmencie
+// i DOMYŚLNA po wejściu w Postępy; rekordy i odznaki pod ?view=records.
+describe('X36: Analityka domyślna w Postępach', () => {
+  it('/achievements bez parametrów renderuje osadzoną Analitykę, nie kafle rekordów', async () => {
+    renderPage('/achievements');
+
+    await waitFor(() => expect(screen.getByTestId('analytics-embed')).toBeInTheDocument());
+    expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
+    expect(screen.getByTestId('progress-view-analytics')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('progress-view-records')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('segment: Analityka jest PIERWSZYM przyciskiem, Rekordy i odznaki drugim', () => {
+    renderPage('/achievements');
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs[0]).toHaveAttribute('data-testid', 'progress-view-analytics');
+    expect(tabs[1]).toHaveAttribute('data-testid', 'progress-view-records');
+  });
+
+  it('klik "Rekordy i odznaki" przechodzi na ?view=records z kaflami', () => {
+    renderPage('/achievements');
+
+    fireEvent.click(screen.getByTestId('progress-view-records'));
+
+    expect(screen.getByTestId('loc').textContent).toContain('view=records');
+    expect(tiles()).toHaveLength(4);
+  });
+
+  it('pusty stan (0 treningów) bez ?view: Analityka (z własnym zaproszeniem), nie EmptyState rekordów', async () => {
+    fixtures.state = buildCanonicalState('empty-history', TODAY);
+    renderPage('/achievements');
+
+    await waitFor(() => expect(screen.getByTestId('analytics-embed')).toBeInTheDocument());
+    expect(screen.queryByText('Rekordy pojawią się po pierwszych treningach.')).toBeNull();
   });
 });

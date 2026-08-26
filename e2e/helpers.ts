@@ -199,6 +199,16 @@ export const setE2ECustomExercises = async (page: Page, exercises: unknown[]) =>
 
 // Lokalna data YYYY-MM-DD — testy dat MUSZĄ liczyć lokalnie jak apka;
 // new Date().toISOString() daje UTC i po północy CET/CEST cofa dzień (nocne flaki).
+// X36: sekcje Profilu są zwijane — treść (karty, wiersze) montuje się dopiero
+// po rozwinięciu wiersza sekcji. Idempotentne: otwarta sekcja zostaje otwarta.
+export const openProfileSection = async (page: Page, id: string) => {
+  const section = page.getByTestId(`profile-section-${id}`);
+  const toggle = page.getByTestId(`profile-toggle-${id}`);
+  await toggle.scrollIntoViewIfNeeded();
+  if ((await section.getAttribute('data-state')) !== 'open') await toggle.click();
+  await expect(section).toHaveAttribute('data-state', 'open');
+};
+
 export const localToday = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

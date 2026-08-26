@@ -32,6 +32,8 @@ interface DataManagementProps {
   disabled?: boolean;
   title?: string;
   description?: string;
+  /** X36: karta wewnątrz zwijanej sekcji Profilu — tytuł daje nagłówek sekcji. */
+  hideTitle?: boolean;
   exportLabel?: string;
   importLabel?: string;
   cleanupLabel?: string;
@@ -192,6 +194,7 @@ export const DataManagement = ({
   disabled,
   title,
   description,
+  hideTitle,
   exportLabel,
   importLabel,
   cleanupLabel,
@@ -298,7 +301,7 @@ export const DataManagement = ({
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">{title ?? t('data.title')}</CardTitle>
+          {!hideTitle && <CardTitle className="text-lg">{title ?? t('data.title')}</CardTitle>}
           <CardDescription>{description ?? t('data.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-3 sm:px-6">

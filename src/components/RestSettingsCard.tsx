@@ -11,7 +11,6 @@ import { isRecommendedRest, restDefaultsForObjective } from '@/lib/rest-defaults
 import { REST_SOUNDS, loadRestSound, saveRestSound, type RestSoundId } from '@/lib/rest-sound';
 import { loadTimerVolume, saveTimerVolume } from '@/lib/timer-volume';
 import { previewRestSound } from '@/lib/timer-sound';
-import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
 
 type Field = 'workingSeconds' | 'betweenExercisesSeconds' | 'warmupSeconds';
 
@@ -40,14 +39,16 @@ const KEY_PREFIX: Record<Field, string> = {
  * cache localStorage). Nagłówek pokazuje bieżącą przerwę roboczą i "Polecane dla
  * Twojego planu" (rest-defaults wg celu z trainingProfile); ręczna zmiana =
  * `custom: true` (start cyklu nie nadpisze), "Przywróć polecane" czyści flagę.
+ *
+ * X36: blokada wygaszania ekranu przeszła do sekcji Trening Profilu (decyzja
+ * właściciela); `hideTitle` — karta w zwijanej sekcji "Timer i przerwy".
  */
-export const RestSettingsCard = () => {
+export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } = {}) => {
   const { t } = useTranslation();
   const { uid, profile } = useCurrentUser();
   const [settings, setSettings] = useState<RestSettings>(() => loadRestSettings());
   const [sound, setSound] = useState<RestSoundId>(() => loadRestSound().id);
   const [volumePct, setVolumePct] = useState<number>(() => Math.round(loadTimerVolume() * 100));
-  const [keepAwake, setKeepAwake] = useState<boolean>(() => isKeepAwakeEnabled());
 
   const objective = profile?.trainingProfile?.objective;
   const recommended = restDefaultsForObjective(objective);
@@ -81,7 +82,7 @@ export const RestSettingsCard = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">{t('rest.settings.title')}</CardTitle>
+        {!hideTitle && <CardTitle className="text-lg">{t('rest.settings.title')}</CardTitle>}
         <CardDescription>{t('rest.settings.desc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -230,30 +231,6 @@ export const RestSettingsCard = () => {
             className="h-2 w-full cursor-pointer appearance-none rounded-full bg-surface-highest accent-primary"
           />
           <p className="text-[11px] text-muted-foreground/70">{t('rest.volume.hint')}</p>
-        </div>
-
-        {/* Blokada wygaszania: przy włączonym ekranie dźwięk gra zawsze, bo robi to
-            sama apka. Kosztuje baterię, więc to wybór usera, nie narzucone. */}
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => { const next = !keepAwake; setKeepAwakeEnabled(next); setKeepAwake(next); }}
-            aria-pressed={keepAwake}
-            data-testid="rest-keep-awake"
-            className={cn(
-              'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition-colors',
-              keepAwake ? 'bg-primary/10' : 'bg-muted/40',
-            )}
-          >
-            <span className="text-sm font-semibold">{t('rest.keepAwake')}</span>
-            <span className={cn(
-              'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase',
-              keepAwake ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
-            )}>
-              {keepAwake ? 'ON' : 'OFF'}
-            </span>
-          </button>
-          <p className="text-[11px] text-muted-foreground/70">{t('rest.keepAwakeHint')}</p>
         </div>
       </CardContent>
     </Card>

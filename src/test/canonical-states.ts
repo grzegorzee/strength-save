@@ -712,6 +712,13 @@ export const buildUseWorkoutHistoryPageResult = (state: CanonicalState) => ({
   error: null,
 });
 
+// X36: Analityka domyślna w Postępach — SummaryTab czyta useWorkoutRange.
+export const buildUseWorkoutRangeResult = (state: CanonicalState) => ({
+  workouts: state.workouts,
+  isLoaded: true,
+  error: null,
+});
+
 export const buildUseSubscriptionResult = () => ({
   isPro: false,
   tier: 'none',

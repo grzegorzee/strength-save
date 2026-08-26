@@ -123,7 +123,10 @@ vi.mock('@/hooks/useActivities', async () => {
 });
 vi.mock('@/hooks/useWorkoutHistoryPage', async () => {
   const helpers = await import('@/test/canonical-states');
-  return { useWorkoutHistoryPage: () => helpers.buildUseWorkoutHistoryPageResult(smoke.state) };
+  return {
+    useWorkoutHistoryPage: () => helpers.buildUseWorkoutHistoryPageResult(smoke.state),
+    useWorkoutRange: () => helpers.buildUseWorkoutRangeResult(smoke.state),
+  };
 });
 vi.mock('@/hooks/useSubscription', async () => {
   const helpers = await import('@/test/canonical-states');
@@ -183,7 +186,9 @@ const ROUTES: SmokeRoute[] = [
   { name: '/history', entry: '/history', pattern: '/history', Component: WorkoutHistory as () => JSX.Element },
   // WP-H (X28): pełna płaska lista Historii jako osobna powierzchnia.
   { name: '/history?list=all', entry: '/history?list=all', pattern: '/history', Component: WorkoutHistory as () => JSX.Element },
+  // X36: /achievements = Analityka (domyślna), rekordy pod ?view=records.
   { name: '/achievements', entry: '/achievements', pattern: '/achievements', Component: Achievements as () => JSX.Element },
+  { name: '/achievements?view=records', entry: '/achievements?view=records', pattern: '/achievements', Component: Achievements as () => JSX.Element },
   { name: '/exercises', entry: '/exercises', pattern: '/exercises', Component: ExerciseLibrary as () => JSX.Element },
   { name: '/exercises?group=chest', entry: '/exercises?group=chest', pattern: '/exercises', Component: ExerciseLibrary as () => JSX.Element },
   { name: '/measurements', entry: '/measurements', pattern: '/measurements', Component: Measurements as () => JSX.Element },

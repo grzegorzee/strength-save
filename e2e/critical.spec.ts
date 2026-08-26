@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, openProfileSection } from './helpers';
 
 test.describe('Critical Routing and Shell', () => {
   test.beforeEach(async ({ page }) => {
@@ -94,6 +94,8 @@ test.describe('Critical Interactions', () => {
     await expectHashRoute(page, '/profile');
     await expectPageRendered(page);
     await expect(page.getByText('Backup i przywracanie')).toBeVisible();
+    // X36: sekcja zwijana — treść po rozwinięciu.
+    await openProfileSection(page, 'backup');
     await expect(page.getByRole('button', { name: 'Eksportuj kopię' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Importuj kopię' })).toBeVisible();
   });
