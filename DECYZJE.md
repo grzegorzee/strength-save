@@ -5,11 +5,37 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-26 (X36: web index-CeIn7pvM LIVE, iOS 125 APPROVED, AAB v40 SHA 4de8f9fb; X35b+X35c WYDANE: web index-K-NsFPic LIVE, functions deploy, iOS 124 Beta App Review APPROVED, AAB v39 SHA b44d43b1; 25.08: X30, X31, X32+X33, X34, X34b, X35a)
+**Ostatnia aktualizacja:** 2026-08-26 (X37: web index-DeqdHxb7 LIVE, iOS 126 APPROVED, AAB v41 SHA 5d95b812; X36: web index-CeIn7pvM, iOS 125, AAB v40; X35b+X35c WYDANE: web index-K-NsFPic LIVE, functions deploy, iOS 124 Beta App Review APPROVED, AAB v39 SHA b44d43b1; 25.08: X30, X31, X32+X33, X34, X34b, X35a)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-26 (3): X37 — pierwszy trening bez tarcia: rozgrzewka opcjonalna (przełącznik + 3 akcje + treść wg YouTube), serie na czas z odliczaniem, aktywna seria, auto-odhaczanie przy "Zakończ", tour 3 kroków, celebracje 1./10./25./50./100., ilustracje 12 grup mięśniowych (web / iOS 126 / AAB v41)
+
+**Źródło:** głosówka właściciela po buildzie 125 (testy na siłowni) + "najpierw research i plan, potem workflow, na końcu produkcja". Plan `docs/PLAN-X37-2026-08-26.md`, research `docs/RESEARCH-X37-2026-08-26.md` (UX: NN/G, HIG, Material, Hevy/Strong/Fitbod/JEFIT/Boostcamp/Runna; rozgrzewki: Nippard, RP/Israetel, Squat University, Thrall, Kaleigh Cohen, CentrumSportowca.pl). Wykonanie: Workflow 5 agentów w worktree (WP-B..WP-F, 1,36 mln tokenów, 606 tool calls, 52 min) + WP-A/WP-G orkiestrator; merge sekwencyjny (2 konflikty tekstowe w ExerciseCard/WorkoutDay, duplikaty `useWorkoutAggregate` scalone do jednego).
+
+**WP-A Profil:** kolor przewodni znów ZAWSZE rozwinięty (uwaga właściciela), wiersz "Konto i pomoc" bez wartości języka.
+
+**WP-B Rozgrzewka:** `preferences.warmupPrompt` (domyślnie true; cache `fittracker_warmup_prompt_v1` czytany synchronicznie, mirror w Firestore przez `warmup-prompt-sync.ts`, chmura→cache w `PreferenceSync`); przełącznik w Profilu > Trening "Proponuj rozgrzewkę przed treningiem" (`profile-warmup-prompt`); arkusz przed startem z 3 akcjami (`prestart-yes` / `prestart-skip` / `prestart-never` + toast "Włączysz ją w Profilu > Trening"), przy 0 ukończonych blok "dlaczego" (`prestart-first-why`); treść wg researchu: tętno (60/30 s) → mobilność wg partii pierwszego ćwiczenia (góra/dół/full) → aktywacja; początkujący 4 min (max 6 pozycji, marsz zamiast pajacyków), reszta 6 min; dialog w 3 fazach z aktywną pozycją i "Dalej", odliczanie pozycji czasowych za istniejącą flagą `intervalTimers`; rampa 50/70/85 (`rampSchemeFor`: sztanga gryf x8, 50% x5, 70% x3, 85% x1; <60 kg krótsza; >150 kg +40% x5; hantle/maszyna 50% x8, 75% x3) wspólna dla arkusza i "Dodaj serie rozgrzewkowe" w karcie (`detectWarmupEquipment`).
+
+**WP-C Serie na czas:** `set-countdown.ts` (cel wg poziomu: początkujący 30 s, średni 45 s, zaawansowany 60 s, nieznany 45 s; deadline-based) + `SetCountdown` (play/stop 44 px przy polu czasu; na zero: haptyka + dźwięk + `durationSec` = cel + `completed` tą samą ścieżką co ręczne odhaczenie + start przerwy; stop = zapis upłyniętego bez odhaczenia; local notification na deadline przez `rest-notification.ts` w kanałach); `Hollow Hold` → `tracking: 'duration'`; szablony: ćwiczenia czasowe w sekundach wg poziomu (`parseDurationRange`, sekundy nie trafiają do reps).
+
+**WP-D Aktywna seria + auto-odhaczanie:** wiersz aktywnej serii z obrysem `ring-1 ring-primary/70`, lewym paskiem akcentu 3 px i checkmarkiem z obrysem (aria "(aktywna)"); `autoCompleteFilledSets` w `workout-day-view.ts` (serie robocze z kompletem danych wg trackingu odhaczane przy "Zakończ", toast "Odhaczono N serii z wpisanymi danymi"; puste i rozgrzewkowe nietknięte); świadomie inaczej niż Hevy (które po cichu pomija nieodhaczone).
+
+**WP-E Tour pierwszego treningu:** `first-workout-tour.ts` + `FirstWorkoutTour` (3 spotlighty: inputy → checkmark → Zakończ; wycięcie z rAF, Dalej/Pomiń, raz na urządzenie `fittracker_first_workout_tour_v1`, tylko jawny start przy 0 ukończonych, nie desktop md+); `playwright.config` seeduje klucz "widziane" (tour zasłaniałby sesję w każdym specu). QA wykryło i naprawiono: "Tak, rozgrzewka" paliło tour (mount w luce przed dialogiem + Escape z tego samego dispatchu) → `warmupQueued` + ignorowanie zdarzeń sprzed montażu.
+
+**WP-F Celebracje:** `workout-milestones.ts` (1, 10, 25, 50, 100, 150, 200, 300, 500) + `WorkoutMilestoneCelebration` (wzorzec LivePR: baner + konfetti, 2,5 s, X) w `WorkoutCompletionSequence`; "Trening nr N" w podsumowaniu (`workout-ordinal`); klucz `fittracker_milestone_celebrated_v1` (raz per n).
+
+**WP-G Ilustracje mięśni:** 12 obrazów `public/muscles/<PrimaryMuscle>.webp` (GPT Image 2 przez Higgsfield; OpenAI API bez kredytów; źródła PNG w `~/FIRMA/media/ai_generowane/strength_save/muscles/`), 512x512, 11-20 KB, razem 172 KB, poza precache; `getMuscleImageUrl`, `ExerciseDetail` z `<img loading="lazy">` i fallbackiem do `MuscleMap`; właściciel zaakceptował wszystkie 12.
+
+**Naprawione przy okazji:** 6 datozależnych e2e (`critical:38`, `edge-cases` ×4, `mobile-nav:75`) czyta nazwę dnia z daty (`plWeekdayName(localToday())`), bo od X30 WP-L nagłówek sesji podąża za datą.
+
+**Bramki:** vitest **3302/3307** (5 = timeouty `exercise-picker.test.tsx` pod obciążeniem; w izolacji 12/12, na `main` ten plik trwa 67 s); typecheck, lint 0 err, no-emoji; e2e chromium **245/245** (pełny bieg 242 + 3 zaktualizowane pod nową rampę i datę, zielone w powtórce); QA iPhone 15 `tmp/qa-x37/` (arkusz, lista rozgrzewki, tour 1-3, aktywna seria, odliczanie planka, baner 1. treningu, Profil > Trening, ExerciseDetail core/klatka). Znane: `exercise-picker.test.tsx` trwa 45-70 s także na `main` (timeouty tylko pod obciążeniem równoległym).
+
+**Przejście na świeżym koncie produkcyjnym (WP-H pkt 3):** headless Playwright zablokowany przez App Check (bot bez reCAPTCHA: rejestracja tworzy usera Auth, ale zapis profilu odrzucony, ekran "Nie udało się wczytać profilu"); osierocone konto testowe usunięte (Auth accounts:delete, brak dokumentu users/). Pełny flow onboarding → pierwszy trening → baner zweryfikowany w mocku e2e (QA zrzuty 01-23); przejście na realnym koncie = TestFlight 126 / Chrome właściciela (skrypt `tmp/prod-qa/walk.mjs` gotowy dla przeglądarki z reCAPTCHA).
+
+**Wydanie:** web LIVE `index-DeqdHxb7.js`; iOS **126** upload + obie grupy TestFlight (HTTP 204) + Beta App Review **APPROVED** (log `tmp/release/ios-126.log`); AAB **v41** SHA `5d95b812` (`~/Desktop/strength-save-v41.aab`, 19,4 MB, jar verified; do wgrania w Play Console przez właściciela). Telemetria `client_errors` po wdrożeniu: 1 wpis `listener-error` z konta testowego (App Check), zero od realnych userów. **Następny iOS = 127, versionCode = 42.**
 
 ### 2026-08-26 (2): X36 — Postępy z Analityką pierwszą i domyślną + skróty Tonaż/Progresja, Profil w zwijanych sekcjach (nowe grupowanie), Profil bez paska "Wstecz" (web / iOS 125 / AAB v40)
 
