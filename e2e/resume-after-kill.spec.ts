@@ -50,7 +50,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
       .count();
 
     // Zapis draftu jest asynchroniczny — poll aż snapshot PIERWSZEGO ćwiczenia
-    // niesie pełny stan (pozostałe karty mają swój 1 pusty W z prefillu startu).
+    // niesie pełny stan (pozostałe karty mają same serie robocze, X38: bez W z prefillu).
     await expect.poll(async () => {
       const draft = (await readWorkoutDraftDb(page, E2E_UID)) as DraftShape;
       const sets = draft?.exerciseSets?.['ex-1-1'] ?? [];
@@ -94,7 +94,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
       await expect(page).toHaveURL(/#\/workout\/day-1\?/);
     }
 
-    // Serie 1:1: dokładnie 4 wiersze W (wszystkie odhaczone), robocze bez zmian,
+    // Serie 1:1: dokładnie 2 wiersze W (oba odhaczone), robocze bez zmian,
     // zero wskrzeszonych/zdublowanych wierszy.
     const cardAfter = page.locator('.exercise-card').first();
     await expect(page.getByText('Odzyskano niezapisany trening')).toHaveCount(0);

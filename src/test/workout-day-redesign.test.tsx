@@ -90,13 +90,15 @@ describe('target box: kaskada celu w jednym boxie (fala 2)', () => {
     expect(within(card).getByText(/Dołóż/)).toBeTruthy();
   });
 
-  it('deload tygodnia dostaje etykietę semantyczną (warning), box zostaje na tincie akcentu', () => {
+  it('deload tygodnia: CAŁY box w kolorze warning (tekst pełny, tło /10), etykieta bez własnej klasy (X38)', () => {
     const { card } = renderCard({
       savedSets: [workingSet()],
       weeklyTarget: weekly({ kind: 'deload', targetWeight: 55, reasonKey: 'progression.reason.deload' }),
     });
-    const label = within(card).getByText('Deload');
-    expect(label.className).toContain('text-fitness-warning');
+    const box = within(card).getByTestId('exercise-card-target');
+    expect(box.className).toContain('text-fitness-warning');
+    expect(box.className).toContain('bg-fitness-warning/10');
+    expect(within(card).getByText('Deload').getAttribute('class')).toBeNull();
   });
 
   it('brak jakiejkolwiek porady = brak boxa (zero zmyślonych celów)', () => {
