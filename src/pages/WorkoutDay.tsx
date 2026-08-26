@@ -1785,15 +1785,14 @@ const WorkoutDay = () => {
         if (result.provisional) {
           trackTelemetryEvent(uid, 'provisional_session_started');
         }
-        toast({
-          title: result.provisional ? t('workout.toast.startedOfflineTitle') : t('workout.toast.startedTitle'),
-          description: result.provisional
-            ? t('workout.toast.startedOfflineDesc', {
-              day: sessionDayName(startSnapshot.day),
-              focus: localizeFocus(startSnapshot.day.focus, lang),
-            })
-            : `${sessionDayName(startSnapshot.day)} - ${localizeFocus(startSnapshot.day.focus, lang)}`,
-        });
+        // X38 (cisza): start bez sieci nie dostaje toastu o zapisie lokalnym,
+        // sesja i tak zsynchronizuje się sama; status "Tylko lokalnie" widać w pasku.
+        if (!result.provisional) {
+          toast({
+            title: t('workout.toast.startedTitle'),
+            description: `${sessionDayName(startSnapshot.day)} - ${localizeFocus(startSnapshot.day.focus, lang)}`,
+          });
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('workout.err.unknown');

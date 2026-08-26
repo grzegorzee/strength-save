@@ -427,7 +427,11 @@ test.describe('Batch Save Workflow', () => {
     await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
     await skipPreStartWarmupIfShown(page);
 
-    await expect(page.getByText('Trening rozpoczęty offline', { exact: true }).first()).toBeVisible();
+    // X38 (cisza): start offline bez toastu o zapisie lokalnym; na sesję czekamy
+    // po statystykach sesji i drafcie, nie po toaście.
+    await expect(page.getByTestId('session-stats')).toBeVisible();
+    await expect(page.getByText('Trening rozpoczęty offline', { exact: true })).toHaveCount(0);
+    await expect.poll(async () => readWorkoutDraftDb(page, E2E_USER_ID), { timeout: 10_000 }).not.toBeNull();
 
     const draft = await readWorkoutDraftDb(page, E2E_USER_ID) as {
       sessionId: string;
@@ -476,7 +480,8 @@ test.describe('Batch Save Workflow', () => {
     await navigateAndWait(page, `/workout/day-2?date=${today}`);
     await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
     await skipPreStartWarmupIfShown(page);
-    await expect(page.getByText('Trening rozpoczęty offline', { exact: true }).first()).toBeVisible();
+    // X38 (cisza): start offline bez toastu o zapisie lokalnym.
+    await expect(page.getByText('Trening rozpoczęty offline', { exact: true })).toHaveCount(0);
 
     const preserved = await readWorkoutDraftDb(page, E2E_USER_ID, existingSessionId) as { dayNotes: string } | null;
     expect(preserved?.dayNotes).toBe('keep me');

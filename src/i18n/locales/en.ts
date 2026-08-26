@@ -1752,8 +1752,6 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.watchFinishedDesc': 'Saving and closing the workout.',
   'workout.toast.continueDesc': 'Loaded an existing workout.',
   'workout.toast.localSecureFailedDesc': 'Failed to secure the workout locally.',
-  'workout.toast.startedOfflineTitle': 'Workout started offline',
-  'workout.toast.startedOfflineDesc': '{day} - {focus}. Data is saved locally and will sync once you are back online.',
   'workout.toast.startedTitle': 'Workout started!',
   'workout.toast.skippedTitle': 'Exercise skipped',
   'workout.toast.skippedDesc': 'The exercise was skipped for today.',

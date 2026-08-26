@@ -1777,8 +1777,6 @@ export const pl = {
   'workout.toast.watchFinishedDesc': 'Zapisuję i zamykam trening.',
   'workout.toast.continueDesc': 'Wczytano istniejący trening.',
   'workout.toast.localSecureFailedDesc': 'Nie udało się zabezpieczyć treningu lokalnie.',
-  'workout.toast.startedOfflineTitle': 'Trening rozpoczęty offline',
-  'workout.toast.startedOfflineDesc': '{day} - {focus}. Dane są zapisane lokalnie i zsynchronizują się po odzyskaniu internetu.',
   'workout.toast.startedTitle': 'Trening rozpoczęty!',
   'workout.toast.skippedTitle': 'Ćwiczenie pominięte',
   'workout.toast.skippedDesc': 'Ćwiczenie zostało pominięte na dzisiaj.',
