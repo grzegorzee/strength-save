@@ -69,6 +69,8 @@ import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
+import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
@@ -196,6 +198,9 @@ const WorkoutDay = () => {
     return getTrackingType({ isBodyweight: isBodyweightExercise(name) });
   }, [customExercises]);
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
+  // WP-F (X37): licznik ukończonych treningów all-time (kamienie milowe);
+  // null = brak agregatu, fallback na okno recent.
+  const workoutAggregate = useWorkoutAggregate(uid);
   // Przypięte notatki per ćwiczenie (Z103): trwałe, klucz = kanoniczna nazwa.
   const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
   // T10: notatka przypięta do DNIA treningu (planowanie przyszłej sesji) —
@@ -233,6 +238,15 @@ const WorkoutDay = () => {
   // Runna p.1 (spec A1): sekwencja completion tylko dla ŚWIEŻO zakończonej sesji.
   // Wejście w ukończony trening z historii NIE dostaje celebracji ani oceny.
   const [justCompleted, setJustCompleted] = useState(false);
+  // WP-F (X37): numer porządkowy ŚWIEŻO zakończonego treningu + kamień milowy do
+  // celebracji. Liczone raz w handleCompleteWorkout (przed zapisem); baner
+  // renderuje się tylko przy justCompleted, więc resume/wejście z historii go
+  // nie dostaje; hasCelebrated (localStorage) blokuje powtórkę tego samego n.
+  const [completionCelebration, setCompletionCelebration] = useState<{
+    sessionId: string;
+    ordinal: number;
+    milestone: WorkoutMilestone | null;
+  } | null>(null);
   // Runna p.1 (spec A4): PR na żywo — badge per ćwiczenie + jednorazowy toast.
   const [livePRWeights, setLivePRWeights] = useState<Record<string, number>>({});
   const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number; bestBefore: number } | null>(null);
@@ -2142,6 +2156,21 @@ const WorkoutDay = () => {
     setIsExplicitSaving(true);
     setSaveError(null);
 
+    // WP-F (X37): numer tego treningu = ukończone PRZED nim + 1. Źródło: agregat
+    // all-time (Z217), fallback okno recent bez tej sesji (wzorzec Z83 niżej).
+    // Liczone PRZED zapisem: po nim onSnapshot i trigger agregatu dołożą tę
+    // sesję. Ponowne "Zakończ" tej samej sesji (draftRetained) trzyma numer.
+    const completionOrdinal = completionCelebration?.sessionId === sessionId
+      ? completionCelebration.ordinal
+      : (workoutAggregate?.totals.workoutCount
+        ?? workouts.filter(w => w.completed && w.id !== sessionId).length) + 1;
+    const markCompletionCelebration = () => {
+      const milestone = workoutMilestoneFor(completionOrdinal);
+      const celebrate = milestone !== null && !hasCelebrated(milestone.n);
+      if (milestone && celebrate) markCelebrated(milestone.n);
+      setCompletionCelebration({ sessionId, ordinal: completionOrdinal, milestone: celebrate ? milestone : null });
+    };
+
     const finalizedAt = activeDraftRef.current?.finalizedAt ?? Date.now();
 
     const flushedDraft = await persistDraftSnapshot({ finalizedAt }, { showStatus: false });
@@ -2206,6 +2235,7 @@ const WorkoutDay = () => {
         workoutSyncQueue.upsertFromDraft(pendingDraft, { lastError: result.error || 'final-sync-pending' });
         trackTelemetryEvent(uid, 'final_sync_pending');
         trackTelemetryEvent(uid, 'sync_queue_enqueued');
+        markCompletionCelebration();
         setIsCompleted(true);
         setJustCompleted(true);
         setShowCompleteConfirm(false);
@@ -2229,6 +2259,7 @@ const WorkoutDay = () => {
       return;
     }
 
+    markCompletionCelebration();
     setIsCompleted(true);
     setJustCompleted(true);
     completedSessionLockRef.current = sessionId;
@@ -2668,6 +2699,8 @@ const WorkoutDay = () => {
           prs={derivedSessionPRs}
           onRate={handleSessionRate}
           onEditSets={isFinalSyncPending ? undefined : handleEditFromSummary}
+          milestone={justCompleted ? completionCelebration?.milestone ?? null : null}
+          workoutNumber={completionCelebration?.ordinal ?? null}
         >
 
         {dayNotes && (

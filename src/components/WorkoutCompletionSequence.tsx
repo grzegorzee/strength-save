@@ -11,6 +11,8 @@ import type { CompletionSummary } from '@/lib/workout-completion-summary';
 import { formatPRDelta, formatPRValue, type PRComparison } from '@/lib/pr-utils';
 import type { WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
 import { useExclusiveOverlay } from '@/hooks/useExclusiveOverlay';
+import { WorkoutMilestoneCelebration } from '@/components/WorkoutMilestoneCelebration';
+import type { WorkoutMilestone } from '@/lib/workout-milestones';
 
 // Sekwencja completion (Runna pakiet 1, spec A1): celebracja → ocena 1 tapem
 // (pomijalna) → dopiero potem podsumowanie (rating-gate). Wejście w ukończony
@@ -32,6 +34,10 @@ interface WorkoutCompletionSequenceProps {
   celebrationMs?: number;
   /** Confetti tylko dla rzadkich momentów: PR albo kamień milowy (PRO-C T3). */
   bigMoment?: boolean;
+  /** WP-F (X37): kamień milowy tego zakończenia (1, 10, 25...). null = zwykła celebracja. */
+  milestone?: WorkoutMilestone | null;
+  /** WP-F (X37): numer porządkowy treningu w podsumowaniu ("Trening nr 12"). */
+  workoutNumber?: number | null;
   children?: ReactNode;
 }
 
@@ -66,6 +72,8 @@ export const WorkoutCompletionSequence = ({
   onEditSets,
   celebrationMs = 2200,
   bigMoment,
+  milestone = null,
+  workoutNumber = null,
   children,
 }: WorkoutCompletionSequenceProps) => {
   const { t, lang } = useTranslation();
@@ -103,6 +111,12 @@ export const WorkoutCompletionSequence = ({
 
   // PRO-C T3: confetti zarezerwowane dla rzadkich momentów (PR / kamień milowy).
   const showConfetti = bigMoment ?? prs.length > 0;
+
+  if (stage === 'celebration' && milestone) {
+    // WP-F (X37): kamień milowy = baner z konfetti zamiast zwykłej celebracji
+    // (własny deadline ścienny 2,5 s; X i tap przechodzą do oceny).
+    return <WorkoutMilestoneCelebration milestone={milestone} onDone={() => setStage('rating')} />;
+  }
 
   if (stage === 'celebration') {
     return (
@@ -215,6 +229,12 @@ export const WorkoutCompletionSequence = ({
       {/* Hero karta (mockup 1a): OGROMNY tonaż w akcencie + delta vs poprzednia
           sesja tego dnia + paski porównania + rząd statów z pigułką Popraw serie. */}
       <div className="flex flex-col gap-4 rounded-xl bg-surface-container p-5">
+        {/* WP-F (X37): numer porządkowy treningu (Hevy pokazuje go w podsumowaniu). */}
+        {workoutNumber !== null && workoutNumber > 0 && (
+          <span className="eyebrow-mono text-muted-foreground" data-testid="workout-ordinal">
+            {t('workout.summary.workoutNumber', { n: workoutNumber })}
+          </span>
+        )}
         <div className="flex items-end justify-between gap-3">
           <div className="flex items-baseline gap-2">
             <span className="font-heading text-display-lg font-bold tabular-nums leading-[0.85] text-primary">
