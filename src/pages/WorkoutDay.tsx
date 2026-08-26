@@ -3038,8 +3038,8 @@ const WorkoutDay = () => {
                 setPreStartOpen(false);
                 // Cache od razu (następny start bez arkusza), mirror w profilu w tle.
                 void persistWarmupPrompt(uid, false);
-                toast({ title: t('warmup.prestart.neverToast') });
-                void handleStartWorkout();
+                // Toast PO starcie: TOAST_LIMIT = 1, toast startu sesji by go nadpisał.
+                void handleStartWorkout().then(() => toast({ title: t('warmup.prestart.neverToast') }));
               }}
             >
               {t('warmup.prestart.never')}

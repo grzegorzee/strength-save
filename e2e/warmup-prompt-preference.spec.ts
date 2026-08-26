@@ -73,7 +73,8 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await sheet.getByTestId('prestart-never').click();
     await expect(sheet).toHaveCount(0);
     await expectSessionStarted(page);
-    await expect(page.getByText(/Włączysz ją w Profilu > Trening/)).toBeVisible();
+    // Toast + region aria-live duplikują tekst: bierzemy pierwszy widoczny.
+    await expect(page.getByText(/Włączysz ją w Profilu > Trening/).first()).toBeVisible();
     expect(await page.evaluate((key) => localStorage.getItem(key), WARMUP_PROMPT_KEY)).toBe('false');
 
     // Nowa sesja (draft skasowany): start prosto do treningu.
@@ -104,7 +105,12 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await startButton(page).click();
     await expectSessionStarted(page);
     await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
+    // Koniec sesji testowej: draft skasowany PRZED wyjściem ze strony (autozapis
+    // przy odmontowaniu odtworzyłby go i powrót wznowiłby sesję zamiast startu).
     await clearWorkoutDraftDb(page, E2E_UID);
+    await page.reload();
+    await expectPageRendered(page);
+    await expect(startButton(page)).toBeVisible();
 
     // Włączenie z powrotem: arkusz wraca przy następnym świeżym starcie.
     await navigateAndWait(page, '/profile');
