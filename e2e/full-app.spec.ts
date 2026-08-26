@@ -1199,8 +1199,9 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
     await firstCard.getByTestId('warmup-generate').click();
-    // Schemat: gryf 20 x10, 50 x8, 70 x5, 90 x2 — 4 wiersze rozgrzewkowe.
-    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
+    // X37 WP-B: rampa wg sprzętu; pierwsze ćwiczenie to hantle: 50 x8, 75 x3 (2 wiersze W).
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ }).first()).toHaveValue('50');
     // Po wygenerowaniu (wypełnione warmupy) przycisk znika — brak duplikacji.
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
   });

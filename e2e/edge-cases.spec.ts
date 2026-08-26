@@ -12,7 +12,8 @@ test.describe('Edge Cases: URL Manipulation', () => {
 
   test('special chars in URL params do not crash app', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1?date=2026-01-01&test=%3Cscript%3Ealert(1)%3C/script%3E');
-    await expect(page.getByText(plWeekdayName(localToday()), { exact: false }).first()).toBeVisible();
+    // Nagłówek = dzień DATY z query (2026-01-01 = czwartek), nie dzień planu.
+    await expect(page.getByText(plWeekdayName('2026-01-01'), { exact: false }).first()).toBeVisible();
   });
 
   test('SQL injection attempt in route param is harmless', async ({ page }) => {

@@ -24,7 +24,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     await blockFirebase(page);
   });
 
-  test('serie wracają 1:1 po force-quit: 4xW odhaczone + robocze bez zmian, dokończenie dostępne', async ({ page, browserName }) => {
+  test('serie wracają 1:1 po force-quit: 2xW odhaczone + robocze bez zmian, dokończenie dostępne', async ({ page, browserName }) => {
     const today = localToday();
     await navigateAndWait(page, '/');
     await clearWorkoutDraftDb(page, E2E_UID);
@@ -34,16 +34,17 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
-    // Chip "Rozgrzewka" generuje drabinkę 4xW (gryf x10 / 50% x8 / 70% x5 / 90% x2).
+    // Chip "Rozgrzewka" generuje rampę wg sprzętu (X37 WP-B): pierwsze ćwiczenie
+    // to hantle, więc 2xW (50% x8 / 75% x3); sztanga dostałaby 4xW.
     await firstCard.getByTestId('warmup-generate').click();
-    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
 
-    // Odhacz 4xW + 2 serie robocze — pierwszy przycisk "Zaznacz" to zawsze
+    // Odhacz 2xW + 2 serie robocze — pierwszy przycisk "Zaznacz" to zawsze
     // pierwsza nieodhaczona seria (W są na górze tabeli).
-    for (let i = 0; i < 6; i += 1) {
-      await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
+    for (let i = 0; i < 4; i += 1) {
+      await firstCard.getByRole('button', { name: /^Zaznacz serię jako zrobioną/ }).first().click();
     }
-    await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(6);
+    await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(4);
     const uncheckedBefore = await firstCard
       .getByRole('button', { name: 'Zaznacz serię jako zrobioną' })
       .count();
@@ -58,7 +59,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
         warmupDone: sets.filter((s) => s.isWarmup && s.completed).length,
         workingDone: sets.filter((s) => !s.isWarmup && s.completed).length,
       };
-    }, { timeout: 10000 }).toEqual({ warmup: 4, warmupDone: 4, workingDone: 2 });
+    }, { timeout: 10000 }).toEqual({ warmup: 2, warmupDone: 2, workingDone: 2 });
 
     // Symulacja zgaszenia ekranu: renderer JS jest zamrożony, a potem wznowiony.
     // Nie oczekujemy pracy timerów w tle — po resume liczy się trwały snapshot.
@@ -74,7 +75,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     await expect.poll(async () => {
       const draft = (await readWorkoutDraftDb(page, E2E_UID)) as DraftShape;
       return draft?.exerciseSets?.['ex-1-1']?.filter((set) => set.completed).length ?? 0;
-    }).toBe(6);
+    }).toBe(4);
 
     // Wyjście z treningu, potem kill (reload = zimny start).
     await navigateAndWait(page, '/');
@@ -97,8 +98,8 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     // zero wskrzeszonych/zdublowanych wierszy.
     const cardAfter = page.locator('.exercise-card').first();
     await expect(page.getByText('Odzyskano niezapisany trening')).toHaveCount(0);
-    await expect(cardAfter.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
-    await expect(cardAfter.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(6);
+    await expect(cardAfter.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
+    await expect(cardAfter.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(4);
     await expect(cardAfter.getByRole('button', { name: 'Zaznacz serię jako zrobioną' })).toHaveCount(uncheckedBefore);
 
     // Dokończenie: "Zakończ trening" dostępny (finalny sync w mock e2e nie domknie
