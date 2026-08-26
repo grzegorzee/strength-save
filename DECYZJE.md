@@ -5,11 +5,25 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-26 (X35b+X35c WYDANE: web index-K-NsFPic LIVE, functions deploy, iOS 124 Beta App Review APPROVED, AAB v39 SHA b44d43b1; 25.08: X30, X31, X32+X33, X34, X34b, X35a)
+**Ostatnia aktualizacja:** 2026-08-26 (X36: web index-CeIn7pvM LIVE, iOS 125 APPROVED, AAB v40 SHA 4de8f9fb; X35b+X35c WYDANE: web index-K-NsFPic LIVE, functions deploy, iOS 124 Beta App Review APPROVED, AAB v39 SHA b44d43b1; 25.08: X30, X31, X32+X33, X34, X34b, X35a)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-26 (2): X36 — Postępy z Analityką pierwszą i domyślną + skróty Tonaż/Progresja, Profil w zwijanych sekcjach (nowe grupowanie), Profil bez paska "Wstecz" (web / iOS 125 / AAB v40)
+
+**Źródło:** głosówka właściciela po buildzie 124. Plan `docs/PLAN-X36-2026-08-26.md`, branch `feat/x36-profile-progress`, research UX (Hevy/Strong/Fitbod/JEFIT/Boostcamp/Runna + HIG/Material) jako tło grupowania.
+
+**Postępy:** segment `Analityka | Rekordy i odznaki`, Analityka PIERWSZA i DOMYŚLNA (`/achievements` bez `?view=`); rekordy pod `?view=records` (stare deep linki `?section=records|badges` bez `view` nadal otwierają rekordy). Nad zakładkami Analityki rząd skrótów `Tonaż` / `Progresja` (`analytics-quick-*`, deep link `view=analytics&tab=charts&chart=…`) — wykres w JEDNO tapnięcie zamiast Analityka → Wykresy → kafel; menu wykresów zaczyna się od Tonażu i Progresji. Wejścia do rekordów ("Wszystkie rekordy" w progresji, karty PR w Podsumowaniu, push o PR z WorkoutDay, "Wszystkie" w Profilu) celują w `?view=records`. Route sweep dostał `/achievements?view=records` i mock `useWorkoutRange` (`buildUseWorkoutRangeResult`), bo domyślny `/achievements` renderuje teraz SummaryTab.
+
+**Profil:** `ProfileAccordionSection` (`src/components/profile/`, wzorzec Radix: `h2 > button`, etykieta w `[data-section-label]`, wartość w wierszu, treść NIEZAMONTOWANA gdy zwinięta — karty z hookami sieciowymi nie odpytują backendu do otwarcia). Kolejność: Tożsamość + Osiągnięcia (otwarte) → Kolor przewodni → **Trening** (jednostki, **Nie wygaszaj ekranu** przeniesione z karty przerw, Nie na 100%, Urlop) → **Timer i przerwy** (timer on/off + dźwięk, dawniej w Treningu; `RestSettingsCard hideTitle` bez keep-awake; wiersz: "Między seriami: N s" / "Wyłączony") → Kalkulator talerzy (`PlateInventorySettings` bez własnego Card/Collapsible) → Trener (wiersz: imię / zamaskowany adres / "Nie ustawiono") → **Urządzenia i połączenia** (Health + Garmin/Apple Watch `hideTitle` + Strava w JEDNEJ sekcji, skrót "Garmin i zegarek" zbędny) → Powiadomienia (niżej: "nie najważniejsze") → Subskrypcja (wiersz: plan) → Twoje dane → Backup i przywracanie → Zgody i prywatność → Konto i pomoc (wiersz: język). Deep link `?section=` ROZWIJA sekcję i przewija; aliasy `connections`/`strava` → `devices`, `rest` → `timer`; `legacySettingsPath('strava')` → `devices`. Sync Center NAD listą sekcji (alert o zaległościach, nie ustawienie — e2e `batch-save` to złapał). Popup "Zapisać jako trenera?" po pierwszej wysyłce bez zmian (EmailWorkoutDialog). Decyzja świadoma wbrew researchowi: apki z kategorii nie robią accordionów (lista wierszy → podstrony), ale właściciel jawnie chciał "ptaszki" jak w sekcji przerw.
+
+**Layout:** `/profile` bez `BackBar` (wejście z avatara; strzałka w nagłówku zostaje jedynym powrotem), rezerwa dolna 7.5rem.
+
+**Bramki:** vitest **3176/3176**, typecheck, lint 0 err, build web + mobile, dist-smoke, bundle 1 391 103 B, e2e chromium **225/231** (6 failów NIE z X36: `critical.spec:38`, `edge-cases` ×4, `mobile-nav-reachability:75` oczekują "Poniedziałek" na `/workout/day-1`, a nagłówek od X30 WP-L (4c03d29c) podąża za datą, więc padają w każdy dzień poza poniedziałkiem; potwierdzone na `main` przez stash — do naprawy osobno), QA iPhone 15 `tmp/qa-x36/` 4/4 (zero poziomego scrolla; po QA: skróty bez chevrona, bo "Progresja" ucinała się na 393 px; karta urządzeń bez tytułu, bo dwie linie obok "Odśwież").
+
+**Wydanie:** web LIVE `index-CeIn7pvM.js`; iOS **125** upload + obie grupy TestFlight (HTTP 204) + Beta App Review **APPROVED** (log `tmp/release/ios-125.log`); AAB **v40** SHA `4de8f9fb` (`~/Desktop/strength-save-v40.aab`, 19,3 MB, jar verified; do wgrania w Play Console przez właściciela). Telemetria `client_errors` od wdrożenia: 0 wpisów (REST read-only). **Następny iOS = 126, versionCode = 41.**
 
 ### 2026-08-26: X35b + X35c — Profil bez "Ustawień zaawansowanych", pasek "Wstecz", przerwy wg celu planu, reset planu w Cyklach, powiadomienia (6 typów + push o rekordzie + dzwonek wszędzie) (iOS 124 / AAB v39 / functions)
 
