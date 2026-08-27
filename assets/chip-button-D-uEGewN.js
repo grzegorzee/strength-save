@@ -1,0 +1,1 @@
+import{r as e,j as i}from"./react-vendor-DuJroiHx.js";import{b as m}from"./badge-c9v6HOVs.js";import{t as n}from"./index-BCNQkPgK.js";const u=e.forwardRef(({className:t,variant:r,pressed:o,type:s="button",...a},p)=>i.jsx("button",{ref:p,type:s,"aria-pressed":o,className:n(m({variant:r}),"cursor-pointer",t),...a}));u.displayName="ChipButton";export{u as C};
