@@ -1,0 +1,1 @@
+const n="/?guide=1",t=e=>`fittracker_post_plan_guide_v1_${e}`,s=e=>{if(!e)return!1;try{return window.localStorage.getItem(t(e))==="seen"}catch{return!1}},a=e=>{if(e)try{window.localStorage.setItem(t(e),"seen")}catch{}};export{n as P,s as i,a as m};
