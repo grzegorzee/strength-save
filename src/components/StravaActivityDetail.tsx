@@ -1,5 +1,4 @@
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
@@ -15,6 +14,7 @@ import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { parseLocalDateSafe } from '@/lib/utils';
+import { PoweredByStrava } from '@/components/strava/StravaBranding';
 
 const formatDistance = (meters?: number): string => {
   if (!meters) return '-';
@@ -95,6 +95,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
   const locale = dateLocale(lang);
   const fullDate = formatFullDate(activity, locale);
   const time = formatTime(activity, locale);
+  const stravaActivityUrl = `https://www.strava.com/activities/${activity.stravaId}`;
 
   const metrics: MetricItemProps[] = [
     { label: t('strava.detail.distance'), value: formatDistance(activity.distance) },
@@ -169,13 +170,22 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
           </div>
         )}
 
-        <Button
-          className="w-full bg-[#FC4C02] hover:bg-[#e04400] text-white"
-          onClick={() => window.open(activity.stravaUrl, '_blank')}
-        >
-          <ExternalLink className="h-4 w-4 mr-2" />
-          {t('strava.detail.openInStrava')}
-        </Button>
+        <div className="flex flex-col items-center gap-4 border-t pt-4">
+          <PoweredByStrava />
+          <a
+            href={stravaActivityUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 touch-manipulation items-center justify-center gap-2 font-semibold text-[#FC5200] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FC5200]"
+            onClick={(event) => {
+              event.preventDefault();
+              window.open(stravaActivityUrl, '_blank', 'noopener,noreferrer');
+            }}
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+            {t('strava.detail.viewOnStrava')}
+          </a>
+        </div>
       </SheetContent>
     </Sheet>
   );

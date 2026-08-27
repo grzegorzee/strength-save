@@ -1827,6 +1827,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.err.unknown': 'Unknown error.',
   // === groupK cleanup ===
   'strava.callback.denied': 'Authorization was denied.',
+  'strava.callback.athleteLimit': 'This integration has reached its current connected-athlete limit. This is not your fault. Strength Save keeps working without Strava.',
   'strava.callback.noCode': 'No authorization code.',
   'strava.callback.noState': 'Missing OAuth state protection.',
   'strava.callback.exchangeError': 'Code exchange error',
@@ -1852,6 +1853,9 @@ export const en: Record<keyof typeof pl, string> = {
   'strava.detail.dominantZone': 'Dominant zone:',
   'strava.detail.description': 'Description',
   'strava.detail.openInStrava': 'Open in Strava',
+  'strava.detail.viewOnStrava': 'View on Strava',
+  'strava.brand.connectAria': 'Connect with Strava',
+  'strava.brand.poweredByAlt': 'Powered by Strava',
   'muscle.chest': 'Chest',
   'muscle.back': 'Back',
   'muscle.shoulders': 'Shoulders',

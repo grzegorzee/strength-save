@@ -4260,3 +4260,64 @@ wersję `RESEND_API_KEY` oraz sam sekret. Syntetyczny e-mail wysłany do oficjal
 AWS Mailbox Simulator przez configuration set `strengthsave` utworzył w produkcyjnym
 `email_events` dokładnie `Send` i `Delivery`. Test nie dotknął danych użytkowników.
 OPEN/CLICK pozostają włączone dla prawdziwych wiadomości zgodnie z privacy 2.1.
+
+---
+
+## SESJA 2026-08-27 — zgody: odpowiedź callable jest autorytatywna po commit
+
+**Root cause:** `recordConsent` poprawnie zapisywał atomowo log i mirror użytkownika,
+ale klient ignorował odpowiedź HTTP 200 i czekał wyłącznie na niezależny
+`onSnapshot`. Na iOS pierwszy cold call zakończył się w ok. 3,4 s, drugi warm w ok.
+0,2 s; oba miały Auth i App Check `VALID`, oba zapisały komplet privacy 2.1 / terms
+2.0 / health 1.0. Gdy kanał Firestore w WKWebView nie odświeżył profilu w 12 s,
+UI pokazywał fałszywe „Nie udało się zapisać zgód” i prowokował duplikat audytowy.
+
+**Decyzja:** po `batch.commit()` Function zwraca minimalny, zagnieżdżony mirror bez
+IP, tekstu oświadczeń i timestampu. Klient waliduje `ok`, liczbę wpisów, wersje oraz
+decyzje fail-closed. `UserContext` natychmiast scala wyłącznie serwerowo potwierdzony
+mirror i chroni go przed starszym snapshotem cache; świeży snapshot pozostaje trwałą
+rekonsyliacją. Nie wysyłamy zgód w tle i nie używamy Background Runnera: bez odpowiedzi
+serwera bramka nadal blokuje wejście i daje retry/Wyloguj.
+
+**Weryfikacja:** testy zaczęły od kontraktu reprodukującego sukces callable bez
+snapshotu, malformed response oraz starszy cache. Po poprawce 32/32 testy consent
+frontendu, test odpowiedzi Functions, typecheck aplikacji i build Functions są zielone.
+
+---
+
+## SESJA 2026-08-27 — oficjalny branding Strava i bezpieczne linki aktywności
+
+**Root cause:** dwa CTA i ikona nagłówka były własną rekonstrukcją, a ekrany z danymi
+nie miały wymaganej atrybucji. Szczegóły ufały opcjonalnemu `stravaUrl` z dokumentu,
+zamiast budować kanoniczny adres z `stravaId`.
+
+**Decyzja:** używamy wyłącznie niezmodyfikowanych oficjalnych plików z paczek Stravy:
+pomarańczowego `Connect with Strava` 237×48 i białego poziomego `Powered by Strava`
+dla wymuszonego ciemnego motywu. Vite
+otrzymuje `?no-inline`, aby pliki pozostały identyfikowalnymi assetami. Oba CTA mają
+ten sam dostępny komponent z blokadą podwójnego OAuth. Widoki Tab, statystyk, karty i
+detalu pokazują atrybucję; ręczna aktywność jej nie pokazuje. `View on Strava` jest
+rozpoznawalnym linkiem do `https://www.strava.com/activities/{stravaId}` i otwiera się
+poza WebView z `noopener,noreferrer`. Scope pozostaje `read,activity:read_all`, nazwa i
+ikona Strength Save pozostają własne, redirect URI i sekret nie są zmieniane.
+
+**Limit atletów:** callback rozpoznaje błąd limitu i wyjaśnia, że to limit integracji,
+nie błąd użytkownika, a Strength Save działa dalej bez Stravy. Każdy błąd zachowuje
+powrót do Profil → Połączenia.
+
+**Weryfikacja:** oficjalne archiwa i ich SHA-256 są zapisane w
+`src/assets/strava/README.md`. Dziesięć testów brand compliance zaczęło jako czerwone;
+po zmianie cały pakiet Strava/switch/consent 45/45 jest zielony, typecheck przechodzi.
+Przed wysłaniem wniosku właściciel otrzyma osobny zestaw screenshotów; agent nie wysyła
+wniosku ani nie zmienia subskrypcji Strava.
+
+---
+
+## SESJA 2026-08-27 — kontrast przełączników systemowych
+
+**Root cause:** globalny `Switch` miał przezroczystą ramkę, a ciemny stan OFF zlewał
+się z kartą (m.in. „Proponuj wagę ze Zdrowia”).
+
+**Decyzja:** wspólny komponent używa stałej, subtelnej `border-border`; zachowuje
+kolory ON/OFF, disabled oraz istniejący focus ring. Jedna zmiana naprawia wszystkie
+przełączniki bez lokalnych wyjątków. Test kontrastu komponentu i typecheck są zielone.

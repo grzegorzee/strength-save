@@ -20,11 +20,14 @@ const StravaCallback = () => {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const callbackError = searchParams.get('error');
+    const callbackErrorDescription = searchParams.get('error_description');
 
     if (callbackError) {
       console.error('[Strava] OAuth denied:', callbackError);
       setStatus('error');
-      setErrorMessage(t('strava.callback.denied'));
+      const errorDetails = `${callbackError} ${callbackErrorDescription ?? ''}`;
+      const athleteLimitReached = /athlete|limit|capacity|quota/i.test(errorDetails);
+      setErrorMessage(t(athleteLimitReached ? 'strava.callback.athleteLimit' : 'strava.callback.denied'));
       return;
     }
 

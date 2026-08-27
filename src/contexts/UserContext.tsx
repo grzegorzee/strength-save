@@ -18,6 +18,7 @@ import {
   getProtectedCallableRejectionReason,
   type ProtectedCallableRejectionReason,
 } from '@/lib/protected-callable';
+import type { ConsentMirror } from '@/lib/legal-versions';
 
 interface UserContextValue {
   uid: string;
@@ -34,6 +35,7 @@ interface UserContextValue {
   profileSyncBlockReason: ProtectedCallableRejectionReason | null;
   profileSyncPending: boolean;
   retryProfileSync: () => Promise<void>;
+  mergeConfirmedConsentMirror: (mirror: ConsentMirror) => void;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -48,6 +50,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [profileSyncBlockReason, setProfileSyncBlockReason] = useState<ProtectedCallableRejectionReason | null>(null);
   const [profileSyncPending, setProfileSyncPending] = useState(false);
   const retryProfileSyncRef = useRef<(() => Promise<void>) | null>(null);
+  const confirmedConsentRef = useRef<{ uid: string; mirror: ConsentMirror } | null>(null);
   const userId = user?.uid;
   const userEmail = user?.email || '';
   const userDisplayName = user?.displayName || '';
@@ -56,6 +59,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     () => retryProfileSyncRef.current?.() ?? Promise.resolve(),
     [],
   );
+  const mergeConfirmedConsentMirror = useCallback((mirror: ConsentMirror) => {
+    if (!userId) return;
+    const previous = confirmedConsentRef.current?.uid === userId
+      ? confirmedConsentRef.current.mirror
+      : {};
+    const merged = { ...previous, ...mirror };
+    confirmedConsentRef.current = { uid: userId, mirror: merged };
+    setProfile((current) => current?.uid === userId
+      ? { ...current, consents: { ...current.consents, ...merged } }
+      : current);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -65,8 +79,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setProfileSyncBlockReason(null);
       setProfileSyncPending(false);
       retryProfileSyncRef.current = null;
+      confirmedConsentRef.current = null;
       return;
     }
+
+    if (confirmedConsentRef.current?.uid !== userId) confirmedConsentRef.current = null;
 
     // E2E test mode — skip Firestore, use mock profile
     if (import.meta.env.VITE_E2E_MODE === 'true') {
@@ -133,7 +150,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       if (cancelled) return;
       if (snapshot.exists()) {
         const data = snapshot.data() as AppUserProfile;
-        setProfile(mapAppUserProfile(userId, data, authProfileSeed));
+        const mappedProfile = mapAppUserProfile(userId, data, authProfileSeed);
+        const pendingConfirmation = confirmedConsentRef.current?.uid === userId
+          ? confirmedConsentRef.current.mirror
+          : null;
+        const serverHasConfirmation = pendingConfirmation
+          ? Object.entries(pendingConfirmation).every(([key, value]) =>
+            mappedProfile.consents?.[key as keyof ConsentMirror] === value)
+          : false;
+        if (serverHasConfirmation) confirmedConsentRef.current = null;
+        setProfile(pendingConfirmation && !serverHasConfirmation
+          ? { ...mappedProfile, consents: { ...mappedProfile.consents, ...pendingConfirmation } }
+          : mappedProfile);
         setProfileLoadError(null);
         if (!snapshot.metadata.fromCache) setProfileSyncBlockReason(null);
         setProfileLoaded(true);
@@ -193,7 +221,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
               trackTelemetryEvent(userId, 'profile_created');
             }
           } catch { /* brak storage — pomijamy parę */ }
-          setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
+          const mappedProfile = mapAppUserProfile(userId, syncedProfile, authProfileSeed);
+          const pendingConfirmation = confirmedConsentRef.current?.uid === userId
+            ? confirmedConsentRef.current.mirror
+            : null;
+          setProfile(pendingConfirmation
+            ? { ...mappedProfile, consents: { ...mappedProfile.consents, ...pendingConfirmation } }
+            : mappedProfile);
           setProfileLoadError(null);
           setProfileSyncBlockReason(null);
           setProfileLoaded(true);
@@ -265,6 +299,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profileSyncBlockReason,
       profileSyncPending,
       retryProfileSync,
+      mergeConfirmedConsentMirror,
     }}>
       {children}
     </UserContext.Provider>

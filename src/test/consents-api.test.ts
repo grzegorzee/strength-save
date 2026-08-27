@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // webie + atestacja best-effort na natywie, zamiast gołego httpsCallable.
 
 const mocks = vi.hoisted(() => ({
-  callProtectedFunction: vi.fn(async () => ({ ok: true, recorded: 1 })),
+  callProtectedFunction: vi.fn(),
 }));
 
 vi.mock('@/lib/protected-callable', () => ({
@@ -21,11 +21,19 @@ import { CONSENT_DOC_VERSION } from '@/lib/legal-versions';
 
 describe('recordConsents', () => {
   beforeEach(() => {
-    mocks.callProtectedFunction.mockClear();
+    mocks.callProtectedFunction.mockReset();
+    mocks.callProtectedFunction.mockResolvedValue({
+      ok: true,
+      recorded: 1,
+      mirror: {
+        healthGranted: false,
+        healthVersion: CONSENT_DOC_VERSION.health,
+      },
+    });
   });
 
   it('idzie przez callProtectedFunction z docVersion z legal-versions i kanałem web', async () => {
-    await recordConsents([
+    const mirror = await recordConsents([
       { type: 'health', action: 'withdrawn', statementText: 'Wycofuję zgodę.' },
     ], 'pl');
 
@@ -45,6 +53,33 @@ describe('recordConsents', () => {
         statementText: 'Wycofuję zgodę.',
       }),
     ]);
+    expect(mirror).toEqual({
+      healthGranted: false,
+      healthVersion: CONSENT_DOC_VERSION.health,
+    });
+  });
+
+  it('odrzuca odpowiedź bez mirrora zamiast uznać niepotwierdzony zapis za sukces', async () => {
+    mocks.callProtectedFunction.mockResolvedValueOnce({ ok: true, recorded: 1 });
+
+    await expect(recordConsents([
+      { type: 'health', action: 'granted', statementText: 'Wyrażam zgodę.' },
+    ], 'pl')).rejects.toThrow(/consent confirmation/i);
+  });
+
+  it('odrzuca mirror niezgodny z wysłaną decyzją (fail-closed)', async () => {
+    mocks.callProtectedFunction.mockResolvedValueOnce({
+      ok: true,
+      recorded: 1,
+      mirror: {
+        healthGranted: false,
+        healthVersion: CONSENT_DOC_VERSION.health,
+      },
+    });
+
+    await expect(recordConsents([
+      { type: 'health', action: 'granted', statementText: 'Wyrażam zgodę.' },
+    ], 'pl')).rejects.toThrow(/mirror/i);
   });
 
   it('puste entries nie wywołują callable', async () => {

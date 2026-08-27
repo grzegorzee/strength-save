@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { StravaActivity } from '@/types/strava';
 import { computeSummaryStats, formatPaceFromSeconds } from '@/lib/strava-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { PoweredByStrava } from './StravaBranding';
 
 interface StravaSummaryStatsProps {
   activities: StravaActivity[];
@@ -24,15 +25,18 @@ export const StravaSummaryStats = ({ activities }: StravaSummaryStatsProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {items.map((item) => (
-        <Card key={item.label}>
-          <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold">{item.value}</p>
-            <p className="text-xs text-muted-foreground">{item.label}</p>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {items.map((item) => (
+          <Card key={item.label}>
+            <CardContent className="pt-4 pb-4 text-center">
+              <p className="text-2xl font-bold">{item.value}</p>
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <PoweredByStrava />
     </div>
   );
 };

@@ -1852,6 +1852,7 @@ export const pl = {
   'workout.err.unknown': 'Nieznany błąd.',
   // === groupK cleanup ===
   'strava.callback.denied': 'Autoryzacja została odrzucona.',
+  'strava.callback.athleteLimit': 'Osiągnęliśmy obecny limit podłączonych kont tej integracji. To nie jest błąd po Twojej stronie. Aplikacja Strength Save działa dalej bez Stravy.',
   'strava.callback.noCode': 'Brak kodu autoryzacji.',
   'strava.callback.noState': 'Brak zabezpieczenia OAuth state.',
   'strava.callback.exchangeError': 'Błąd wymiany kodu',
@@ -1877,6 +1878,9 @@ export const pl = {
   'strava.detail.dominantZone': 'Dominująca strefa:',
   'strava.detail.description': 'Opis',
   'strava.detail.openInStrava': 'Otwórz w Strava',
+  'strava.detail.viewOnStrava': 'View on Strava',
+  'strava.brand.connectAria': 'Połącz ze Stravą',
+  'strava.brand.poweredByAlt': 'Powered by Strava',
   'muscle.chest': 'Klatka piersiowa',
   'muscle.back': 'Plecy',
   'muscle.shoulders': 'Barki',

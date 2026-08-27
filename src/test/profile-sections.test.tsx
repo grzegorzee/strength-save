@@ -352,7 +352,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     openSection('devices');
     const devices2 = sectionByLabel(second.container, 'Urządzenia i połączenia');
     const card = within(devices2).getByTestId('strava-connection-card');
-    expect(within(card).getByText('Połącz ze Stravą')).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Połącz ze Stravą' })).toBeTruthy();
     expect(within(devices2).getByTestId('device-settings')).toBeTruthy();
   });
 

@@ -38,6 +38,7 @@ import { HRZoneDistribution } from './HRZoneDistribution';
 import { RacePredictor } from './RacePredictor';
 import { TrainingLoadChart } from './TrainingLoadChart';
 import { MonthlyActivities } from './MonthlyActivities';
+import { PoweredByStrava, StravaConnectButton } from './StravaBranding';
 
 // X27/WP-C: chipsy filtra typu nad listą aktywności.
 const TYPE_FILTERS: Array<{ id: ActivityTypeFilter; labelKey: 'strava.filter.all' | 'strava.filter.runs' | 'strava.filter.walks' | 'strava.filter.rides' | 'strava.filter.other' }> = [
@@ -125,7 +126,9 @@ export const StravaTab = () => {
             <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center"><Footprints className="h-6 w-6 text-orange-500" /></div>
             <p className="font-medium text-sm">{t('strava.connectTitle')}</p>
             <p className="text-sm text-muted-foreground">{t('strava.connectDesc')}</p>
-            <Button onClick={connectStrava} className="mt-2 bg-orange-500 hover:bg-orange-600">{t('strava.connectButton')}</Button>
+            <div className="mt-2">
+              <StravaConnectButton onConnect={connectStrava} />
+            </div>
             {error && <p className="text-sm text-destructive mt-2">{error}</p>}
           </div>
         </CardContent>
@@ -216,6 +219,10 @@ export const StravaTab = () => {
         activities={listActivities}
         estimatedMaxHR={connection.estimatedMaxHR}
       />
+
+      <div className="flex justify-center py-2">
+        <PoweredByStrava />
+      </div>
 
       <AlertDialog open={disconnectConfirmOpen} onOpenChange={setDisconnectConfirmOpen}>
         <AlertDialogContent>

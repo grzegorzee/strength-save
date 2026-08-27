@@ -120,7 +120,17 @@ const Probe = () => {
       <span data-testid="error">{current.profileLoadError ?? 'none'}</span>
       <span data-testid="block-reason">{current.profileSyncBlockReason ?? 'none'}</span>
       <span data-testid="sync-pending">{String(current.profileSyncPending)}</span>
+      <span data-testid="terms-version">{current.profile?.consents?.termsVersion ?? 'none'}</span>
       <button type="button" onClick={() => void current.retryProfileSync()}>retry</button>
+      <button
+        type="button"
+        onClick={() => current.mergeConfirmedConsentMirror({
+          termsVersion: '2.0',
+          privacyVersion: '2.1',
+          healthGranted: true,
+          healthVersion: '1.0',
+        })}
+      >confirm-consents</button>
     </div>
   );
 };
@@ -148,6 +158,28 @@ describe('UserProvider cache-first profile bootstrap', () => {
     expect(screen.getByTestId('loaded')).toHaveTextContent('true');
     expect(screen.getByTestId('status')).toHaveTextContent('active');
     expect(screen.getByTestId('access')).toHaveTextContent('true');
+  });
+
+  it('autorytatywnie potwierdzony mirror nie jest degradowany przez starszy snapshot', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', {
+      ...profile('user-1'),
+      consents: { termsVersion: '1.0', privacyVersion: '2.0', healthGranted: true, healthVersion: '1.0' },
+    }, true);
+    expect(screen.getByTestId('terms-version')).toHaveTextContent('1.0');
+
+    await act(async () => screen.getByText('confirm-consents').click());
+    expect(screen.getByTestId('terms-version')).toHaveTextContent('2.0');
+
+    // Listener może jeszcze raz dostarczyć cache sprzed batch.commit().
+    await emit('user-1', {
+      ...profile('user-1'),
+      consents: { termsVersion: '1.0', privacyVersion: '2.0', healthGranted: true, healthVersion: '1.0' },
+    }, true);
+    expect(screen.getByTestId('terms-version')).toHaveTextContent('2.0');
   });
 
   it('zachowuje cached active i dostęp po błędzie sync', async () => {

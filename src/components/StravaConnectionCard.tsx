@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Link2, Unlink, RefreshCw, Loader2 } from 'lucide-react';
+import { Unlink, RefreshCw, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { formatNextSyncTime } from '@/lib/strava-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
+import { PoweredByStrava, StravaConnectButton } from '@/components/strava/StravaBranding';
 
 /**
  * X35b (WP-B): pełny panel Strava (połącz / sync / rozłącz / max HR) wyjęty 1:1
@@ -71,12 +72,7 @@ export const StravaConnectionCard = () => {
   return (
     <Card data-testid="strava-connection-card">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FC4C02">
-            <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-          </svg>
-          Strava
-        </CardTitle>
+        <CardTitle>Strava</CardTitle>
         <CardDescription>
           {t('settings.strava.description')}
         </CardDescription>
@@ -146,12 +142,10 @@ export const StravaConnectionCard = () => {
                 </Button>
               </div>
             </div>
+            <PoweredByStrava className="mt-1" />
           </>
         ) : (
-          <Button onClick={connectStrava} className="bg-[#FC4C02] hover:bg-[#FC4C02]/90">
-            <Link2 className="h-4 w-4 mr-2" />
-            {t('settings.strava.connect')}
-          </Button>
+          <StravaConnectButton onConnect={connectStrava} />
         )}
 
         {error && (

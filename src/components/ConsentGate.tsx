@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,21 +13,20 @@ import {
 } from '@/lib/consent-selection';
 import { recordConsents } from '@/lib/consents-api';
 import type { UserProfile } from '@/lib/user-profile';
+import type { ConsentMirror } from '@/lib/legal-versions';
 
 // Re-consent (pakiet prawny v2): istniejący user bez kompletu aktualnych zgód
 // (brak mirrora, stara wersja dokumentu po bumpie w legal-versions.ts) dostaje
 // pełnoekranową bramkę przed trasami (warunek: needsConsentRefresh z
 // src/lib/consent-selection.ts). Nowi userzy zbierają zgody w onboardingu
 // (krok Welcome), więc bramka ich nie dotyczy. Zniknięcie bramki napędza
-// onSnapshot na users/{uid}: recordConsent aktualizuje mirror consents.
+// autorytatywny mirror zwrócony po batch.commit(); onSnapshot później go
+// rekonsyliuje, ale nie jest już krytyczną ścieżką UX.
 
-// Reguła #6 (incydent buildu 87): po udanym zapisie czekamy na snapshot mirrora,
-// ale NIE w nieskończoność — po timeoucie spinner znika i przycisk wraca (retry
-// jest bezpieczny, recordConsent nadpisuje te same zgody).
-const SNAPSHOT_TIMEOUT_MS = 12_000;
-
-export const ConsentGate = ({ profile, onLogout }: {
+export const ConsentGate = ({ profile, onConfirmed, onLogout }: {
   profile: UserProfile | null;
+  /** Autorytatywny mirror zwrócony dopiero po atomowym zapisie na serwerze. */
+  onConfirmed: (mirror: ConsentMirror) => void;
   /** Zasada 6 (bug 32): bramka zastępuje cały router, więc musi mieć wyjście
    *  niezależne od zatwierdzenia zgód — symetrycznie do EmailVerificationGate. */
   onLogout: () => Promise<void>;
@@ -36,28 +35,16 @@ export const ConsentGate = ({ profile, onLogout }: {
   const [selection, setSelection] = useState<ConsentSelection>(EMPTY_CONSENT_SELECTION);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
-  const timeoutRef = useRef<number | null>(null);
 
   const marketingAlreadyGranted = getConsentMirror(profile)?.marketingGranted === true;
-
-  useEffect(() => () => {
-    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
-  }, []);
 
   const submit = async () => {
     setSaving(true);
     setError(false);
-    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     try {
-      await recordConsents(buildConsentSubmissions(t, selection), lang);
-      // Bramkę zamyka aktualizacja mirrora users/{uid}.consents przez onSnapshot.
-      // Jeśli snapshot nie dojedzie w rozsądnym czasie, oddajemy sterowanie
-      // userowi (komunikat współdzieli copy saveError do czasu wolnego okna
-      // na nowe klucze i18n — pliki locales edytuje równoległa sesja).
-      timeoutRef.current = window.setTimeout(() => {
-        setError(true);
-        setSaving(false);
-      }, SNAPSHOT_TIMEOUT_MS);
+      const confirmedMirror = await recordConsents(buildConsentSubmissions(t, selection), lang);
+      setSaving(false);
+      onConfirmed(confirmedMirror);
     } catch {
       setError(true);
       setSaving(false);

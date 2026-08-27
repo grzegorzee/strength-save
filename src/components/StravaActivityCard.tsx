@@ -9,6 +9,7 @@ import { getHRZone, getHRZoneConfig } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { parseLocalDateSafe } from '@/lib/utils';
+import { PoweredByStrava } from '@/components/strava/StravaBranding';
 
 const formatDistance = (meters?: number): string => {
   if (!meters) return '';
@@ -123,6 +124,7 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
                   </span>
                 )}
               </div>
+              {!isManual && <PoweredByStrava className="mt-2 h-[14px]" />}
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </div>

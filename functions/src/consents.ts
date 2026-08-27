@@ -49,6 +49,15 @@ export interface ConsentPayload {
   appVersion?: string;
 }
 
+export interface ConsentResponseMirror {
+  termsVersion?: string;
+  privacyVersion?: string;
+  healthGranted?: boolean;
+  healthVersion?: string;
+  marketingGranted?: boolean;
+  marketingVersion?: string;
+}
+
 const isIn = <T extends string>(list: readonly T[], value: unknown): value is T =>
   typeof value === "string" && (list as readonly string[]).includes(value);
 
@@ -153,6 +162,34 @@ export function buildConsentMirror(entries: ConsentEntry[]): Record<string, unkn
   return mirror;
 }
 
+/**
+ * Bezpieczny mirror do odpowiedzi callable. Nie zawiera IP, timestampu ani
+ * tekstu oświadczeń; pozwala klientowi zakończyć bramkę bez czekania na drugi
+ * kanał onSnapshot po potwierdzonym, atomowym batch.commit().
+ */
+export function buildConsentResponseMirror(entries: ConsentEntry[]): ConsentResponseMirror {
+  const mirror: ConsentResponseMirror = {};
+  for (const entry of entries) {
+    switch (entry.type) {
+      case "terms":
+        mirror.termsVersion = entry.docVersion;
+        break;
+      case "privacy_ack":
+        mirror.privacyVersion = entry.docVersion;
+        break;
+      case "health":
+        mirror.healthGranted = entry.action === "granted";
+        mirror.healthVersion = entry.docVersion;
+        break;
+      case "marketing":
+        mirror.marketingGranted = entry.action === "granted";
+        mirror.marketingVersion = entry.docVersion;
+        break;
+    }
+  }
+  return mirror;
+}
+
 export const recordConsent = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
@@ -186,5 +223,9 @@ export const recordConsent = onCall(async (request) => {
   batch.update(db.collection(USERS_COLLECTION).doc(uid), mirror);
 
   await batch.commit();
-  return { ok: true, recorded: payload.entries.length };
+  return {
+    ok: true,
+    recorded: payload.entries.length,
+    mirror: buildConsentResponseMirror(payload.entries),
+  };
 });

@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
-const recordConsents = vi.fn(async () => {});
+const authoritativeMirror = {
+  termsVersion: '2.0',
+  privacyVersion: '2.1',
+  healthGranted: true,
+  healthVersion: '1.0',
+};
+
+const recordConsents = vi.fn(async () => authoritativeMirror);
 vi.mock('@/lib/consents-api', () => ({
   recordConsents: (...args: unknown[]) => recordConsents(...args as []),
 }));
@@ -70,17 +77,20 @@ describe('needsConsentRefresh', () => {
 
 describe('ConsentGate', () => {
   beforeEach(() => {
-    recordConsents.mockClear();
+    recordConsents.mockReset();
+    recordConsents.mockResolvedValue(authoritativeMirror);
     onLogout.mockClear();
+    onConfirmed.mockClear();
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
   });
 
   const onLogout = vi.fn(async () => {});
+  const onConfirmed = vi.fn();
 
   const renderGate = (profile: UserProfile) => render(
     <LanguageProvider>
-      <ConsentGate profile={profile} onLogout={onLogout} />
+      <ConsentGate profile={profile} onLogout={onLogout} onConfirmed={onConfirmed} />
     </LanguageProvider>,
   );
 
@@ -96,15 +106,10 @@ describe('ConsentGate', () => {
     await waitFor(() => expect(recordConsents).toHaveBeenCalledTimes(1));
   });
 
-  it('checkbox marketingu ukryty, gdy zgoda marketingowa już wyrażona', () => {
-    renderGate(profileWith({ marketingGranted: true }));
-    expect(screen.queryByTestId('consent-marketing')).toBeNull();
-    expect(screen.getByTestId('consent-terms')).toBeInTheDocument();
-  });
-
-  // Reguła #6: sukces zapisu bez zamknięcia bramki (snapshot nie dojechał) nie
-  // może zostawić usera ze spinnerem bez wyjścia — po timeoucie przycisk wraca.
-  it('po timeoucie oczekiwania na snapshot spinner znika i jest wyjście (retry)', async () => {
+  // Root cause buildu 129: batch na serwerze kończył się sukcesem, ale gate
+  // czekał wyłącznie na kolejny onSnapshot. Gdy listener pozostał na starszym
+  // cache'u, po 12 s UI pokazywało fałszywy błąd mimo zapisanych zgód.
+  it('po autorytatywnym mirrorze z callable natychmiast potwierdza zapis bez czekania na snapshot', async () => {
     vi.useFakeTimers();
     try {
       renderGate(profileWith(undefined));
@@ -112,15 +117,25 @@ describe('ConsentGate', () => {
       fireEvent.click(screen.getByTestId('consent-privacy'));
       fireEvent.click(screen.getByTestId('consent-health'));
       fireEvent.click(screen.getByTestId('consent-gate-submit'));
+
       await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-      expect(recordConsents).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId('consent-gate-submit')).toBeDisabled();
-      await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
-      expect(screen.getByTestId('consent-gate-error')).toBeInTheDocument();
-      expect(screen.getByTestId('consent-gate-submit')).not.toBeDisabled();
+
+      expect(onConfirmed).toHaveBeenCalledExactlyOnceWith(authoritativeMirror);
+      expect(screen.queryByTestId('consent-gate-error')).toBeNull();
+
+      // Nieruchomy prop symuluje brak świeżego onSnapshot. Dawny timeout nie
+      // może po sukcesie zamienić potwierdzonego zapisu w błąd.
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      expect(screen.queryByTestId('consent-gate-error')).toBeNull();
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('checkbox marketingu ukryty, gdy zgoda marketingowa już wyrażona', () => {
+    renderGate(profileWith({ marketingGranted: true }));
+    expect(screen.queryByTestId('consent-marketing')).toBeNull();
+    expect(screen.getByTestId('consent-terms')).toBeInTheDocument();
   });
 
   // Bug 32 (X30): bramka renderowana ZAMIAST HashRouter była jedynym ekranem
@@ -143,5 +158,12 @@ describe('ConsentGate', () => {
     fireEvent.click(screen.getByTestId('consent-gate-submit'));
     await waitFor(() => expect(screen.getByTestId('consent-gate-error')).toBeInTheDocument());
     expect(screen.getByTestId('consent-gate-submit')).not.toBeDisabled();
+    expect(onConfirmed).not.toHaveBeenCalled();
+
+    // Błąd ma nadal ścieżkę wyjścia: ponowienie wysyła jeszcze raz i dopiero
+    // zweryfikowany response może zamknąć bramkę.
+    fireEvent.click(screen.getByTestId('consent-gate-submit'));
+    await waitFor(() => expect(onConfirmed).toHaveBeenCalledExactlyOnceWith(authoritativeMirror));
+    expect(recordConsents).toHaveBeenCalledTimes(2);
   });
 });
