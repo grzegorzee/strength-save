@@ -1,6 +1,6 @@
-// T11 (feedback 2026-08-20): rząd Tydzień/Miesiąc/PDF/CSV/Kopiuj w Podsumowaniu
-// łamie się (flex-wrap) zamiast wystawać poza viewport 390px.
-// T12: przycisk CSV otwiera ExportWorkoutsDialog (ten sam co Historia/Ustawienia).
+// T11/X51: akcje PDF/CSV/Kopiuj są w menu Udostępnij, które mieści się w
+// Podsumowaniu na viewport 390px. T12: CSV nadal otwiera ten sam
+// ExportWorkoutsDialog co Historia/Ustawienia.
 import { test, expect } from '@playwright/test';
 import {
   blockFirebase,
@@ -26,7 +26,7 @@ const workout = (id: string, date: string) => ({
   }],
 });
 
-test.describe('Podsumowanie: rząd akcji (T11)', () => {
+test.describe('Podsumowanie: menu Udostępnij (T11/X51)', () => {
   test.beforeEach(async ({ page }) => {
     await setE2EAuthScenario(page, 'active-admin');
     await blockFirebase(page);
@@ -39,10 +39,16 @@ test.describe('Podsumowanie: rząd akcji (T11)', () => {
     ]);
   });
 
-  test('przycisk Kopiuj mieści się w viewport 390px, strona bez poziomego scrolla', async ({ page }) => {
-    await navigateAndWait(page, '/analytics?tab=summary');
+  test('menu mieści wszystkie akcje w viewport 390px, strona bez poziomego scrolla', async ({ page }) => {
+    await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
 
+    const actionsTrigger = page.getByTestId('analytics-actions-trigger');
+    await expect(actionsTrigger).toBeVisible();
+    await actionsTrigger.click();
+
+    await expect(page.getByRole('menuitem', { name: 'PDF', exact: true })).toBeVisible();
+    await expect(page.getByTestId('analytics-export-csv')).toBeVisible();
     const copyButton = page.getByTestId('analytics-copy');
     await expect(copyButton).toBeVisible();
     const box = await copyButton.boundingBox();
@@ -67,9 +73,10 @@ test.describe('Podsumowanie: rząd akcji (T11)', () => {
         return original(blob);
       };
     });
-    await navigateAndWait(page, '/analytics?tab=summary');
+    await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
 
+    await page.getByTestId('analytics-actions-trigger').click();
     const csvButton = page.getByTestId('analytics-export-csv');
     await expect(csvButton).toBeVisible();
     await expect(csvButton).toContainText('CSV');

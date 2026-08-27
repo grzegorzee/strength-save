@@ -73,14 +73,20 @@ test.describe('Critical Interactions', () => {
     await blockFirebase(page);
   });
 
-  test('analytics tabs are clickable without conditional skips', async ({ page }) => {
-    await navigateAndWait(page, '/analytics');
+  test('main Progress segments are clickable without conditional skips', async ({ page }) => {
+    await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
 
-    const tabs = ['Podsum.', 'Wykresy', 'Strava', 'Tygodnie'];
-    for (const label of tabs) {
-      await expect(page.getByRole('tab', { name: label })).toBeVisible();
-      await page.getByRole('tab', { name: label }).click();
+    const tabs = [
+      { label: 'Podsumowanie', testId: 'progress-view-summary' },
+      { label: 'Wykresy', testId: 'progress-view-charts' },
+      { label: 'Rekordy', testId: 'progress-view-records' },
+    ];
+    for (const { label, testId } of tabs) {
+      const tab = page.getByRole('tab', { name: label, exact: true });
+      await expect(tab).toBeVisible();
+      await tab.click();
+      await expect(page.getByTestId(testId)).toHaveAttribute('aria-selected', 'true');
       await expectPageRendered(page);
     }
   });
