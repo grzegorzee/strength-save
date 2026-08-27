@@ -1,8 +1,8 @@
 # Strength Save — audyt gotowości do publicznego wydania (2026-08-27)
 
-Stan roboczy. Dokument nie jest zgodą na deploy, push, TestFlight ani Play Store.
-Wersje marketingowe pozostają `1.0.0`. Audyt nie przywraca RTK, hooków RTK ani
-`SessionStart`.
+Stan po kontrolowanym deployu produkcyjnym backendu i webu. Dokument nie jest zgodą
+na publiczną publikację App Store ani Play Store. Wersje marketingowe pozostają
+`1.0.0`. Audyt nie przywraca RTK, hooków RTK ani `SessionStart`.
 
 ## Stan wejściowy i metoda
 
@@ -229,7 +229,8 @@ admin i landscape; `npm run test`, typecheck, lint, build; Functions i rules; E2
 Chromium i WebKit po świeżym Vite/cache; świeży build iOS/Android. Kryteria manualne:
 smoke obu platform, background/resume, przerwanie treningu, eksport wszystkich
 formatów, restart/recovery, notification tap cold start. Dopiero finalny raport
-może rekomendować wydanie; nadal bez automatycznego deploy/push/publikacji.
+może rekomendować wydanie. Backend/web wdrożono po zielonych bramkach; publikacja
+w publicznych sklepach nadal wymaga fizycznego QA i finalnej decyzji właściciela.
 
 Status automatyczny po ostatniej zmianie: **ukończony**. Root Vitest 394 pliki /
 3454 testy, typecheck, lint (0 błędów, 15 zastanych warningów), build, bundle,
@@ -285,17 +286,14 @@ nowego idempotentnego protokołu serwerowego; nie może czytać obecnego IDB/LS.
    screen-off→network-return→resume, notification tap, przerwanie treningu i
    odzyskanie danych po force-kill/restarcie. Emulator potwierdza cold launch, nie
    potwierdza prawdziwego suspendu WKWebView ani systemowych odbiorców share.
-2. Lokalny kod wyprzedza produkcję: brakuje Functions zgłoszeń, cleanupu/rekonsyliacji
-   SES oraz nowych Firestore/Storage rules. Wymagany jest kontrolowany deploy z
-   weryfikacją braku runtime `RESEND_API_KEY`, następnie syntetyczny smoke
-   `accepted → SEND/DELIVERY event → admin triage` bez danych realnego użytkownika.
-3. Subskrypcja e-mail alarmów reputacji SNS dla `contact@strengthsave.app` ma status
+2. Subskrypcja e-mail alarmów reputacji SNS dla `contact@strengthsave.app` ma status
    `PendingConfirmation`; same alarmy bounce 5% i complaint 0,1% są utworzone.
-4. Ujawniony wcześniej sekret Stravy musi zostać zrotowany u dostawcy, a po deployu
-   należy potwierdzić, że Strava/OpenAI nie występują jako zwykłe environment variables.
-5. Typografia i układ mają zielony audyt automatyczny, ale wymagają device QA przy
+3. Rotacja ujawnionego wcześniej sekretu Stravy u dostawcy pozostaje operacją
+   zewnętrzną. Wszystkie zwykłe zmienne `STRAVA_*`/`OPENAI_API_KEY` zostały już
+   usunięte z pięciu aktywnych funkcji; pozostają wyłącznie bindingi Secret Managera.
+4. Typografia i układ mają zielony audyt automatyczny, ale wymagają device QA przy
    systemowym rozmiarze tekstu 100/150/200%, klawiaturze, landscape i safe-area.
-6. Następny TestFlight wymaga podniesienia wyłącznie sześciu wystąpień
+5. Następny TestFlight wymaga podniesienia wyłącznie sześciu wystąpień
    `CURRENT_PROJECT_VERSION` z 128 do 129 i ponownego podpisanego preflightu. Build 128
    jest VALID/APPROVED, ale nie zawiera bieżących zmian. HealthKit/Health Connect,
    Camera process recovery, Google/Apple auth return i billing sandbox nadal wymagają
@@ -308,6 +306,12 @@ pełne E2E 536/536 są wykonane. Audyt zależności root/Functions ma 0 findings
 `audit fix --force` pozostaje zakazany. Androidowy kontrast pasków systemowych po
 API 35 został naprawiony przez wbudowane Capacitor 8 `SystemBars` i potwierdzony
 testem kontraktu oraz screenshotem po świeżej reinstalacji APK.
+
+Produkcja jest zsynchronizowana z commitem `c1f21313`: Firestore Rules, Storage Rules,
+67 Functions i web zostały wdrożone. Aktualne konfiguracje nie zawierają bindingu
+`RESEND_API_KEY`; ostatnia wersja sekretu Resend została zniszczona. Syntetyczna
+wiadomość do AWS Mailbox Simulator w konfiguracji `strengthsave` utworzyła w
+`email_events` dokładnie zdarzenia `Send` i `Delivery`, bez danych realnego usera.
 
 Publiczna polityka prywatności 2.1 jest już wdrożona na `strengthsave.app` i opisuje
 avatar, screenshoty, administratora, Amazon SES, OPEN/CLICK, IP/user-agent/link oraz

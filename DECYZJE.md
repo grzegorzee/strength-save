@@ -4237,3 +4237,26 @@ logu ma `pendingLogApplication`; scheduler co 15 minut ponawia korelację po
 z publiczną deklaracją „do 24 miesięcy”. Testy zaczęły od 4 czerwonych kontraktów;
 po minimalnej poprawce 33/33 testy SES/retencji są zielone, Functions typecheck/build
 przechodzą, a pełne Functions ma 453/453 testy zielone (+12 pominiętych).
+
+---
+
+## SESJA 2026-08-27 — kontrolowany deploy produkcyjny i usunięcie legacy sekretów
+
+**Zakres:** commit `c1f21313` wypchnięto na `main`, następnie wdrożono kolejno
+Firestore Rules, Storage Rules, 67 Functions oraz build web. Deploy Functions miał
+chwilowe 429 limitu mutacji Google; CLI ponowił każdą operację, a wszystkie funkcje
+zakończyły w stanie `ACTIVE`. Nie wykonano publikacji App Store ani Play Store.
+
+**Root cause legacy env:** wcześniejsze rewizje pięciu funkcji zachowały jawne
+`STRAVA_*` i `OPENAI_API_KEY` w zwykłych environment variables mimo migracji kodu do
+`defineSecret`. Aktualizacja źródła nie usunęła kopii automatycznie. Punktowy PATCH
+oficjalnego Cloud Functions v2 API wyczyścił wyłącznie
+`serviceConfig.environmentVariables`; bindingi `strava-client-*`, redirect URI i
+sekrety SES pozostały aktywne. Końcowa inspekcja wszystkich funkcji: zero bindingów
+Resend i zero legacy `STRAVA_*`/`OPENAI_API_KEY`.
+
+**Resend i test SES:** po potwierdzeniu braku konsumentów zniszczono jedyną aktywną
+wersję `RESEND_API_KEY` oraz sam sekret. Syntetyczny e-mail wysłany do oficjalnego
+AWS Mailbox Simulator przez configuration set `strengthsave` utworzył w produkcyjnym
+`email_events` dokładnie `Send` i `Delivery`. Test nie dotknął danych użytkowników.
+OPEN/CLICK pozostają włączone dla prawdziwych wiadomości zgodnie z privacy 2.1.
