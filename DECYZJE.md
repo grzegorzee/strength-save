@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-27 (X42: TestFlight 128 + zewnętrzna testerka + pregrant PRO; X41: zielone bramki automatyczne)
+**Ostatnia aktualizacja:** 2026-08-27 (build 130: zgody + Strava Brand Guidelines + kontrast Switch)
 
 ---
 
@@ -4321,3 +4321,27 @@ się z kartą (m.in. „Proponuj wagę ze Zdrowia”).
 **Decyzja:** wspólny komponent używa stałej, subtelnej `border-border`; zachowuje
 kolory ON/OFF, disabled oraz istniejący focus ring. Jedna zmiana naprawia wszystkie
 przełączniki bez lokalnych wyjątków. Test kontrastu komponentu i typecheck są zielone.
+### 2026-08-27: build 130 — natychmiastowe potwierdzenie zgód, Strava Brand Guidelines i kontrast Switch
+
+**Root cause zgód:** `recordConsent` zapisywał atomowo poprawne dane i zwracał
+HTTP 200, ale klient ignorował sukces i czekał do 12 s na niezależny snapshot
+Firestore. Przy cold starcie WKWebView pokazywał więc fałszywy błąd mimo
+poprawnego zapisu. Function zwraca teraz bezpieczny mirror dopiero po
+`batch.commit()`, klient waliduje go fail-closed i scala natychmiast z profilem;
+snapshot pozostaje rekonsyliacją. Background Runner nie wszedł, bo nie rozwiązuje
+tego problemu i nie ma dowodu, że foreground resume jest niewystarczający.
+
+**Strava i UI:** własne rekonstrukcje zastąpiły niezmodyfikowane oficjalne assety
+`Connect with Strava` i `Powered by Strava`. Dane i detale mają atrybucję, a detal
+buduje kanoniczny, zewnętrzny link `View on Strava` z `stravaId`. Callback limitu
+atletów wyjaśnia, że aplikacja działa dalej bez Stravy. Globalny Switch dostał
+stały obrys `border-border`, więc nie zlewa się z ciemnym tłem.
+
+**Weryfikacja i rollout:** root 3470/3470, Functions 454/454 (12 skipped),
+typecheck, lint 0 błędów, build, bundle/dist smoke, Firestore 275/275, Storage
+11/11, Chromium 268/268, WebKit 9/9, Android `assembleDebug`, iOS Simulator smoke
+i podpisany archive/export są zielone. `recordConsent` wdrożono przed klientem,
+web produkcyjny serwuje nowy bundle i oficjalny asset. TestFlight 1.0.0 build 130
+ma stan VALID, obie grupy HTTP 204 i Beta App Review APPROVED. Screenshoty do
+review leżą w `docs/strava-review-2026-08-27/screenshots/`; są anonimowe,
+deterministyczne i nie korzystają z Firebase ani danych użytkowników.
