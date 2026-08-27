@@ -30,6 +30,12 @@ const config: CapacitorConfig = {
   // UIColor.systemBackground po hide splasha.
   backgroundColor: '#0e0e0e',
   plugins: {
+    SystemBars: {
+      // Capacitor 8: StatusBar steruje tylko gora, a Android 15+ wymusza
+      // edge-to-edge. SystemBars ustawia jasne ikony rowniez na pasku nawigacji.
+      style: 'DARK',
+      insetsHandling: 'css',
+    },
     SplashScreen: {
       // Zgłoszenie 2026-08-13: splash znikał po ~0.5 s i user oglądał czarną
       // szczelinę do wstania weba. Splash z logo zostaje aż React wstanie —

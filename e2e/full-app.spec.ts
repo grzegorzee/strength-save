@@ -1632,7 +1632,10 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
   // X17A Z131: pełna sekwencja z reguły 5 w CLAUDE.md, przejechana przez UI na
   // NOWYM układzie karty. Większość realnych bugów siedzi w przejściach między
   // stanami, nie w pojedynczym ekranie.
-  test('sekwencja: plan → wyjście → szybki trening → powrót — komplet ćwiczeń i nowy układ', async ({ page }) => {
+  test('sekwencja: plan → wyjście → szybki trening → powrót → zakończenie → potwierdzony sync', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('fittracker_e2e_cloud_writes', 'true'));
+    const today = localToday();
+    const planSessionId = `workout-e2e-test-user-day-1-${today}`;
     await navigateAndWait(page, '/');
     await clearWorkoutDraftDb(page, 'e2e-test-user');
 
@@ -1675,7 +1678,7 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
 
     // Zalogowana seria PRZEŻYWA przerwanie w szkicu (to jest gwarancja po incydencie
     // 2026-07-20). Dane sprawdzamy u ŹRÓDŁA, nie po widoku.
-    const draft = await readWorkoutDraftDb(page, 'e2e-test-user', `local-workout-e2e-test-user-day-1-${localToday()}`) as {
+    const draft = await readWorkoutDraftDb(page, 'e2e-test-user', planSessionId) as {
       exerciseSets?: Record<string, { reps: number; weight: number; completed?: boolean; isWarmup?: boolean }[]>;
     } | null;
     expect(draft).not.toBeNull();
@@ -1704,9 +1707,34 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     await expect(backCard.getByRole('button', { name: 'Więcej akcji' })).toBeVisible();
     await expect(page.getByTestId('session-stats')).toBeVisible();
 
-    // 5. Trening da się domknąć (finalny sync w mock e2e nie przechodzi — Firestore
-    // zablokowany — ale przycisk zakończenia musi być dostępny).
-    await expect(page.getByRole('button', { name: 'Zakończ trening' })).toBeVisible();
+    // 5. Domknięcie i potwierdzenie chmury. Mock zapisuje ten sam kontrakt co
+    // warstwa Firestore, ale tylko dla jawnie włączonego testu. Planowa sesja ma
+    // zachować pełną listę ćwiczeń; ad-hoc nie może jej zastąpić.
+    await page.getByRole('button', { name: 'Zakończ trening' }).click();
+    await page.getByRole('button', { name: 'Tak, zakończ' }).click();
+    await expect(page.getByText('Trening zapisany!', { exact: true })).toBeVisible();
+
+    await expect.poll(async () => page.evaluate((sessionId) => {
+      const all = JSON.parse(localStorage.getItem('fittracker_e2e_workouts') ?? '[]') as Array<{
+        id: string;
+        dayId: string;
+        date: string;
+        completed?: boolean;
+        exercises?: unknown[];
+      }>;
+      const synced = all.find((w) => w.id === sessionId);
+      return synced
+        ? { completed: synced.completed === true, count: synced.exercises?.length ?? 0 }
+        : { ids: all.map((w) => w.id) };
+    }, planSessionId), { timeout: 15_000 }).toEqual({
+      completed: true,
+      count: planExerciseCount,
+    });
+
+    await expect.poll(
+      async () => readWorkoutDraftDb(page, 'e2e-test-user', planSessionId),
+      { timeout: 10_000 },
+    ).toBeNull();
   });
 });
 
@@ -1847,7 +1875,7 @@ test.describe('LocalStorage', () => {
     await navigateAndWait(page, '/');
 
     // Check if collapse button exists and click it
-    const collapseBtn = page.locator('nav button.hidden.md\\:flex').first();
+    const collapseBtn = page.getByRole('button', { name: 'Zwiń nawigację' });
     await expect(collapseBtn).toBeVisible();
 
     const initialState = await page.evaluate(() => localStorage.getItem('sidebar-collapsed'));

@@ -70,7 +70,7 @@ export const Layout = () => {
     // mobile (Playwright 393x852, /profile po 2000 px: header y = -1475).
     // `clip` przycina tak samo, ale scrollportu nie tworzy; iOS < 16 (bez clip)
     // ma i tak html/body overflow-x: hidden z index.css.
-    <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-clip md:overflow-hidden">
+    <div className="min-h-screen desktop-shell:h-[100dvh] flex w-full bg-background overflow-x-clip desktop-shell:overflow-hidden">
       {/* WP-D (X29): bottom nav widoczny na WSZYSTKICH trasach w Layout, także
           w focused flow (/workout/*, /exercise/*) — user ma zawsze wyjście do
           Dashboardu/Planu/Profilu. Paski sesji (start/RestBar) pozycjonują się
@@ -80,7 +80,7 @@ export const Layout = () => {
       {/* Naprawa r2 (2026-08-21): provider slotu akcji headera — ekrany portalują
           swoje przyciski (History: lupa + filtry) do rzędu headera jak w artboardach. */}
       <HeaderActionsProvider>
-        <div className="flex-1 flex flex-col min-w-0 overflow-x-clip md:h-[100dvh] md:overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-clip desktop-shell:h-[100dvh] desktop-shell:overflow-hidden">
           {!isFocusedFlow && (
             <AppHeader
               title={title}
@@ -91,8 +91,8 @@ export const Layout = () => {
           {/* Rezerwa dolna: 7.5rem nad navem; z paskiem Wstecz (top ≈ 6rem + 3.25rem)
               10.75rem, żeby ostatnie CTA strony nie chowało się pod paskiem. */}
           <main className={showBackBar
-            ? 'flex-1 p-5 pb-[calc(10.75rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6 overflow-x-hidden md:overflow-y-auto'
-            : 'flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto'}
+            ? 'flex-1 p-5 pb-[calc(10.75rem+env(safe-area-inset-bottom))] desktop-shell:p-6 desktop-shell:pb-6 overflow-x-hidden desktop-shell:overflow-y-auto'
+            : 'flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] desktop-shell:p-6 overflow-x-hidden desktop-shell:overflow-y-auto'}
           >
             <div className="max-w-4xl mx-auto">
               <Outlet />

@@ -33,7 +33,11 @@ vi.mock('@/lib/native-callable', () => ({
   callNativeAttestedFunction: (...args: unknown[]) => mocks.callNativeAttestedFunction(...args as []),
 }));
 
-import { callProtectedFunction, PROTECTED_CALLABLE_WEB_TIMEOUT_MS } from '@/lib/protected-callable';
+import {
+  callProtectedFunction,
+  getProtectedCallableRejectionReason,
+  PROTECTED_CALLABLE_WEB_TIMEOUT_MS,
+} from '@/lib/protected-callable';
 
 describe('callProtectedFunction', () => {
   beforeEach(() => {
@@ -99,5 +103,28 @@ describe('callProtectedFunction', () => {
     expect(mocks.callNativeAttestedFunction).toHaveBeenCalledWith('recordConsent', { x: 2 });
     expect(mocks.httpsCallable).not.toHaveBeenCalled();
     expect(result).toEqual({ ok: true });
+  });
+});
+
+describe('getProtectedCallableRejectionReason', () => {
+  it.each([
+    ['app-verification-required', 'app-verification-required'],
+    ['registration-closed', 'registration-closed'],
+  ] as const)('rozpoznaje permission-denied details.reason=%s', (reason, expected) => {
+    expect(getProtectedCallableRejectionReason({
+      code: 'functions/permission-denied',
+      details: { reason },
+    })).toBe(expected);
+  });
+
+  it('nie klasyfikuje obcego błędu ani nieznanego reason', () => {
+    expect(getProtectedCallableRejectionReason({
+      code: 'functions/unavailable',
+      details: { reason: 'app-verification-required' },
+    })).toBeNull();
+    expect(getProtectedCallableRejectionReason({
+      code: 'functions/permission-denied',
+      details: { reason: 'other' },
+    })).toBeNull();
   });
 });

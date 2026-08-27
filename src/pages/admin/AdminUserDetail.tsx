@@ -314,7 +314,7 @@ const AdminUserDetail = () => {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="truncate font-heading text-2xl font-bold uppercase italic tracking-tight">
+            <h1 className="truncate font-heading text-2xl font-bold uppercase tracking-tight">
               {user.displayName || user.email}
             </h1>
             <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>{user.role}</Badge>
@@ -331,7 +331,7 @@ const AdminUserDetail = () => {
       {/* AKTYWNOŚĆ 30 DNI */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <BarChart3 className="h-4 w-4 text-primary" />
             {t('admin.detail.activity30')}
           </CardTitle>
@@ -374,7 +374,7 @@ const AdminUserDetail = () => {
       {/* CO KLIKA */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <MousePointerClick className="h-4 w-4 text-primary" />
             {t('admin.detail.whatClicks')}
           </CardTitle>
@@ -416,7 +416,7 @@ const AdminUserDetail = () => {
       {/* PLAN TRENINGOWY */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <Dumbbell className="h-4 w-4 text-primary" />
             {t('admin.plan')}
           </CardTitle>
@@ -442,7 +442,7 @@ const AdminUserDetail = () => {
       {/* ONBOARDING (WP-A X30): odpowiedzi usera krok po kroku z users/{uid}. */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <ClipboardList className="h-4 w-4 text-primary" />
             {t('admin.onb.title')}
           </CardTitle>
@@ -463,7 +463,7 @@ const AdminUserDetail = () => {
       {/* CYKLE (WP-7 X33): plan_cycles usera + odpowiedzi z kreatora per cykl. */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <Repeat className="h-4 w-4 text-primary" />
             {t('admin.cycles.title')}
           </CardTitle>
@@ -476,7 +476,7 @@ const AdminUserDetail = () => {
       {/* UPRAWNIENIA */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">
             {t('admin.detail.permissions')}
           </CardTitle>
         </CardHeader>
@@ -522,7 +522,7 @@ const AdminUserDetail = () => {
       {/* SUBSKRYPCJA (2026-08-20): stan PRO + grant/revoke z panelu. */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">
             {t('subscription.section')}
           </CardTitle>
         </CardHeader>
@@ -539,7 +539,7 @@ const AdminUserDetail = () => {
       {/* NAPRAWY KONTA (Z102): dry-run -> apply z backupem po stronie Functions. */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <Wrench className="h-4 w-4 text-primary" />
             {t('admin.repair.title')}
           </CardTitle>
@@ -601,7 +601,7 @@ const AdminUserDetail = () => {
       {/* BŁĘDY KLIENTA */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <Bug className="h-4 w-4 text-primary" />
             {t('admin.detail.clientErrors')}
           </CardTitle>
@@ -628,7 +628,7 @@ const AdminUserDetail = () => {
       {/* MAILE UŻYTKOWNIKA (T22a): email_log po uid + podgląd treści */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <Mail className="h-4 w-4 text-primary" />
             {t('admin.emails.forUser')}
           </CardTitle>

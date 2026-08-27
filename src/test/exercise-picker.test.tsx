@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
@@ -95,6 +95,15 @@ describe('ExercisePicker (Z69)', () => {
     expect(content.className).toContain('max-h-[calc(100dvh_-_var(--keyboard-inset');
   });
 
+  it('scroll formularza może się skurczyć nad klawiaturą, więc CTA pozostaje osiągalne', () => {
+    renderPicker({ onCreateCustomExercise: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
+    const scroll = screen.getByTestId('exercise-picker-scroll');
+    expect(scroll.className).toContain('min-h-0');
+    expect(scroll.className).toContain('overflow-y-auto');
+    expect(scroll.contains(screen.getByRole('button', { name: 'Zapisz i wybierz' }))).toBe(true);
+  });
+
   // X28 WP-A: przycisk "Dodaj własne" NAD scrollowaną listą ~200 pozycji —
   // widoczny bez scrollowania niezależnie od długości listy.
   it('przycisk "Dodaj własne ćwiczenie" renderuje się POZA scrollowanym kontenerem listy', () => {
@@ -145,5 +154,46 @@ describe('ExercisePicker (Z69)', () => {
 
     await waitFor(() => expect(onPick).toHaveBeenCalledWith(created));
     expect(toastMock).not.toHaveBeenCalled();
+  }, 30000);
+
+  // Bug 54: Firestore potrafi pozostawić Promise zapisu w stanie pending przy
+  // słabym internecie. UI musi odzyskać sterowanie bez ponowienia tego samego
+  // zapisu (duplikatu), a późne powodzenie nadal ma wybrać ćwiczenie.
+  it('zapis pending: po timeout pokazuje status, ponowne kliknięcie nie duplikuje zapisu, późny sukces kończy flow', async () => {
+    vi.useFakeTimers();
+    toastMock.mockClear();
+    reportErrorMock.mockClear();
+    let resolveCreate!: (value: {
+      id: string;
+      name: string;
+      category: 'chest';
+      type: 'compound';
+      isBodyweight: false;
+    }) => void;
+    const onCreate = vi.fn(() => new Promise((resolve) => { resolveCreate = resolve; }));
+
+    try {
+      const { onPick } = renderPicker({ onCreateCustomExercise: onCreate as never });
+      fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
+      fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), { target: { value: 'Offline press' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Zapisz i wybierz' }));
+      expect(onCreate).toHaveBeenCalledTimes(1);
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Zapis nadal trwa',
+      }));
+      const retryButton = screen.getByRole('button', { name: 'Sprawdź zapis' });
+      expect(retryButton).not.toBeDisabled();
+
+      fireEvent.click(retryButton);
+      expect(onCreate).toHaveBeenCalledTimes(1);
+
+      const created = { id: 'offline-1', name: 'Offline press', category: 'chest' as const, type: 'compound' as const, isBodyweight: false as const };
+      await act(async () => { resolveCreate(created); });
+      expect(onPick).toHaveBeenCalledWith(created);
+    } finally {
+      vi.useRealTimers();
+    }
   }, 30000);
 });

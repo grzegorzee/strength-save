@@ -10,7 +10,6 @@ import {
   isValidStravaOAuthState,
   providerFromSignInProvider,
   providerGetsImmediateAccess,
-  resendErrorMessage,
   resolveUpdatedAccessStatus,
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
@@ -65,11 +64,6 @@ describe('functions security helpers', () => {
     expect(isValidStravaOAuthState('too-short')).toBe(false);
     expect(isValidStravaOAuthState('abcDEF123_-abcDEF123_-abcDEF123_-$')).toBe(false);
     expect(isValidStravaOAuthState('a'.repeat(257))).toBe(false);
-  });
-
-  it('detects Resend provider errors before reporting sent=true', () => {
-    expect(resendErrorMessage({ error: null })).toBeNull();
-    expect(resendErrorMessage({ error: { message: 'Domain rejected' } })).toBe('Domain rejected');
   });
 
   it('keeps adminDeleteUser GDPR coverage for private user collections', () => {

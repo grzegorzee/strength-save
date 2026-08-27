@@ -1259,51 +1259,51 @@ const ExerciseCardInner = ({
             klipowanego powtórzenia w każdej komórce POPRZ. (Z130 zachowane:
             informacja o braku historii nie znika). */}
         {isFirstTime && (
-          <p className="px-2 pb-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+          <p className="px-2 pb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
             {t('card.firstTime')}
           </p>
         )}
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
           <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
-            <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colSet')}</span>
+            <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
             {tracking !== 'weight_distance_duration' && (
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colPrevious')}</span>
+              <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
             )}
             {tracking === 'weight_distance_duration' && (
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{unit}</span>
+              <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{unit}</span>
             )}
             {tracking === 'weight_distance_duration' && (
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDistance')}</span>
+              <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colDistance')}</span>
             )}
             {tracking === 'assisted_bodyweight' && (
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colAssist')}</span>
+              <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colAssist')}</span>
             )}
             {tracking === 'assisted_bodyweight' && (
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colReps')}</span>
+              <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colReps')}</span>
             )}
             {(tracking === 'duration' || tracking === 'weight_distance_duration') && (
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDuration')}</span>
+              <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colDuration')}</span>
             )}
             {/* WP-C (X37): pusta komórka nad kolumną przycisku odliczania. */}
             {tracking === 'duration' && <span aria-hidden />}
             <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
             {/* Fala 2 (mockup 2a): licznik odhaczonych serii w ostatniej kolumnie nagłówka. */}
-            <span className="self-center text-center font-mono text-[9px] font-bold tabular-nums text-muted-foreground">
+            <span className="self-center text-center font-mono text-[11px] font-bold tabular-nums text-muted-foreground">
               {completedSets}/{workingSets.length}
             </span>
           </div>
         ) : (
         <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colSet')}</span>
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colPrevious')}</span>
+          <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
+          <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
           {!isBodyweight && (
-            <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{unit}</span>
+            <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{unit}</span>
           )}
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colReps')}</span>
+          <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colReps')}</span>
           <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
           {/* Fala 2 (mockup 2a): licznik odhaczonych serii w ostatniej kolumnie nagłówka. */}
-          <span className="self-center text-center font-mono text-[9px] font-bold tabular-nums text-muted-foreground">
+          <span className="self-center text-center font-mono text-[11px] font-bold tabular-nums text-muted-foreground">
             {completedSets}/{workingSets.length}
           </span>
         </div>
@@ -1409,7 +1409,7 @@ const ExerciseCardInner = ({
                 { field: 'quality' as const, label: t('card.quality'), min: 1, max: 5, step: 1, ph: '5' },
               ]).map(({ field, label, ph }) => (
                 <div key={field} className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-center">{label}</span>
+                  <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
                   <DecimalInput
                     value={metricsState[field] ?? ''}
                     onCommit={(n) => handleMetricChange(field, n)}

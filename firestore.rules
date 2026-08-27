@@ -625,6 +625,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Zgłoszenia błędów: create/finalize/status są wyłącznie w atestowanych
+    // callable (Admin SDK). Właściciel może odczytać swoje zgłoszenie, admin panel
+    // wszystkie; żaden klient, również admin, nie omija walidacji backendu zapisem.
+    match /bug_reports/{reportId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Liczniki 3/h i 10/d są prywatnym stanem transakcyjnym callable.
+    match /bug_report_rate_limits/{userId} {
+      allow read, write: if false;
+    }
+
     // Własne ćwiczenia usera (Z71): zamknięty schemat, pełny CRUD tylko właściciel,
     // odczyt dodatkowo admin. Kategorie = 8 kluczy categoryLabels z biblioteki klienta.
     function validCustomExerciseShape() {

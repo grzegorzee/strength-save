@@ -111,7 +111,7 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-heading uppercase tracking-tight">
             {editActivity ? t('cardio.editTitle') : t('cardio.addTitle')}

@@ -197,13 +197,15 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
     expect(within(activeTile).getByText(/teraz/)).toBeInTheDocument();
   });
 
-  it('każda sesja osiągalna: kafle na poziomie 1, komplet wierszy w pełnej liście; licznik == suma', () => {
+  it('każda sesja osiągalna: kafle na poziomie 1 i komplet wierszy w pełnej liście', () => {
     renderPage('/history');
     // Kafle: aktywny (Cykl 2 — numeracja od najstarszego), przeszły (Cykl 1),
     // "Poza cyklami" dla sesji bez cyklu.
     const tiles = screen.getAllByTestId('cycle-tile');
     expect(tiles).toHaveLength(3);
-    expect(screen.getByText(/5 sesji/i)).toBeInTheDocument();
+    // Licznik all-time należy do wspólnego AppHeadera; strona nie dubluje go
+    // dopiskiem "sesji" w tym samym klastrze.
+    expect(screen.queryByText(/5 sesji/i)).not.toBeInTheDocument();
 
     // NIEZMIENNIK kompletności: pełna lista renderuje KAŻDĄ sesję dokładnie raz.
     fireEvent.click(screen.getByTestId('history-all-sessions-link'));

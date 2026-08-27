@@ -5,7 +5,7 @@ import { GoogleAuth } from "google-auth-library";
 
 // Z222: dzienny raport kosztów chmury. Metryki Firestore/Functions z Cloud
 // Monitoring API (jedyne dostępne API na te liczby), maile jako przybliżenie
-// dolne z email_verification_codes.sentAt (Resend nie wystawia dziennego
+// dolne z email_verification_codes.sentAt (provider nie wystawia dziennego
 // licznika per projekt). Wynik: admin_cost_daily/{date}, czytelny tylko dla
 // admina — zero danych treningowych, jeden dokument dziennie.
 

@@ -17,15 +17,15 @@ vi.mock('@/components/PlanPreview', () => ({
 const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
 vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
-// X29 WP-H: photoURL mutowalne per test (preselekcja akcentu z avatara).
+// X29 WP-H: photoURL mutowalne per test (propozycje akcentu z avatara).
 const mockProfile = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({ uid: 'u1', profile: mockProfile.current }),
 }));
-// X33 WP-8: Welcome liczy kandydatów (kropki "Z Twojego zdjęcia"); preselekcja
-// = pierwszy z nich (ten sam kontrakt co deriveAccentFromAvatar w X29).
+// X33 WP-8: Welcome liczy kandydatów dopiero po jawnym CTA. Analiza porządkuje
+// kropki "Z Twojego zdjęcia", ale nie zapisuje wyboru bez tapnięcia swatcha.
 const deriveAccentCandidatesFromAvatar = vi.hoisted(() => vi.fn(async (): Promise<string[]> => []));
 vi.mock('@/lib/avatar-accent', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/avatar-accent')>();
@@ -112,25 +112,32 @@ describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
   });
 });
 
-// X29 WP-H: konto Google z avatarem — swatch "swojego" koloru już zaznaczony
-// na Welcome; user widzi wynik i może zmienić. Cichy fail = zostaje limonka.
-describe('Onboarding: preselekcja akcentu z avatara (X29 WP-H)', () => {
-  it('photoURL + brak zapisanego wyboru: wyliczony sky zaznaczony i zaaplikowany', async () => {
+// Aktualny kontrakt prywatności: konto Google pokazuje CTA, a lokalna analiza
+// niczego nie wybiera automatycznie. Cichy fail = gotowa paleta i możliwość retry.
+describe('Onboarding: propozycje akcentu z avatara (X29 WP-H)', () => {
+  it('photoURL + brak wyboru: sky pojawia się jako propozycja, lecz zapisuje się dopiero po tapnięciu', async () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
     deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
     render(withProviders(<Onboarding />));
-    await waitFor(() => expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'true'));
+    expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
+    await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
     expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalledWith('https://lh3.example/a.jpg');
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'false');
+    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    fireEvent.click(screen.getByTestId('ob-accent-sky'));
     expect(document.documentElement.dataset.accent).toBe('sky');
     expect(localStorage.getItem('ss-accent-color')).toBe('sky');
   });
 
-  it('wpis w localStorage (wcześniejszy wybór): automat NIE nadpisuje wyboru (kropki ze zdjęcia mogą się pokazać)', async () => {
+  it('wpis w localStorage: analiza po CTA NIE nadpisuje wcześniejszego wyboru', async () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
     deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
     localStorage.setItem('ss-accent-color', 'indigo');
     render(withProviders(<Onboarding />));
     expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
     await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
     expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'false');
@@ -141,6 +148,7 @@ describe('Onboarding: preselekcja akcentu z avatara (X29 WP-H)', () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
     deriveAccentCandidatesFromAvatar.mockResolvedValueOnce([]);
     render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
     await waitFor(() => expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalled());
     expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
     expect(localStorage.getItem('ss-accent-color')).toBeNull();

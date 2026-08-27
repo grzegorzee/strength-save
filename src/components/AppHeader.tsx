@@ -27,13 +27,12 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { uid, profile } = useCurrentUser();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  // Naprawa r2 (2026-08-21, sędzia struktury): licznik treningów wyłącznie na
-  // Dashboardzie — artboardy Plan/History/Profile mają w headerze akcje
-  // kontekstowe ekranu (slot HeaderActions), nie dashboardowy zestaw.
-  // Wejście w statystyki nie znika: pigułka na Dashboardzie + kafel "Twoje
-  // liczby" w gridzie szybkich akcji. Dzwonek od X35c na każdej zakładce głównej.
+  // Licznik i dzwonek tworzą jeden kontrakt nagłówka głównych zakładek. Dzięki
+  // temu przejście Dzisiaj -> Plan -> Historia nie zmienia znaczenia prawego
+  // klastra ani nie zastępuje liczby dopiskiem zależnym od ekranu.
   const isDashboard = pathname === '/';
   const showBell = BELL_PATHS.has(pathname);
+  const showWorkoutCount = BELL_PATHS.has(pathname);
   const displayName = profile?.displayName || '';
   const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
   // Z216: nagłówek jest na każdym ekranie — nie może trzymać szerokiego
@@ -56,7 +55,13 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   useEffect(() => {
     // Naprawa r2: konsumpcja tylko tam, gdzie licznik jest widoczny — inaczej
     // "+1" przepadałoby po cichu na pod-tabach bez pigułki.
-    if (!isLoaded || !isDashboard) return;
+    if (!isDashboard) {
+      // Nawigacja przed końcem animacji czyści ją od razu; cleanup poniższego
+      // timera nie może zostawić wiszącego "+1" na kolejnej zakładce.
+      setCelebration(0);
+      return;
+    }
+    if (!isLoaded) return;
     const delta = consumeCelebration(completedCount);
     if (delta <= 0) return;
     setCelebration(delta);
@@ -111,22 +116,17 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
               {pendingOps > 0 && <span className="ml-0.5">({pendingOps})</span>}
             </div>
           )}
-          {isDashboard && isLoaded && (
+          {showWorkoutCount && isLoaded && (
             <button
               type="button"
               onClick={() => setStatsOpen(true)}
               aria-label={t('stats.open')}
               title={t('comp.header.workoutsCount', { count: completedCount })}
               data-testid="header-workout-count"
-              className="relative flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary transition-colors hover:bg-primary/20"
+              className="relative flex min-h-11 items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary transition-colors hover:bg-primary/20"
             >
               <Dumbbell className="h-4 w-4" />
               <span className="tabular-nums">{completedCount}</span>
-              {/* Fala 2 (2026-08-20): sufiks mono jak "82 TOTAL" z mockupu
-                  (pigułka renderuje się już tylko na Dashboardzie). */}
-              <span className="font-mono text-[9px] uppercase tracking-[0.1em] opacity-75">
-                {t('comp.header.totalSuffix')}
-              </span>
 
               {/* Z140.1: „+1" unosi się i gaśnie. Keyframes inline jak w ConfettiBurst
                   — w projekcie nie ma (i nie ma być) framer-motion. */}

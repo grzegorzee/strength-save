@@ -518,15 +518,9 @@ const WorkoutHistory = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header (design 2a): na poziomie 1 licznik sesji zamiast lupy; lupa i
-          filtry żyją w pełnej liście (?list=all). */}
-      {view === 'tiles' && (
-        <HeaderActions>
-          <span className="eyebrow-mono text-muted-foreground">
-            {headerSessionCount} {sessionWord(headerSessionCount)}
-          </span>
-        </HeaderActions>
-      )}
+      {/* Wspólny AppHeader pokazuje klikalny licznik all-time oraz dzwonek na
+          każdej głównej zakładce. Historia nie dokłada drugiego licznika do
+          tego samego klastra; akcje filtrów pojawiają się dopiero w liście. */}
       {view === 'list' && (
         <HeaderActions>
           <button

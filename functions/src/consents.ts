@@ -24,6 +24,17 @@ const MAX_ENTRIES = 8;
 const MAX_STATEMENT_LENGTH = 2000;
 const MAX_APP_VERSION_LENGTH = 40;
 
+// Okno zgodności dla już rozpowszechnionego TestFlight 128 / Android 42.
+// Te buildy pokazują i wysyłają privacy 2.0. Serwer zapisuje wersję faktycznie
+// zaakceptowaną przez użytkownika, dzięki czemu klient 2.1 nadal poprawnie
+// uruchomi re-consent. Usuń 2.0 dopiero po wycofaniu obu starych buildów.
+const ACCEPTED_CONSENT_DOC_VERSIONS: Record<ConsentType, readonly string[]> = {
+  terms: [CONSENT_DOC_VERSION.terms],
+  privacy_ack: ["2.0", CONSENT_DOC_VERSION.privacy_ack],
+  health: [CONSENT_DOC_VERSION.health],
+  marketing: [CONSENT_DOC_VERSION.marketing],
+};
+
 export interface ConsentEntry {
   type: ConsentType;
   action: ConsentAction;
@@ -66,7 +77,10 @@ export function parseConsentPayload(data: unknown): ConsentPayload {
     if (!isIn(CONSENT_ACTIONS, entry.action)) {
       throw new HttpsError("invalid-argument", "invalid consent action");
     }
-    if (entry.docVersion !== CONSENT_DOC_VERSION[entry.type]) {
+    if (
+      typeof entry.docVersion !== "string"
+      || !ACCEPTED_CONSENT_DOC_VERSIONS[entry.type].includes(entry.docVersion)
+    ) {
       throw new HttpsError(
         "invalid-argument",
         `stale docVersion for ${entry.type}: expected ${CONSENT_DOC_VERSION[entry.type]}`,

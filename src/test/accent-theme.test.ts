@@ -22,6 +22,16 @@ beforeEach(() => {
 });
 
 describe('accent-theme (F-T2 + plan I)', () => {
+  const luminance = (hex: string): number => {
+    const channels = [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16) / 255)
+      .map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const contrast = (a: string, b: string): number => {
+    const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (lighter + 0.05) / (darker + 0.05);
+  };
+
   it('paleta: 11 akcentów, limonka domyślna i pierwsza, unikalne id', () => {
     expect(ACCENTS.length).toBe(11);
     expect(ACCENTS[0].id).toBe(DEFAULT_ACCENT_ID);
@@ -111,10 +121,10 @@ describe('accent-theme (F-T2 + plan I)', () => {
   // custom). Ciemne akcenty dostają jasny tekst, jasne zostają z ciemnym.
   it('ciemne akcenty palety (indigo, slate) dostają jasny foreground', () => {
     applyAccent('indigo');
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
-    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 98%');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 100%');
+    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 100%');
     applyAccent('slate');
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 100%');
   });
 
   it('jasne akcenty palety (amber, sky, emerald, lavender) zostają z ciemnym tekstem', () => {
@@ -122,15 +132,26 @@ describe('accent-theme (F-T2 + plan I)', () => {
     // 7.3:1 / 6.1:1, biały tylko 2.4:1 / 2.9:1 — dlatego próg 0.28, nie per kolor.
     for (const id of ['amber', 'sky', 'emerald', 'lavender']) {
       applyAccent(id);
-      expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
-      expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('');
+      expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 0%');
+      expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 0%');
+    }
+  });
+
+  it('każdy akcent palety ma co najmniej WCAG AA 4.5:1 dla tekstu CTA', () => {
+    for (const accent of ACCENTS) {
+      applyAccent(accent.id);
+      const foregroundToken = document.documentElement.style.getPropertyValue('--primary-foreground');
+      const foreground = foregroundToken === '0 0% 100%' ? '#ffffff'
+        : foregroundToken === '0 0% 0%' ? '#000000'
+          : '#0f0f0f';
+      expect(contrast(accent.hex, foreground), accent.id).toBeGreaterThanOrEqual(4.5);
     }
   });
 
   it('przejście ciemny → jasny akcent zdejmuje jasny foreground', () => {
     applyAccent('indigo');
     applyAccent('amber');
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 0%');
   });
 
   // Rozszerzenie na życzenie właściciela (2026-08-20): dowolny kolor po #.
@@ -146,13 +167,13 @@ describe('accent-theme (F-T2 + plan I)', () => {
 
   it('ciemny własny kolor dostaje jasny tekst na akcencie; jasny zostaje przy ciemnym', () => {
     applyAccent('#1a2a6c');
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
-    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 98%');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 100%');
+    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 100%');
     applyAccent('#cefc22');
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
-    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 0%');
+    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 0%');
     applyAccent('#ffe066');
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 0%');
   });
 
   it('własny hex przeżywa persistencję (getCurrentAccent zwraca custom)', () => {

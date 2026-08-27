@@ -75,7 +75,7 @@ describe('user profile loading', () => {
   it('przenosi mirror zgód do profilu, żeby bramka re-consent mogła się zamknąć', () => {
     const consents = {
       termsVersion: '2.0',
-      privacyVersion: '2.0',
+      privacyVersion: '2.1',
       healthGranted: true,
       healthVersion: '1.0',
     };
@@ -93,6 +93,15 @@ describe('user profile loading', () => {
 
     expect(getConsentMirror(profile)).toEqual(consents);
     expect(hasCurrentRequiredConsents(getConsentMirror(profile))).toBe(true);
+  });
+
+  it('wymaga ponownego potwierdzenia po zmianie polityki prywatności 2.0 → 2.1', () => {
+    expect(hasCurrentRequiredConsents({
+      termsVersion: '2.0',
+      privacyVersion: '2.0',
+      healthGranted: true,
+      healthVersion: '1.0',
+    })).toBe(false);
   });
 
   // WP-O (X30): nowe pola users/{uid} musza przejsc przez mapper pole-po-polu

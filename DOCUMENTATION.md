@@ -68,15 +68,15 @@
 |-----------|-------------|--------|-----------|
 | Frontend | React | 18.x | SPA z JSX/TSX |
 | Typowanie | TypeScript | 5.x | strict mode, noImplicitAny |
-| Bundler | Vite | 5.x | HMR, SWC plugin |
+| Bundler | Vite | 6.x | HMR, SWC plugin |
 | Styling | Tailwind CSS | 3.x | utility-first + custom CSS variables |
 | UI Kit | shadcn/ui | - | Radix UI primitives + Tailwind |
 | Backend | Firebase Firestore | 12.x | Baza NoSQL, real-time subscriptions |
 | Auth | Firebase Authentication | 12.x | Google sign-in + email/password |
 | Functions | Firebase Cloud Functions | v2 | Strava OAuth, Weekly Digest, OpenAI proxy (Node.js 22) |
-| Email | Resend | 6.x | Weekly Digest, verification codes, invites, access emails |
+| Email | Amazon SES API v2 | AWS SDK JS v3 | E-maile serwisowe, digest, zaproszenia, eksporty i alerty zgłoszeń błędów |
 | Image Gen | html2canvas-pro | - | Share Workout PNG |
-| Routing | React Router DOM | 6.x | HashRouter (GitHub Pages) |
+| Routing | React Router DOM | 7.x | HashRouter (GitHub Pages), synchroniczne przejścia `useTransitions={false}` |
 | Wykresy | Recharts | 2.x | Liniowe, słupkowe, multi-line |
 | AI | OpenAI API | - | Generowanie planów + AI Coach |
 | Fitness | Strava API | v3 | Import aktywności sportowych |
@@ -90,6 +90,47 @@
 | Toasts | Sonner | 1.x | Eleganckie powiadomienia |
 | Testy | Vitest | 3.x | + Testing Library + jsdom |
 | Deploy | gh-pages | 6.x | GitHub Pages |
+
+### Zasada native-first dla integracji mobilnych
+
+Przed napisaniem własnego mostu Swift/Kotlin albo obejścia WebView trzeba najpierw
+sprawdzić aktualną oficjalną dokumentację i kompatybilny plugin Capacitor dla obecnej
+wersji major. Decyzja ma zapisać: `use / reject / defer`, zachowanie web/iOS/Android,
+uprawnienia i prywatność, recovery po `appRestoredResult`, testy oraz ryzyko dla danych.
+Własny kod natywny jest dopuszczalny dopiero, gdy plugin nie spełnia kontraktu albo
+zwiększa ryzyko. Obecne adaptery:
+
+- `@capacitor/share` + `@capacitor/filesystem`: natywny eksport JSON/CSV/PDF/PNG;
+- `@capacitor/camera`: wybór pojedynczego obrazu do zgłoszenia błędu; web zachowuje
+  kontrolowany `<input type="file">`;
+- `@capacitor/app`: trwałe `appRestoredResult` dla Camera po Android process death;
+- `@capacitor/preferences`, `background-runner` i `screen-orientation`: nadal decyzje
+  warunkowe opisane w planie; draft treningu i kolejka synchronizacji nie mogą być
+  przenoszone bez migracji dual-read/dual-write i testu upgrade.
+
+### Zgłoszenia błędów
+
+Profil udostępnia formularz `BugReportDialog`: kategoria, opis 20–4000 znaków i
+opcjonalny screenshot. Tekst oraz stabilny UUID są lokalnym draftem; screenshot
+przywrócony po ubiciu Android Activity jest przechowywany prywatnie w IndexedDB do
+24 h. Obraz przed uploadem jest dekodowany i ponownie kodowany do JPEG (bez EXIF/GPS),
+limit 1,5 MiB, bez fallbacku do oryginału.
+
+Przepływ backendu jest idempotentny: `createBugReport → prywatny Storage upload →
+finalizeBugReport`. Callables wymagają Auth, App Check i aktywnego dostępu; limity to
+3 nowe zgłoszenia na godzinę i 10 dziennie. Firestore blokuje wszystkie zapisy klienta,
+a Storage pozwala właścicielowi tylko utworzyć dokładnie jeden plik przy istniejącym
+raporcie `awaiting_upload`; odczyt, nadpisanie i kasowanie klienta są zablokowane.
+Snapshot e-maila pochodzi wyłącznie z tokenu Auth, nie z payloadu klienta. Niepowodzenie
+e-maila przez Amazon SES nie cofa przyjętego raportu — Firestore pozostaje źródłem
+prawdy, a wiadomość jest tylko kanałem powiadomienia. Screenshot nie jest załącznikiem:
+pozostaje w prywatnym Storage i jest dostępny przez uwierzytelniony panel admina.
+Panel admina czyta 100 najnowszych raportów, filtruje status/kategorię, zmienia status
+wyłącznie przez `adminUpdateBugReport` i otwiera screenshot przez pięciominutowy V4
+signed URL z `adminGetBugReportScreenshotUrl`. Raporty wygasają po 180 dniach, a
+porzucone `awaiting_upload` po 24 h; scheduler usuwa plik przed dokumentem i pozostawia
+retry marker, gdy Storage zawiedzie. Usunięcie konta obejmuje raporty, licznik limitu i
+prefix `bug-reports/{uid}/`.
 
 ---
 
@@ -204,13 +245,14 @@ src/
     └── utils.ts               # cn() (clsx + tailwind-merge)
 
 functions/                     # Firebase Cloud Functions
-├── package.json               # resend, firebase-admin, firebase-functions
+├── package.json               # @aws-sdk/client-sesv2, sns-validator, firebase-admin/functions
 ├── tsconfig.json
 └── src/
     ├── index.ts               # eksporty Functions: Strava, AI, admin API, registration
     ├── registration.ts        # rejestracja, verify code, invites, waitlist, auth audit, access toggle
+    ├── ses-email.ts           # wspólny transport Amazon SES API v2 (HTML + text)
     ├── ai-usage.ts            # checkUsageLimit(), recordUsage(), pricing map ($5/user/month)
-    └── weekly-digest.ts       # Weekly Digest Email (Resend, per-user, Monday 08:00 Warsaw)
+    └── weekly-digest.ts       # Weekly Digest Email (Amazon SES, per-user, Monday 08:00 Warsaw)
 
 scripts/
 └── migrate-to-multiuser.mjs   # Migracja danych do multi-user (dodanie userId)
@@ -1432,16 +1474,35 @@ Renderuje hidden div → `html2canvas-pro` → canvas → PNG blob (540×960, sc
 
 **UI:** `ShareWorkoutDialog.tsx` — preview + Download (`<a download>`) + Share (`navigator.share`). Przycisk w WorkoutDay po ukończeniu treningu.
 
-### Weekly Digest Email (v6.1.0 → v6.3.0)
+### Weekly Digest Email (wdrożony w v6.3.0, obecny transport Amazon SES)
 
 **Plik:** `functions/src/weekly-digest.ts`
 
 - Cloud Function `onSchedule("every monday 08:00", timeZone: "Europe/Warsaw")`
-- Secret: `RESEND_API_KEY` (GCP Secret Manager)
+- Wspólny adapter: `functions/src/ses-email.ts`, `SESv2Client` + `SendEmailCommand`
+- Cztery sekrety transportu w GCP Secret Manager: `SES_REGION`,
+  `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_FROM`
 - Auto-detect emaili z Firebase Auth (`listUsers()`)
 - Per-user query: workouts + strava_activities z last Monday-Sunday
 - HTML email: stats grid (treningi, tonaż, km, biegi), highlights (najszybszy/najdłuższy bieg), link do app
-- From: `Strength Save <onboarding@resend.dev>` (zmienić po dodaniu domeny w Resend)
+- Każda wiadomość ma wariant HTML i plain text; nadawca pochodzi wyłącznie z `SES_FROM`
+- Historycznie digest korzystał z Resend; aktywny runtime nie ma fallbacku do tego dostawcy
+
+#### Amazon SES — kontrakt operacyjny przed deployem
+
+- `SES_REGION`, zweryfikowana domena/nadawca, configuration set, sandbox/production
+  access i quota muszą dotyczyć tego samego regionu AWS.
+- IAM workloadu pozwala tylko na `ses:SendEmail`, wskazaną identity, adres nadawcy
+  i wymaganych odbiorców; nie używamy `ses:*` ani kluczy administracyjnych/root.
+- Configuration set wymusza TLS i publikuje send/delivery/bounce/complaint/reject/
+  delivery-delay do SNS. `sesEventsWebhook` weryfikuje podpis SNS i dokładny topic
+  przez osobny sekret `SES_SNS_TOPIC_ARN`.
+- Odpowiedź SES z `MessageId` oznacza przyjęcie, nie dowód doręczenia. Firestore
+  (`notification_logs`, raport błędu/panel admina) pozostaje źródłem prawdy.
+- Standard retry AWS SDK może po niejednoznacznym timeout/5xx dostarczyć duplikat;
+  operacje muszą zachowywać stabilny identyfikator/log i nie mogą utracić danych.
+- Po zielonych bramkach i jawnej zgodzie właściciela wykonujemy syntetyczny smoke
+  bez danych realnego użytkownika. Bez tej zgody nie wykonujemy deployu ani wysyłki.
 
 ### PR Detection — `pr-utils.ts`
 
@@ -1649,7 +1710,7 @@ Storage: `localStorage` → klucz `fittracker_offline_queue`
 - Cloud Function co poniedziałek o 8:00 (Europe/Warsaw)
 - Per-user email z auto-detect z Firebase Auth
 - Stats: treningi, tonaż, km, biegi + Strava highlights
-- Resend API
+- Amazon SES API v2 przez wspólny adapter `ses-email.ts`
 
 ### 16. Multi-User
 - Multi-email whitelist
@@ -1894,7 +1955,7 @@ npx playwright test --reporter=list  # verbose output
 
 **Auth / registration milestone**
 - Google sign-in i email + hasło
-- Własny kod mailowy wysyłany przez Functions + Resend
+- Własny kod mailowy wysyłany przez Functions + Amazon SES
 - Osobne strony `/#/login` i `/#/register`
 - Invite flow z przypięciem metadata/cohort po wejściu do aplikacji
 - Waitlista z konwersją na invite

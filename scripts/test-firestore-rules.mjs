@@ -175,6 +175,30 @@ add('read client_errors jako admin', true, await ok(() => getDoc(doc(adminDb, 'c
 add('update client_errors zablokowane', false, await ok(() => updateDoc(doc(db, 'client_errors', 'ce-1'), { detail: 'edit' })));
 add('delete client_errors zablokowane', false, await ok(() => deleteDoc(doc(db, 'client_errors', 'ce-1'))));
 
+// === Bug reports: zapis tylko przez callable, odczyt właściciel/admin ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser(undefined, 'active', OTHER_UID);
+await seedUser(undefined, 'active', ADMIN_UID, 'admin');
+const bugReportId = `${UID}_123e4567-e89b-42d3-a456-426614174000`;
+const bugReport = {
+  userId: UID,
+  clientRequestId: '123e4567-e89b-42d3-a456-426614174000',
+  category: 'workout',
+  message: 'Przycisk zapisu nie reaguje po powrocie z tła.',
+  status: 'new',
+};
+await seedDoc('bug_reports', bugReportId, bugReport);
+add('bug_reports: właściciel czyta swoje zgłoszenie', true, await ok(() => getDoc(doc(db, 'bug_reports', bugReportId))));
+add('bug_reports: inny user nie czyta zgłoszenia', false, await ok(() => getDoc(doc(otherDb, 'bug_reports', bugReportId))));
+add('bug_reports: admin czyta zgłoszenie', true, await ok(() => getDoc(doc(adminDb, 'bug_reports', bugReportId))));
+add('bug_reports: klient nie tworzy zgłoszenia bez callable', false, await ok(() => setDoc(doc(db, 'bug_reports', `${bugReportId}-client`), bugReport)));
+add('bug_reports: właściciel nie edytuje statusu', false, await ok(() => updateDoc(doc(db, 'bug_reports', bugReportId), { status: 'resolved' })));
+add('bug_reports: właściciel nie kasuje zgłoszenia', false, await ok(() => deleteDoc(doc(db, 'bug_reports', bugReportId))));
+await seedDoc('bug_report_rate_limits', UID, { userId: UID, hourCount: 1, dayCount: 1 });
+add('bug_report_rate_limits: klient nie czyta limitu', false, await ok(() => getDoc(doc(db, 'bug_report_rate_limits', UID))));
+add('bug_report_rate_limits: klient nie zapisuje limitu', false, await ok(() => setDoc(doc(db, 'bug_report_rate_limits', UID), { userId: UID, hourCount: 0 })));
+
 // === Schemat workouts (Z28): hasOnly + limity + lekcja ef8b8d5 (pole nie istnieje) ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

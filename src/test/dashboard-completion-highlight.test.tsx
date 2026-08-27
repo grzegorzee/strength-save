@@ -99,7 +99,7 @@ vi.mock('@/lib/workout-draft-db', () => ({
   workoutDraftDb: { loadActiveDraft: vi.fn(async () => null), loadDraftForDay: vi.fn(async () => null) },
 }));
 vi.mock('@/lib/workout-sync-queue', () => ({
-  workoutSyncQueue: { pendingCount: () => 0 },
+  workoutSyncQueue: { pendingCount: () => 0, list: () => [] },
 }));
 
 const planFixture = vi.hoisted(() => ({ plan: [] as unknown[] }));

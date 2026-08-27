@@ -15,17 +15,36 @@ const pbxproj = (a: number | string, b: number | string) => `
   };
 `;
 
+const projectWithBuilds = (...values: Array<number | string>) =>
+  values
+    .map((value) => `buildSettings = { CURRENT_PROJECT_VERSION = ${value}; MARKETING_VERSION = 1.0.0; };`)
+    .join('\n');
+
+const completePbxproj = (value: number | string) => projectWithBuilds(...Array(6).fill(value));
+
 describe('release-ios-preflight — spójność CURRENT_PROJECT_VERSION (#10 Z12)', () => {
   it('wyłuskuje wszystkie wystąpienia build numbera', () => {
     expect(extractBuildNumbers(pbxproj(46, 46))).toEqual(['46', '46']);
   });
 
   it('przechodzi przy spójnych build numberach', () => {
-    expect(findBuildNumberMismatch(pbxproj(46, 46))).toEqual({ ok: true, reason: 'consistent', values: ['46'] });
+    expect(findBuildNumberMismatch(completePbxproj(46))).toEqual({
+      ok: true,
+      reason: 'consistent',
+      values: ['46'],
+    });
+  });
+
+  it('faila gdy liczba wystąpień nie jest równa sześciu', () => {
+    expect(findBuildNumberMismatch(pbxproj(46, 46))).toEqual({
+      ok: false,
+      reason: 'unexpected-count',
+      values: ['46'],
+    });
   });
 
   it('faila przy rozjeździe build numberów', () => {
-    const res = findBuildNumberMismatch(pbxproj(46, 45));
+    const res = findBuildNumberMismatch(projectWithBuilds(46, 46, 46, 46, 46, 45));
     expect(res.ok).toBe(false);
     expect(res.reason).toBe('mismatch');
     expect([...res.values].sort()).toEqual(['45', '46']);

@@ -87,7 +87,7 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('progress.title')}</h1>
+        <h2 className="text-xl font-heading font-bold uppercase tracking-tight">{t('progress.title')}</h2>
         <p className="text-sm text-muted-foreground">{t('progress.subtitle')}</p>
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-low p-1" role="tablist" aria-label={t('progress.title')}>

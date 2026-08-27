@@ -13,6 +13,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
+import { safeInternalDeepLink } from '@/lib/internal-deep-link';
 
 const TYPE_ICONS = {
   pr: Trophy,
@@ -58,11 +59,11 @@ export const NotificationBell = ({ uid }: { uid: string }) => {
         type="button"
         aria-label={t('inbox.open')}
         onClick={() => handleOpenChange(true)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="relative flex h-11 w-11 touch-manipulation items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span data-testid="inbox-unread-dot" className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
+          <span data-testid="inbox-unread-dot" className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
         )}
       </button>
 
@@ -85,13 +86,14 @@ export const NotificationBell = ({ uid }: { uid: string }) => {
               {events.map((event) => {
                 const Icon = TYPE_ICONS[event.type] ?? Info;
                 const { title, body } = describeUserEvent(event, displayCtx);
-                const clickable = Boolean(event.deepLink);
+                const deepLink = safeInternalDeepLink(event.deepLink);
+                const clickable = Boolean(deepLink);
                 const openLink = () => {
-                  if (!event.deepLink) return;
+                  if (!deepLink) return;
                   setOpen(false);
                   // X29: legacy eventy week sprzed X29 mają deepLink "/analytics"
                   // (tab summary) — raport tygodnia zawsze prowadzi na listę tygodni.
-                  navigate(event.type === 'week' ? '/analytics?tab=weekly' : event.deepLink);
+                  navigate(event.type === 'week' ? '/analytics?tab=weekly' : deepLink);
                 };
                 return (
                   <div

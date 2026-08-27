@@ -108,7 +108,7 @@ vi.mock('@/components/ProUpsellBanner', () => ({ ProUpsellBanner: () => null }))
 vi.mock('@/lib/workout-draft-db', () => ({
   workoutDraftDb: { loadActiveDraft: vi.fn(async () => null), loadDraftForDay: vi.fn(async () => null) },
 }));
-vi.mock('@/lib/workout-sync-queue', () => ({ workoutSyncQueue: { pendingCount: () => 0 } }));
+vi.mock('@/lib/workout-sync-queue', () => ({ workoutSyncQueue: { pendingCount: () => 0, list: () => [] } }));
 vi.mock('@/hooks/useSubscription', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/useSubscription')>();
   return { ...actual, useRequiresPaywall: () => false };

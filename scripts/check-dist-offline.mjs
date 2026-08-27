@@ -196,7 +196,7 @@ try {
     notifications: { welcomeSentAt: new Date().toISOString() },
     consents: {
       termsVersion: '2.0',
-      privacyVersion: '2.0',
+      privacyVersion: '2.1',
       healthGranted: true,
       healthVersion: '1.0',
       marketingGranted: false,
@@ -243,8 +243,10 @@ try {
 
   result.swActive = await page.evaluate(async () => {
     if (!('serviceWorker' in navigator)) return false;
-    const registration = await navigator.serviceWorker.ready;
-    return registration.active !== null;
+    return Promise.race([
+      navigator.serviceWorker.ready.then((registration) => registration.active !== null),
+      new Promise((resolve) => setTimeout(() => resolve(false), 15_000)),
+    ]);
   });
   await page.waitForTimeout(2_000);
 
@@ -273,7 +275,9 @@ try {
   const preStartSkip = offlinePage.getByTestId('prestart-skip');
   await preStartSkip.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
   if (await preStartSkip.isVisible().catch(() => false)) await preStartSkip.click();
-  await offlinePage.getByText(/Trening rozpoczęty offline|Workout started offline/i, { exact: true }).first().waitFor({ timeout: 15_000 });
+  // X38 celowo wycisza toast dla provisional/offline. Przycisk zakończenia jest
+  // stabilnym i dostępnym dowodem, że sesja naprawdę przeszła do stanu aktywnego.
+  await offlinePage.getByRole('button', { name: /Zakończ trening|Finish workout/i }).waitFor({ timeout: 15_000 });
   const firstCard = offlinePage.locator('.exercise-card').first();
   await firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first().click();
 
@@ -300,7 +304,14 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  if (server.listening) await new Promise((resolve) => server.close(resolve));
+  if (server.listening) {
+    // Service worker potrafi zostawić otwarte połączenie keep-alive mimo
+    // zamknięcia browsera. Sam server.close() czeka wtedy bez końca.
+    await new Promise((resolve) => {
+      server.close(resolve);
+      server.closeAllConnections();
+    });
+  }
   if (emulatorHandle) await stopEmulators(emulatorHandle);
 }
 

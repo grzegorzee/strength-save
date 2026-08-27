@@ -16,8 +16,40 @@ import {
   nearestAccentId,
   deriveAccentCandidatesFromAvatar,
   deriveAccentFromAvatar,
+  isTrustedAvatarPhotoUrl,
   shouldAutoDeriveAccent,
 } from '@/lib/avatar-accent';
+
+describe('bezpieczeństwo URL avatara', () => {
+  it('dopuszcza tylko HTTPS z hostów Google Photos używanych przez logowanie', () => {
+    expect(isTrustedAvatarPhotoUrl('https://lh3.googleusercontent.com/a/photo')).toBe(true);
+    expect(isTrustedAvatarPhotoUrl('https://sub.googleusercontent.com/photo')).toBe(true);
+    expect(isTrustedAvatarPhotoUrl('http://lh3.googleusercontent.com/a/photo')).toBe(false);
+    expect(isTrustedAvatarPhotoUrl('https://googleusercontent.com.evil.test/photo')).toBe(false);
+    expect(isTrustedAvatarPhotoUrl('https://127.0.0.1/photo')).toBe(false);
+    expect(isTrustedAvatarPhotoUrl('not-a-url')).toBe(false);
+  });
+
+  it('nie wykonuje requestu dla niezaufanego URL', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(deriveAccentCandidatesFromAvatar('https://evil.test/avatar.jpg')).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('odrzuca odpowiedź inną niż image/* przed dekodowaniem', async () => {
+    const bitmap = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(['text'], { type: 'text/plain' }),
+    })));
+    vi.stubGlobal('createImageBitmap', bitmap);
+    await expect(deriveAccentCandidatesFromAvatar('https://lh3.googleusercontent.com/avatar')).resolves.toEqual([]);
+    expect(bitmap).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});
 
 /** Bufor pikseli RGBA: lista [r,g,b,a?] powtorzona w kolejnosci. */
 const pixels = (...px: Array<[number, number, number, number?]>): Uint8ClampedArray => {
@@ -196,18 +228,18 @@ describe('deriveAccentCandidatesFromAvatar (cichy fail = pusta lista)', () => {
 
   it('fetch rzuca = [] bez wyjatku', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('CORS'); }));
-    await expect(deriveAccentCandidatesFromAvatar('https://lh3.example/avatar.jpg')).resolves.toEqual([]);
+    await expect(deriveAccentCandidatesFromAvatar('https://lh3.googleusercontent.com/avatar.jpg')).resolves.toEqual([]);
   });
 
   it('brak createImageBitmap w srodowisku = []', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, blob: async () => new Blob() })));
-    await expect(deriveAccentCandidatesFromAvatar('https://lh3.example/avatar.jpg')).resolves.toEqual([]);
+    await expect(deriveAccentCandidatesFromAvatar('https://lh3.googleusercontent.com/avatar.jpg')).resolves.toEqual([]);
   });
 
   it('twardy timeout 5 s: wiszaca siec = []', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => { /* nigdy */ })));
-    const pending = deriveAccentCandidatesFromAvatar('https://lh3.example/avatar.jpg');
+    const pending = deriveAccentCandidatesFromAvatar('https://lh3.googleusercontent.com/avatar.jpg');
     await vi.advanceTimersByTimeAsync(5000);
     await expect(pending).resolves.toEqual([]);
   });
@@ -221,23 +253,23 @@ describe('deriveAccentFromAvatar (cichy fail, zasada 5)', () => {
 
   it('fetch rzuca (siec/CORS) = null, bez wyjatku', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('CORS'); }));
-    await expect(deriveAccentFromAvatar('https://lh3.example/avatar.jpg')).resolves.toBeNull();
+    await expect(deriveAccentFromAvatar('https://lh3.googleusercontent.com/avatar.jpg')).resolves.toBeNull();
   });
 
   it('odpowiedz nie-ok = null', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })));
-    await expect(deriveAccentFromAvatar('https://lh3.example/avatar.jpg')).resolves.toBeNull();
+    await expect(deriveAccentFromAvatar('https://lh3.googleusercontent.com/avatar.jpg')).resolves.toBeNull();
   });
 
   it('brak createImageBitmap w srodowisku = null (nie wyjatek)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, blob: async () => new Blob() })));
-    await expect(deriveAccentFromAvatar('https://lh3.example/avatar.jpg')).resolves.toBeNull();
+    await expect(deriveAccentFromAvatar('https://lh3.googleusercontent.com/avatar.jpg')).resolves.toBeNull();
   });
 
   it('twardy timeout 5 s: wisząca siec = null', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => { /* nigdy */ })));
-    const pending = deriveAccentFromAvatar('https://lh3.example/avatar.jpg');
+    const pending = deriveAccentFromAvatar('https://lh3.googleusercontent.com/avatar.jpg');
     await vi.advanceTimersByTimeAsync(5000);
     await expect(pending).resolves.toBeNull();
   });

@@ -1,8 +1,8 @@
-// X29 WP-H: automatyczny kolor akcentu z avatara (photoURL z Google/Apple).
-// Zasada nadrzędna (5): automat działa TYLKO gdy user nie ma ŻADNEGO wyboru
-// (brak preferences.accentColor w profilu ORAZ brak wpisu w localStorage
-// ss-accent-color) i NIGDY nie nadpisuje wyboru. Każdy problem — brak
-// avatara, sieć, CORS, szary avatar — to cichy fail: zostaje limonka.
+// X33: lokalne PROPOZYCJE akcentu z avatara Google. Runtime uruchamia analizę
+// wyłącznie po jawnym CTA w onboardingu i nigdy nie zapisuje wyniku bez tapnięcia
+// swatcha. Eksporty X29 niżej pozostają dla testów/kompatybilności, ale nie są
+// automatycznie wywoływane przez PreferenceSync. Każdy problem oznacza cichy
+// fallback do gotowej palety, bez blokowania onboardingu.
 import { Capacitor } from '@capacitor/core';
 import { ACCENTS } from '@/lib/accent-theme';
 import { nativeHttpBlob } from '@/lib/native-photo-fetch';
@@ -23,8 +23,9 @@ const MAX_CANDIDATES = 3;
 const SAMPLE_SIZE = 24;
 /** Twardy limit na cały pipeline (sieć + dekodowanie) — avatar to bonus, nie blokada. */
 const DERIVE_TIMEOUT_MS = 5000;
-// Neutralne akcenty wykluczone z auto-doboru: każdy kolor ma jakąś "najbliższą"
-// szarość, a automat ma proponować KOLOR, nie brak koloru.
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+// Neutralne akcenty wykluczone z propozycji: każdy kolor ma jakąś "najbliższą"
+// szarość, a CTA ma proponować KOLOR, nie brak koloru.
 const NEUTRAL_ACCENT_IDS = new Set(['slate', 'gray']);
 
 const rgbToHsl = ({ r, g, b }: Rgb): { h: number; s: number; l: number } => {
@@ -114,7 +115,7 @@ export const nearestAccentId = (rgb: Rgb): string => {
 };
 
 /**
- * Automat wolno odpalić TYLKO przy kompletnym braku wyboru usera: bez mirroru
+ * Legacy predicate X29: analizę wolno rozważyć tylko przy kompletnym braku wyboru usera: bez mirroru
  * w profilu (nawet zapisana limonka = wybór), bez wpisu w localStorage
  * (hasStoredAccent, nie readStoredAccentId — ten zwraca default) i z avatarem.
  */
@@ -124,13 +125,34 @@ export const shouldAutoDeriveAccent = (
   photoURL: string | null | undefined,
 ): boolean => !prefs?.accentColor && !hasStored && Boolean(photoURL);
 
-const loadAvatarBlob = async (photoURL: string): Promise<Blob> => {
+export const isTrustedAvatarPhotoUrl = (photoURL: string): boolean => {
+  try {
+    const url = new URL(photoURL);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port &&
+      (url.hostname === 'googleusercontent.com' || url.hostname.endsWith('.googleusercontent.com'));
+  } catch {
+    return false;
+  }
+};
+
+const validateAvatarBlob = (blob: Blob): Blob => {
+  if (!blob.type.toLowerCase().startsWith('image/')) throw new Error('avatar-invalid-mime');
+  if (blob.size > MAX_AVATAR_BYTES) throw new Error('avatar-too-large');
+  return blob;
+};
+
+const loadAvatarBlob = async (photoURL: string, signal: AbortSignal): Promise<Blob> => {
+  if (!isTrustedAvatarPhotoUrl(photoURL)) throw new Error('avatar-untrusted-url');
   // Native: CapacitorHttp poza siecią WKWebView (lekcja WP-E: fetch z originu
   // capacitor://localhost potrafi wisieć/paść na CORS dla lh3.googleusercontent).
-  if (Capacitor.isNativePlatform()) return nativeHttpBlob(photoURL);
-  const res = await fetch(photoURL);
+  if (Capacitor.isNativePlatform()) {
+    return validateAvatarBlob(await nativeHttpBlob(photoURL, { maxBytes: MAX_AVATAR_BYTES }));
+  }
+  const res = await fetch(photoURL, { signal });
   if (!res.ok) throw new Error(`avatar-fetch-${res.status}`);
-  return res.blob();
+  const contentLength = Number(res.headers?.get?.('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > MAX_AVATAR_BYTES) throw new Error('avatar-too-large');
+  return validateAvatarBlob(await res.blob());
 };
 
 /**
@@ -153,8 +175,9 @@ export const accentIdsFromImageData = (data: Uint8ClampedArray): string[] => {
  * Promise.race — nigdy nie blokuje startu.
  */
 export const deriveAccentCandidatesFromAvatar = async (photoURL: string): Promise<string[]> => {
+  const abortController = new AbortController();
   const attempt = (async (): Promise<string[]> => {
-    const blob = await loadAvatarBlob(photoURL);
+    const blob = await loadAvatarBlob(photoURL, abortController.signal);
     const bitmap = await createImageBitmap(blob);
     try {
       const canvas = document.createElement('canvas');
@@ -169,10 +192,16 @@ export const deriveAccentCandidatesFromAvatar = async (photoURL: string): Promis
       bitmap.close?.();
     }
   })().catch(() => []);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<string[]>((resolve) => {
-    setTimeout(() => resolve([]), DERIVE_TIMEOUT_MS);
+    timeoutId = setTimeout(() => {
+      abortController.abort();
+      resolve([]);
+    }, DERIVE_TIMEOUT_MS);
   });
-  return Promise.race([attempt, timeout]);
+  const result = await Promise.race([attempt, timeout]);
+  if (timeoutId) clearTimeout(timeoutId);
+  return result;
 };
 
 /**

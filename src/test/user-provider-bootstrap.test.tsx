@@ -118,6 +118,9 @@ const Probe = () => {
       <span data-testid="access">{String(current.hasAppAccess)}</span>
       <span data-testid="photos">{String(current.canUseBodyPhotos)}</span>
       <span data-testid="error">{current.profileLoadError ?? 'none'}</span>
+      <span data-testid="block-reason">{current.profileSyncBlockReason ?? 'none'}</span>
+      <span data-testid="sync-pending">{String(current.profileSyncPending)}</span>
+      <button type="button" onClick={() => void current.retryProfileSync()}>retry</button>
     </div>
   );
 };
@@ -159,6 +162,58 @@ describe('UserProvider cache-first profile bootstrap', () => {
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('offline'));
     expect(screen.getByTestId('status')).toHaveTextContent('active');
     expect(screen.getByTestId('access')).toHaveTextContent('true');
+  });
+
+  it('bug 35: zachowuje cached active przy odrzuconej atestacji i klasyfikuje przyczynę', async () => {
+    mocks.syncUserProfile.mockRejectedValue(Object.assign(new Error('permission denied'), {
+      code: 'functions/permission-denied',
+      details: { reason: 'app-verification-required' },
+    }));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1'), true);
+
+    await waitFor(() => expect(screen.getByTestId('block-reason')).toHaveTextContent('app-verification-required'));
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+    expect(screen.getByTestId('status')).toHaveTextContent('active');
+  });
+
+  it('bug 35: retry bez reloadu jest single-flight i po sukcesie czyści blokadę', async () => {
+    const retry = deferred<AppUserProfile>();
+    mocks.syncUserProfile
+      .mockRejectedValueOnce(Object.assign(new Error('permission denied'), {
+        code: 'permission-denied',
+        details: { reason: 'app-verification-required' },
+      }))
+      .mockReturnValueOnce(retry.promise);
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(screen.getByTestId('block-reason')).toHaveTextContent('app-verification-required'));
+    expect(screen.getByTestId('sync-pending')).toHaveTextContent('false');
+
+    await act(async () => {
+      screen.getByText('retry').click();
+      screen.getByText('retry').click();
+    });
+    expect(mocks.syncUserProfile).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('sync-pending')).toHaveTextContent('true');
+
+    await act(async () => retry.resolve(profile('user-1')));
+    await waitFor(() => expect(screen.getByTestId('block-reason')).toHaveTextContent('none'));
+    expect(screen.getByTestId('sync-pending')).toHaveTextContent('false');
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+  });
+
+  it('bug 35: rozróżnia zamkniętą rejestrację od braku atestacji', async () => {
+    mocks.syncUserProfile.mockRejectedValue(Object.assign(new Error('registration closed'), {
+      code: 'functions/permission-denied',
+      details: { reason: 'registration-closed' },
+    }));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(screen.getByTestId('block-reason')).toHaveTextContent('registration-closed'));
+    expect(screen.getByTestId('access')).toHaveTextContent('false');
   });
 
   it('cached suspended blokuje dostęp offline', async () => {
@@ -319,7 +374,9 @@ describe('UserProvider cache-first profile bootstrap', () => {
     await act(async () => firstSync.reject(new Error('offline')));
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('offline'));
 
-    window.dispatchEvent(new Event('online'));
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
     await waitFor(() => expect(mocks.syncUserProfile).toHaveBeenCalledTimes(2));
 
     await emit('user-1', profile('user-1', 'suspended'), false);

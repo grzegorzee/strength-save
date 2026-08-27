@@ -149,7 +149,7 @@ describe('PlanWizard Welcome: wybór koloru (plan I)', () => {
     expect(document.documentElement.dataset.accent).toBe('indigo');
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('235 86% 65%');
     // Ciemny akcent od razu z jasnym tekstem na CTA (kontrast per luminancja).
-    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 100%');
     expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
     expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'false');
@@ -255,19 +255,31 @@ describe('PlanWizard Welcome: avatar, imie i kolory ze zdjecia (X33 WP-8)', () =
     expect(screen.getByRole('heading', { name: /Witaj w Strength Save/ })).toBeInTheDocument();
   });
 
+  it('prywatność: zdjęcie nie jest analizowane przed jawnym kliknięciem usera', async () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    await Promise.resolve();
+    expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
+    await waitFor(() => expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalledWith(photoURL));
+  });
+
   it('kandydaci ze zdjecia jako PIERWSZE kropki z etykieta, reszta palety bez duplikatow, pierwszy preselekcjonowany', async () => {
     deriveAccentCandidatesFromAvatar.mockResolvedValue(['rose', 'sky']);
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
     await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
     expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalledWith(photoURL);
     const expected = ['ob-accent-rose', 'ob-accent-sky', ...ACCENTS.filter((a) => a.id !== 'rose' && a.id !== 'sky').map((a) => `ob-accent-${a.id}`)];
     expect(radioOrder()).toEqual(expected);
     expect(screen.getAllByRole('radio')).toHaveLength(ACCENTS.length);
-    // Auto-preselekcja jak w X29: pierwszy kandydat zaznaczony i zaaplikowany.
-    expect(screen.getByTestId('ob-accent-rose')).toHaveAttribute('aria-checked', 'true');
-    expect(document.documentElement.dataset.accent).toBe('rose');
+    // Analiza tylko proponuje; zapis następuje dopiero po świadomym wyborze.
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    fireEvent.click(screen.getByTestId('ob-accent-rose'));
     expect(localStorage.getItem('ss-accent-color')).toBe('rose');
   });
 
@@ -277,6 +289,7 @@ describe('PlanWizard Welcome: avatar, imie i kolory ze zdjecia (X33 WP-8)', () =
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
     await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
     expect(radioOrder()[0]).toBe('ob-accent-rose');
     expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
@@ -288,6 +301,7 @@ describe('PlanWizard Welcome: avatar, imie i kolory ze zdjecia (X33 WP-8)', () =
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
+    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
     await waitFor(() => expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalled());
     expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
     expect(radioOrder()).toEqual(ACCENTS.map((a) => `ob-accent-${a.id}`));

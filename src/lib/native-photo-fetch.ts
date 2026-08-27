@@ -9,12 +9,21 @@ import { CapacitorHttp } from '@capacitor/core';
 // (URLSession/OkHttp), wiec nie podlega WKWebView ani CORS.
 
 /** Pobiera obraz przez natywny stos HTTP (poza siecia WKWebView). */
-export const nativeHttpBlob = async (url: string): Promise<Blob> => {
+export const nativeHttpBlob = async (url: string, options?: { maxBytes?: number }): Promise<Blob> => {
   const res = await CapacitorHttp.get({ url, responseType: 'blob' });
   if (res.status < 200 || res.status >= 300) throw new Error(`native-http-${res.status}`);
   // responseType 'blob' zwraca dane jako base64 string.
   const base64 = typeof res.data === 'string' ? res.data : '';
   if (!base64) throw new Error('native-http-empty');
+  if (options?.maxBytes) {
+    const contentLengthRaw = res.headers?.['Content-Length'] ?? res.headers?.['content-length'];
+    const contentLength = Number(contentLengthRaw);
+    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+    const decodedSize = Math.floor(base64.length * 3 / 4) - padding;
+    if ((Number.isFinite(contentLength) && contentLength > options.maxBytes) || decodedSize > options.maxBytes) {
+      throw new Error('native-http-too-large');
+    }
+  }
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const type = (res.headers?.['Content-Type'] ?? res.headers?.['content-type'] ?? 'image/jpeg') as string;
   return new Blob([bytes], { type });

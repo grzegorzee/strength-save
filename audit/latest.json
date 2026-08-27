@@ -1,49 +1,68 @@
 {
   "score": 9.5,
-  "mode": "web-e2e (Playwright, dev server VITE_E2E_MODE)",
-  "date": "2026-08-20",
+  "mode": "web-e2e (Playwright, fresh Vite, VITE_E2E_MODE)",
+  "date": "2026-08-27",
+  "run_at": "2026-08-27T13:19:35+02:00",
   "seeded": true,
-  "scenarios_audited": ["active-user (plan + 5 treningów seed)", "new-user (onboarding)", "active-admin (panel)"],
-  "summary": "Po wydaniach A/B/C/D: 16 kombinacji trasa/scenariusz w 390x844 bez bialego ekranu, bez NaN i bez bledow konsoli; scalony ekran Postepy (rekordy+analityka) spójny z nawigacja (top bar, bottom nav, Profil = 'Postepy'); zero overflow poziomego na 26 kombinacjach tras/viewportow (390x844 + 412x915).",
+  "scenarios_audited": [
+    "active-user (plan + 5 completed workouts)",
+    "new-user (onboarding)",
+    "active-admin (panel)"
+  ],
+  "summary": "Fresh-Vite rerun after TestFlight 128: 15 combinations of route/scenario/orientation passed in Chromium: 9 active-user portrait routes, new-user onboarding, admin panel and 4 active-user landscape routes. No blank screen, NaN, horizontal overflow, uncaught page error or unexpected console.error. Firebase transport errors caused solely by the harness blocking production services were explicitly filtered; the audit did not read or write real user data.",
   "blockers_red": [],
   "orange": [],
   "yellow": [
     {
       "route": "#/plan, #/history",
-      "title": "Podwójny nagłówek: top bar i h1 strony powtarzają tę samą nazwę (np. TRAINING PLAN x2)",
-      "evidence": "audit/shots/active-user_plan.png, active-user_history.png — tytuł widoczny w pasku i zaraz pod nim",
-      "suggestion": "Decyzja designowa właściciela: skrócić h1 do opisu sekcji albo chować tytuł w top barze na trasach root",
-      "owner": "Grzegorz (decyzja designu)",
+      "title": "Root routes repeat context in the top bar and page heading",
+      "evidence": "audit/shots/2026-08-27/active-user_plan.png and active-user_history.png",
+      "suggestion": "Resolve as a design decision after release blockers; it does not obstruct tasks.",
+      "owner": "product/design",
       "weight": -0.5
     }
   ],
-  "fixed_during_audit": [
-    "Top bar na /achievements mówił 'Osiągnięcia' przy stronie 'Postępy' (layout.title.achievements -> Postępy/Progress)",
-    "Link w Profilu 'Osiągnięcia' -> 'Postępy' (spójność ze scalonym ekranem)",
-    "React key warning w TrainingHeatmap (goły fragment w DAY_LABELS.map) — jedyny błąd konsoli w całym audycie",
-    "Historia: licznik 'N sesji' łamał się i przeplatał z podpowiedzią porównywania na 390px"
+  "fixed_during_audit": [],
+  "native_not_covered": [
+    "safe-area/notch",
+    "native Share sheet and FileProvider",
+    "push/local notification tap",
+    "haptics and sound",
+    "iOS keyboard",
+    "screen-off/background/resume",
+    "cold restart recovery"
   ],
-  "native_not_covered": ["safe-area/notch", "push", "haptyka", "klawiatura iOS", "splash", "WebView vs Chrome"],
   "top_fixes": [
-    "(YELLOW, owner: Grzegorz) rozstrzygnąć duplikat nagłówka top bar vs h1 na trasach root"
+    "Complete physical iOS and Android export/background/recovery smoke before release.",
+    "Resolve the repeated root-route heading as a non-blocking design decision."
   ],
   "checks": {
-    "console_errors": 0,
+    "console_errors_unexpected": 0,
+    "page_errors": 0,
     "blank_screens": 0,
     "nan_in_ui": 0,
     "horizontal_overflow_routes": 0,
-    "dialogs_over_one": 0,
-    "routes_audited": 16,
-    "viewports": ["390x844", "412x915"]
+    "routes_audited": 15,
+    "viewports": ["390x844", "844x390"],
+    "chromium_tests": 15,
+    "chromium_passed": 15,
+    "fresh_vite": true
   },
   "screenshots": [
-    "audit/shots/active-user_dashboard.png", "audit/shots/active-user_day.png",
-    "audit/shots/active-user_workout-day.png", "audit/shots/active-user_plan.png",
-    "audit/shots/active-user_new-plan.png", "audit/shots/active-user_plan-edit.png",
-    "audit/shots/active-user_cycles.png", "audit/shots/active-user_history.png",
-    "audit/shots/active-user_progress-analytics.png", "audit/shots/active-user_measurements.png",
-    "audit/shots/active-user_exercises.png", "audit/shots/active-user_achievements.png",
-    "audit/shots/active-user_settings.png", "audit/shots/active-user_profile.png",
-    "audit/shots/new-user_onboarding.png", "audit/shots/active-admin_admin.png"
+    "audit/shots/2026-08-27/active-user_dashboard.png",
+    "audit/shots/2026-08-27/active-user_plan.png",
+    "audit/shots/2026-08-27/active-user_history.png",
+    "audit/shots/2026-08-27/active-user_progress.png",
+    "audit/shots/2026-08-27/active-user_measurements.png",
+    "audit/shots/2026-08-27/active-user_exercises.png",
+    "audit/shots/2026-08-27/active-user_cycles.png",
+    "audit/shots/2026-08-27/active-user_settings.png",
+    "audit/shots/2026-08-27/active-user_workout.png",
+    "audit/shots/2026-08-27/new-user_onboarding.png",
+    "audit/shots/2026-08-27/active-admin_admin.png",
+    "audit/shots/2026-08-27/landscape_dashboard.png",
+    "audit/shots/2026-08-27/landscape_workout.png",
+    "audit/shots/2026-08-27/landscape_history.png",
+    "audit/shots/2026-08-27/landscape_settings.png"
   ]
 }

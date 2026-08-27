@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   ERROR_SPIKE_THRESHOLD,
   buildErrorAlertHtml,
+  buildErrorDigestDeps,
   errorStateDocId,
   runErrorDigest,
   type ErrorDigestDeps,
@@ -95,9 +97,9 @@ describe("WP-G — runErrorDigest", () => {
 
   it("padniety mail NIE oznacza kodow jako widzianych (alert nie ginie)", async () => {
     const deps = buildDeps([{ code: "new-crash", platform: "web" }], []);
-    deps.sendAlertEmail.mockRejectedValueOnce(new Error("resend 500"));
+    deps.sendAlertEmail.mockRejectedValueOnce(new Error("SES 500"));
 
-    await expect(runErrorDigest(deps)).rejects.toThrow("resend 500");
+    await expect(runErrorDigest(deps)).rejects.toThrow("SES 500");
     expect(deps.markCodesSeen).not.toHaveBeenCalled();
   });
 });
@@ -117,5 +119,37 @@ describe("WP-G — pomocnicze", () => {
     }]);
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("error digest: wspólny transport Amazon SES", () => {
+  const source = readFileSync(new URL("./error-digest.ts", import.meta.url), "utf8");
+
+  it("nie ma runtime Resend i binduje wszystkie sekrety SES", () => {
+    expect(source).toContain('from "./ses-email"');
+    expect(source).toContain("sendSesEmail");
+    expect(source).toMatch(/secrets: \[\.\.\.SES_EMAIL_SECRETS\]/);
+    expect(source).not.toContain('from "resend"');
+    expect(source).not.toContain("RESEND_API_KEY");
+  });
+
+  it("adapter produkcyjny używa wstrzykniętego sendera SES", async () => {
+    const sender = vi.fn(async () => ({ transport: "ses" as const, sesMessageId: "ses-error-1" }));
+    const deps = buildErrorDigestDeps({} as FirebaseFirestore.Firestore, sender, NOW);
+
+    await expect(deps.sendAlertEmail("Alert", "<p>Błąd</p>")).resolves.toBeUndefined();
+    expect(sender).toHaveBeenCalledWith({
+      to: "contact@strengthsave.app",
+      subject: "Alert",
+      html: "<p>Błąd</p>",
+    });
+  });
+
+  it("adapter propaguje odrzucenie SES, aby kod nie został oznaczony jako widziany", async () => {
+    const sender = vi.fn(async (): Promise<never> => { throw new Error("SES unavailable"); });
+    const deps = buildErrorDigestDeps({} as FirebaseFirestore.Firestore, sender, NOW);
+
+    await expect(deps.sendAlertEmail("Alert", "<p>Błąd</p>"))
+      .rejects.toThrow("SES unavailable");
   });
 });

@@ -35,7 +35,7 @@ const renderRouter = (onLocation: (path: string) => void) =>
   render(
     <MemoryRouter
       initialEntries={['/']}
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      useTransitions={false}
     >
       <WatchEventRouter />
       <Routes>

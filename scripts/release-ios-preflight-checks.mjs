@@ -13,6 +13,7 @@ export const findBuildNumberMismatch = (projectText) => {
   const values = extractBuildNumbers(projectText);
   if (values.length === 0) return { ok: false, reason: 'none', values: [] };
   const distinct = [...new Set(values)];
+  if (values.length !== 6) return { ok: false, reason: 'unexpected-count', values: distinct };
   return distinct.length > 1
     ? { ok: false, reason: 'mismatch', values: distinct }
     : { ok: true, reason: 'consistent', values: distinct };

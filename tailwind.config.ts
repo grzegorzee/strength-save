@@ -15,9 +15,15 @@ export default {
       },
     },
     extend: {
+      screens: {
+        // Telefon obrócony do landscape (np. 844×390) nadal używa mobilnej
+        // powłoki. Sidebar dopiero gdy jest też sensowna wysokość robocza.
+        'desktop-shell': { raw: '(min-width: 768px) and (min-height: 600px)' },
+      },
       fontFamily: {
-        heading: ['Space Grotesk', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
+        heading: ['Space Grotesk Variable', 'Inter Variable', 'sans-serif'],
+        body: ['Inter Variable', 'sans-serif'],
+        sans: ['Inter Variable', 'sans-serif'],
       },
       fontSize: {
         // Kinetic Precision editorial scale (DESIGN.md §3)

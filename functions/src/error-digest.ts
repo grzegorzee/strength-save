@@ -1,8 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { Resend } from "resend";
-import { resendApiKey } from "./weekly-digest";
+import { SES_EMAIL_SECRETS, sendSesEmail } from "./ses-email";
 
 // WP-G (X27), zasada 11 CLAUDE.md: crash ma znalezc SYSTEM, nie user na
 // silowni. Dzienny przeglad client_errors z ostatniej doby: kod NIEWIDZIANY
@@ -122,7 +121,7 @@ export const errorStateDocId = (code: string): string => encodeURIComponent(code
 
 export const buildErrorDigestDeps = (
   db: FirebaseFirestore.Firestore,
-  resend: Resend,
+  emailSender: typeof sendSesEmail,
   nowMs: number,
 ): ErrorDigestDeps => ({
   nowMs,
@@ -164,15 +163,11 @@ export const buildErrorDigestDeps = (
     await batch.commit();
   },
   sendAlertEmail: async (subject, html) => {
-    const response = await resend.emails.send({
-      from: "Strength Save <noreply@strengthsave.app>",
+    await emailSender({
       to: ALERT_RECIPIENT,
       subject,
       html,
     });
-    if (response.error) {
-      throw new Error(`[errorDigest] Resend error: ${response.error.message}`);
-    }
   },
 });
 
@@ -182,17 +177,11 @@ export const dailyErrorDigest = onSchedule(
     schedule: "every day 06:20",
     timeZone: "Europe/Warsaw",
     timeoutSeconds: 120,
-    secrets: [resendApiKey],
+    secrets: [...SES_EMAIL_SECRETS],
   },
   async () => {
-    const apiKey = resendApiKey.value();
-    if (!apiKey) {
-      logger.error("[errorDigest] Missing secret: RESEND_API_KEY");
-      return;
-    }
     const db = admin.firestore();
-    const resend = new Resend(apiKey);
-    const { alerts } = await runErrorDigest(buildErrorDigestDeps(db, resend, Date.now()));
+    const { alerts } = await runErrorDigest(buildErrorDigestDeps(db, sendSesEmail, Date.now()));
     logger.info(`[errorDigest] alerts=${alerts.length}${alerts.length > 0 ? ` codes=${alerts.map((a) => a.code).join(",")}` : ""}`);
   },
 );

@@ -3,9 +3,8 @@ import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
 
-// X35c (WP-E, pkt 3): dzwonek na WSZYSTKICH zakładkach głównych (bottom nav +
-// /analytics), nie tylko na Dashboardzie. Pigułka licznika treningów zostaje
-// wyłącznie na Dashboardzie (zasada 5: nic nie zabieramy istniejącemu układowi).
+// Spójny nagłówek głównych zakładek: dzwonek i klikalny licznik all-time są
+// dostępne wszędzie w bottom nav (+ /analytics), bez zależnego od ekranu dopisku.
 
 vi.mock('@/contexts/LanguageContext', () => ({
   useTranslation: () => ({ t: (k: string) => k, lang: 'pl' }),
@@ -44,10 +43,16 @@ describe('AppHeader: dzwonek na zakładkach głównych (X35c)', () => {
     expect(queryByTestId('notification-bell')).toBeNull();
   });
 
-  it('pigułka licznika treningów zostaje tylko na Dashboardzie', () => {
+  it.each(ROOT_TABS)('%s: pokazuje ten sam klikalny licznik bez dopisku', (path) => {
     const pill = (path: string) => renderAt(path).container.querySelector('[data-testid="header-workout-count"]');
-    expect(pill('/')).not.toBeNull();
-    expect(pill('/plan')).toBeNull();
-    expect(pill('/history')).toBeNull();
+    const node = pill(path);
+    expect(node).not.toBeNull();
+    expect(node?.tagName).toBe('BUTTON');
+    expect(node?.textContent).toBe('0');
+    expect(node?.className).toContain('min-h-11');
+  });
+
+  it('nie dubluje licznika na trasach poza główną nawigacją', () => {
+    expect(renderAt('/profile', () => {}).queryByTestId('header-workout-count')).toBeNull();
   });
 });

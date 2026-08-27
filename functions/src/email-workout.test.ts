@@ -172,7 +172,7 @@ describe("email_log (G-T1)", () => {
     expect(typeof entry.sentAt).toBe("string");
   });
 
-  it("fallback Resend loguje transport=resend bez sesMessageId", async () => {
+  it("zachowuje historyczny transport=resend bez sesMessageId przy odczycie starego wyniku", async () => {
     const d = deps({ sendEmail: vi.fn(async () => ({ transport: "resend" as const })) });
     expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
     const entry = loggedEntry(d);

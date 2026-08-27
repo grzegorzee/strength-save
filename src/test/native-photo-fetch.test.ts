@@ -78,4 +78,12 @@ describe('nativeHttpBlob (X29 WP-E)', () => {
     capacitorHttpGetMock.mockResolvedValue(okResponse({ data: { not: 'a-string' } }));
     await expect(nativeHttpBlob(PHOTO_URL)).rejects.toThrow('native-http-empty');
   });
+
+  it('limit bajtów odrzuca odpowiedź przed dekodowaniem base64', async () => {
+    capacitorHttpGetMock.mockResolvedValue(okResponse({
+      data: btoa('123456'),
+      headers: { 'Content-Type': 'image/png', 'Content-Length': '6' },
+    }));
+    await expect(nativeHttpBlob(PHOTO_URL, { maxBytes: 5 })).rejects.toThrow('native-http-too-large');
+  });
 });

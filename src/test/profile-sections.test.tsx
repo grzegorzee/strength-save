@@ -442,7 +442,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByText('Ustawienia zaawansowane')).toBeNull();
     // KONTO I POMOC: język przeszedł tu z sekcji Aplikacja.
     const konto = sectionByLabel(container, 'Konto i pomoc');
-    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Kontakt', 'O aplikacji']
+    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Zgłoś błąd', 'Kontakt', 'O aplikacji']
       .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
     // X37: wiersz "Konto i pomoc" bez wartości języka ("Polski" myliło właściciela).
     expect(getByTestId('profile-toggle-account').textContent).not.toContain('Polski');
@@ -452,11 +452,26 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(getByText('Strength Save 0.0.0-test')).toBeTruthy();
   });
 
+  it('KONTO I POMOC: „Zgłoś błąd” otwiera prosty formularz w aplikacji', () => {
+    const { container } = renderProfile();
+    openSection('account');
+    fireEvent.click(within(sectionByLabel(container, 'Konto i pomoc')).getByText('Zgłoś błąd'));
+    expect(screen.getByRole('dialog', { name: 'Zgłoś błąd' })).toBeTruthy();
+    expect(screen.getByLabelText('Co się stało?')).toBeTruthy();
+  });
+
   it('narzędzia naprawcze NIE są w Profilu (przeniesione do /admin)', () => {
     const { queryByText } = renderProfile();
     COLLAPSIBLE_IDS.forEach(openSection);
     expect(queryByText('Narzędzia naprawcze')).toBeNull();
     expect(queryByText('Reset planu')).toBeNull();
+  });
+
+  it('O aplikacji pokazuje lokalizowaną informację o prawach autorskich', async () => {
+    const { getByText } = renderProfile();
+    openSection('account');
+    fireEvent.click(getByText('O aplikacji'));
+    await waitFor(() => expect(getByText('© 2026 Strength Save. Wszystkie prawa zastrzeżone.')).toBeTruthy());
   });
 });
 

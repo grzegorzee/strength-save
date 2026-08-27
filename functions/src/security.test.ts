@@ -14,7 +14,6 @@ import {
   isValidStravaOAuthState,
   providerFromSignInProvider,
   providerGetsImmediateAccess,
-  resendErrorMessage,
   type AccessProfile,
 } from "./security";
 
@@ -190,19 +189,6 @@ describe("isValidStravaOAuthState", () => {
   });
 });
 
-describe("resendErrorMessage", () => {
-  it("returns the provider error message when present", () => {
-    expect(resendErrorMessage({ error: { message: "domain not verified" } })).toBe("domain not verified");
-  });
-
-  it("returns null when the send succeeded or message is empty", () => {
-    expect(resendErrorMessage({})).toBeNull();
-    expect(resendErrorMessage({ error: null })).toBeNull();
-    expect(resendErrorMessage({ error: { message: "" } })).toBeNull();
-    expect(resendErrorMessage({ error: { message: null } })).toBeNull();
-  });
-});
-
 describe("GDPR collection coverage", () => {
   it("covers all per-userId collections required by the audit plan", () => {
     expect(GDPR_USER_ID_COLLECTIONS).toEqual(expect.arrayContaining([
@@ -213,6 +199,7 @@ describe("GDPR collection coverage", () => {
       "api_audit_logs",
       "notification_logs",
       "custom_exercises",
+      "bug_reports",
     ]));
   });
 
@@ -226,6 +213,7 @@ describe("GDPR collection coverage", () => {
     expect(GDPR_DIRECT_DOC_COLLECTIONS).toEqual(expect.arrayContaining([
       "strava_connections",
       "training_plans",
+      "bug_report_rate_limits",
       "users",
     ]));
   });

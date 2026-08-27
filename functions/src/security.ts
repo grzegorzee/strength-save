@@ -13,12 +13,6 @@ export interface AccessProfile {
   features?: Record<string, unknown> | null;
 }
 
-export interface ResendLikeResponse {
-  error?: {
-    message?: string | null;
-  } | null;
-}
-
 export const ADMIN_DELETE_BATCH_SIZE = 450;
 export const STRAVA_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 export const STRAVA_OAUTH_STATE_BYTES = 32;
@@ -62,6 +56,7 @@ export const GDPR_USER_ID_COLLECTIONS = [
   "exercise_notes",
   "workout_day_notes",
   "manual_activities",
+  "bug_reports",
 ] as const;
 
 export const GDPR_UID_FIELD_COLLECTIONS = [
@@ -74,6 +69,7 @@ export const GDPR_UID_FIELD_COLLECTIONS = [
 export const GDPR_DIRECT_DOC_COLLECTIONS = [
   "strava_connections",
   "training_plans",
+  "bug_report_rate_limits",
   "users",
 ] as const;
 
@@ -156,10 +152,6 @@ export function canUseStravaIntegration(profile: AccessProfile | undefined): boo
 
 export function isValidStravaOAuthState(state: unknown): state is string {
   return typeof state === "string" && /^[A-Za-z0-9_-]{32,256}$/.test(state);
-}
-
-export function resendErrorMessage(response: ResendLikeResponse): string | null {
-  return response.error?.message || null;
 }
 
 // Z169 (przeprojektowane 2026-08-20): nadanie dostępu PRO przez admina (konto demo

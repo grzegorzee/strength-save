@@ -5,11 +5,194 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-26 (X38: rules deploy, web index-BFTUNodO LIVE, iOS 127 APPROVED, AAB v42 SHA 4163aa37; X37: web index-DeqdHxb7, iOS 126, AAB v41; X36: web index-CeIn7pvM, iOS 125, AAB v40; X35b+X35c WYDANE: web index-K-NsFPic LIVE, functions deploy, iOS 124 Beta App Review APPROVED, AAB v39 SHA b44d43b1; 25.08: X30, X31, X32+X33, X34, X34b, X35a)
+**Ostatnia aktualizacja:** 2026-08-27 (X42: TestFlight 128 + zewnętrzna testerka + pregrant PRO; X41: zielone bramki automatyczne)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-27: X42 — TestFlight 1.0.0 (128), Monika w external i bezpieczny pregrant PRO
+
+**TestFlight:** właściciel jawnie autoryzował kolejne wydanie testowe. App Store
+Connect potwierdził przed uploadem, że najwyższy build to 127, a numer 128 jest
+wolny. `CURRENT_PROJECT_VERSION` podniesiono wyłącznie 127→128 we wszystkich
+sześciu konfiguracjach; `MARKETING_VERSION`, package version i Android
+`versionName` pozostały 1.0.0. Preflight dostał brakujący test dokładnie sześciu
+wystąpień (wcześniej akceptował dowolną dodatnią liczbę). Podpisane archiwum,
+Watch i Widgets zbudowały się, eksport IPA i upload przeszły bez błędów. Build
+128 jest `VALID`, przypięcie grup wewnętrznej i zewnętrznej zwróciło 204, opis
+testów 200, Beta App Review = `APPROVED`. IPA: 24 153 128 B, SHA-256
+`1748079361233383bfd6e41307c8d554ab225d7de737384ea49ce27d50c70487`;
+`codesign --verify --deep --strict` zielony. Publiczne wydanie sklepowe i push nie
+zostały wykonane; fizyczne scenariusze nadal są bramką launchu.
+
+**Nowa testerka:** `monikatoczek7@gmail.com` nie istniała w TestFlight ani
+Firebase Auth. Utworzono ją przez App Store Connect API jako `EMAIL` beta tester
+w tej samej zewnętrznej grupie co Joanna Wojtuń; członkostwo grupy zweryfikowano
+read-only, a grupa ma już zatwierdzony build 128. Nie użyto starej komendy
+`asc_api.py add-tester`, bo błędnie kieruje ona nowe osoby do grupy wewnętrznej.
+
+**Pregrant PRO — root cause i rozwiązanie:** istniejący `adminGrantSubscription`
+wymaga `users/{uid}`, więc przed pierwszym logowaniem zwraca `not-found`; tworzenie
+sztucznego Auth usera groziłoby kolizją konta Google/Apple. Dodano serwerową,
+niedostępną klientowi kolekcję `pending_subscription_grants`, indeksowaną wyłącznie
+SHA-256 z emaila z tokenu Firebase Auth. Pierwszy dozwolony `syncUserProfile`
+atomowo zapisuje bezterminowy `comp active` i usuwa grant; nie omija weryfikacji
+email ani App Check i ponowny sync nie zmienia `startedAt`. Test emulatorowy był
+czerwony, potem 12/12 zielony; pełne Functions 443/443, typecheck i build zielone.
+Na produkcję wdrożono wyłącznie `syncUserProfile` (Node 22, us-central1), następnie
+utworzono jednorazowy grant Moniki bez plaintext emaila i wpis audytowy z 90-dniowym
+TTL. Po jej pierwszej rejestracji dokument grantu ma zniknąć, a profil ma mieć
+`subscription.tier=comp`, `status=active`, `expiresAt=null`.
+
+### 2026-08-27: X41 — domknięcie bramek automatycznych, SES-only i Android edge-to-edge (bez wydania)
+
+**Bramki:** po ostatniej zmianie root Vitest ma 392/392 pliki i 3435/3435 testów,
+typecheck jest czysty, lint ma 0 błędów (15 zastanych warningów Fast Refresh), build
+Vite 6.4.3, bundle budget, dist smoke i pełny offline contract są zielone. Functions
+mają 443/443 (+11 świadomie pominiętych), emulator rejestracji/SES 11/11, Firestore
+Rules 275/275, Storage Rules 11/11. Po restarcie Vite i wyczyszczeniu wyłącznie
+`node_modules/.vite` pełne E2E Chromium+WebKit mają 536/536. Audyty npm root i
+Functions mają 0 findings. Pierwszy pełny Vitest przeszedł wszystkie asercje, ale
+Vitest 3.2.6 zwrócił znany timeout RPC `onTaskUpdate`; kontrolowany rerun z czterema
+workerami zakończył się exit 0. Nie użyto flag ignorujących unhandled errors.
+Skrypt `npm run test` ma teraz ten limit jawnie, więc obowiązkowa komenda release
+jest deterministyczna także na 8-rdzeniowym hoście.
+
+**Offline smoke — root cause i poprawka testu:** test czekał na toast „Trening
+rozpoczęty offline”, usunięty celowo w X38 na rzecz trwałego stanu sesji. Aplikacja
+już wtedy miała aktywny trening; nieaktualna asercja zatrzymywała test przed zapisem
+serii. Smoke sprawdza teraz dostępny przycisk zakończenia aktywnej sesji, ma 15 s
+timeout na Service Worker i zamyka keep-alive. Czerwony wynik oraz osobny przypadek
+nadpisania `dist` przez równoległy build mobile zostały rozdzielone; po prawidłowym
+web buildzie pełny cache/cold lazy route/local draft przechodzi w 16,9 s.
+
+**Android SystemBars — root cause i decyzja plugin-first:** targetSdk 36 wymusza
+edge-to-edge na Androidzie 15+, a legacy `@capacitor/status-bar` nie może tam ustawić
+tła ani `overlay:false` i steruje tylko górnymi ikonami. Jasny wariant motywu DayNight
+odsłaniał białe `windowBackground` pod białym zegarem. Zgodnie z zasadą plugin-first
+użyto wbudowanego w Capacitor 8 `SystemBars` dla obu belek, przypięto ciemne tło okna
+i poprawny `postSplashScreenTheme`. Test był 2/2 czerwony, po fixie zielony. Świeży
+APK na emulatorze API 35: build/install/cold launch zielone, oba paski ciemne i ikony
+czytelne; czysty log bez wcześniejszego błędu safe-area. Dodatkowy dark-mode,
+landscape, scroll do wszystkich CTA i hot resume również przeszły bez crasha. iOS simulator również został
+ponownie zbudowany, zainstalowany i uruchomiony po skopiowaniu aktualnej konfiguracji.
+
+**Granica decyzji:** nie wykonano deployu, pushu, TestFlight ani Play Store. Pozostają
+fizyczne scenariusze screen-off/resume/force-kill/share/notification/Camera/Health,
+publiczna privacy disclosure oraz operacyjne uruchomienie Amazon SES (identity,
+DKIM/SPF/DMARC, production access/quota, TLS/events, least-privilege IAM, sekrety i
+syntetyczny smoke). Podpisany preflight wymaga też poprawnego sekretu RevenueCat.
+Automatyczne bramki są zielone, ale te punkty nadal blokują publiczne 1.0.0.
+
+### 2026-08-27: X40 — domknięcie bug-hunt, final-sync idempotency i spójność UX (bez wydania)
+
+**Stan raportu:** po izolowanych testach i poprawkach #35/#36/#40/#54 macierz
+`docs/RELEASE-READINESS-2026-08-27.md` ma 54 naprawione / 0 częściowych / 0
+otwartych. Nie jest to zgoda na release: zostały pełne bramki, urządzenia,
+retry odczytu IDB, hardening tombstones, privacy disclosure avatara i końcowe bramki.
+Wersje iOS/package/Android pozostają 1.0.0; RTK, hooki RTK i `SessionStart` nie
+wracają.
+
+**#35 App Check — root cause i decyzja:** klient umiał czekać na App Check, ale po
+zablokowanej wymianie tokenu nie rozróżniał ochrony aplikacji od zamkniętej
+rejestracji i nie dawał bezpiecznej drogi powrotu. Functions zwracają teraz
+stabilne `details.reason` (`app-verification-required` lub `registration-closed`),
+klient klasyfikuje tylko te jawne powody i pozostaje fail-closed. Aktywny user
+zachowuje cache profilu, cold start przechodzi do `AccessRestrictedView` z retry
+lub logout, bez reload-loopu i bez bypassu. Bramki: 5 plików / 38 testów,
+Functions emulator 8/8 oraz oba typechecki. Backend i klient muszą trafić do
+jednego kontrolowanego rollout trainu.
+
+**#36/#40/#54 — root causes:** legacy historia bez `durationSec` liczyła surową
+różnicę timestampów, więc wielodniowa luka udawała trening; helper odrzuca >12 h
+bez mutacji danych. Measurement store rejestrował błąd listenera, ale wspólny
+snapshot/UI go nie eksponował; osobny `measurementError` i retry są widoczne w
+Measurements oraz Analytics. Zapis custom exercise mógł pozostawić nigdy
+nierozstrzygniętą Promise i zamrozić UX; komponent trzyma dokładnie jedną próbę,
+po 8 s pokazuje stan i sprawdza tę samą Promise, więc retry nie tworzy duplikatu,
+a cancel daje wyjście. Każdy fix rozpoczął czerwony test; testy celowane i
+typecheck są zielone.
+
+**Nowy blocker wykryty testem sekwencji — checkpoint→final:** pełne E2E
+plan→wyjście→szybki trening→powrót→zakończenie→remote confirmation ujawniło, że
+toast mówił „Trening zapisany”, draft znikał, lecz dokument chmurowy nadal miał
+7 ćwiczeń i `completed:false`. Root cause: udany checkpoint pozostawiał w drafcie
+`pendingWriteId/pendingWriteVersion`; techniczny final bez zmiany treści zachowywał
+tę samą wersję i reuse'ował identyfikator. Backend poprawnie uznawał go za
+`already-applied` wcześniejszego checkpointu, więc final był no-opem. Fix w
+`markDraftSynced`: ACK czyści tylko identyfikator dokładnie potwierdzonej wersji;
+nowszej próby nie rusza. Final tej samej wersji dostaje nowy klucz idempotencji.
+Dowód: czerwony unit otrzymywał `checkpoint-write`, czerwony E2E otrzymywał
+`{completed:false,count:7}`; po fixie 15 plików / 178 testów sync/draft oraz pełna
+sekwencja Chromium i WebKit są zielone z `completed:true` i 7 ćwiczeniami.
+
+**UX, typografia i paleta:** fonty Inter Variable i Space Grotesk Variable są
+self-hosted, usunięto zależność Google Fonts, ujednolicono hierarchię/faux weights
+i breakpoint shella z uwzględnieniem niskiego landscape. `html.lang` podąża za
+i18n. W onboardingu Google paleta wyznacza po jawnym CTA do trzech propozycji,
+działa lokalnie i przyjmuje tylko
+zaufany HTTPS Google avatar, MIME image, maks. 5 MB i timeout; trzy swatche mają
+44×44 oraz wyliczony kontrast czarny/biały. Analiza tylko porządkuje propozycje:
+nie wybiera i nie zapisuje koloru, dopóki użytkownik nie dotknie konkretnego swatcha;
+istniejący wybór nigdy nie jest nadpisywany. Brak zdjęcia Apple/offline zachowuje
+gotowe palety. Ta jawna akcja zastępuje wcześniejszą decyzję X33 o auto-preselekcji.
+Przed release
+polityka prywatności musi opisać pobranie zdjęcia i lokalną analizę. About pokazuje
+PL/EN „© 2026 Strength Save. Wszystkie prawa
+zastrzeżone / All rights reserved”. Automatyczny product audit 15/15 jest zielony;
+font scale 100/150/200%, klawiatura, safe-area i landscape pozostają device gate.
+
+**Trwałość draftu — root cause i pierwszy fix:** emergency fallback przechowywał
+serie, lecz pomijał tożsamość/promocję sesji, snapshot dnia oraz
+`completedLocally`/`finalSyncPending`. Po awarii IDB i restarcie dane serii nadal
+istniały, ale aplikacja mogła uznać ukończony trening za zwykły checkpoint i nie
+ponowić finalnego zapisu. Fallback zapisuje teraz pełną intencję sesji i
+`updatedEventId`; merge po odzyskaniu IDB zachowuje monotonicznie flagi finalizacji
+i deterministyczny tie-breaker. Czerwone testy odtworzyły utratę pól, zielone:
+55/55 baza draftu oraz 150/150 regresji draft/hydration/autosync/sync. Odczyty
+`loadActiveDraft`/`loadDraft`/`listDrafts` mają teraz dokładnie jedną ponowną próbę
+po resecie cache połączenia; czerwone testy odtwarzały `InvalidStateError` z martwej
+transakcji po resume, a trwała awaria potwierdza dokładnie dwa `open()` i zejście
+do fallbacku. Zielone: 58/58 baza draftu i 170/170 szerszej regresji. Treść
+kolejki nadal pozostaje w drafcie; `Preferences` nie jest magazynem danych treningu.
+
+**Zależności, Router 7 i deep link:** point updates i precyzyjne `overrides` bez
+`npm audit fix --force` usunęły wszystkie production findings Functions oraz
+high/critical w root. Pozostałe advisory React Router 6 obejmowało osiągalną klasę
+open redirect przez backslash, więc samo zabezpieczenie inboxu nie było wystarczającą
+podstawą publicznego 1.0. Migracja do `react-router-dom@7.18.2` zachowuje deklaratywny
+`HashRouter`; `useTransitions={false}` w obu routerach utrzymuje synchroniczne
+zachowanie v6 przy lazy trasach i słabym internecie. Nie dodano BrowserRoutera,
+data routera ani SSR. Parser wewnętrznej ścieżki odrzuca pojedynczy i podwójnie
+kodowany slash/backslash, protokół, whitespace i znaki kontrolne; niebezpieczny
+wpis inbox pozostaje tekstem. Czerwone: audit 2 moderate i testy `%252f`/`%255c`;
+zielone: root oraz Functions 0 production findings, 206 testów tras/deep-linków,
+typecheck, scoped lint i build produkcyjny.
+
+**Pluginy kolejnych fal:** Camera ma sens po stabilizacji jako natywne źródło
+zdjęcia z zachowaniem własnego croppera i `appRestoredResult`. Crashlytics ma sens
+przed skalowaniem 1.0, ale wyłącznie z consentem, privacy disclosure, symbolami i
+kontrolowanym crash testem. Motion tylko jako foreground bench-timer PoC (nie
+licznik powtórzeń), TTS tylko opt-in i nigdy zamiast local notification, BLE HR
+jako osobny privacy-heavy PoC. Text Zoom nie będzie wymuszał 100% kosztem
+dostępności; Remote Config odłożony; własny Health bridge zostaje; Background
+Runner nadal wymaga telemetrycznego dowodu porażki foreground resume. Research:
+`docs/RESEARCH-UX-TYPOGRAPHY-CAPACITOR-2026-08-27.md`.
+
+### 2026-08-27: X39 — audyt publicznego wydania i bezpieczny eksport natywny (bez deployu/push/TestFlight/Play)
+
+**Źródło i zakres:** pełna rewalidacja 54 problemów z `RAPORT-BUG-HUNT-strength-save-2026-08-24.md`, pięć integracji Capacitor oraz aktualny product audit. Macierz, zależności, kryteria etapów i blockery są w `docs/RELEASE-READINESS-2026-08-27.md`. Stan raportu: 50 naprawionych, 3 częściowe (#35 App Check blocked UX, #40 błąd pomiarów bez wyjścia w UI, #54 zapis custom exercise wiszący offline), 1 nadal występuje (#36 legacy duration bez clampu). Wszystkie problemy high mają fix w kodzie. Wersje marketingowe pozostają 1.0.0; RTK i `SessionStart` pozostają poza systemem.
+
+**Root cause czerwonej bramki wejściowej:** X38 dodał odczyt `workoutSyncQueue.list()` na Dashboardzie, ale 10 starszych testów komponentu mockowało tylko `pendingCount()`. UI assertions przechodziły, natomiast async load draftu generował 42 unhandled rejectiony, a worker kończył timeoutem. Fix wyłącznie testowy: mocki realizują bieżący kontrakt kolejki. Dowód czerwony: 3346/3347 + 42 errors; zielony celowany: 10 plików / 43 testy, zero errors.
+
+**Root cause eksportu:** dotychczasowy helper na native polegał na Web Share API z JS `File`; jeśli `navigator.canShare({files})` było false, wykonywał `<a download>`, który WKWebView ignoruje. PDF dodatkowo miał dwie kopie tej logiki poza helperem. Fix test-first: `@capacitor/filesystem@8.1.3` zapisuje tekst UTF-8 lub binaria base64 do dedykowanego `Directory.Cache/strength-save-exports`, `@capacitor/share@8.0.1` udostępnia zwrócone URI; stare pliki tylko z tego katalogu są sprzątane best-effort przy następnym eksporcie. Web zachowuje Web Share/download. Cancel (`AbortError` oraz natywne `Share canceled/cancelled`) nie daje fałszywego sukcesu, inne błędy wracają jako `failed` i trafiają do telemetrii. JSON/CSV/PDF/PNG idą wspólną ścieżką; iOS Privacy Manifest dostał wymagany FileTimestamp `C617.1`. `cap sync ios/android` zarejestrował Filesystem, Share i zachował wcześniejszy Network.
+
+**Decyzje o pozostałych pluginach:** Preferences nie przejmuje draftu, sync queue, tombstones ani telemetrii; ewentualny canary tylko dla małych ustawień i wyłącznie dual-read/dual-write. Background Runner nie wchodzi: X38 ma foreground resume, a brak telemetrycznego dowodu porażki nie uzasadnia drugiego środowiska syncu bez DOM/IDB/localStorage. Najpierw instrumentacja `resume_with_pending_sync`/wynik. Screen Orientation nie wchodzi bez polityki produktu i testów landscape; runtime lock 8.0.1 ma ryzyko safe-area na iOS, a Android 16 ogranicza lock na dużych ekranach.
+
+**Weryfikacja etapu:** testy eksportu/regresji 88/88, helper 9/9 (UTF-8 i `%PDF-` base64), typecheck zielony, Privacy Manifest `plutil` OK, `cap sync` obie platformy. Product audit po świeżym Vite/cache: Chromium 15/15 (active-user z 5 treningami, new-user, admin; 390×844 i 844×390), bez blank/NaN/overflow/unexpected console/page errors; artefakty `audit/latest.json`, `audit/audit-20260827-release-readiness.json`, `audit/shots/2026-08-27/`. To nie zastępuje smoke natywnego.
+
+**Blockery i bezpieczeństwo:** brak końcowych pełnych bramek, fizycznego iOS/Android share/open/cancel/restart, pełnego screen-off→network-return→resume, testu sekwencji aż do potwierdzonego syncu, hardeningu metadata queue/tombstones oraz napraw #35/#40/#54/#36. `npm audit --omit=dev` wykazuje 8 production findings (4 moderate, 3 high, 1 critical), wymagających izolowanej analizy i aktualizacji bez `audit fix --force`. Żadnego deployu, pushu, uploadu ani publikacji przed finalnym raportem i zielonymi bramkami.
 
 ### 2026-08-26 (4): X38 — karta serii bez domyślnej W i bez kreski, „Cel" w jednym kolorze, rozgrzewka siłowa (bez pajacyków, rampy i stretchingu) także w szybkim treningu, AUTOSYNC bez pytań i toastów (rules / web / iOS 127 / AAB v42)
 
@@ -3817,3 +4000,240 @@ w zakresie ręcznych testów właściciela; agent nadal ogranicza zapis do jedne
 sesji, najpierw sprawdza brak zaległej synchronizacji i nie usuwa danych bez osobnego
 potwierdzenia. iOS i Android nadal wymagają prawdziwych urządzeń. Watch musi przejść pełną
 sekwencję offline → restart → reconnect → ACK na sparowanym symulatorze, nie tylko build.
+
+---
+
+## SESJA 2026-08-27 — trwały alias promocji draftu
+
+**Root cause:** blokada wskrzeszenia provisional draftu po promocji do remote była
+przechowywana w pamięci i localStorage. Safari/WKWebView może odrzucić zapis localStorage
+albo uruchomić nowy proces bez pamięci, więc późny callback UI mógł ponownie utworzyć
+usunięty provisional i osierocić finalną synchronizację.
+
+**Decyzja:** alias `provisional → remote` jest osobną kopertą w istniejącym store IDB i
+powstaje w tej samej transakcji co usunięcie provisional oraz zapis remote. Resolver czyta
+pamięć → localStorage → IDB z jednym świeżym połączeniem po resume. `saveActiveDraft`
+sprawdza alias także wewnątrz kolejki, bez pętli i bez masowego kasowania.
+
+**Weryfikacja:** czerwone testy odtworzyły utratę localStorage, null resolver i późny zapis;
+po poprawce test race z `QuotaExceededError`, 104 testy storage/sync, typecheck i lint są
+zielone. Fizyczny force-kill iOS/Android pozostaje osobną bramką — test automatyczny nie
+jest przedstawiany jako dowód urządzeniowy.
+
+---
+
+## SESJA 2026-08-27 — „Zgłoś błąd” jako prywatny, odporny na przerwanie przepływ
+
+**Root cause:** Profil oferował tylko `mailto:`. Nie było strukturalnego zgłoszenia,
+idempotencji, limitu, panelu triage ani sposobu bezpiecznego dołączenia obrazu. Zwykły
+upload oryginału mógłby zachować EXIF/GPS, a Android może zabić Activity podczas systemowego
+Photo Pickera i zgubić załącznik oraz kontekst.
+
+**Decyzja:** przed własnym pickerem używamy oficjalnego `@capacitor/camera` 8.2.3,
+zgodnego z Capacitor 8.4. Formularz zapisuje tekst i UUID lokalnie. Picker uzbraja prywatny
+binding w IndexedDB; `appRestoredResult` przyjmuje wyłącznie `Camera / chooseFromGallery`
+i przechowuje Blob maksymalnie 24 h. Przed uploadem obraz jest zawsze ponownie kodowany do
+JPEG, bez fallbacku do oryginału. Backend realizuje `create → upload → finalize`, wymaga
+Auth/App Check/aktywnego konta, używa dokładnej ścieżki Storage i limitu 3/h, 10/d. Reguły
+blokują bezpośredni zapis Firestore oraz odczyt/nadpisanie/usunięcie screenshotu przez
+klienta. E-mail jest best-effort: jego awaria nie usuwa przyjętego raportu. `mailto:`
+pozostaje ścieżką awaryjną. GDPR purge obejmuje raporty, licznik i cały prefix Storage.
+
+**Panel i retencja:** administrator widzi 100 najnowszych zgłoszeń, filtruje status i
+kategorię, a zmianę statusu wykonuje tylko chroniony callable z zamkniętym grafem
+przejść. Screenshot nie ma publicznego URL; osobny callable wydaje dokładnie 5-minutowy
+V4 signed URL po ponownym sprawdzeniu roli i ścieżki. E-mail zgłaszającego jest snapshotem
+wyłącznie z tokenu Auth i nie zmienia się przy idempotentnym retry. Raporty mają retencję
+180 dni, porzucone uploady 24 h, a godzinny scheduler usuwa Storage przed dokumentem.
+
+**Weryfikacja:** testy zaczęły się od brakujących modułów (RED). Frontend ma 30/30 testów
+formularza, draftu, sanitizera, API, Camera recovery, pickera i panelu; Functions test
+kontraktu 16/16, pełny Functions 432/432 (+10 pominiętych), emulator integracyjny 10/10,
+Firestore Rules 275/275 i Storage Rules 11/11. Typecheck web/Functions i build Functions
+są zielone. Produkcyjny audit zależności root/Functions = 0. Nie wysłano testowego raportu
+na realnym koncie.
+
+**Prywatność i operacje:** screenshot jest opcjonalny, UI ostrzega o danych osobowych, a
+e-mail nie zawiera obrazu. Publiczne wydanie nadal wymaga dopisania celu, odbiorcy i
+retencji do polityki prywatności w osobnym repozytorium landingu
+(`strengthsave.app/privacy`), ustawienia czterech sekretów Amazon SES, wdrożenia
+Functions/rules oraz testu odbioru e-maila i triage na koncie QA. Brak tych kroków jest blockerem,
+nie powodem do omijania App Check ani publikacji publicznego pliku.
+
+---
+
+## SESJA 2026-08-27 — klawiatura nie może zasłaniać CTA ani wyjścia z modalu
+
+**Root cause:** trzy lokalne klasy omijały wspólny kontrakt `--keyboard-inset`:
+`AddCardioDialog` nadpisywał bazowy limit przez `max-h-[85vh]`, a dolne arkusze edycji
+pomiaru i kalkulatora talerzy były zakotwiczone w `bottom-0` z `max-h-[92vh]`. Po wysunięciu
+klawiatury CTA mogło znaleźć się pod nią. W nowym dialogu zgłoszenia zewnętrzny scroll
+potrafił dodatkowo odsunąć X i przyciąć footer.
+
+**Decyzja:** dialog cardio dziedziczy bazowy keyboard-aware `DialogContent`; oba Sheet
+używają `bottom-[var(--keyboard-inset,0px)]` i wysokości od widocznego `100dvh`. Dialog
+zgłoszenia ma trzy wiersze grid: stały header, wewnętrzny scroll `minmax(0,1fr)` i stały
+footer, dzięki czemu X, Wyślij i Anuluj pozostają osiągalne. Nie zmieniamy globalnego Sheet,
+żeby nie ryzykować regresji arkuszy bez inputów.
+
+**Weryfikacja:** trzy kontrakty były czerwone przed poprawką; 38/38 testów dialogów po
+poprawce jest zielone. Playwright na świeżym Vite/cache: 6/6 Chromium+WebKit dla zgłoszenia,
+własnego ćwiczenia i kalkulatora, z symulowanym insetem 300 px oraz screenshotami w
+`audit/shots/2026-08-27/keyboard-*.png`. To nie zastępuje fizycznego iOS/Android.
+
+---
+
+## SESJA 2026-08-27 — jawna rejestracja lokalnego HealthSync na iOS
+
+**Root cause:** decyzja X15C z 2026-07-19 błędnie zakładała auto-rejestrację lokalnego
+`CAPBridgedPlugin`. W Capacitor 8.4 `HealthSyncPlugin.swift` był kompilowany, ale nie był
+ani w wygenerowanym `packageClassList`, ani rejestrowany przez lokalny
+`BridgeViewController`. Warstwa JS łapie błąd `isAvailable` i zwraca `false`, więc build
+i smoke samego uruchomienia nie ujawniały martwego mostu HealthKit.
+
+**Decyzja:** tak jak `WatchBridgePlugin` i `TimerSoundPlugin`, lokalny
+`HealthSyncPlugin()` jest jawnie rejestrowany w `capacitorDidLoad()`. Kontrakt źródłowy
+czyta rzeczywisty kontroler i chroni rejestrację przed kolejną migracją Capacitor.
+
+**Weryfikacja:** nowy test najpierw był RED, po minimalnej zmianie 4/4 testy
+`health-platform-contract` są zielone. Kompilacja i uruchomienie symulatora iOS oraz
+realny odczyt/zapis HealthKit pozostają częścią bramki natywnej; test źródłowy nie jest
+przedstawiany jako dowód zgody ani zapisu danych zdrowotnych.
+
+---
+
+## SESJA 2026-08-27 — jeden transport Amazon SES dla wszystkich aktywnych maili
+
+**Root cause:** backend miał dwa różne modele dostarczania poczty. Maile treningowe
+używały lokalnej implementacji SES z fallbackiem Resend w `index.ts`, natomiast
+rejestracja, weryfikacja, zaproszenia, digesty, alerty i nowe zgłoszenia błędów używały
+Resend bezpośrednio. Powielało to obsługę błędów i sekretów, a `emailDelivery: sent`
+mogło błędnie sugerować doręczenie, chociaż provider tylko przyjął wiadomość.
+
+**Decyzja:** cały aktywny runtime e-mailowy korzysta z jednego adaptera
+`functions/src/ses-email.ts` opartego na `@aws-sdk/client-sesv2` (`SESv2Client` i
+`SendEmailCommand`). Adapter wysyła UTF-8 HTML + plain text, używa standard retry do
+trzech prób, cache'uje klienta między wywołaniami i zwraca SES `MessageId`. Funkcje
+bindują dokładnie `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY` i
+`SES_FROM`; `SES_SNS_TOPIC_ARN` pozostaje osobnym sekretem webhooka zdarzeń.
+Nie ma fallbacku do Resend: awaria SES jest jawna i zachowuje dotychczasowe ścieżki
+wyjścia (`pending_send` kodu jest sprzątany, digest izoluje odbiorców, raport błędu
+pozostaje w Firestore). Pakiet `resend` i martwy helper provider-specific usunięto;
+wartość `transport: resend` pozostaje wyłącznie w typach/testach kompatybilności dla
+historycznych wpisów `email_log`.
+
+**Report a bug:** e-mail jest best-effort i nie warunkuje przyjęcia raportu. Po sukcesie
+API zapisujemy status `accepted`, transport i `sesMessageId`, a nie `delivered`.
+Dopiero istniejący webhook SES/SNS może potwierdzić delivery/bounce/complaint w
+`email_log`. Screenshot pozostaje w prywatnym Storage i jest dostępny wyłącznie przez
+panel admina; nie jest załącznikiem ani publicznym linkiem. Błędy providerów są
+redukowane do bezpiecznego kodu, bez logowania treści lub surowego obiektu AWS.
+
+**Weryfikacja:** testy kontraktu zaczęły jako RED dla brakującego adaptera/payloadu,
+braku notifiera SES oraz niezaktualizowanych adapterów registration/digest. Po zmianie:
+celowane Functions 150/150, pełne Functions 443/443 (+11 świadomie pominiętych bez
+emulatora), pełne Vitest aplikacji 391 plików i 3433/3433 testy, typecheck i build
+Functions oraz audit zależności Functions (0 podatności) są zielone. Agent wykonał też
+11/11 testów integracyjnych Auth+Firestore emulatora, w tym odrzucenie SES → brak
+wiszącego `pending_send` → natychmiastowy skuteczny retry. Nie wykonano deployu, nie
+zmieniano prawdziwych sekretów i nie wysłano rzeczywistej wiadomości.
+
+**Bramka zewnętrzna:** przed publicznym wdrożeniem trzeba potwierdzić production access
+i quota w regionie SES, zweryfikowaną identity/DKIM/SPF/DMARC, configuration set z TLS
+i eventami, dedykowane least-privilege IAM oraz DPA/politykę prywatności. Syntetyczny
+smoke bez danych realnego użytkownika nastąpi dopiero po zielonych bramkach i jawnej
+zgodzie właściciela. Ten wpis zastępuje wcześniejszy aktywny blocker `RESEND_API_KEY`;
+historyczne wpisy o Resend pozostają niezmienione jako zapis stanu z tamtego czasu.
+
+**Aktualizacja security gate:** odświeżenie lockfile po usunięciu Resend ujawniło nowe
+advisories dla zależności transitive (`tar`, `brace-expansion`, `fast-uri`, `js-yaml`,
+`nanoid`, `postcss`) oraz Vite/esbuild. Bezpieczne point updates usunęły pierwszą grupę.
+Vite 5 nie ma już poprawionej wersji; wybrano najmniejszy wspierany skok do Vite 6.4.3
+(Node 22, plugin React SWC i vite-plugin-pwa deklarują zgodność), zamiast sugerowanego
+przez `npm audit fix --force` skoku do Vite 8. Po migracji audit root i Functions = 0;
+pełne testy/build zostały następnie zakończone wynikiem opisanym w X41.
+
+---
+
+## SESJA 2026-08-27 — telemetria SES pozostaje włączona i jawna
+
+**Decyzja właściciela:** zdarzenia `OPEN` i `CLICK` pozostają włączone, aby panel
+administracyjny pokazywał skuteczność wiadomości. Nie traktujemy ich jako technicznie
+niezbędnych do wysyłki: polityka prywatności 2.1 jawnie opisuje piksel/redirect,
+adres IP, user-agent, link, cel analityczno-operacyjny, podstawę prawną i retencję.
+Zmiana została opublikowana na `strengthsave.app` przed wydaniem klienta 2.1.
+
+**Minimalizacja i retencja:** szczegółowe `email_events` (w tym IP, user-agent i link)
+mają `expiresAt` oraz niezależny godzinny scheduler usuwający rekordy starsze niż 180
+dni na podstawie kanonicznego timestampu. Zapytanie obejmuje też rekordy legacy bez
+`expiresAt`; agregaty w `email_log` nie przechowują IP ani user-agent. Test granicy
+180 dni był najpierw czerwony, potem 4/4 zielony; cały kontrakt SES/zgód 40/40 i
+Functions typecheck są zielone.
+
+**Dostarczenie:** identity `strengthsave.app` ma DKIM `SUCCESS` i domyślny
+configuration set `strengthsave`; event destination publikuje SEND, DELIVERY,
+DELIVERY_DELAY, BOUNCE, COMPLAINT, REJECT, RENDERING_FAILURE, OPEN i CLICK. TLS jest
+wymagany. Dedykowany IAM może wyłącznie `ses:SendEmail` z `noreply@strengthsave.app`
+przez ten configuration set i po bezpiecznym transporcie. Alarmy reputacji używają
+progów 5% bounce i 0,1% complaint. Subskrypcja mailowa alarmów pozostaje
+`PendingConfirmation`, dopóki odbiorca nie kliknie linku AWS.
+
+---
+
+## SESJA 2026-08-27 — poprawki spójności UI ze screenshotów właściciela
+
+**Root cause obwódki:** zewnętrzny focus ring selektora kategorii był obcinany przez
+scroll/overflow dialogu. Trigger używa teraz ringa wewnętrznego bez offsetu, a dialog
+ma stały header i footer oraz osobny scroll treści, więc klawiatura nie zabiera X,
+Anuluj ani Wyślij.
+
+**Profil i nagłówki:** cztery kafle statystyk są przyciskami prowadzącymi do Historii
+lub właściwego wykresu; rząd odznak usunięto z Profilu, a pełny ekran osiągnięć
+pozostał dostępny. Główne zakładki mają jeden kontrakt: dzwonek i klikalną liczbę
+treningów bez dopisków zależnych od ekranu. Duplikat liczby w Historii usunięto.
+
+**Wyjście ze stanu UI:** banner aktywnej/pending sesji oraz każdy toast mają widoczny
+target zamknięcia co najmniej 44×44 px. Zamknięcie bannera zapisuje wyłącznie sygnaturę
+komunikatu; nie usuwa draftu ani kolejki i nowy stan pojawi się ponownie.
+
+**Typografia:** body korzysta z self-hosted `Inter Variable`, nagłówki z
+`Space Grotesk Variable`; usunięto syntetyczną kursywę z PlanWizard. Testy zmian UI
+były wykonane test-first i są zielone, a celowany świeży Chromium potwierdził nawigację,
+Profil i Historię. Pełne E2E i fizyczna klawiatura pozostają bramką wydania.
+
+---
+
+## SESJA 2026-08-27 — kompatybilne przejście zgód 2.0 → 2.1
+
+**Root cause:** TestFlight 1.0.0 (128) wysyła privacy 2.0. Natychmiastowe odrzucenie
+wszystkiego poza 2.1 przez backend blokowałoby działający build zanim nowy klient
+trafi do testerów.
+
+**Decyzja:** `recordConsent` przejściowo przyjmuje wyłącznie dokładne wersje privacy
+2.0 albo 2.1 i zapisuje faktycznie otrzymaną wersję. Nowy klient nadal wymaga 2.1,
+więc użytkownik dostaje ponowną zgodę; nie ma cichego podniesienia wersji. Terms,
+health i marketing nadal wymagają swoich bieżących wersji. Kompatybilność 2.0 zostanie
+usunięta dopiero po wycofaniu starszych buildów. Test regresji był czerwony, potem
+14/14 testów zgód jest zielone.
+
+---
+
+## SESJA 2026-08-27 — idempotentne statystyki SES i rekonsyliacja wyścigu
+
+**Root cause:** deterministyczne ID chroniło dokument `email_events` przed duplikatem,
+ale każde ponowienie SNS ponownie zwiększało `openCount`/`clickCount`. Dodatkowo SES
+może wysłać event zaraz po przyjęciu wiadomości, zanim funkcja zapisze `email_log` po
+otrzymaniu `MessageId`; taki event zostawał bez agregatu w panelu.
+
+**Decyzja:** event przechowuje listę ID logów, do których został zastosowany, a update
+logu i oznaczenie aplikacji odbywają się w jednej transakcji. Retry webhooka może
+bezpiecznie ponowić pracę, lecz nie podbije licznika drugi raz. Event bez istniejącego
+logu ma `pendingLogApplication`; scheduler co 15 minut ponawia korelację po
+`sesMessageId`. Configuration set `strengthsave` jest odtąd jawnie wpisany do każdego
+`SendEmailCommand`, więc telemetryka nie zależy tylko od mutowalnej konfiguracji AWS.
+
+**Retencja:** godzinny cleanup usuwa szczegółowe eventy po 180 dniach. Zagregowany
+`email_log` i jego podkolekcja z treścią są usuwane rekursywnie po 730 dniach, zgodnie
+z publiczną deklaracją „do 24 miesięcy”. Testy zaczęły od 4 czerwonych kontraktów;
+po minimalnej poprawce 33/33 testy SES/retencji są zielone, Functions typecheck/build
+przechodzą, a pełne Functions ma 453/453 testy zielone (+12 pominiętych).

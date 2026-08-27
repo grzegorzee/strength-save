@@ -77,6 +77,6 @@ test.describe('Po onboardingu: Dashboard w wybranym kolorze (plan I)', () => {
     // Ciemny akcent = jasny tekst na CTA (kontrast per luminancja).
     expect(await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--primary-foreground').trim(),
-    )).toBe('0 0% 98%');
+    )).toBe('0 0% 100%');
   });
 });

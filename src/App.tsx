@@ -32,7 +32,7 @@ const AuthenticationGate = () => {
 
   if (!isAuthenticated) {
     return (
-      <HashRouter>
+      <HashRouter useTransitions={false}>
         <Suspense fallback={<BootScreen />}>
           <Routes>
             <Route path="/login" element={<Login mode="login" />} />

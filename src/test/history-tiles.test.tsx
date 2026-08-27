@@ -72,6 +72,8 @@ vi.mock('@/lib/pdf-report', () => ({
   })),
   generateTrainingReportPdf: vi.fn(async () => new Blob(['pdf'], { type: 'application/pdf' })),
 }));
+const shareExportMock = vi.hoisted(() => vi.fn(async () => 'shared'));
+vi.mock('@/lib/share-export', () => ({ shareOrDownloadFile: shareExportMock }));
 // Bug 26 (X30): HistoryExportSheet raportuje porazki share do client_errors —
 // modul ciagnie lib/firebase (transitive import, pulapka z CLAUDE.md), mock.
 vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
@@ -151,9 +153,9 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
     expect(outsideTile).toBeDefined();
   });
 
-  it('licznik nagłówka = realna liczba sesji; przyciski PERIOD i Export obecne', () => {
+  it('nie dubluje wspólnego licznika w treści; przyciski PERIOD i Export obecne', () => {
     renderPage();
-    expect(screen.getByText(/5 sesji/i)).toBeInTheDocument();
+    expect(screen.queryByText(/5 sesji/i)).not.toBeInTheDocument();
     expect(screen.getByTestId('history-period')).toBeInTheDocument();
     expect(screen.getByTestId('history-export')).toBeInTheDocument();
     // Poziom 1 bez lupy (design 2a) — wyszukiwarka żyje w pełnej liście.
@@ -357,6 +359,10 @@ describe('WP-H H3 — Export sheet', () => {
     await waitFor(() => {
       expect(buildTrainingReportModel).toHaveBeenCalledWith(fixtures.exportFetchResult, expect.any(Date));
       expect(generateTrainingReportPdf).toHaveBeenCalled();
+      expect(shareExportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: expect.stringMatching(/\.pdf$/), type: 'application/pdf' }),
+        expect.objectContaining({ title: expect.any(String), onShareError: expect.any(Function) }),
+      );
     });
     await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
   });

@@ -12,7 +12,7 @@
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
 | **Status** | AKTYWNY (v6.11.4) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-05-29 |
+| **Data aktualizacji** | 2026-08-27 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
 
 ---
@@ -125,7 +125,8 @@
 | functions/src/index.ts | Eksporty Functions: Strava, AI, admin API, registration |
 | functions/src/registration.ts | **syncUserProfile, email verification code, invite, waitlist, auth audit, access toggle** |
 | functions/src/ai-usage.ts | **AI cost tracking** (checkUsageLimit, recordUsage, $5/user/month) |
-| functions/src/weekly-digest.ts | Weekly Digest Email (Resend, per-user, co poniedziałek 08:00) |
+| functions/src/ses-email.ts | Wspólny transport Amazon SES API v2 (HTML + text, standard retry) |
+| functions/src/weekly-digest.ts | Weekly Digest Email (Amazon SES, per-user, co poniedziałek 08:00) |
 
 ---
 
@@ -135,7 +136,7 @@
 |-------------|--------|--------------|
 | React | 18.x | Frontend framework |
 | TypeScript | 5.x | Typowanie (strict mode) |
-| Vite | 5.x | Bundler + dev server |
+| Vite | 6.x | Bundler + dev server |
 | Firebase | 12.x | Firestore, Auth, Cloud Functions |
 | Tailwind CSS | 3.x | Styling (utility-first) |
 | shadcn/ui | - | Komponenty UI (Radix primitives) |
@@ -150,7 +151,7 @@
 | Sonner | 1.x | Toast notifications |
 | vite-plugin-pwa | 1.x | Progressive Web App |
 | html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
-| Resend | 6.x | Email API (Weekly Digest, verification, invite, access emails) |
+| Amazon SES API v2 | AWS SDK JS v3 | E-maile serwisowe, digest, zaproszenia i powiadomienia o zgłoszeniach błędów |
 | Vitest | 3.x | Testy jednostkowe (202 testy) |
 | Playwright | 1.x | Testy E2E (99 testów, VITE_E2E_MODE) |
 | gh-pages | 6.x | Deploy na GitHub Pages |
@@ -401,7 +402,7 @@ nazw/struktury historycznego treningu przez **aktualny** `trainingPlan`.
 
 ### Social & Notifications
 - **Share Workout Summary** — generowanie obrazu podsumowania treningu (html2canvas-pro, 540×960 IG story) z opcjonalnym własnym zdjęciem jako tło
-- **Weekly Digest Email** — co poniedziałek o 8:00 email z podsumowaniem tygodnia (Resend, per-user, auto-detect z Firebase Auth)
+- **Weekly Digest Email** — co poniedziałek o 8:00 email z podsumowaniem tygodnia (Amazon SES, per-user, auto-detect z Firebase Auth)
 
 ### Auth, Access, Admin
 - Osobne strony `/login` i `/register`
@@ -443,13 +444,24 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 VITE_OPENAI_API_KEY=sk-proj-...
 
-# functions/.env (Cloud Functions)
+# Firebase Secret Manager / sekrety przypięte do Cloud Functions
 STRAVA_CLIENT_ID=209317
 STRAVA_CLIENT_SECRET=...
 STRAVA_REDIRECT_URI=https://grzegorzee.github.io/strength-save/strava-callback.html
-RESEND_API_KEY=re_...
+SES_REGION=...
+SES_ACCESS_KEY_ID=...
+SES_SECRET_ACCESS_KEY=...
+SES_FROM=...
+# Osobny sekret webhooka SES/SNS, nie należy do czterech sekretów transportu:
+SES_SNS_TOPIC_ARN=...
 API_KEY_PEPPER=...
 ```
+
+Nie wpisuj prawdziwych wartości sekretów do repo. Przed wdrożeniem poczty wymagane są:
+zweryfikowana domena nadawcy, configuration set z TLS/events, production access i quota
+w tym samym regionie SES, least-privilege IAM (`ses:SendEmail`) oraz syntetyczny smoke
+wykonany dopiero po zgodzie właściciela. Pełna bramka: `PLAN.md` i
+`docs/RELEASE-READINESS-2026-08-27.md`.
 
 **Pełna dokumentacja zmiennych:** → `REQUIREMENTS.md`
 
@@ -491,7 +503,7 @@ npm run deploy    # gh-pages -d dist
 
 ## NOTATKI
 
-- Auth: Google + email/password + kod mailowy przez Functions + Resend
+- Auth: Google + email/password + kod mailowy przez Functions + Amazon SES
 - HashRouter zamiast BrowserRouter (GitHub Pages)
 - Firebase nie akceptuje `undefined` - dane muszą być sanityzowane
 - Debounce 500ms przy auto-save w aktywnym treningu

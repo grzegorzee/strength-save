@@ -171,7 +171,7 @@ export const EditMeasurementDialog = ({ open, onOpenChange, measurement, photosE
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="flex max-h-[92vh] flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-t-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        className="bottom-[var(--keyboard-inset,0px)] flex max-h-[calc(100dvh-var(--keyboard-inset,0px))] flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-t-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
         data-testid="measurement-edit-sheet"
         onOpenAutoFocus={(e) => { e.preventDefault(); focusFirstNumericField(); }}
       >

@@ -8,6 +8,20 @@
 export const ABANDONED_SESSION_THRESHOLD_MS = 60 * 60 * 1000;
 /** Bufor na odłożenie sprzętu po ostatniej zarejestrowanej akcji. */
 export const SESSION_CLOSEOUT_BUFFER_MS = 3 * 60 * 1000;
+/** Skrypt naprawczy traktuje >12h jako pewny outlier; nowych rekordów bez
+ * durationSec nie tworzymy. Legacy fallback jest tylko prezentacją i nigdy nie
+ * modyfikuje dokumentu użytkownika. */
+export const LEGACY_DURATION_OUTLIER_SEC = 12 * 60 * 60;
+
+export const computeLegacyTimestampDurationSec = (input: {
+  startedAt: number | undefined;
+  completedAt: number | undefined;
+}): number | undefined => {
+  const { startedAt, completedAt } = input;
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completedAt)) return undefined;
+  const durationSec = Math.max(0, Math.floor(((completedAt as number) - (startedAt as number)) / 1000));
+  return durationSec > LEGACY_DURATION_OUTLIER_SEC ? undefined : durationSec;
+};
 
 export const computeEffectiveDurationSec = (input: {
   startedAt: number | undefined;

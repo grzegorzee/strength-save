@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import {
   locales, detectLanguage, translate,
   type LanguageCode, type TranslationKey, type TParams,
@@ -31,6 +31,10 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     setLangState(l);
     try { localStorage.setItem(STORAGE_KEY, l); } catch { /* ignore */ }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const t = useCallback(
     (key: TranslationKey, params?: TParams) => translate(lang, key, params),

@@ -1,8 +1,10 @@
 import { useToast } from "@/hooks/use-toast";
 import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
+import { useTranslation } from "@/contexts/LanguageContext";
 
 export function Toaster() {
   const { toasts } = useToast();
+  const { t } = useTranslation();
 
   return (
     <ToastProvider>
@@ -14,7 +16,7 @@ export function Toaster() {
               {description && <ToastDescription>{description}</ToastDescription>}
             </div>
             {action}
-            <ToastClose />
+            <ToastClose aria-label={t('common.close')} />
           </Toast>
         );
       })}

@@ -1,5 +1,12 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect, vi } from "vitest";
-import { runWeeklyDigest, buildStravaSummary, type WeeklyDigestDeps, type DigestUser } from "./weekly-digest";
+import {
+  buildStravaSummary,
+  buildWeeklyDigestDeps,
+  runWeeklyDigest,
+  type DigestUser,
+  type WeeklyDigestDeps,
+} from "./weekly-digest";
 
 // X27/WP-C: digest liczy biegi semantyką run-like (Run || sportType zawiera "Run"),
 // spójnie z src/lib/strava-utils.isRunLike — TrailRun/VirtualRun nie ginie,
@@ -43,7 +50,7 @@ const makeDeps = (users: DigestUser[], over: Partial<WeeklyDigestDeps> = {}) => 
     queryCompletedWorkouts: vi.fn(async () => users.map((user) => workout(user.uid))),
     queryWorkoutHistory: vi.fn(async () => []),
     queryStravaActivities: vi.fn(async () => []),
-    sendEmail: vi.fn(async () => ({})),
+    sendEmail: vi.fn(async () => ({ transport: "ses" as const, sesMessageId: "ses-message-123" })),
     now: () => WARSAW_MONDAY_08,
     ...over,
   } satisfies WeeklyDigestDeps;
@@ -189,7 +196,7 @@ describe("T21b: rejestr wysyłek email_log w digeście", () => {
     expect(logEmail).toHaveBeenCalledTimes(1);
     const [entry, html] = logEmail.mock.calls[0] as unknown as [Record<string, unknown>, string];
     expect(entry).toMatchObject({
-      uid: "u1", to: "a@b.c", type: "weekly_digest", transport: "resend", status: "sent", lang: "pl",
+      uid: "u1", to: "a@b.c", type: "weekly_digest", transport: "ses", sesMessageId: "ses-message-123", status: "sent", lang: "pl",
     });
     expect(typeof entry.sentAt).toBe("string");
     expect(html).toContain("Serie robocze");
@@ -207,6 +214,7 @@ describe("T21b: rejestr wysyłek email_log w digeście", () => {
     expect(result.failed).toBe(1);
     const [entry] = logEmail.mock.calls[0] as unknown as [Record<string, unknown>];
     expect(entry.status).toBe("failed");
+    expect(entry.transport).toBe("ses");
     expect(entry.error).toBe("bounced");
   });
 
@@ -231,6 +239,39 @@ describe("T21b: rejestr wysyłek email_log w digeście", () => {
 
     const legacy = makeDeps([{ uid: "u1", email: "a@b.c" }]);
     await expect(runWeeklyDigest(legacy)).resolves.toMatchObject({ sent: 1 });
+  });
+});
+
+describe("weekly digest: wspólny transport Amazon SES", () => {
+  const source = readFileSync(new URL("./weekly-digest.ts", import.meta.url), "utf8");
+
+  it("nie ma runtime Resend i binduje wszystkie sekrety SES", () => {
+    expect(source).toContain('from "./ses-email"');
+    expect(source).toContain("sendSesEmail");
+    expect(source).toMatch(/secrets: \[\.\.\.SES_EMAIL_SECRETS\]/);
+    expect(source).not.toContain('from "resend"');
+    expect(source).not.toContain("RESEND_API_KEY");
+  });
+
+  it("adapter produkcyjny zachowuje wstrzykiwanie sendera i metadane SES", async () => {
+    const sender = vi.fn(async () => ({ transport: "ses" as const, sesMessageId: "ses-weekly-1" }));
+    const deps = buildWeeklyDigestDeps({} as FirebaseFirestore.Firestore, sender);
+
+    await expect(deps.sendEmail("user@example.com", "Temat", "<p>Treść</p>"))
+      .resolves.toEqual({ transport: "ses", sesMessageId: "ses-weekly-1" });
+    expect(sender).toHaveBeenCalledWith({
+      to: "user@example.com",
+      subject: "Temat",
+      html: "<p>Treść</p>",
+    });
+  });
+
+  it("adapter zamienia odrzucenie SES na błąd per odbiorca", async () => {
+    const sender = vi.fn(async (): Promise<never> => { throw new Error("SES unavailable"); });
+    const deps = buildWeeklyDigestDeps({} as FirebaseFirestore.Firestore, sender);
+
+    await expect(deps.sendEmail("user@example.com", "Temat", "<p>Treść</p>"))
+      .resolves.toEqual({ transport: "ses", error: { message: "ses-send-failed" } });
   });
 });
 

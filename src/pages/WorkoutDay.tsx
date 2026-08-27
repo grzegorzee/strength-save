@@ -82,7 +82,7 @@ import { deriveWorkoutSessionPhase, isActiveTrainingPhase, shouldStartRest } fro
 import { cancelRestEndNotification } from '@/lib/rest-notification';
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
-import { computeEffectiveDurationSec } from '@/lib/workout-duration';
+import { computeEffectiveDurationSec, computeLegacyTimestampDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { RestBar } from '@/components/RestBar';
 import { FirstWorkoutTour } from '@/components/FirstWorkoutTour';
@@ -905,7 +905,7 @@ const WorkoutDay = () => {
     // i ponów sync, zamiast kończyć cichym no-opem (zasada 6: każdy stan
     // błędu ma wyjście).
     if (outcome.skipped && outcome.missingDraft) {
-      const promotedRemoteId = workoutDraftDb.resolvePromotedSessionId(uid, sessionId);
+      const promotedRemoteId = await workoutDraftDb.resolvePromotedSessionId(uid, sessionId);
       if (promotedRemoteId && promotedRemoteId !== sessionId) {
         const externallyPromotedDraft = await workoutDraftDb.loadDraft(uid, promotedRemoteId);
         if (externallyPromotedDraft) {
@@ -2554,9 +2554,10 @@ const WorkoutDay = () => {
   // Czas trwania do podsumowania: trwały durationSec z zapisanej sesji, a dla świeżo
   // zakończonego lokalnie treningu fallback ze znaczników draftu (finalizedAt/startedAt).
   const currentWorkoutForDuration = workouts.find(w => w.id === sessionId);
-  const durationFromTimestamps = currentWorkoutForDuration?.completedAt && currentWorkoutForDuration?.startedAt
-    ? Math.max(0, Math.floor((currentWorkoutForDuration.completedAt - currentWorkoutForDuration.startedAt) / 1000))
-    : null;
+  const durationFromTimestamps = computeLegacyTimestampDurationSec({
+    startedAt: currentWorkoutForDuration?.startedAt,
+    completedAt: currentWorkoutForDuration?.completedAt,
+  });
   // Z142: ten sam clamp co przy finalizacji w silniku — kafel "Czas" pokazuje to,
   // co pójdzie do Firestore (duration do ostatniej realnej aktywności).
   const draftDurationSec = computeEffectiveDurationSec({

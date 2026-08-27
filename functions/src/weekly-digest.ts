@@ -1,8 +1,6 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { Resend } from "resend";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import {
   compareWeeks,
@@ -14,8 +12,8 @@ import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-
 import type { Lang } from "./email-templates";
 import { writeEmailLog, type EmailLogWrite } from "./email-log";
 import { localDayParts, shiftDateStr } from "./local-time";
+import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail } from "./ses-email";
 
-export const resendApiKey = defineSecret("RESEND_API_KEY");
 const DIGEST_CONCURRENCY = 10;
 /** Bug 11 (X30): digest wychodzi w poniedziałek o tej lokalnej godzinie ODBIORCY. */
 export const DIGEST_LOCAL_HOUR = 8;
@@ -55,7 +53,11 @@ export interface WeeklyDigestDeps {
    *  userów akceptowalne; przy wzroście → per-user limit albo agregaty. */
   queryWorkoutHistory: (beforeStr: string) => Promise<DigestWorkout[]>;
   queryStravaActivities: (startStr: string, endStr: string) => Promise<Array<StravaDoc & { userId: string }>>;
-  sendEmail: (to: string, subject: string, html: string) => Promise<{ error?: { message: string } }>;
+  sendEmail: (to: string, subject: string, html: string) => Promise<{
+    transport?: "ses";
+    sesMessageId?: string;
+    error?: { message: string };
+  }>;
   /** B-T6: producent zdarzenia inboxa "raport tygodnia gotowy" (user_events).
    *  Idempotentny: create pod deterministycznym id, ALREADY_EXISTS połykane. */
   writeUserEvent?: (uid: string, event: {
@@ -208,7 +210,6 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
         rangeLabel,
       });
 
-      // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
       const response = await deps.sendEmail(user.email, subject, html);
       // T21b: wpis do email_log po każdej próbie (udanej i nieudanej);
       // awaria rejestru nie może zabrać digestu pozostałym odbiorcom.
@@ -219,7 +220,8 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
             to: user.email,
             type: "weekly_digest",
             subject,
-            transport: "resend",
+            transport: "ses",
+            ...(response.sesMessageId ? { sesMessageId: response.sesMessageId } : {}),
             status: response.error ? "failed" : "sent",
             ...(response.error ? { error: response.error.message } : {}),
             sentAt: new Date().toISOString(),
@@ -261,27 +263,22 @@ export const weeklyDigest = onSchedule(
     schedule: "0 * * * 0,1",
     timeZone: "UTC",
     timeoutSeconds: 300,
-    secrets: [resendApiKey],
+    secrets: [...SES_EMAIL_SECRETS],
   },
   async () => {
     const db = admin.firestore();
     logger.info("[WeeklyDigest] Starting...");
 
-    const apiKey = resendApiKey.value();
-    if (!apiKey) {
-      logger.error("[WeeklyDigest] Missing secret: resend-api-key");
-      return;
-    }
-
-    const resend = new Resend(apiKey);
-
-    await runWeeklyDigest(buildWeeklyDigestDeps(db, resend));
+    await runWeeklyDigest(buildWeeklyDigestDeps(db));
   },
 );
 
 // Z160: deps wyciągnięte do funkcji, żeby ręczny trigger testowy (sendTestDigest)
 // używał DOKŁADNIE tej samej ścieżki co poniedziałkowy harmonogram.
-export function buildWeeklyDigestDeps(db: FirebaseFirestore.Firestore, resend: Resend): WeeklyDigestDeps {
+export function buildWeeklyDigestDeps(
+  db: FirebaseFirestore.Firestore,
+  emailSender: typeof sendSesEmail = sendSesEmail,
+): WeeklyDigestDeps {
   return {
     listUsers: async () => {
       // Paginacja po kolekcji users (1 read/user) zamiast listUsers z Auth —
@@ -330,13 +327,14 @@ export function buildWeeklyDigestDeps(db: FirebaseFirestore.Firestore, resend: R
       return snapshot.docs.map((doc) => doc.data() as StravaDoc & { userId: string });
     },
     sendEmail: async (to, subject, html) => {
-      const response = await resend.emails.send({
-        from: "Strength Save <noreply@strengthsave.app>",
-        to,
-        subject,
-        html,
-      });
-      return response.error ? { error: { message: response.error.message } } : {};
+      try {
+        return await emailSender({ to, subject, html });
+      } catch (error) {
+        return {
+          transport: "ses",
+          error: { message: safeSesErrorCode(error) },
+        };
+      }
     },
     // T21b: rejestr wysyłek widoczny w panelu admina (sekcja Maile).
     logEmail: (entry, html) => writeEmailLog(db, entry, html),

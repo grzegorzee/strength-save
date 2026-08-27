@@ -2,8 +2,8 @@
 // treningowy" ma te same etykiety cykli co sheet Historii, domyślnie aktywny
 // cykl (CTA nie startuje jako disabled), filtr widoczności, bounds w trybie
 // cycleId. Niezmienniki: tydzień/miesiąc/własny zakres jak dotąd (tryb dates).
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import type { WorkoutSession } from '@/types';
 import { buildCanonicalState } from '@/test/canonical-states';
@@ -35,6 +35,14 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
   fetchBoundsMock.mockReset().mockResolvedValue(state().workouts.filter((w) => w.completed));
+});
+
+afterEach(() => {
+  // Radix FocusScope odkłada focus-out do timera. Przy fake timers pozostawał on
+  // po teardownie środowiska i pełna bramka kończyła się unhandled dispatchEvent.
+  cleanup();
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
 });
 
 describe('ExportWorkoutsDialog — cykle (WP-D)', () => {

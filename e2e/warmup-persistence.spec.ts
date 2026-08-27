@@ -103,9 +103,17 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     expect(await struckCount(page)).toBe(1);
     await page.keyboard.press('Escape');
 
-    // Koniec treningu = draft znika; kolejna sesja nie dziedziczy odhaczeń.
+    // Najpierw odmontuj aktywny ekran, aby jego pagehide/debounce nie odtworzył
+    // draftu już po technicznym cleanupie testu. Potem zasymuluj zakończoną sesję.
+    // Dashboard świadomie auto-wznawia aktywny draft; Plan reprezentuje jawne
+    // wyjście użytkownika i naprawdę odmontowuje ekran sesji przed cleanupem.
+    await navigateAndWait(page, '/plan');
     await clearWorkoutDraftDb(page, E2E_UID);
+    // Cold reload usuwa pamięć komponentu i oczekujące callbacki poprzedniej
+    // sesji; następny ekran musi odbudować stan wyłącznie z trwałych warstw.
     await page.reload();
+    await expectPageRendered(page);
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Kontynuuj trening/ }).first().click();
     await skipPreStartWarmupIfShown(page);

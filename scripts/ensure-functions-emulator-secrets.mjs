@@ -4,7 +4,10 @@ import { resolve } from 'node:path';
 const secretPath = resolve('functions/.secret.local');
 const emulatorSecrets = [
   '# Wartości wyłącznie dla lokalnego emulatora. Plik jest ignorowany przez Git.',
-  'RESEND_API_KEY=e2e-emulator-only',
+  'SES_REGION=eu-central-1',
+  'SES_ACCESS_KEY_ID=e2e-emulator-only',
+  'SES_SECRET_ACCESS_KEY=e2e-emulator-only',
+  'SES_FROM=Strength Save <noreply@example.invalid>',
   'API_KEY_PEPPER=e2e-emulator-pepper',
   '',
 ].join('\n');

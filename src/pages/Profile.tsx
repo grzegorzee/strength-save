@@ -35,14 +35,12 @@ import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
-  Lock, Globe, HelpCircle, Mail, Info, LogOut, Plus, Loader2,
+  Lock, Globe, HelpCircle, Mail, Bug, Info, LogOut, Plus, Loader2,
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
   Dumbbell, ChevronRight, Watch, Eye, EyeOff, Timer, Weight,
   UserRound, Bell, Database, DatabaseBackup, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
-import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
-import { computeMilestones, tierForIndex } from '@/lib/achievements-utils';
 import { calculateTonnage, calculateStreakDetails, countWorkoutCompletedWorkingSets, streakDetailsFromDates } from '@/lib/summary-utils';
 import { formatTonnage } from '@/lib/units';
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
@@ -60,6 +58,7 @@ import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
 import { StravaConnectionCard } from '@/components/StravaConnectionCard';
 import { BackupSettings } from '@/components/BackupSettings';
 import { ConsentSettings } from '@/components/ConsentSettings';
+import { BugReportDialog } from '@/components/BugReportDialog';
 import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { loadRestSettings } from '@/lib/rest-timer';
@@ -125,33 +124,11 @@ const Profile = () => {
   const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
   const tier = computeTier(completedCount, 0, lang);
 
-  // PRO-D T6: sekcja dumy — 3 najwyższe zdobyte odznaki. Dane z agregatu (fallback:
-  // okno recent), więc tylko kategorie workouts+tonnage (records wymaga pełnej historii).
   const totalTonnage = aggregate?.totals.totalTonnageKg
     ?? calculateTonnage(workouts.filter((w) => w.completed));
-  const prideMilestones = computeMilestones({
-    completedWorkouts: completedCount,
-    totalTonnage,
-    exercisesWithRecord: 0,
-  }).filter((m) => m.category !== 'records');
-  const PRIDE_ICONS = { workouts: Trophy, tonnage: Dumbbell } as const;
-  const recentBadges = prideMilestones
-    .filter((m) => m.achieved)
-    .sort((a, b) => b.threshold - a.threshold)
-    .slice(0, 3)
-    .map((m) => {
-      const catItems = prideMilestones.filter((x) => x.category === m.category);
-      return {
-        ...m,
-        tier: tierForIndex(catItems.indexOf(m), catItems.length),
-        icon: PRIDE_ICONS[m.category as 'workouts' | 'tonnage'],
-      };
-    });
-  const prideLabel = (m: { category: string; threshold: number }) => m.category === 'tonnage'
-    ? t('achievements.ms.tonnage', { n: Number((toDisplay(m.threshold) / 1000).toFixed(1)), unit: unit === 'lbs' ? ' k lbs' : 't' })
-    : t('achievements.ms.workouts', { n: m.threshold });
 
-  // Fala 2: kafle TWOJA DUMA — same realne dane. Streak z pełnej historii
+  // Fala 2: kafle TWOJA DUMA — same realne dane i realne cele nawigacji.
+  // Streak z pełnej historii
   // agregatu (okno recent przycinałoby długie serie), serie z totals;
   // fallback okna = dotychczasowa semantyka completedCount.
   const streak = (aggregate
@@ -160,10 +137,10 @@ const Profile = () => {
   const totalSets = aggregate?.totals.totalSets
     ?? workouts.filter((w) => w.completed).reduce((sum, w) => sum + countWorkoutCompletedWorkingSets(w), 0);
   const prideTiles = [
-    { key: 'workouts', value: String(completedCount), label: t('profile.pride.tile.workouts'), accent: false },
-    { key: 'streak', value: t('profile.pride.tile.streakValue', { n: streak }), label: t('profile.pride.tile.streak'), accent: true },
-    { key: 'tonnage', value: formatTonnage(totalTonnage, unit), label: t('profile.pride.tile.tonnage'), accent: false },
-    { key: 'sets', value: String(totalSets), label: t('profile.pride.tile.sets'), accent: false },
+    { key: 'workouts', value: String(completedCount), label: t('profile.pride.tile.workouts'), accent: false, target: '/history' },
+    { key: 'streak', value: t('profile.pride.tile.streakValue', { n: streak }), label: t('profile.pride.tile.streak'), accent: true, target: '/achievements?view=analytics&tab=charts&chart=streak' },
+    { key: 'tonnage', value: formatTonnage(totalTonnage, unit), label: t('profile.pride.tile.tonnage'), accent: false, target: '/achievements?view=analytics&tab=charts&chart=tonnage' },
+    { key: 'sets', value: String(totalSets), label: t('profile.pride.tile.sets'), accent: false, target: '/history?list=all' },
   ];
   const subscriptionInfo = useSubscription();
   const subSummary = summarizeSubscription({
@@ -231,6 +208,7 @@ const Profile = () => {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   // Krok 5 (spec 2026-08-11): reset hasła za potwierdzeniem — jedno tapnięcie
   // w wiersz nie wysyła już maila od razu.
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -564,8 +542,8 @@ const Profile = () => {
         )}
       </section>
 
-      {/* PRO-D T6 + fala 2: kafle statystyk all-time (zera są prawdziwe, więc
-          renderują się zawsze); rząd odznak tylko przy zdobytych. */}
+      {/* Fala 2: klikalne kafle statystyk all-time (zera są prawdziwe, więc
+          renderują się zawsze). Odznaki pozostają na osobnym ekranie „Wszystkie”. */}
       <section id="profile-pride" className="scroll-mt-20 space-y-2.5">
         <div className="flex items-baseline justify-between">
           <h2 className="eyebrow-mono text-muted-foreground">{t('profile.pride.label')}</h2>
@@ -579,36 +557,25 @@ const Profile = () => {
         </div>
         <div className="flex gap-2">
           {prideTiles.map((tile) => (
-            <div
+            <button
+              type="button"
               key={tile.key}
+              data-testid={`profile-pride-${tile.key}`}
+              onClick={() => navigate(tile.target)}
               className={cn(
-                'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1.5 py-3',
+                'flex min-h-11 min-w-0 flex-1 touch-manipulation flex-col items-center gap-1 rounded-2xl px-1.5 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
                 tile.accent ? 'bg-primary/15' : 'bg-surface-container',
               )}
             >
               <span className={cn('font-heading text-lg font-bold leading-none', tile.accent && 'text-primary')}>
                 {tile.value}
               </span>
-              <span className="text-center font-mono text-[8px] uppercase tracking-[0.08em] text-muted-foreground">
+              <span className="text-center font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                 {tile.label}
               </span>
-            </div>
+            </button>
           ))}
         </div>
-        {recentBadges.length > 0 && (
-          <div className="flex gap-3 pt-1">
-            {recentBadges.map((b) => (
-              <AchievementBadge
-                key={`${b.category}-${b.threshold}`}
-                size="sm"
-                label={prideLabel(b)}
-                earned
-                tier={b.tier}
-                icon={b.icon}
-              />
-            ))}
-          </div>
-        )}
       </section>
 
       {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej
@@ -1003,6 +970,7 @@ const Profile = () => {
         <SettingRow compact icon={Lock} label={t('profile.account.password')} onClick={() => { if (profile?.email) setResetConfirmOpen(true); }} />
         {/* Z241: help prowadził do samej apki (app.strengthsave.app) — teraz landing z FAQ. */}
         <SettingRow compact icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://strengthsave.app/', '_blank')} />
+        <SettingRow compact icon={Bug} label={t('profile.support.reportBug')} onClick={() => setBugReportOpen(true)} />
         <SettingRow compact icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:contact@strengthsave.app'; }} />
         <SettingRow compact icon={Info} label={t('profile.support.about')} value={__APP_VERSION__} onClick={() => setAboutOpen(true)} />
       </ProfileAccordionSection>
@@ -1100,6 +1068,8 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
 
+      <BugReportDialog open={bugReportOpen} uid={uid} onOpenChange={setBugReportOpen} />
+
       {/* About dialog (Z241): wersja + linki prawne zamiast znikającego toastu */}
       <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
         <DialogContent className="rounded-xl border-0 bg-surface-low">
@@ -1108,6 +1078,7 @@ const Profile = () => {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{t('profile.about.desc')}</p>
           <p className="text-xs text-muted-foreground">{t('profile.about.version', { version: __APP_VERSION__ })}</p>
+          <p className="text-xs text-muted-foreground">{t('profile.about.copyright')}</p>
           <div className="flex gap-4 text-sm">
             <a
               href={TERMS_URL}

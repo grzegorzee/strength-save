@@ -26,6 +26,7 @@ import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
+import { MeasurementReadError } from '@/components/MeasurementReadError';
 
 const MeasurementTrendChart = lazyWithRetry(() => import('@/components/MeasurementTrendChart'), 'lazy-retry:measurement-trend');
 
@@ -58,7 +59,7 @@ const Measurements = () => {
   const objective = profile?.trainingProfile?.objective;
   const navigate = useNavigate();
   // Tier pomiarów: domyślny 'full' (365) — lista "Pokaż wszystkie" czyta pełne okno.
-  const { measurements, addMeasurement, updateMeasurement, deleteMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
+  const { measurements, measurementError, retryMeasurements, addMeasurement, updateMeasurement, deleteMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { fmt, fmtLength } = useUnit();
@@ -192,6 +193,8 @@ const Measurements = () => {
     <div className="space-y-6">
       {/* Wycofana zgoda zdrowotna (art. 9 RODO) blokuje NOWE zapisy pomiarów;
           historia zostaje widoczna, ponowna zgoda w Ustawieniach. */}
+      <MeasurementReadError error={measurementError} onRetry={retryMeasurements} />
+
       {!healthConsent && (
         <div className="rounded-2xl border border-fitness-warning bg-fitness-warning/10 p-4" data-testid="health-consent-banner">
           <p className="text-sm text-fitness-warning">{t('consent.healthBlockedBanner')}</p>

@@ -1,6 +1,6 @@
 // Szablony maili transakcyjnych (treść + tematy). Trzymane w kodzie, bo:
 // wersjonowane w git, testowalne, typowane, i18n PL/EN, łatwa zmiana providera.
-// registration.ts importuje stąd buildery i przekazuje wynik do Resend.
+// registration.ts importuje stąd buildery i przekazuje wynik do Amazon SES.
 
 export type Lang = "pl" | "en";
 

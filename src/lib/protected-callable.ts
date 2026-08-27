@@ -13,6 +13,31 @@ import { withTimeout } from '@/lib/promise-timeout';
 // consent-selection.ts).
 export const PROTECTED_CALLABLE_WEB_TIMEOUT_MS = 10000;
 
+export type ProtectedCallableRejectionReason =
+  | 'app-verification-required'
+  | 'registration-closed';
+
+/**
+ * Backend celowo używa permission-denied dla obu blokad rejestracji. UI może
+ * je rozróżnić wyłącznie po stabilnym details.reason; sam tekst błędu nie jest
+ * kontraktem i może być zlokalizowany albo zmieniony przez transport Firebase.
+ */
+export function getProtectedCallableRejectionReason(
+  error: unknown,
+): ProtectedCallableRejectionReason | null {
+  if (!error || typeof error !== 'object') return null;
+  const candidate = error as { code?: unknown; details?: unknown };
+  const code = typeof candidate.code === 'string'
+    ? candidate.code.replace(/^functions\//, '')
+    : '';
+  if (code !== 'permission-denied') return null;
+  if (!candidate.details || typeof candidate.details !== 'object') return null;
+  const reason = (candidate.details as { reason?: unknown }).reason;
+  return reason === 'app-verification-required' || reason === 'registration-closed'
+    ? reason
+    : null;
+}
+
 export async function callProtectedFunction<RequestData, ResponseData>(
   functionName: string,
   data: RequestData,

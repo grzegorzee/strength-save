@@ -72,8 +72,6 @@ const hexToHslParts = (hex: string): { h: number; s: number; l: number } => {
   return { h: Math.round(h * 60), s: Math.round(s * 100), l: Math.round(l * 100) };
 };
 
-const FOREGROUND_LUMINANCE_THRESHOLD = 0.28;
-
 const channelsLuminance = ([r, g, b]: [number, number, number]): number => {
   const lin = (c: number): number => {
     const v = c / 255;
@@ -83,6 +81,17 @@ const channelsLuminance = ([r, g, b]: [number, number, number]): number => {
 };
 
 const relativeLuminance = (hex: string): number => channelsLuminance(hexChannels(hex));
+
+// Dla dowolnego koloru jeden z dwóch skrajnych foregroundów (#000/#fff) ma
+// kontrast co najmniej 4.58:1. Poprzedni próg 0.28 oraz prawie-biel/czerń
+// zostawiały lukę: m.in. indigo, violet, magenta, rose i gray spadały poniżej
+// WCAG AA na CTA. Wybieramy wariant o faktycznie wyższym kontraście.
+const shouldUseLightForeground = (hex: string): boolean => {
+  const background = relativeLuminance(hex);
+  const contrastWithWhite = 1.05 / (background + 0.05);
+  const contrastWithBlack = (background + 0.05) / 0.05;
+  return contrastWithWhite >= contrastWithBlack;
+};
 
 // Naprawa r1 (2026-08-21, sędzia "jeden akcent"): przy ciemnych akcentach
 // (indigo, slate, ciemny custom) dwa problemy kontrastu:
@@ -188,21 +197,20 @@ export const applyAccent = (id: string): AccentTheme => {
     // akcentu (chipy filtrów Kinetic, badge secondary, nagłówki text-accent,
     // hover ghost/outline). Bez nadpisania zostawał limonkowy.
     root.style.setProperty('--accent', accent.hsl);
-    // Plan I: foreground per luminancja dla WSZYSTKICH akcentów (paleta ma
-    // teraz też ciemne kolory). Próg skorygowany globalnie 0.3 → 0.28:
-    // lavender (lum 0.29) z białym tekstem miał 2.9:1, z ciemnym ma 6.1:1;
-    // emerald (0.36) analogicznie zostaje przy ciemnym (7.3:1 vs 2.4:1).
-    if (relativeLuminance(accent.hex) < FOREGROUND_LUMINANCE_THRESHOLD) {
-      root.style.setProperty('--primary-foreground', '0 0% 98%');
-      root.style.setProperty('--accent-foreground', '0 0% 98%');
+    // CTA/badge dostają czystą biel albo czerń — wariant o wyższym kontraście.
+    // Dzięki temu również dowolny custom hex nie wpada w martwą strefę między
+    // prawie-bielą i prawie-czernią.
+    if (shouldUseLightForeground(accent.hex)) {
+      root.style.setProperty('--primary-foreground', '0 0% 100%');
+      root.style.setProperty('--accent-foreground', '0 0% 100%');
       // Naprawa r1: gradient CTA bez jasnego krańca pod białym tekstem —
       // ciemny akcent schodzi w dół (primary → primary ciemniejszy o 8 p.p.).
       const { h, s, l } = hexToHslParts(accent.hex);
       root.style.setProperty('--primary-light', `${h} ${s}% ${Math.max(10, l - 8)}%`);
       root.style.setProperty('--primary-text', readableTextHsl(accent.hex));
     } else {
-      root.style.removeProperty('--primary-foreground');
-      root.style.removeProperty('--accent-foreground');
+      root.style.setProperty('--primary-foreground', '0 0% 0%');
+      root.style.setProperty('--accent-foreground', '0 0% 0%');
       root.style.setProperty('--primary-light', accent.lightHsl);
       root.style.removeProperty('--primary-text');
     }

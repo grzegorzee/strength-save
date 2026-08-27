@@ -4,7 +4,6 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { Resend } from "resend";
 import {
   type Lang,
   verificationSubject,
@@ -27,7 +26,6 @@ import {
   providerFromSignInProvider,
   providerGetsImmediateAccess,
   readFeatureFlags,
-  resendErrorMessage,
   buildGrantedSubscription,
   resolveGrantStartedAt,
   restoreRevokedSubscription,
@@ -38,8 +36,8 @@ import { writeEmailLog } from "./email-log";
 import { buildAnnouncementEvents } from "./announcement-events";
 import { splitAnnouncementRecipients } from "./announcement-recipients";
 import { forEachWithConcurrency } from "./bounded-concurrency";
+import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail } from "./ses-email";
 
-const resendApiKey = defineSecret("RESEND_API_KEY");
 const authPepper = defineSecret("API_KEY_PEPPER");
 
 const USERS_COLLECTION = "users";
@@ -50,6 +48,7 @@ const AUTH_AUDIT_COLLECTION = "auth_audit_logs";
 const NOTIFICATION_LOGS_COLLECTION = "notification_logs";
 const FCM_TOKEN_REGISTRATIONS_COLLECTION = "fcm_token_registrations";
 const DELETION_OPERATIONS_COLLECTION = "deletion_operations";
+const PENDING_SUBSCRIPTION_GRANTS_COLLECTION = "pending_subscription_grants";
 
 type UserStatus = "pending_verification" | "active" | "suspended" | "deleted";
 type InviteStatus = "active" | "redeemed" | "revoked" | "expired";
@@ -93,6 +92,7 @@ interface UserProfileDoc {
     accessChangedSentAt?: string | null;
   };
   features?: Record<string, boolean>;
+  subscription?: Record<string, unknown>;
 }
 
 interface InviteDoc {
@@ -240,6 +240,15 @@ function sanitizedIdentifierHash(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Nieodwracalny identyfikator grantu PRO czekającego na pierwszą rejestrację.
+ * Email pochodzi wyłącznie ze zweryfikowanego tokenu Firebase Auth; kolekcja nie
+ * jest dostępna w rules dla klienta i nie przechowuje adresu w plaintext.
+ */
+export function pendingSubscriptionGrantId(email: string): string {
+  return sanitizedIdentifierHash(normalizeEmail(email));
+}
+
 async function deleteQueryInBatches(query: FirebaseFirestore.Query, batchSize = ADMIN_DELETE_BATCH_SIZE): Promise<number> {
   let deleted = 0;
   while (true) {
@@ -283,28 +292,29 @@ async function sendEmail(params: {
   type: string;
   userId?: string | null;
 }): Promise<void> {
-  const apiKey = resendApiKey.value();
-  if (!apiKey) {
-    throw new HttpsError("failed-precondition", "Missing RESEND_API_KEY secret");
+  let result: Awaited<ReturnType<typeof sendSesEmail>> | null = null;
+  let errorMessage: string | null = null;
+  try {
+    result = await sendSesEmail({
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    });
+  } catch (error) {
+    errorMessage = safeSesErrorCode(error);
   }
-
-  const resend = new Resend(apiKey);
-  const response = await resend.emails.send({
-    from: "Strength Save <noreply@strengthsave.app>",
-    to: params.to,
-    subject: params.subject,
-    html: params.html,
-  });
 
   await writeNotificationLog({
     type: params.type,
     userId: params.userId ?? null,
     email: params.to,
-    responseId: response.data?.id ?? null,
-    error: response.error?.message ?? null,
+    transport: "ses",
+    responseId: result?.sesMessageId ?? null,
+    sesMessageId: result?.sesMessageId ?? null,
+    error: errorMessage,
+  }).catch((error) => {
+    console.error("Failed to write email notification log", error);
   });
-
-  const errorMessage = resendErrorMessage(response);
 
   // T21b: rejestr wysyłek dla panelu admina (email_log) — best-effort, nie może
   // zmienić semantyki sendEmail (HttpsError przy odrzuceniu zostaje bez zmian).
@@ -317,7 +327,8 @@ async function sendEmail(params: {
       to: params.to,
       type: params.type,
       subject: isVerification ? "[verification code]" : params.subject,
-      transport: "resend",
+      transport: "ses",
+      ...(result?.sesMessageId ? { sesMessageId: result.sesMessageId } : {}),
       status: errorMessage ? "failed" : "sent",
       ...(errorMessage ? { error: errorMessage } : {}),
       sentAt: nowIso(),
@@ -327,7 +338,10 @@ async function sendEmail(params: {
   }
 
   if (errorMessage) {
-    throw new HttpsError("unavailable", `Email provider rejected message: ${errorMessage}`);
+    const code = errorMessage === "ses-not-configured"
+      ? "failed-precondition"
+      : "unavailable";
+    throw new HttpsError(code, `Email provider rejected message: ${errorMessage}`);
   }
 }
 
@@ -360,7 +374,7 @@ async function isInviteUsable(code: string, email: string): Promise<boolean> {
   return true;
 }
 
-export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (request) => {
+export const syncUserProfile = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
@@ -390,11 +404,15 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
       inviteValid,
       appCheckAppId: request.app?.appId,
     })) {
+      const reason = registrationOpen
+        ? "app-verification-required"
+        : "registration-closed";
       throw new HttpsError(
         "permission-denied",
         registrationOpen
           ? "Rejestracja wymaga ważnego zaproszenia lub zweryfikowanej aplikacji."
-          : "Registration is currently closed"
+          : "Registration is currently closed",
+        { reason },
       );
     }
     const immediateAccess = providerGetsImmediateAccess(provider);
@@ -432,14 +450,44 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
       },
       features: {},
     };
-    await userRef.set(nextProfile, { merge: true });
+    const pendingGrantRef = getDb().collection(PENDING_SUBSCRIPTION_GRANTS_COLLECTION)
+      .doc(pendingSubscriptionGrantId(email));
+    const pendingGrantSnap = await pendingGrantRef.get();
+    let pendingGrantApplied = false;
+    if (pendingGrantSnap.exists && pendingGrantSnap.data()?.status === "pending") {
+      try {
+        const grant = buildGrantedSubscription({ days: pendingGrantSnap.data()?.days ?? null }, Date.now());
+        nextProfile.subscription = {
+          ...grant,
+          startedAt: timestamp,
+          updatedAt: timestamp,
+        };
+        const batch = getDb().batch();
+        batch.set(userRef, nextProfile, { merge: true });
+        batch.delete(pendingGrantRef);
+        await batch.commit();
+        pendingGrantApplied = true;
+      } catch (error) {
+        console.error("Invalid pending subscription grant", {
+          grantId: pendingGrantRef.id,
+          error: error instanceof Error ? error.message : "invalid-grant",
+        });
+      }
+    }
+    if (!pendingGrantApplied) {
+      await userRef.set(nextProfile, { merge: true });
+    }
     await writeAuthAuditLog({
       eventType: immediateAccess ? `register_${provider}` : "register_email_pending",
       uid,
       email,
       actorUid: uid,
       createdAt: timestamp,
-      metadata: { provider, appCheckAppId: request.app?.appId || null },
+      metadata: {
+        provider,
+        appCheckAppId: request.app?.appId || null,
+        pendingSubscriptionGrantApplied: pendingGrantApplied,
+      },
     });
     if (immediateAccess) {
       await maybeSendWelcomeEmail(userRef, nextProfile);
@@ -486,7 +534,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
   return { profile: refreshed.data() };
 });
 
-export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, authPepper] }, async (request) => {
+export const requestEmailVerificationCode = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepper] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
@@ -519,7 +567,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
   const code = randomVerificationCode();
   const timestamp = nowIso();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  // pending_send nie uruchamia cooldownu. Gdy Resend odrzuci mail, dokument jest
+  // pending_send nie uruchamia cooldownu. Gdy SES odrzuci mail, dokument jest
   // usuwany, więc użytkownik może natychmiast ponowić próbę.
   await codeRef.set({
     email,
@@ -565,7 +613,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
   return { sent: true };
 });
 
-export const verifyEmailCode = onCall({ secrets: [resendApiKey, authPepper] }, async (request) => {
+export const verifyEmailCode = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepper] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
@@ -770,7 +818,7 @@ export async function unregisterPushTokenForUser(uid: string, token: string): Pr
   });
 }
 
-export const createInvite = onCall({ secrets: [resendApiKey] }, async (request) => {
+export const createInvite = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
@@ -961,7 +1009,7 @@ export const listWaitlistEntries = onCall(async (request) => {
   };
 });
 
-export const updateUserAccess = onCall({ secrets: [resendApiKey] }, async (request) => {
+export const updateUserAccess = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
 
@@ -1046,7 +1094,7 @@ export const adminGetUserLogs = onCall(async (request) => {
 });
 
 // Wyślij własnego maila do użytkownika.
-export const adminSendUserEmail = onCall({ secrets: [resendApiKey] }, async (request) => {
+export const adminSendUserEmail = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
   const uid = normalizeOptionalString(request.data?.uid, 120);
@@ -1064,7 +1112,7 @@ export const adminSendUserEmail = onCall({ secrets: [resendApiKey] }, async (req
 });
 
 // Ponowne wysłanie kodu weryfikacyjnego do wybranego użytkownika (admin).
-export const adminResendVerification = onCall({ secrets: [resendApiKey, authPepper] }, async (request) => {
+export const adminResendVerification = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepper] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
   const uid = normalizeOptionalString(request.data?.uid, 120);
@@ -1093,7 +1141,7 @@ export const adminResendVerification = onCall({ secrets: [resendApiKey, authPepp
 });
 
 // Broadcast mailowy do wszystkich lub do cohorty.
-export const adminBroadcastEmail = onCall({ secrets: [resendApiKey] }, async (request) => {
+export const adminBroadcastEmail = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
   const target = normalizeOptionalString(request.data?.target, 60) || "all"; // 'all' | nazwa cohorty
@@ -1259,10 +1307,17 @@ interface DeletionOperationDeps {
   deleteAvatarFiles?: (uid: string) => Promise<void>;
 }
 
+export const gdprStoragePrefixesForUser = (uid: string): string[] => [
+  `avatars/${uid}/`,
+  `body-photos/${uid}/`,
+  `bug-reports/${uid}/`,
+];
+
 async function deleteAvatarFilesForUser(uid: string): Promise<void> {
-  await admin.storage().bucket().deleteFiles({ prefix: `avatars/${uid}/` });
-  // T13a: zdjecia sylwetki (body-photos/{uid}/...) — GDPR cleanup razem z avatarami.
-  await admin.storage().bucket().deleteFiles({ prefix: `body-photos/${uid}/` });
+  // T13a + Report a bug: kompletne usunięcie prywatnych plików użytkownika.
+  for (const prefix of gdprStoragePrefixesForUser(uid)) {
+    await admin.storage().bucket().deleteFiles({ prefix });
+  }
 }
 
 async function purgeUserData(uid: string, deps: DeletionOperationDeps = {}): Promise<Record<string, number>> {
@@ -1517,7 +1572,7 @@ export const adminRevokeSubscription = onCall(async (request) => {
 
 // Self-service usunięcie własnego konta (wymóg Apple 5.1.1(v) + Play account deletion).
 // Z238: konto zamyka się od razu (Auth usunięty), dane po 30-dniowej karencji (cron).
-export const deleteOwnAccount = onCall({ secrets: [resendApiKey] }, async (request) => {
+export const deleteOwnAccount = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   const uid = request.auth.uid;
 

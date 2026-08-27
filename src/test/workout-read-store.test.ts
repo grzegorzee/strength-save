@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getWorkoutReadSnapshot, subscribeWorkoutReads } from '@/lib/workout-read-store';
+import { getWorkoutReadSnapshot, retryMeasurementReads, subscribeWorkoutReads } from '@/lib/workout-read-store';
 import { reportClientError } from '@/lib/error-telemetry';
 
 type SnapshotHandler = (snapshot: {
@@ -115,6 +115,26 @@ describe('błędy listenerów: snapshot.error + telemetria (bug 40)', () => {
       phase: 'other',
       detail: expect.stringContaining('measurements-listener'),
     }));
+    unsubscribe();
+  });
+
+  it('retry ponownie otwiera listener i usuwa błąd dopiero po udanym snapshotcie', () => {
+    const unsubscribe = subscribeWorkoutReads('user-retry-m', () => undefined);
+    errorHandlers[1](new Error('offline'));
+
+    retryMeasurementReads('user-retry-m');
+
+    expect(snapshotHandlers).toHaveLength(3);
+    expect(getWorkoutReadSnapshot('user-retry-m').measurementError).toBe('offline');
+
+    snapshotHandlers[2]({
+      docs: [{ id: 'm-1', data: () => ({ userId: 'user-retry-m', date: '2026-08-27', weight: 80 }) }],
+      metadata: { fromCache: false },
+    });
+
+    const snapshot = getWorkoutReadSnapshot('user-retry-m');
+    expect(snapshot.measurements.map(measurement => measurement.id)).toEqual(['m-1']);
+    expect(snapshot.measurementError).toBeNull();
     unsubscribe();
   });
 

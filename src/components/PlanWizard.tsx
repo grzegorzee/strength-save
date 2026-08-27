@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, User } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
@@ -12,7 +12,7 @@ import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { buildFirstWorkoutSchedule, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
-import { ACCENTS, applyAccent, getAccentById, hasStoredAccent, readStoredAccentId, storeAccentId, type AccentTheme } from '@/lib/accent-theme';
+import { ACCENTS, applyAccent, getAccentById, readStoredAccentId, storeAccentId, type AccentTheme } from '@/lib/accent-theme';
 import { deriveAccentCandidatesFromAvatar } from '@/lib/avatar-accent';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, hasExactWeekdaySelection, planDaysMismatch, uniqueSortedWeekdays, WEEKDAYS } from '@/lib/plan-cycle-utils';
@@ -172,8 +172,8 @@ interface PlanWizardProps {
   askName?: boolean;
   initialName?: string;
   /**
-   * X29 WP-H: avatar konta (photoURL) do auto-doboru akcentu na Welcome.
-   * Preselekcja odpala się TYLKO bez zapisanego wyboru (hasStoredAccent).
+   * Avatar konta do lokalnego dopasowania kandydatów koloru na Welcome.
+   * Pierwszy kandydat jest wybierany tylko bez wcześniejszego wyboru usera.
    */
   avatarPhotoURL?: string;
   /** X33 WP-8: e-mail konta — litera w kółku avatara, gdy nie ma ani zdjęcia, ani imienia. */
@@ -246,34 +246,38 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // pusta lista = dokładnie dotychczasowa paleta. Zdjęcie po błędzie ładowania
   // ustępuje inicjałom (Apple Sign-In nie daje zdjęcia, więc to wariant równorzędny).
   const [photoAccentIds, setPhotoAccentIds] = useState<string[]>([]);
+  const [photoAccentLoading, setPhotoAccentLoading] = useState(false);
+  const photoAccentRequestRef = useRef(0);
   const [avatarBroken, setAvatarBroken] = useState(false);
   const orderedAccents = useMemo(() => [
     ...photoAccentIds.map((id) => getAccentById(id)),
     ...ACCENTS.filter((a) => !photoAccentIds.includes(a.id)),
   ], [photoAccentIds]);
-  // X29 WP-H: preselekcja akcentu z avatara na Welcome — user od razu widzi
-  // "swój" kolor zaznaczony i może zmienić. Odpala się TYLKO bez zapisanego
-  // wyboru (zasada 5); każdy problem = cichy fail, zostaje limonka.
-  // X33 WP-8: kandydaci liczą się zawsze (kropki), preselekcja = pierwszy z nich.
+  // Avatar jest danymi osobowymi. Samo wyświetlenie zdjęcia dostawcy logowania nie
+  // uruchamia jego analizy; dopiero jawne CTA pozwala lokalnie wyznaczyć propozycje.
+  // Propozycja nigdy nie zapisuje koloru automatycznie, więc stary przepływ i
+  // wcześniejszy wybór pozostają bez zmian.
   useEffect(() => {
-    if (!askName || !avatarPhotoURL) return;
-    let cancelled = false;
-    deriveAccentCandidatesFromAvatar(avatarPhotoURL)
-      .then((candidates) => {
-        if (cancelled) return;
-        setPhotoAccentIds(candidates);
-        const derived = candidates[0];
-        // Re-check: user mógł kliknąć swatch, zanim avatar się pobrał.
-        if (!derived || hasStoredAccent()) return;
-        applyAccent(derived);
-        storeAccentId(derived);
-        setAccentId(derived);
-      })
-      .catch(() => {
-        // Cichy fail — zostaje limonka.
-      });
-    return () => { cancelled = true; };
+    photoAccentRequestRef.current += 1;
+    setPhotoAccentIds([]);
+    setPhotoAccentLoading(false);
   }, [askName, avatarPhotoURL]);
+  const derivePhotoAccents = async () => {
+    if (!askName || !avatarPhotoURL || photoAccentLoading) return;
+    const requestId = photoAccentRequestRef.current + 1;
+    photoAccentRequestRef.current = requestId;
+    setPhotoAccentLoading(true);
+    try {
+      const candidates = await deriveAccentCandidatesFromAvatar(avatarPhotoURL);
+      if (photoAccentRequestRef.current !== requestId) return;
+      setPhotoAccentIds(candidates);
+    } catch {
+      // Przycisk pozostaje dostępny do retry, a gotowa paleta jest ścieżką wyjścia.
+      if (photoAccentRequestRef.current === requestId) setPhotoAccentIds([]);
+    } finally {
+      if (photoAccentRequestRef.current === requestId) setPhotoAccentLoading(false);
+    }
+  };
   const greetingName = userName.trim();
   const avatarInitial = (greetingName || accountEmail?.trim() || '').charAt(0).toUpperCase();
   const renderAccentSwatch = (a: AccentTheme) => (
@@ -285,7 +289,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
       data-testid={`ob-accent-${a.id}`}
       onClick={() => pickAccent(a.id)}
-      className={`h-8 w-8 rounded-full transition-transform active:scale-95 ${accentId === a.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
+      className={`h-11 w-11 rounded-full transition-transform active:scale-95 ${accentId === a.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
       style={{ backgroundColor: a.hex }}
     />
   );
@@ -532,6 +536,20 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   {/* Plan I: kolor aplikacji przy pytaniu o imię — tylko paleta
                       (custom hex zostaje w Profilu), klik = live preview. */}
                   <p className="mt-5 mb-2 block text-xs font-medium uppercase tracking-widest text-muted-foreground">{t('ob.welcome.colorQ')}</p>
+                  {avatarPhotoURL && (
+                    <div className="mb-3 rounded-xl bg-surface-low p-3">
+                      <p className="text-[11px] leading-snug text-muted-foreground">{t('ob.welcome.photoAccentPrivacy')}</p>
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60"
+                        disabled={photoAccentLoading}
+                        onClick={() => void derivePhotoAccents()}
+                      >
+                        {photoAccentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {t('ob.welcome.photoAccentCta')}
+                      </button>
+                    </div>
+                  )}
                   {/* X33 WP-8: kandydaci ze zdjęcia jako pierwsze kropki (własny
                       wiersz z etykietą), reszta palety po nich; bez kandydatów
                       DOM jest dokładnie dotychczasowy. */}
@@ -573,7 +591,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             <StepHeader step={2} total={6} onBack={() => (showWelcome ? setStep(1) : onExitBack?.())} />
             <div className="mt-7 mb-5">
               <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
-                {t('ob.baseline.title1')} <span className="text-primary italic">{t('ob.baseline.title2')}</span>
+                {t('ob.baseline.title1')} <span className="text-primary">{t('ob.baseline.title2')}</span>
               </h1>
               <p className="text-muted-foreground mt-2">{t('ob.baseline.desc')}</p>
             </div>
@@ -608,7 +626,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
           <>
             <StepHeader step={4} total={6} onBack={() => setStep(3)} />
             <div className="mt-7 mb-5">
-              <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight italic">
+              <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
                 {t('ob.protocol.title1')} <span className="text-primary">{t('ob.protocol.title2')}</span>
               </h1>
               <p className="text-muted-foreground mt-2">{t('ob.protocol.desc')}</p>

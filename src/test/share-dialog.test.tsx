@@ -16,6 +16,24 @@ vi.mock('@/lib/share-utils', () => ({
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => true },
 }));
+const nativeExportMocks = vi.hoisted(() => ({
+  writeFile: vi.fn(async () => ({ uri: 'file:///cache/workout.jpg' })),
+  readdir: vi.fn(async () => ({ files: [] })),
+  deleteFile: vi.fn(async () => undefined),
+  share: vi.fn(async () => ({ activityType: 'test' })),
+}));
+vi.mock('@capacitor/filesystem', () => ({
+  Directory: { Cache: 'CACHE' },
+  Encoding: { UTF8: 'UTF8' },
+  Filesystem: {
+    writeFile: nativeExportMocks.writeFile,
+    readdir: nativeExportMocks.readdir,
+    deleteFile: nativeExportMocks.deleteFile,
+  },
+}));
+vi.mock('@capacitor/share', () => ({
+  Share: { share: nativeExportMocks.share },
+}));
 vi.mock('@/lib/haptics', () => ({
   hapticSuccess: vi.fn(async () => undefined),
 }));
@@ -30,19 +48,18 @@ const data: ShareData = {
   streak: 4,
 };
 
-const shareMock = vi.fn();
-
 beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   localStorage.removeItem('fittracker_share_template_v1');
-  shareMock.mockReset();
+  nativeExportMocks.writeFile.mockReset().mockResolvedValue({ uri: 'file:///cache/workout.jpg' });
+  nativeExportMocks.readdir.mockReset().mockResolvedValue({ files: [] });
+  nativeExportMocks.deleteFile.mockReset().mockResolvedValue(undefined);
+  nativeExportMocks.share.mockReset().mockResolvedValue({ activityType: 'test' });
   vi.mocked(hapticSuccess).mockClear();
   vi.stubGlobal('URL', Object.assign(URL, {
     createObjectURL: vi.fn(() => 'blob:mock'),
     revokeObjectURL: vi.fn(),
   }));
-  Object.defineProperty(navigator, 'share', { configurable: true, value: shareMock });
-  Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
 });
 
 afterEach(() => {
@@ -59,7 +76,6 @@ const renderDialog = () => render(
 
 describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
   it('udany share po Pobierz: "Zapisano ✓" + hapticSuccess, potem powrót do "Pobierz"', async () => {
-    shareMock.mockResolvedValue(undefined);
     renderDialog();
 
     const download = await screen.findByRole('button', { name: /Pobierz/i });
@@ -76,7 +92,7 @@ describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
   it('AbortError (zamknięty sheet) NIE udaje sukcesu: bez "Zapisano", bez haptyki', async () => {
     const abort = new Error('cancelled');
     abort.name = 'AbortError';
-    shareMock.mockRejectedValue(abort);
+    nativeExportMocks.share.mockRejectedValue(abort);
     renderDialog();
 
     const download = await screen.findByRole('button', { name: /Pobierz/i });
@@ -89,7 +105,6 @@ describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
   });
 
   it('udany share po Udostępnij: stan Zapisano na przycisku share', async () => {
-    shareMock.mockResolvedValue(undefined);
     renderDialog();
 
     const share = await screen.findByRole('button', { name: /Udostępnij/i });

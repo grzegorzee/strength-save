@@ -91,7 +91,7 @@ export const LivePRCelebration = ({
         {t('workout.livePR.title')}
       </p>
       <p className="px-8 text-center font-heading text-3xl font-bold uppercase tracking-tight">{data.name}</p>
-      <p className="font-heading text-5xl font-extrabold tabular-nums text-primary leading-none">
+      <p className="font-heading text-5xl font-bold tabular-nums text-primary leading-none">
         {data.value}
       </p>
       <p className="text-lg font-semibold tabular-nums text-fitness-success">({data.delta})</p>

@@ -58,6 +58,7 @@ import { logAdminAction } from '@/lib/admin-audit';
 import { AdminAuditLog } from './AdminAuditLog';
 import { AdminConsentsLog } from './AdminConsentsLog';
 import { AdminEmailsCard } from './AdminEmailsCard';
+import { AdminBugReportsCard } from './AdminBugReportsCard';
 import { useCurrentUser } from '@/contexts/UserContext';
 
 const ADMIN_USERS_LISTENER_LIMIT = 200;
@@ -608,7 +609,7 @@ const AdminDashboard = () => {
         </Button>
       </div>
       <div>
-        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('admin.title')}</h1>
+        <h1 className="text-2xl font-heading font-bold uppercase tracking-tight">{t('admin.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('admin.subtitle')}</p>
       </div>
 
@@ -847,6 +848,8 @@ const AdminDashboard = () => {
 
       {/* G-T4: rejestr wysyłek maili + dostarczalność (email_log + zdarzenia SES) */}
       <AdminEmailsCard />
+
+      <AdminBugReportsCard />
 
       {/* X35b (WP-B): narzędzia naprawcze konta admina, dawniej na /settings. */}
       <AdminRepairToolsCard />

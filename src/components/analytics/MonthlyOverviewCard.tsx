@@ -28,7 +28,7 @@ export const MonthlyOverviewCard = ({ workouts }: { workouts: WorkoutSession[] }
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+        <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
           <CalendarRange className="h-4 w-4 text-primary" />
           {t('analytics.months.title')}
         </CardTitle>

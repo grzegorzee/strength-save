@@ -38,6 +38,7 @@ const TYPE_LABEL_KEYS: Record<string, TranslationKey> = {
   invite_email: 'admin.emails.typeInvite',
   access_changed: 'admin.emails.typeAccessChanged',
   self_deletion_notice: 'admin.emails.typeSelfDeletion',
+  bug_report: 'admin.emails.typeBugReport',
 };
 
 export function emailTypeLabelKey(type: string): TranslationKey | null {

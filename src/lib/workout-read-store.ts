@@ -114,6 +114,8 @@ export interface WorkoutReadSnapshot {
   measurements: BodyMeasurement[];
   isLoaded: boolean;
   error: string | null;
+  /** Błąd wyłącznie listenera pomiarów; UI nie może mylić go z historią treningów. */
+  measurementError: string | null;
   // true dopóki snapshot pochodzi z persistentLocalCache — stale rewizje z cache
   // NIE mogą seedować baseline konfliktu (audyt 3.5).
   workoutsFromCache: boolean;
@@ -136,6 +138,7 @@ const EMPTY_SNAPSHOT: WorkoutReadSnapshot = {
   measurements: [],
   isLoaded: false,
   error: null,
+  measurementError: null,
   workoutsFromCache: true,
 };
 
@@ -146,6 +149,7 @@ const EMPTY_LOADED_SNAPSHOT: WorkoutReadSnapshot = {
   measurements: [],
   isLoaded: true,
   error: null,
+  measurementError: null,
   workoutsFromCache: true,
 };
 
@@ -233,6 +237,7 @@ const ensureMeasurementListener = (userId: string, entry: StoreEntry): void => {
         measurements: snapshot.docs
           .map(measurementDoc => toMeasurement(userId, measurementDoc.id, measurementDoc.data()))
           .filter((measurement): measurement is BodyMeasurement => measurement !== null),
+        measurementError: null,
       });
     },
     (err) => {
@@ -241,7 +246,7 @@ const ensureMeasurementListener = (userId: string, entry: StoreEntry): void => {
       // error do snapshotu + client_errors. isLoaded zostaje przy listenerze
       // treningów (otwiera go jego sukces LUB błąd) — tu go nie ruszamy.
       console.error('Error fetching measurements:', err);
-      emit(entry, { error: err.message });
+      emit(entry, { error: err.message, measurementError: err.message });
       void reportClientError(userId, { code: 'listener-error', phase: 'other', detail: `measurements-listener: ${err.message}` });
     },
   );
@@ -289,7 +294,7 @@ const startStore = (userId: string, entry: StoreEntry): void => {
   if (isBackendDisabledForMockE2E()) {
     if (!entry.snapshot.isLoaded) {
       // E2E mock: historia treningów wstrzykiwana z localStorage (wzorzec fittracker_e2e_cycles).
-      entry.snapshot = { workouts: readE2EWorkouts(), measurements: readE2EMeasurements(), isLoaded: true, error: null, workoutsFromCache: false };
+      entry.snapshot = { workouts: readE2EWorkouts(), measurements: readE2EMeasurements(), isLoaded: true, error: null, measurementError: null, workoutsFromCache: false };
     }
     return;
   }
@@ -334,6 +339,16 @@ export const subscribeWorkoutReads = (
 export const getWorkoutReadSnapshot = (userId: string): WorkoutReadSnapshot => {
   if (!userId) return EMPTY_LOADED_SNAPSHOT;
   return getOrCreateStore(userId).snapshot;
+};
+
+/** Bug 40: jawna ścieżka wyjścia z błędu listenera pomiarów. Zachowuje ostatnie
+ * poprawne dane i error do chwili pierwszego udanego snapshotu. */
+export const retryMeasurementReads = (userId: string): void => {
+  if (!userId || isBackendDisabledForMockE2E()) return;
+  const entry = getOrCreateStore(userId);
+  entry.unsubscribeMeasurements?.();
+  entry.unsubscribeMeasurements = null;
+  ensureMeasurementListener(userId, entry);
 };
 
 const buildWorkoutHistoryConstraints = (

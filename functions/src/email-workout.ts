@@ -1,6 +1,6 @@
 // F-T3: wysyłka podsumowania treningu mailem (np. do trenera).
 // Czysta logika + wstrzykiwane deps (ten sam wzorzec co weekly-digest):
-// callable w index.ts skleja Firestore + transport (SES z fallbackiem Resend).
+// callable w index.ts skleja Firestore + wspólny transport Amazon SES.
 import { esc, type Lang } from "./email-templates";
 import { detectEmailPRs, type EmailPR } from "./email-prs";
 import { localizeExerciseNameEn } from "./exercise-name-en";
@@ -41,8 +41,8 @@ export interface EmailWorkout {
   exercises?: EmailExercise[];
 }
 
-/** Metadane transportu z wysyłki: SES daje MessageId (klucz korelacji ze
- *  zdarzeniami SES), fallback Resend już nie. Błąd totalny = error. */
+/** Metadane transportu z wysyłki. `resend` pozostaje tylko w typie dla
+ *  zgodności historycznych wpisów; nowy runtime wysyła wyłącznie przez SES. */
 export interface SendEmailResult {
   transport?: "ses" | "resend";
   sesMessageId?: string;

@@ -105,7 +105,7 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <SheetContent side="bottom" className="bottom-[var(--keyboard-inset,0px)] max-h-[calc(100dvh-var(--keyboard-inset,0px))] overflow-y-auto rounded-t-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <SheetHeader className="text-left">
           <SheetTitle className="font-heading uppercase tracking-tight">{t('plates.title')}</SheetTitle>
           <SheetDescription>{t('plates.settingsDesc')}</SheetDescription>

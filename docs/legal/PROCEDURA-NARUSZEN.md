@@ -1,7 +1,7 @@
 # Procedura postępowania przy naruszeniu ochrony danych (art. 33-34 RODO)
 
 Administrator: WEB3 POWER Grzegorz Jasionowicz. Kontakt: contact@strengthsave.app.
-Ostatnia aktualizacja: 2026-08-11.
+Ostatnia aktualizacja: 2026-08-27.
 
 ## 1. Co jest naruszeniem
 
@@ -13,7 +13,9 @@ Naruszenie bezpieczeństwa prowadzące do przypadkowego lub niezgodnego z prawem
 - alerty Firebase / Google Cloud (billing, nietypowy ruch),
 - automatyczne testy rules w CI (`test:rules`) — regresja = potencjalna dziura,
 - zgłoszenia użytkowników na contact@strengthsave.app,
-- powiadomienia procesorów (Google, RevenueCat, Resend mają własne obowiązki notyfikacji).
+- powiadomienia procesorów (Google, RevenueCat i Amazon Web Services/Amazon SES mają
+  własne obowiązki notyfikacji); zdarzenia SES/SNS: reject, bounce, complaint i
+  delivery delay są sygnałem operacyjnym do triage, nie automatycznym dowodem naruszenia.
 
 ## 3. Kroki (zegar 72h startuje od STWIERDZENIA naruszenia)
 
@@ -25,7 +27,11 @@ Naruszenie bezpieczeństwa prowadzące do przypadkowego lub niezgodnego z prawem
    - wysokie ryzyko (dane zdrowotne szerzej ujawnione, dane logowania) → dodatkowo zawiadomienie osób (pkt 6).
 4. **Zgłoszenie do UODO** (72h): formularz elektroniczny na uodo.gov.pl (albo pismo). Zakres z art. 33 ust. 3: charakter naruszenia, kategorie i przybliżona liczba osób i rekordów, kontakt, możliwe konsekwencje, podjęte środki. Nie masz kompletu danych → zgłoś częściowo i uzupełniaj sukcesywnie (art. 33 ust. 4).
 5. **Rejestr naruszeń** (obowiązkowy dla WSZYSTKICH naruszeń, także niezgłaszanych): wpis w `docs/legal/rejestr-naruszen.md` (utworzyć przy pierwszym incydencie): data wykrycia, opis, ocena ryzyka, decyzja o zgłoszeniu, działania naprawcze.
-6. **Zawiadomienie osób** (bez zbędnej zwłoki przy wysokim ryzyku): prostym językiem e-mailem (Resend), zakres z art. 34 ust. 2: co się stało, kontakt, możliwe konsekwencje, co robimy i co user może zrobić (np. zmiana hasła).
+6. **Zawiadomienie osób** (bez zbędnej zwłoki przy wysokim ryzyku): prostym językiem
+   e-mailem przez Amazon SES, zakres z art. 34 ust. 2: co się stało, kontakt, możliwe
+   konsekwencje, co robimy i co user może zrobić (np. zmiana hasła). Jeżeli naruszenie
+   dotyczy SES, jego poświadczeń albo dostępność/doręczenie kanału nie jest pewne,
+   użyj niezależnego zweryfikowanego kanału; nie czekaj na naprawę SES kosztem terminu.
 7. **Wnioski**: root cause do `DECYZJE.md`, poprawka + test regresyjny (wzorzec: testy rules), aktualizacja RCPD jeśli zmienił się zakres przetwarzania.
 
 ## 4. Szablon zgłoszenia wewnętrznego (do rejestru)

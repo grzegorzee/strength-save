@@ -27,6 +27,8 @@ import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from '@/lib/global-error-telemetry';
 import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
 import { BootScreen } from '@/components/BootScreen';
+import type { ProtectedCallableRejectionReason } from '@/lib/protected-callable';
+import { addBugReportCameraRestoreListener } from '@/lib/bug-report-camera-restore';
 
 const Dashboard = lazyWithRetry(() => import('@/pages/Dashboard'), 'lazy-retry:dashboard');
 const DayPlan = lazyWithRetry(() => import('@/pages/DayPlan'), 'lazy-retry:day-plan');
@@ -102,17 +104,23 @@ const AuthenticatedRouteRedirect = ({ isNewUser }: { isNewUser: boolean }) => {
   return <Navigate to={isNewUser ? '/onboarding' : '/'} replace />;
 };
 
-const AccessRestrictedView = ({
+export const AccessRestrictedView = ({
   email,
   accessEnabled,
   suspended,
   loadError,
+  blockReason,
+  syncPending,
+  onRetry,
   onLogout,
 }: {
   email: string;
   accessEnabled: boolean;
   suspended?: boolean;
   loadError?: boolean;
+  blockReason?: ProtectedCallableRejectionReason | null;
+  syncPending: boolean;
+  onRetry: () => Promise<void>;
   onLogout: () => Promise<void>;
 }) => {
   const { t } = useTranslation();
@@ -123,7 +131,11 @@ const AccessRestrictedView = ({
           <ShieldOff className="h-6 w-6" />
         </div>
         <h1 className="text-2xl font-heading font-bold tracking-tight">
-          {loadError
+          {blockReason === 'app-verification-required'
+            ? t('gate.appVerification.title')
+            : blockReason === 'registration-closed'
+              ? t('gate.registrationClosed.title')
+              : loadError
             ? t('gate.profileLoadError.title')
             : suspended
               ? t('gate.suspended.title')
@@ -132,7 +144,11 @@ const AccessRestrictedView = ({
                 : t('gate.disabled.title')}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {loadError
+          {blockReason === 'app-verification-required'
+            ? t('gate.appVerification.desc')
+            : blockReason === 'registration-closed'
+              ? t('gate.registrationClosed.desc')
+              : loadError
             ? t('gate.profileLoadError.desc')
             : suspended
               ? t('gate.suspended.desc')
@@ -144,7 +160,13 @@ const AccessRestrictedView = ({
           {t('gate.account', { email: email || t('gate.noEmail') })}
         </p>
         <div className="mt-6 flex gap-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>{t('gate.refresh')}</Button>
+          <Button
+            variant="outline"
+            disabled={syncPending}
+            onClick={() => void onRetry()}
+          >
+            {syncPending ? t('gate.retrying') : t('gate.retry')}
+          </Button>
           <Button variant="secondary" onClick={() => void onLogout()}>{t('profile.logout')}</Button>
         </div>
       </div>
@@ -162,6 +184,9 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
     needsEmailVerification,
     isSuspended,
     profileLoadError,
+    profileSyncBlockReason,
+    profileSyncPending,
+    retryProfileSync,
   } = useCurrentUser();
 
   useEffect(() => {
@@ -169,6 +194,8 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
     setGlobalErrorTelemetryUid(uid);
     return () => setGlobalErrorTelemetryUid(undefined);
   }, [uid]);
+
+  useEffect(() => addBugReportCameraRestoreListener(), []);
 
   if (!profileLoaded) return <BootScreen />;
   if (needsEmailVerification) {
@@ -181,6 +208,9 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
         accessEnabled={profile?.accessEnabled ?? false}
         suspended={isSuspended}
         loadError={!!profileLoadError && !profile}
+        blockReason={profileSyncBlockReason}
+        syncPending={profileSyncPending}
+        onRetry={retryProfileSync}
         onLogout={onLogout}
       />
     );
@@ -192,7 +222,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   }
 
   return (
-    <HashRouter>
+    <HashRouter useTransitions={false}>
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <ProductTelemetry />
       {/* Z232: gest krawędziowy w onboardingu wyrzucałby z kreatora (kroki nie są trasami) i kasował wybory. */}

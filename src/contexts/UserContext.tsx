@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth, FUNNEL_REGISTERED_KEY } from '@/hooks/useAuth';
@@ -14,6 +14,10 @@ import {
   type UserProfile,
 } from '@/lib/user-profile';
 import { markStartup } from '@/lib/startup-performance';
+import {
+  getProtectedCallableRejectionReason,
+  type ProtectedCallableRejectionReason,
+} from '@/lib/protected-callable';
 
 interface UserContextValue {
   uid: string;
@@ -27,6 +31,9 @@ interface UserContextValue {
   isNewUser: boolean;
   profileLoaded: boolean;
   profileLoadError: string | null;
+  profileSyncBlockReason: ProtectedCallableRejectionReason | null;
+  profileSyncPending: boolean;
+  retryProfileSync: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -38,16 +45,26 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
+  const [profileSyncBlockReason, setProfileSyncBlockReason] = useState<ProtectedCallableRejectionReason | null>(null);
+  const [profileSyncPending, setProfileSyncPending] = useState(false);
+  const retryProfileSyncRef = useRef<(() => Promise<void>) | null>(null);
   const userId = user?.uid;
   const userEmail = user?.email || '';
   const userDisplayName = user?.displayName || '';
   const userPhotoUrl = user?.photoURL || '';
+  const retryProfileSync = useCallback(
+    () => retryProfileSyncRef.current?.() ?? Promise.resolve(),
+    [],
+  );
 
   useEffect(() => {
     if (!userId) {
       setProfile(null);
       setProfileLoaded(false);
       setProfileLoadError(null);
+      setProfileSyncBlockReason(null);
+      setProfileSyncPending(false);
+      retryProfileSyncRef.current = null;
       return;
     }
 
@@ -86,6 +103,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       });
       setProfileLoaded(true);
       setProfileLoadError(null);
+      setProfileSyncBlockReason(null);
+      setProfileSyncPending(false);
       markStartup('profile-cache-ready', 'e2e');
       return;
     }
@@ -105,6 +124,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
     setProfileLoaded(false);
     setProfileLoadError(null);
+    setProfileSyncBlockReason(null);
+    setProfileSyncPending(false);
 
     // Persistent Firestore cache jest pierwszym źródłem cold/offline. Listener
     // musi powstać PRZED callable; pusty cache nie tworzy profilu ani dostępu.
@@ -114,6 +135,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const data = snapshot.data() as AppUserProfile;
         setProfile(mapAppUserProfile(userId, data, authProfileSeed));
         setProfileLoadError(null);
+        if (!snapshot.metadata.fromCache) setProfileSyncBlockReason(null);
         setProfileLoaded(true);
         markStartup('profile-cache-ready', snapshot.metadata.fromCache ? 'cache' : 'server');
       } else if (snapshot.metadata.fromCache || !initialSyncSettled) {
@@ -133,6 +155,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const runProfileSync = () => {
       if (syncInFlight) return syncInFlight;
+      setProfileSyncPending(true);
       const attempt = (async () => {
         try {
           const inviteFromLocation = readInviteCodeFromLocation();
@@ -172,6 +195,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           } catch { /* brak storage — pomijamy parę */ }
           setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
           setProfileLoadError(null);
+          setProfileSyncBlockReason(null);
           setProfileLoaded(true);
           markStartup('profile-cache-ready', 'sync');
         } catch (err) {
@@ -180,6 +204,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             const message = err instanceof Error ? err.message : 'Profile sync failed';
             setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
             setProfileLoadError(message);
+            setProfileSyncBlockReason(getProtectedCallableRejectionReason(err));
             setProfileLoaded(true);
           }
         } finally {
@@ -188,10 +213,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       })();
       syncInFlight = attempt;
       void attempt.finally(() => {
-        if (syncInFlight === attempt) syncInFlight = null;
+        if (syncInFlight === attempt) {
+          syncInFlight = null;
+          if (!cancelled) setProfileSyncPending(false);
+        }
       });
       return attempt;
     };
+
+    retryProfileSyncRef.current = runProfileSync;
 
     void runProfileSync();
     const handleOnline = () => void runProfileSync();
@@ -199,6 +229,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       cancelled = true;
+      if (retryProfileSyncRef.current === runProfileSync) retryProfileSyncRef.current = null;
       window.removeEventListener('online', handleOnline);
       unsubscribe();
     };
@@ -231,6 +262,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       isNewUser,
       profileLoaded,
       profileLoadError,
+      profileSyncBlockReason,
+      profileSyncPending,
+      retryProfileSync,
     }}>
       {children}
     </UserContext.Provider>

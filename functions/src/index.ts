@@ -105,6 +105,16 @@ export { dailyCostDigest } from "./cost-digest";
 export { dailyErrorDigest } from "./error-digest";
 // Pakiet prawny v2: log zgód z IP i timestampem serwerowym (rozliczalność RODO).
 export { recordConsent } from "./consents";
+// Szczegółowe zdarzenia SES (open/click/IP/user-agent/link) są usuwane po 180 dniach.
+export { cleanupExpiredSesEvents } from "./ses-event-retention";
+// Prywatny, atestowany przepływ zgłoszeń: create -> opcjonalny upload -> finalize.
+export {
+  createBugReport,
+  finalizeBugReport,
+  adminUpdateBugReport,
+  adminGetBugReportScreenshotUrl,
+  cleanupStaleBugReports,
+} from "./bug-reports";
 
 const db = admin.firestore();
 const USERS_COLLECTION = "users";
@@ -120,11 +130,6 @@ const stravaClientId = defineSecret("strava-client-id");
 const stravaClientSecret = defineSecret("strava-client-secret");
 const stravaRedirectUri = defineSecret("strava-redirect-uri");
 const apiKeyPepper = defineSecret("API_KEY_PEPPER");
-// F-T3: transport SES (u właściciela); wartość "unset" = fallback na Resend.
-const sesRegion = defineSecret("SES_REGION");
-const sesAccessKeyId = defineSecret("SES_ACCESS_KEY_ID");
-const sesSecretAccessKey = defineSecret("SES_SECRET_ACCESS_KEY");
-const sesFrom = defineSecret("SES_FROM");
 
 interface StravaTokenPayload {
   access_token: string;
@@ -1220,9 +1225,7 @@ export const stravaDisconnect = onCall(async (request) => {
 // saveMaxHR usunięte (Z59): zapis idzie bezpośrednio przez Firestore rules
 // (whitelist users: estimatedMaxHR 100-230 int, maxHRManualOverride bool).
 
-// --- F-T3: mail podsumowania treningu (SES z fallbackiem Resend) ---
-import { Resend } from "resend";
-import { resendApiKey } from "./weekly-digest";
+// --- F-T3: mail podsumowania treningu (Amazon SES) ---
 import {
   runEmailHistory,
   runEmailWorkout,
@@ -1233,48 +1236,17 @@ import {
   type SendEmailResult,
 } from "./email-workout";
 import { writeEmailLog } from "./email-log";
+import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail } from "./ses-email";
 
-const EMAIL_SECRETS = [sesRegion, sesAccessKeyId, sesSecretAccessKey, sesFrom, resendApiKey];
-
-const isSecretSet = (value: string): boolean => value.trim() !== "" && value.trim() !== "unset";
-
-const sendViaResend = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
-  const apiKey = resendApiKey.value();
-  if (!isSecretSet(apiKey)) return { error: { message: "no-transport-configured" } };
-  const resend = new Resend(apiKey);
-  const response = await resend.emails.send({
-    from: "Strength Save <noreply@strengthsave.app>",
-    to,
-    subject,
-    html,
-  });
-  return response.error ? { error: { message: response.error.message } } : { transport: "resend" };
-};
+const EMAIL_SECRETS = [...SES_EMAIL_SECRETS];
 
 const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
-  const region = sesRegion.value();
-  const key = sesAccessKeyId.value();
-  const secret = sesSecretAccessKey.value();
-  const from = sesFrom.value();
-  if (isSecretSet(region) && isSecretSet(key) && isSecretSet(secret) && isSecretSet(from)) {
-    try {
-      const { SESv2Client, SendEmailCommand } = await import("@aws-sdk/client-sesv2");
-      const client = new SESv2Client({ region: region.trim(), credentials: { accessKeyId: key.trim(), secretAccessKey: secret.trim() } });
-      const response = await client.send(new SendEmailCommand({
-        FromEmailAddress: from.trim(),
-        Destination: { ToAddresses: [to] },
-        Content: { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } },
-      }));
-      // MessageId to klucz korelacji ze zdarzeniami SES (email_events).
-      return { transport: "ses", ...(response.MessageId ? { sesMessageId: response.MessageId } : {}) };
-    } catch (error) {
-      // Np. DKIM jeszcze się propaguje albo chwilowy błąd SES — mail ma dojść,
-      // więc próbujemy Resendem zanim oddamy błąd userowi.
-      logger.error("[EmailWorkout] SES send failed, trying Resend fallback", error);
-      return sendViaResend(to, subject, html);
-    }
+  try {
+    return await sendSesEmail({ to, subject, html });
+  } catch (error) {
+    logger.error("[EmailWorkout] Amazon SES send failed", { errorCode: safeSesErrorCode(error) });
+    return { error: { message: "ses-send-failed" } };
   }
-  return sendViaResend(to, subject, html);
 };
 
 const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
@@ -1395,7 +1367,17 @@ export const emailWorkoutHistory = onCall({ secrets: EMAIL_SECRETS }, async (req
 
 // --- G-T2: webhook zdarzeń SES (SNS -> email_events + aktualizacja email_log) ---
 import MessageValidator from "sns-validator";
-import { applyLogUpdate, mapSesEvent, parseSnsEnvelope, type EmailLogState } from "./ses-events";
+import {
+  applyLogUpdate,
+  emailEventExpiresAtMs,
+  logUpdateFromRecord,
+  mapSesEvent,
+  parseSnsEnvelope,
+  shouldApplySesLogUpdate,
+  type EmailLogState,
+  type SesEventRecord,
+  type SesLogUpdate,
+} from "./ses-events";
 
 // Pełny ARN topicu trzymany jako sekret (repo publiczne — nie commitujemy
 // numeru konta AWS). Wszystko spoza tego topicu jest odrzucane.
@@ -1408,6 +1390,38 @@ const validateSnsSignature = (message: Record<string, unknown>): Promise<void> =
   new Promise((resolve, reject) => {
     snsValidator.validate(message, (err) => (err ? reject(err) : resolve()));
   });
+
+const applySesEventToEmailLogs = async (
+  eventRef: FirebaseFirestore.DocumentReference,
+  messageId: string,
+  update: SesLogUpdate,
+): Promise<number> => {
+  if (!update) return 0;
+  const logSnap = await db.collection("email_log")
+    .where("sesMessageId", "==", messageId)
+    .limit(5)
+    .get();
+  let applied = 0;
+  for (const logDoc of logSnap.docs) {
+    const didApply = await db.runTransaction(async (tx) => {
+      const [eventSnapshot, freshLog] = await Promise.all([
+        tx.get(eventRef),
+        tx.get(logDoc.ref),
+      ]);
+      if (!eventSnapshot.exists || !freshLog.exists) return false;
+      if (!shouldApplySesLogUpdate(eventSnapshot.data()?.appliedLogIds, logDoc.id)) return false;
+      const fields = applyLogUpdate((freshLog.data() ?? {}) as EmailLogState, update);
+      if (fields) tx.set(logDoc.ref, fields, { merge: true });
+      tx.set(eventRef, {
+        appliedLogIds: admin.firestore.FieldValue.arrayUnion(logDoc.id),
+        pendingLogApplication: false,
+      }, { merge: true });
+      return true;
+    });
+    if (didApply) applied += 1;
+  }
+  return applied;
+};
 
 export const sesEventsWebhook = onRequest({ secrets: [sesSnsTopicArn] }, async (req, res) => {
   if (req.method !== "POST") {
@@ -1464,23 +1478,40 @@ export const sesEventsWebhook = onRequest({ secrets: [sesSnsTopicArn] }, async (
     return;
   }
 
-  // Idempotencja: deterministyczne id dokumentu, set z merge.
-  await db.collection("email_events").doc(mapped.id).set(mapped.record, { merge: true });
+  // Dokument eventu oraz jego aplikacja do email_log są niezależnie idempotentne.
+  // Retry SNS nie podbije ponownie openCount/clickCount.
+  const eventRef = db.collection("email_events").doc(mapped.id);
+  await db.runTransaction(async (tx) => {
+    const existing = await tx.get(eventRef);
+    if (existing.exists) return;
+    tx.create(eventRef, {
+      ...mapped.record,
+      expiresAt: admin.firestore.Timestamp.fromMillis(emailEventExpiresAtMs(mapped.record.timestamp)),
+      appliedLogIds: [],
+      pendingLogApplication: mapped.logUpdate !== null,
+    });
+  });
 
-  if (mapped.logUpdate) {
-    const logSnap = await db.collection("email_log")
-      .where("sesMessageId", "==", mapped.record.messageId)
-      .limit(5)
-      .get();
-    for (const logDoc of logSnap.docs) {
-      await db.runTransaction(async (tx) => {
-        const fresh = await tx.get(logDoc.ref);
-        if (!fresh.exists) return;
-        const fields = applyLogUpdate((fresh.data() ?? {}) as EmailLogState, mapped.logUpdate);
-        if (fields) tx.set(logDoc.ref, fields, { merge: true });
-      });
-    }
-  }
+  await applySesEventToEmailLogs(eventRef, mapped.record.messageId, mapped.logUpdate);
   logger.info(`[SesEvents] ${mapped.record.eventType} zapisane`, { id: mapped.id });
   res.status(200).send("ok");
 });
+
+// SES potrafi dostarczyć event zanim wywołująca funkcja zapisze email_log po
+// otrzymaniu MessageId. Rekonsyliacja zamyka ten wyścig bez podwójnych liczników.
+export const reconcilePendingSesEvents = onSchedule(
+  { schedule: "every 15 minutes", timeZone: "UTC", region: "us-central1" },
+  async () => {
+    const snapshot = await db.collection("email_events")
+      .where("pendingLogApplication", "==", true)
+      .limit(200)
+      .get();
+    let applied = 0;
+    for (const document of snapshot.docs) {
+      const record = document.data() as SesEventRecord;
+      const update = logUpdateFromRecord(record);
+      applied += await applySesEventToEmailLogs(document.ref, record.messageId, update);
+    }
+    logger.info("ses_event_log_reconciliation", { checked: snapshot.size, applied });
+  },
+);

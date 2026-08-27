@@ -8,6 +8,15 @@ export const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
 const DB_VERSION = 2;
 const writeChains = new Map<string, Promise<void>>();
 const latestWriteVersions = new Map<string, number>();
+const promotionAliasCache = new Map<string, string>();
+
+interface PromotionAlias {
+  kind: 'promotion-alias';
+  userId: string;
+  provisionalSessionId: string;
+  remoteSessionId: string;
+  at: number;
+}
 
 // FIX-A T4: typowany błąd totalnego faila zapisu (IDB + retry + localStorage padły).
 // Tylko ten błąd oznacza realne zagrożenie danych — UI pokazuje czerwony stan
@@ -92,6 +101,8 @@ const normalizeSet = (set: unknown): SetData => {
       ? { assistWeight: Number(set.assistWeight) } : {}),
     ...(Number.isFinite(Number(set.updatedAt)) && Number(set.updatedAt) > 0
       ? { updatedAt: Number(set.updatedAt) } : {}),
+    ...(typeof set.updatedEventId === 'string' && set.updatedEventId.length > 0
+      ? { updatedEventId: set.updatedEventId.slice(0, 120) } : {}),
   };
 };
 
@@ -161,6 +172,35 @@ const toNumberOr = (value: unknown, fallback: number): number => {
 };
 
 export const getWorkoutDraftKey = (userId: string, sessionId: string): string => `${userId}::${sessionId}`;
+const getPromotionAliasIdbKey = (userId: string, provisionalSessionId: string): string => (
+  `${userId}::__promotion_alias__:${provisionalSessionId}`
+);
+const getPromotionAliasCacheKey = (userId: string, provisionalSessionId: string): string => (
+  `${userId}::${provisionalSessionId}`
+);
+
+const normalizePromotionAlias = (
+  value: unknown,
+  userId: string,
+  provisionalSessionId: string,
+): PromotionAlias | null => {
+  if (!isRecord(value) || value.kind !== 'promotion-alias') return null;
+  if (
+    value.userId !== userId
+    || value.provisionalSessionId !== provisionalSessionId
+    || typeof value.remoteSessionId !== 'string'
+    || value.remoteSessionId.length === 0
+    || value.remoteSessionId === provisionalSessionId
+    || !Number.isFinite(Number(value.at))
+  ) return null;
+  return {
+    kind: 'promotion-alias',
+    userId,
+    provisionalSessionId,
+    remoteSessionId: value.remoteSessionId,
+    at: Number(value.at),
+  };
+};
 
 // Tombstone promocji provisional -> remote (R2-04): zapisy trafiające pod stary klucz
 // provisional w oknie promocji (sessionId w React aktualizuje się dopiero po outcome)
@@ -296,17 +336,18 @@ const withFallbackLoad = (userId: string): ActiveWorkoutDraft | null => {
   return normalizeDraft({
     ...draft,
     userId,
-    cycleId: null,
-    sessionOrigin: isProvisionalWorkoutSessionId(draft.sessionId) ? 'provisional' : 'remote',
-    remoteSessionId: null,
+    cycleId: draft.cycleId ?? null,
+    sessionOrigin: draft.sessionOrigin
+      ?? (isProvisionalWorkoutSessionId(draft.sessionId) ? 'provisional' : 'remote'),
+    remoteSessionId: draft.remoteSessionId ?? null,
     startedAt: draft.startedAt ?? draft.savedAt,
     ...(draft.lastActivityAt != null && { lastActivityAt: draft.lastActivityAt }),
     ...(draft.finalizedAt != null && { finalizedAt: draft.finalizedAt }),
     updatedAt: draft.savedAt,
-    lastFirebaseSyncAt: null,
-    dirty: true,
-    completedLocally: false,
-    finalSyncPending: false,
+    lastFirebaseSyncAt: draft.lastFirebaseSyncAt ?? null,
+    dirty: draft.dirty ?? true,
+    completedLocally: draft.completedLocally ?? false,
+    finalSyncPending: draft.finalSyncPending ?? false,
     version: draft.version ?? 1,
     ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
     ...(draft.cloudUpdatedAt != null && { cloudUpdatedAt: draft.cloudUpdatedAt }),
@@ -318,6 +359,9 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     sessionId: draft.sessionId,
     dayId: draft.dayId,
     date: draft.date,
+    cycleId: draft.cycleId,
+    sessionOrigin: draft.sessionOrigin,
+    remoteSessionId: draft.remoteSessionId,
     exerciseSets: draft.exerciseSets,
     exerciseNotes: draft.exerciseNotes,
     // Bug 13 (X30): metryki, snapshoty nazw i klucz idempotencji zapisu też
@@ -326,7 +370,10 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     exerciseMetrics: draft.exerciseMetrics,
     ...(draft.exerciseNames !== undefined && { exerciseNames: draft.exerciseNames }),
     dayNotes: draft.dayNotes,
+    ...(draft.dayName !== undefined && { dayName: draft.dayName }),
+    ...(draft.dayFocus !== undefined && { dayFocus: draft.dayFocus }),
     skippedExercises: draft.skippedExercises,
+    ...(draft.lastTouchedExerciseId !== undefined && { lastTouchedExerciseId: draft.lastTouchedExerciseId }),
     ...(draft.warmupChecked !== undefined && { warmupChecked: draft.warmupChecked }),
     ...(draft.sessionSwaps !== undefined && { sessionSwaps: draft.sessionSwaps }),
     savedAt: draft.updatedAt,
@@ -340,6 +387,10 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     // Kontrakt R2-01 (bug 13, X30): pendingWrite* przeżywają flush przez fallback.
     ...(draft.pendingWriteId != null && { pendingWriteId: draft.pendingWriteId }),
     ...(draft.pendingWriteVersion != null && { pendingWriteVersion: draft.pendingWriteVersion }),
+    lastFirebaseSyncAt: draft.lastFirebaseSyncAt,
+    dirty: draft.dirty,
+    completedLocally: draft.completedLocally,
+    finalSyncPending: draft.finalSyncPending,
   }, draft.userId);
   if (!saved) {
     throw new Error('LOCAL_STORAGE_SAVE_FAILED');
@@ -357,7 +408,10 @@ const resetDatabaseConnection = (): void => {
   cachedDatabasePromise = null;
 };
 
-export const __resetWorkoutDraftDbConnectionForTests = resetDatabaseConnection;
+export const __resetWorkoutDraftDbConnectionForTests = (): void => {
+  resetDatabaseConnection();
+  promotionAliasCache.clear();
+};
 
 const resetCachedDatabase = (db: IDBDatabase): void => {
   if (cachedDatabase === db) cachedDatabase = null;
@@ -476,6 +530,63 @@ const runRead = async (userId: string, sessionId?: string): Promise<ActiveWorkou
     request.onsuccess = () => resolve(normalizeDraft(request.result, userId));
     request.onerror = () => reject(request.error);
   });
+};
+
+const runReadPromotionAlias = async (
+  userId: string,
+  provisionalSessionId: string,
+): Promise<string | null> => {
+  const db = await openDatabase();
+  if (!db) return null;
+
+  return new Promise<string | null>((resolve, reject) => {
+    const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readonly');
+    const request = tx.objectStore(WORKOUT_DRAFT_STORE_NAME)
+      .get(getPromotionAliasIdbKey(userId, provisionalSessionId));
+    request.onsuccess = () => {
+      resolve(normalizePromotionAlias(request.result, userId, provisionalSessionId)?.remoteSessionId ?? null);
+    };
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// Po resume WKWebView potrafi zostawić obiekt połączenia, który istnieje, ale
+// pierwsza transakcja kończy się InvalidStateError/TransactionInactiveError.
+// Dokładnie jedna próba na świeżym open() poprzedza istniejący fallback; brak
+// pętli chroni przed blokowaniem UI przy trwałej awarii IndexedDB.
+const runReadWithFreshConnectionRetry = async <T>(read: () => Promise<T>): Promise<T> => {
+  try {
+    return await read();
+  } catch {
+    resetDatabaseConnection();
+    return read();
+  }
+};
+
+const resolvePromotionAlias = async (userId: string, provisionalSessionId: string): Promise<string | null> => {
+  const cacheKey = getPromotionAliasCacheKey(userId, provisionalSessionId);
+  const cached = promotionAliasCache.get(cacheKey);
+  if (cached) return cached;
+
+  const tombstone = readPromotionTombstone(userId, provisionalSessionId);
+  if (tombstone?.remoteId) {
+    promotionAliasCache.set(cacheKey, tombstone.remoteId);
+    return tombstone.remoteId;
+  }
+
+  try {
+    const remoteId = await runReadWithFreshConnectionRetry(
+      () => runReadPromotionAlias(userId, provisionalSessionId),
+    );
+    if (remoteId) {
+      promotionAliasCache.set(cacheKey, remoteId);
+      // localStorage pozostaje szybkim cache i fallbackiem dla braku IDB.
+      writePromotionTombstone(userId, provisionalSessionId, remoteId);
+    }
+    return remoteId;
+  } catch {
+    return null;
+  }
 };
 
 const clearFallbackCopyIfMatches = (userId: string, sessionId?: string): void => {
@@ -719,6 +830,18 @@ const runPromote = async (
     const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
     const fromKey = getWorkoutDraftKey(userId, fromSessionId);
     const remoteKey = getWorkoutDraftKey(userId, remoteSessionId);
+    const aliasKey = getPromotionAliasIdbKey(userId, fromSessionId);
+    const alias: PromotionAlias = {
+      kind: 'promotion-alias',
+      userId,
+      provisionalSessionId: fromSessionId,
+      remoteSessionId,
+      at: Date.now(),
+    };
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
 
     const fromRequest = store.get(fromKey);
     fromRequest.onsuccess = () => {
@@ -727,19 +850,14 @@ const runPromote = async (
       remoteRequest.onsuccess = () => {
         const remoteDraft = normalizeDraft(remoteRequest.result, userId);
         const next = mergePromotedDraft(fromDraft, remoteDraft, remoteSessionId, cloudState);
-        if (!next) {
-          resolve();
-          return;
-        }
         if (fromDraft) store.delete(fromKey);
-        store.put(next, remoteKey);
-        tx.oncomplete = () => resolve();
+        if (next) store.put(next, remoteKey);
+        // Ten sam commit przenosi draft i utrwala dokładne mapowanie P→R.
+        store.put(alias, aliasKey);
       };
       remoteRequest.onerror = () => reject(remoteRequest.error);
     };
     fromRequest.onerror = () => reject(fromRequest.error);
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
   });
 };
 
@@ -833,6 +951,11 @@ const resolveFresherFallback = (
   if (!fallbackNewer) return null;
   return {
     ...idbRecord,
+    // Tożsamość z nowego fallbacku wygrywa po promocji/awarii IDB. Dla starych
+    // fallbacków wartości null nie kasują kompletnego rekordu IndexedDB.
+    ...(fallback.cycleId !== null && { cycleId: fallback.cycleId }),
+    sessionOrigin: fallback.sessionOrigin,
+    ...(fallback.remoteSessionId !== null && { remoteSessionId: fallback.remoteSessionId }),
     exerciseSets: fallback.exerciseSets,
     exerciseNotes: fallback.exerciseNotes,
     // Bug 13 (X30): metryki i nazwy mergowane PER KLUCZ ćwiczenia — wpisy ze
@@ -843,7 +966,12 @@ const resolveFresherFallback = (
       exerciseNames: { ...(idbRecord.exerciseNames ?? {}), ...(fallback.exerciseNames ?? {}) },
     }),
     dayNotes: fallback.dayNotes,
+    ...(fallback.dayName !== undefined && { dayName: fallback.dayName }),
+    ...(fallback.dayFocus !== undefined && { dayFocus: fallback.dayFocus }),
     skippedExercises: fallback.skippedExercises,
+    ...(fallback.lastTouchedExerciseId !== undefined && {
+      lastTouchedExerciseId: fallback.lastTouchedExerciseId,
+    }),
     ...(fallback.warmupChecked !== undefined && { warmupChecked: fallback.warmupChecked }),
     ...(fallback.sessionSwaps !== undefined && { sessionSwaps: fallback.sessionSwaps }),
     ...(fallback.cloudRevision !== undefined && { cloudRevision: fallback.cloudRevision }),
@@ -858,6 +986,11 @@ const resolveFresherFallback = (
     // retry checkpointu po lost-ack idzie ze starym writeId, nie z nowym.
     ...(fallback.pendingWriteId !== undefined && { pendingWriteId: fallback.pendingWriteId }),
     ...(fallback.pendingWriteVersion !== undefined && { pendingWriteVersion: fallback.pendingWriteVersion }),
+    ...(fallback.lastFirebaseSyncAt !== null && { lastFirebaseSyncAt: fallback.lastFirebaseSyncAt }),
+    // Finalizacja jest monotoniczna do czasu usunięcia draftu. Starszy rekord IDB
+    // nie może cofnąć intencji finalnego syncu zapisanej już w fallbacku.
+    completedLocally: idbRecord.completedLocally || fallback.completedLocally,
+    finalSyncPending: idbRecord.finalSyncPending || fallback.finalSyncPending,
     updatedAt: fallback.updatedAt,
     dirty: true,
     version: fallback.version,
@@ -889,7 +1022,7 @@ export const workoutDraftDb = {
     }
 
     try {
-      const record = await runRead(userId);
+      const record = await runReadWithFreshConnectionRetry(() => runRead(userId));
       const fresher = resolveFresherFallback(record, userId);
       if (fresher) {
         // Przepis zwycięzcy do IDB przez saveActiveDraft (runWrite z guardem Z175).
@@ -909,7 +1042,7 @@ export const workoutDraftDb = {
     }
 
     try {
-      const record = await runRead(userId, sessionId);
+      const record = await runReadWithFreshConnectionRetry(() => runRead(userId, sessionId));
       const fresher = resolveFresherFallback(record, userId);
       if (fresher) {
         await this.saveActiveDraft(fresher).catch(() => undefined);
@@ -945,7 +1078,7 @@ export const workoutDraftDb = {
     }
 
     try {
-      return await runReadAll(userId);
+      return await runReadWithFreshConnectionRetry(() => runReadAll(userId));
     } catch {
       const fallback = withFallbackLoad(userId);
       return fallback ? [fallback] : [];
@@ -959,11 +1092,11 @@ export const workoutDraftDb = {
     // Okno promocji provisional -> remote: zapis pod stary klucz przekierowany
     // pod klucz remote (tombstone), zamiast wskrzeszać osierocony draft (R2-04).
     if (normalized.sessionOrigin === 'provisional' || isProvisionalWorkoutSessionId(normalized.sessionId)) {
-      const tombstone = readPromotionTombstone(normalized.userId, normalized.sessionId);
-      if (tombstone && tombstone.remoteId !== normalized.sessionId) {
-        const remoteKey = getWorkoutDraftKey(normalized.userId, tombstone.remoteId);
+      const promotedRemoteId = await resolvePromotionAlias(normalized.userId, normalized.sessionId);
+      if (promotedRemoteId && promotedRemoteId !== normalized.sessionId) {
+        const remoteKey = getWorkoutDraftKey(normalized.userId, promotedRemoteId);
         const previous = writeChains.get(remoteKey) ?? Promise.resolve();
-        const run = previous.catch(() => undefined).then(() => redirectDraftSave(normalized, tombstone.remoteId));
+        const run = previous.catch(() => undefined).then(() => redirectDraftSave(normalized, promotedRemoteId));
         const chain = run.catch(() => undefined).finally(() => {
           if (writeChains.get(remoteKey) === chain) writeChains.delete(remoteKey);
         });
@@ -988,9 +1121,9 @@ export const workoutDraftDb = {
       // jesteśmy w środku łańcucha klucza provisional, a transakcja IDB w
       // redirectDraftSave sama serializuje rekord remote (merge z guardem wersji).
       if (normalized.sessionOrigin === 'provisional' || isProvisionalWorkoutSessionId(normalized.sessionId)) {
-        const tombstone = readPromotionTombstone(normalized.userId, normalized.sessionId);
-        if (tombstone && tombstone.remoteId !== normalized.sessionId) {
-          await redirectDraftSave(normalized, tombstone.remoteId).catch(() => undefined);
+        const promotedRemoteId = await resolvePromotionAlias(normalized.userId, normalized.sessionId);
+        if (promotedRemoteId && promotedRemoteId !== normalized.sessionId) {
+          await redirectDraftSave(normalized, promotedRemoteId).catch(() => undefined);
           return;
         }
       }
@@ -1038,13 +1171,21 @@ export const workoutDraftDb = {
         ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
         ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
       };
+      // pendingWrite* opisuje wyłącznie NIEPOTWIERDZONĄ próbę. Po ACK nie może zostać
+      // ponownie użyty przez techniczny final tej samej wersji draftu — backend uznałby
+      // final za duplikat wcześniejszego checkpointu i pozostawił completed=false.
+      // Gdy w trakcie syncu powstała już nowsza próba, jej identyfikatora nie ruszamy.
+      const acknowledgedWrite = draft.pendingWriteVersion === expectedDraftVersion
+        ? { pendingWriteId: null, pendingWriteVersion: null }
+        : {};
       // Edycja w trakcie syncu podbiła version: zaktualizuj WYŁĄCZNIE znaczniki chmury,
       // NIE czyść dirty ani nie ruszaj treści (lokalna edycja czeka na własny sync).
       if (draft.version !== expectedDraftVersion) {
-        return { ...draft, ...cloudMarkers };
+        return { ...draft, ...acknowledgedWrite, ...cloudMarkers };
       }
       return {
         ...draft,
+        ...acknowledgedWrite,
         dirty: false,
         lastFirebaseSyncAt: syncedAt,
         ...cloudMarkers,
@@ -1092,6 +1233,7 @@ export const workoutDraftDb = {
     writeChains.set(remoteKey, chain);
     await run;
 
+    promotionAliasCache.set(getPromotionAliasCacheKey(userId, fromSessionId), remoteSessionId);
     writePromotionTombstone(userId, fromSessionId, remoteSessionId);
   },
 
@@ -1103,8 +1245,8 @@ export const workoutDraftDb = {
   // skipped/missingDraft własnej sesji provisional (promocja zewnętrzna przez
   // AutoSync) rozwiązuje nową tożsamość remote i ponawia sync zamiast kończyć
   // cichym no-opem "Zakończ trening".
-  resolvePromotedSessionId(userId: string, provisionalSessionId: string): string | null {
-    return readPromotionTombstone(userId, provisionalSessionId)?.remoteId ?? null;
+  async resolvePromotedSessionId(userId: string, provisionalSessionId: string): Promise<string | null> {
+    return resolvePromotionAlias(userId, provisionalSessionId);
   },
 
   // Warunkowe czyszczenie po finalnym syncu: draft z NOWSZĄ wersją (seria odhaczona

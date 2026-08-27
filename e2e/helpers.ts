@@ -136,6 +136,23 @@ export const clearWorkoutDraftDb = async (page: Page, userId: string, sessionId?
 
       request.onerror = () => reject(request.error);
     });
+
+    // Produkcyjny store ma odporną kopię localStorage na wypadek zerwanego IDB.
+    // Cleanup testowy musi usuwać obie warstwy tak samo jak clearActiveDraft,
+    // inaczej reload prawidłowo odtworzy „skasowaną” sesję z fallbacku.
+    const fallbackKey = `fittracker_workout_draft:${draftUserId}`;
+    if (!draftSessionId) {
+      localStorage.removeItem(fallbackKey);
+    } else {
+      try {
+        const raw = localStorage.getItem(fallbackKey);
+        if (raw && JSON.parse(raw)?.sessionId === draftSessionId) {
+          localStorage.removeItem(fallbackKey);
+        }
+      } catch {
+        localStorage.removeItem(fallbackKey);
+      }
+    }
   }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, dbVersion: WORKOUT_DRAFT_DB_VERSION, userId, sessionId });
 };
 

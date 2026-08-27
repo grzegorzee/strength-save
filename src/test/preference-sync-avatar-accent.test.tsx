@@ -3,7 +3,7 @@
 // w localStorage). Wynik: applyAccent + storeAccentId + mirror w profilu.
 // Każdy problem (null z derive, reject) = cichy fail, zostaje limonka.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 
 const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
@@ -38,19 +38,17 @@ beforeEach(() => {
   mockProfile.current = { uid: 'u1', photoURL: PHOTO, preferences: undefined };
 });
 
-describe('PreferenceSync: automat akcentu z avatara (X29 WP-H)', () => {
-  it('brak wyboru + photoURL: aplikuje, zapisuje localStorage i mirror w profilu', async () => {
+describe('PreferenceSync: avatar nie jest wtórnie przetwarzany bez zgody', () => {
+  it('brak wyboru + photoURL: automat nie analizuje ani nie zapisuje zdjęcia poza onboardingiem', async () => {
     deriveAccentFromAvatar.mockResolvedValueOnce('rose');
     render(<PreferenceSync />);
-    await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
-      'preferences.accentColor': 'rose',
-    }));
-    expect(deriveAccentFromAvatar).toHaveBeenCalledWith(PHOTO);
-    expect(document.documentElement.dataset.accent).toBe('rose');
-    expect(localStorage.getItem('ss-accent-color')).toBe('rose');
+    await Promise.resolve();
+    expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(localStorage.getItem('ss-accent-color')).toBeNull();
   });
 
-  it('accentColor w profilu (nawet limonka) = automat NIE odpala się', async () => {
+  it('accentColor w profilu (nawet limonka) pozostaje nietknięty', async () => {
     mockProfile.current = { uid: 'u1', photoURL: PHOTO, preferences: { accentColor: 'lime' } };
     render(<PreferenceSync />);
     await Promise.resolve();
@@ -58,49 +56,18 @@ describe('PreferenceSync: automat akcentu z avatara (X29 WP-H)', () => {
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
-  it('wpis w localStorage = automat NIE odpala się (wybór usera jest święty)', async () => {
+  it('wpis w localStorage pozostaje nietknięty (wybór usera jest święty)', async () => {
     localStorage.setItem('ss-accent-color', 'indigo');
     render(<PreferenceSync />);
     await Promise.resolve();
     expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
   });
 
-  it('brak photoURL = automat NIE odpala się', async () => {
+  it('brak photoURL także nie uruchamia analizy', async () => {
     mockProfile.current = { uid: 'u1', photoURL: '', preferences: undefined };
     render(<PreferenceSync />);
     await Promise.resolve();
     expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
   });
 
-  it('derive daje null (szary avatar/siec): zostaje limonka, zero zapisów', async () => {
-    deriveAccentFromAvatar.mockResolvedValueOnce(null);
-    render(<PreferenceSync />);
-    await waitFor(() => expect(deriveAccentFromAvatar).toHaveBeenCalled());
-    await Promise.resolve();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
-    expect(localStorage.getItem('ss-accent-color')).toBeNull();
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('derive odrzuca: cichy fail bez unhandled rejection', async () => {
-    deriveAccentFromAvatar.mockRejectedValueOnce(new Error('boom'));
-    render(<PreferenceSync />);
-    await waitFor(() => expect(deriveAccentFromAvatar).toHaveBeenCalled());
-    await Promise.resolve();
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('user wybrał kolor w międzyczasie: wynik derive NIE nadpisuje wyboru', async () => {
-    let resolveDerive: (id: string | null) => void = () => {};
-    deriveAccentFromAvatar.mockReturnValueOnce(new Promise((res) => { resolveDerive = res; }));
-    render(<PreferenceSync />);
-    await waitFor(() => expect(deriveAccentFromAvatar).toHaveBeenCalled());
-    // W trakcie pobierania avatara user kliknął swatch (np. w onboardingu).
-    localStorage.setItem('ss-accent-color', 'amber');
-    resolveDerive('sky');
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(localStorage.getItem('ss-accent-color')).toBe('amber');
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
 });

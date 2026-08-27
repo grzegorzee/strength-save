@@ -2,26 +2,27 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import * as admin from "firebase-admin";
 import type { CallableRequest } from "firebase-functions/v2/https";
 
-const resendMock = vi.hoisted(() => ({
+const sesEmailMock = vi.hoisted(() => ({
   send: vi.fn(),
 }));
 
-vi.mock("resend", () => ({
-  Resend: class {
-    readonly emails = { send: resendMock.send };
-  },
+vi.mock("./ses-email", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./ses-email")>(),
+  sendSesEmail: sesEmailMock.send,
 }));
 
 import {
   createWaitlistEntryCore,
   fcmTokenRegistrationDocId,
   processDeletionOperation,
+  pendingSubscriptionGrantId,
   requestEmailVerificationCode,
   registerPushTokenForUser,
   syncUserProfile,
   unregisterPushTokenForUser,
   verifyEmailCode,
 } from "./registration";
+import { adminUpdateBugReport, createBugReport } from "./bug-reports";
 import {
   STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
   STRENGTH_SAVE_IOS_APP_CHECK_ID,
@@ -57,6 +58,9 @@ const collectionsToClean = [
   "api_rate_limits",
   "auth_audit_logs",
   "email_log",
+  "bug_reports",
+  "bug_report_rate_limits",
+  "pending_subscription_grants",
 ];
 
 const callableRequest = <T>(input: {
@@ -116,10 +120,13 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
   });
 
   beforeEach(async () => {
-    process.env.RESEND_API_KEY = "re_emulator_only";
+    process.env.SES_REGION = "eu-central-1";
+    process.env.SES_ACCESS_KEY_ID = "ses-emulator-access-key";
+    process.env.SES_SECRET_ACCESS_KEY = "ses-emulator-secret-key";
+    process.env.SES_FROM = "Strength Save <noreply@strengthsave.app>";
     process.env.API_KEY_PEPPER = "emulator-pepper";
-    resendMock.send.mockReset();
-    resendMock.send.mockResolvedValue({ data: { id: "email-emulator" }, error: null });
+    sesEmailMock.send.mockReset();
+    sesEmailMock.send.mockResolvedValue({ transport: "ses", sesMessageId: "email-emulator" });
     await Promise.all(collectionsToClean.map(cleanCollection));
     const users = await admin.auth().listUsers();
     await Promise.all(users.users.map((user) => admin.auth().deleteUser(user.uid)));
@@ -186,7 +193,7 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       data: { language: "pl" },
     }))).resolves.toEqual({ sent: true });
 
-    const verificationSubject = String(resendMock.send.mock.calls[0]?.[0]?.subject || "");
+    const verificationSubject = String(sesEmailMock.send.mock.calls[0]?.[0]?.subject || "");
     const code = verificationSubject.match(/(\d{6})$/)?.[1];
     expect(code).toMatch(/^\d{6}$/);
 
@@ -203,19 +210,102 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       onboarding: { state: "in_progress", version: 1 },
     });
     expect(profile?.verification?.emailVerifiedAt).toEqual(expect.any(String));
-    expect(resendMock.send).toHaveBeenCalledTimes(2);
+    expect(sesEmailMock.send).toHaveBeenCalledTimes(2);
 
     // T21b: obie wysyłki zostawiają wpis w email_log; kod weryfikacyjny BEZ
     // treści i z zamaskowanym tematem (temat zawiera kod logowania).
     const emailLog = await admin.firestore().collection("email_log").where("uid", "==", uid).get();
     expect(emailLog.docs.map((entry) => entry.data().type).sort()).toEqual(["verification_code", "welcome_email"]);
     const verificationEntry = emailLog.docs.find((entry) => entry.data().type === "verification_code");
-    expect(verificationEntry?.data()).toMatchObject({ subject: "[verification code]", transport: "resend", status: "sent" });
+    expect(verificationEntry?.data()).toMatchObject({ subject: "[verification code]", transport: "ses", status: "sent", sesMessageId: "email-emulator" });
     expect((await verificationEntry?.ref.collection("content").doc("body").get())?.exists).toBe(false);
     const welcomeEntry = emailLog.docs.find((entry) => entry.data().type === "welcome_email");
     const welcomeContent = await welcomeEntry?.ref.collection("content").doc("body").get();
     expect(welcomeContent?.exists).toBe(true);
     expect(String(welcomeContent?.data()?.html ?? "")).not.toBe("");
+  });
+
+  it("claims a pre-registration PRO grant exactly once without bypassing email verification", async () => {
+    const uid = "future-pro-user";
+    const email = "Future.Pro@Example.com";
+    const grantRef = admin.firestore().collection("pending_subscription_grants")
+      .doc(pendingSubscriptionGrantId(email));
+    await grantRef.set({
+      status: "pending",
+      days: null,
+      createdAt: new Date().toISOString(),
+      createdBy: "integration-test",
+    });
+
+    const syncResult = await syncUserProfile.run(callableRequest({
+      uid,
+      email: email.toLowerCase(),
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: { language: "pl", inviteCode: null },
+    }));
+
+    expect(syncResult.profile).toMatchObject({
+      uid,
+      status: "pending_verification",
+      access: { enabled: false },
+      subscription: { tier: "comp", status: "active", expiresAt: null },
+    });
+    expect((await grantRef.get()).exists).toBe(false);
+
+    const startedAt = syncResult.profile.subscription.startedAt;
+    const secondSync = await syncUserProfile.run(callableRequest({
+      uid,
+      email: email.toLowerCase(),
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: { language: "pl", inviteCode: null },
+    }));
+    expect(secondSync.profile.subscription.startedAt).toBe(startedAt);
+  });
+
+  it("removes pending_send after an SES rejection and allows an immediate retry", async () => {
+    const uid = "ses-retry-user";
+    const email = "ses-retry@example.com";
+    await admin.firestore().collection("users").doc(uid).set({
+      uid,
+      email,
+      displayName: "Retry User",
+      role: "user",
+      status: "pending_verification",
+      access: { enabled: false },
+      language: "pl",
+    });
+
+    sesEmailMock.send.mockRejectedValueOnce(new Error("SES account is still in sandbox"));
+    const request = callableRequest({
+      uid,
+      email,
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: { language: "pl" },
+    });
+
+    await expect(requestEmailVerificationCode.run(request)).rejects.toMatchObject({ code: "unavailable" });
+    await expect(admin.firestore().collection("email_verification_codes").where("uid", "==", uid).get())
+      .resolves.toMatchObject({ empty: true });
+
+    const failedEmailLog = await admin.firestore().collection("email_log")
+      .where("uid", "==", uid).where("status", "==", "failed").get();
+    expect(failedEmailLog.docs[0]?.data()).toMatchObject({
+      subject: "[verification code]",
+      transport: "ses",
+      error: "ses-send-failed",
+    });
+    const failedNotificationLog = await admin.firestore().collection("notification_logs")
+      .where("userId", "==", uid).get();
+    expect(failedNotificationLog.docs[0]?.data()).toMatchObject({
+      type: "verification_code",
+      transport: "ses",
+      error: "ses-send-failed",
+    });
+
+    sesEmailMock.send.mockResolvedValueOnce({ transport: "ses", sesMessageId: "ses-retry-success" });
+    await expect(requestEmailVerificationCode.run(request)).resolves.toEqual({ sent: true });
+    const retriedCode = await admin.firestore().collection("email_verification_codes").where("uid", "==", uid).get();
+    expect(retriedCode.docs[0]?.data()).toMatchObject({ status: "pending" });
   });
 
   it("keeps an unattested web registration without invite out of users", async () => {
@@ -225,7 +315,28 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       uid,
       email: "unattested-web@example.com",
       data: { language: "pl", inviteCode: null },
-    }))).rejects.toMatchObject({ code: "permission-denied" });
+    }))).rejects.toMatchObject({
+      code: "permission-denied",
+      details: { reason: "app-verification-required" },
+    });
+
+    await expect(admin.firestore().collection("users").doc(uid).get())
+      .resolves.toMatchObject({ exists: false });
+  });
+
+  it("returns a distinct registration-closed reason without creating a user", async () => {
+    const uid = "closed-registration-user";
+    await admin.firestore().collection("config").doc("feature_flags").set({ registrationOpen: false });
+
+    await expect(syncUserProfile.run(callableRequest({
+      uid,
+      email: "registration-closed@example.com",
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: { language: "pl", inviteCode: null },
+    }))).rejects.toMatchObject({
+      code: "permission-denied",
+      details: { reason: "registration-closed" },
+    });
 
     await expect(admin.firestore().collection("users").doc(uid).get())
       .resolves.toMatchObject({ exists: false });
@@ -241,6 +352,8 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
     await admin.firestore().collection("training_plans").doc(uid).set({ userId: uid });
     await admin.firestore().collection("strava_connections").doc(uid).set({ userId: uid });
     await admin.firestore().collection("fcm_token_registrations").doc("token1").set({ userId: uid, token: "token1" });
+    await admin.firestore().collection("bug_reports").doc(`${uid}_report-1`).set({ userId: uid, status: "new" });
+    await admin.firestore().collection("bug_report_rate_limits").doc(uid).set({ userId: uid, hourCount: 1, dayCount: 1 });
     await admin.firestore().collection("deletion_operations").doc(uid).set({
       uid,
       state: "failed",
@@ -260,10 +373,116 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       expect(admin.firestore().collection("measurements").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),
       expect(admin.firestore().collection("email_verification_codes").where("uid", "==", uid).get()).resolves.toMatchObject({ empty: true }),
       expect(admin.firestore().collection("fcm_token_registrations").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),
+      expect(admin.firestore().collection("bug_reports").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),
+      expect(admin.firestore().collection("bug_report_rate_limits").doc(uid).get()).resolves.toMatchObject({ exists: false }),
       expect(admin.firestore().collection("training_plans").doc(uid).get()).resolves.toMatchObject({ exists: false }),
       expect(admin.firestore().collection("strava_connections").doc(uid).get()).resolves.toMatchObject({ exists: false }),
     ]);
     expect((await admin.firestore().collection("deletion_operations").doc(uid).get()).data()?.state).toBe("completed");
+  });
+
+  it("creates bug reports idempotently and does not count a retry twice", async () => {
+    const uid = "bug-reporter";
+    const email = "bug-reporter@example.com";
+    await admin.auth().createUser({ uid, email });
+    await admin.firestore().collection("users").doc(uid).set({
+      uid,
+      email,
+      role: "user",
+      status: "active",
+      access: { enabled: true },
+    });
+    const clientRequestId = "123e4567-e89b-42d3-a456-426614174000";
+    const request = callableRequest({
+      uid,
+      email,
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: {
+        clientRequestId,
+        category: "workout",
+        message: "Przycisk zapisu nie reaguje po powrocie z tła.",
+      },
+    });
+
+    const first = await createBugReport.run(request);
+    const retry = await createBugReport.run(callableRequest({
+      uid,
+      email: "changed@example.com",
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: {
+        clientRequestId,
+        category: "ui",
+        message: "Po timeoutcie doprecyzowuję: przycisk znika pod klawiaturą.",
+        context: { platform: "ios", route: "/profile" },
+      },
+    }));
+
+    expect(first).toEqual(retry);
+    expect(first).toEqual({
+      ok: true,
+      reportId: `${uid}_${clientRequestId}`,
+      uploadPath: `bug-reports/${uid}/${uid}_${clientRequestId}/screenshot.jpg`,
+    });
+    expect((await admin.firestore().collection("bug_report_rate_limits").doc(uid).get()).data())
+      .toMatchObject({ hourCount: 1, dayCount: 1 });
+    expect((await admin.firestore().collection("bug_reports").doc(`${uid}_${clientRequestId}`).get()).data())
+      .toMatchObject({
+        category: "ui",
+        message: "Po timeoutcie doprecyzowuję: przycisk znika pod klawiaturą.",
+        context: { platform: "ios", route: "/profile" },
+        reporterEmail: email,
+      });
+
+    await admin.firestore().collection("bug_reports").doc(`${uid}_${clientRequestId}`).update({ status: "new" });
+    await createBugReport.run(request);
+    expect((await admin.firestore().collection("bug_reports").doc(`${uid}_${clientRequestId}`).get()).data())
+      .toMatchObject({
+        status: "new",
+        category: "ui",
+        message: "Po timeoutcie doprecyzowuję: przycisk znika pod klawiaturą.",
+      });
+  });
+
+  it("allows only an admin to apply a valid bug report status transition", async () => {
+    const adminUid = "bug-admin";
+    const userUid = "bug-user";
+    const reportId = `${userUid}_123e4567-e89b-42d3-a456-426614174010`;
+    await Promise.all([
+      admin.auth().createUser({ uid: adminUid, email: "bug-admin@example.com" }),
+      admin.auth().createUser({ uid: userUid, email: "bug-user@example.com" }),
+      admin.firestore().collection("users").doc(adminUid).set({ uid: adminUid, role: "admin", status: "active" }),
+      admin.firestore().collection("users").doc(userUid).set({ uid: userUid, role: "user", status: "active" }),
+      admin.firestore().collection("bug_reports").doc(reportId).set({ userId: userUid, status: "new" }),
+    ]);
+    const data = { reportId, status: "triaged", priority: "high", note: "Reproduced on iOS." };
+
+    await expect(adminUpdateBugReport.run(callableRequest({
+      uid: userUid,
+      email: "bug-user@example.com",
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data,
+    }))).rejects.toMatchObject({ code: "permission-denied" });
+
+    await expect(adminUpdateBugReport.run(callableRequest({
+      uid: adminUid,
+      email: "bug-admin@example.com",
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data,
+    }))).resolves.toEqual({ ok: true, reportId, status: "triaged" });
+    expect((await admin.firestore().collection("bug_reports").doc(reportId).get()).data()).toMatchObject({
+      status: "triaged",
+      priority: "high",
+      adminNote: "Reproduced on iOS.",
+      handledBy: adminUid,
+    });
+
+    await admin.firestore().collection("bug_reports").doc(reportId).update({ status: "closed" });
+    await expect(adminUpdateBugReport.run(callableRequest({
+      uid: adminUid,
+      email: "bug-admin@example.com",
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data: { reportId, status: "new" },
+    }))).rejects.toMatchObject({ code: "failed-precondition" });
   });
 });
 

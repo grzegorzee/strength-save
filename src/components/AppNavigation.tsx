@@ -84,24 +84,24 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
         to={item.to}
         className={({ isActive }) => cn(
           "flex items-center gap-3 rounded-lg transition-all duration-200 text-sm font-medium",
-          collapsed ? "md:justify-center md:px-0 md:py-2.5 px-3 py-2.5" : "px-3 py-2.5",
+          collapsed ? "desktop-shell:justify-center desktop-shell:px-0 desktop-shell:py-2.5 px-3 py-2.5" : "px-3 py-2.5",
           isActive
             ? "bg-primary/15 text-primary"
             : "text-muted-foreground hover:bg-muted hover:text-foreground"
         )}
       >
         <item.icon className="h-4.5 w-4.5 shrink-0" />
-        <span className={cn(collapsed && "md:hidden")}>{t(item.labelKey)}</span>
+        <span className={cn(collapsed && "desktop-shell:hidden")}>{t(item.labelKey)}</span>
       </NavLink>
     );
 
     if (collapsed) {
       return (
         <Tooltip key={item.to}>
-          <TooltipTrigger asChild className="hidden md:flex">
+          <TooltipTrigger asChild className="hidden desktop-shell:flex">
             {link}
           </TooltipTrigger>
-          <TooltipContent side="right" className="hidden md:block">
+          <TooltipContent side="right" className="hidden desktop-shell:block">
             {t(item.labelKey)}
           </TooltipContent>
         </Tooltip>
@@ -117,7 +117,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
           {/* Logo + collapse toggle */}
           <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border">
             {collapsed ? (
-              <div className="hidden md:flex items-center justify-center w-full">
+              <div className="hidden desktop-shell:flex items-center justify-center w-full">
                 <img src={appIcon} alt="Strength Save" className="h-8 w-8 rounded-lg" />
               </div>
             ) : (
@@ -132,7 +132,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                 variant="ghost"
                 size="icon"
                 onClick={() => setCollapsed(prev => !prev)}
-                className="hidden md:flex h-8 w-8"
+                className="hidden desktop-shell:flex h-8 w-8"
                 aria-label={collapsed ? t('nav.expand') : t('nav.collapse')}
               >
                 {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -145,7 +145,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
             {NAV_GROUPS.map((group) => (
               <div key={group.titleKey} className="space-y-1">
                 {!collapsed && (
-                  <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/60">
+                  <p className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                     {t(group.titleKey)}
                   </p>
                 )}
@@ -164,7 +164,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                 <DropdownMenuTrigger asChild>
                   <button className={cn(
                     "flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-muted transition-colors cursor-pointer",
-                    collapsed && "md:justify-center md:px-0"
+                    collapsed && "desktop-shell:justify-center desktop-shell:px-0"
                   )}>
                     {photoURL ? (
                       <img src={photoURL} alt={displayName} className="h-9 w-9 rounded-full shrink-0 object-cover" referrerPolicy="no-referrer" />
@@ -173,7 +173,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                         {initials}
                       </div>
                     )}
-                    <div className={cn("flex-1 min-w-0 text-left", collapsed && "md:hidden")}>
+                    <div className={cn("flex-1 min-w-0 text-left", collapsed && "desktop-shell:hidden")}>
                       <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                       <p className="text-[10px] text-muted-foreground">v{__APP_VERSION__}</p>
                     </div>
@@ -219,8 +219,8 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
     <>
       <aside
         className={cn(
-          "hidden bg-sidebar border-r border-sidebar-border transition-all duration-300 md:sticky md:top-0 md:block md:h-[100dvh] md:self-start",
-          collapsed ? "md:w-16" : "md:w-64",
+          "hidden bg-sidebar border-r border-sidebar-border transition-all duration-300 desktop-shell:sticky desktop-shell:top-0 desktop-shell:block desktop-shell:h-[100dvh] desktop-shell:self-start",
+          collapsed ? "desktop-shell:w-16" : "desktop-shell:w-64",
         )}
       >
         {sidebarBody}
@@ -229,10 +229,10 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
       {/* Tło wypełniające dół ekranu pod floating navem — żeby treść nie prześwitywała w szczelinie nad home indicatorem.
           WP-F: gradient zamiast pełnego krycia — pełny kolor tylko przy samej krawędzi,
           wyżej treść prześwituje pod glassem paska (inaczej filler dusił efekt tafli). */}
-      {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background to-background/0 md:hidden" />}
+      {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background to-background/0 desktop-shell:hidden" />}
 
       {!hideMobileNav && (
-        <nav aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] md:hidden">
+        <nav aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
           {navItems.slice(0, 5).map((item) => (
             <NavLink
               key={`mobile-${item.to}`}
@@ -249,7 +249,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     <item.icon className="h-5 w-5" />
                   </span>
                   <span className={cn(
-                    "text-[9px] font-bold uppercase tracking-wide transition-colors",
+                    "text-[11px] font-bold uppercase tracking-wide transition-colors",
                     isActive ? "text-foreground" : "text-muted-foreground"
                   )}>
                     {t(item.labelKey).split(' ')[0]}

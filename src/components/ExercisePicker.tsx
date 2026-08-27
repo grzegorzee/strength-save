@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
 import { matchesQuery } from '@/lib/search-utils';
 import { toast } from '@/hooks/use-toast';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
+
+const CUSTOM_SAVE_FEEDBACK_TIMEOUT_MS = 8_000;
 
 export interface ExercisePickerProps {
   open: boolean;
@@ -55,6 +57,10 @@ export const ExercisePicker = ({
   const [picked, setPicked] = useState<LibraryExercise | null>(null);
   const [customForm, setCustomForm] = useState<CustomExerciseInput | null>(null);
   const [isSavingCustom, setIsSavingCustom] = useState(false);
+  const [hasPendingCustomSave, setHasPendingCustomSave] = useState(false);
+  const pendingCustomSaveRef = useRef<Promise<CustomExercise> | null>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   // Świeży stan przy każdym otwarciu (initialCategory może się różnić między otwarciami).
   useEffect(() => {
@@ -62,7 +68,9 @@ export const ExercisePicker = ({
     setSearch('');
     setCategory(initialCategory ?? 'all');
     setPicked(null);
-    setCustomForm(null);
+    // Nierozstrzygnięty zapis zachowujemy także po zamknięciu pickera. Dzięki
+    // temu ponowne otwarcie nie może przypadkiem wysłać drugiego addDoc.
+    if (!pendingCustomSaveRef.current) setCustomForm(null);
     setIsSavingCustom(false);
   }, [open, initialCategory]);
 
@@ -95,26 +103,59 @@ export const ExercisePicker = ({
   const handleSaveCustom = async () => {
     if (!onCreateCustomExercise || !customForm || !customNameValid || isSavingCustom) return;
     setIsSavingCustom(true);
-    try {
-      const created = await onCreateCustomExercise(customForm);
-      setCustomForm(null);
-      handleItemTap(created);
-    } catch (err) {
-      // Bug 54 (X30): cichy fail łamał zasadę 6 (stan błędu bez informującego
-      // wyjścia i bez śladu w client_errors). Formularz zostaje, user może
-      // ponowić; konwencja toastu jak CreateCustomExerciseDialog.
+
+    let pending = pendingCustomSaveRef.current;
+    if (!pending) {
+      pending = onCreateCustomExercise(customForm);
+      pendingCustomSaveRef.current = pending;
+      setHasPendingCustomSave(true);
+
+      // Obsługa wyniku jest przypięta dokładnie raz do pierwotnej operacji.
+      // Timeout steruje wyłącznie UX-em — nie anuluje ani nie powiela zapisu.
+      void pending.then((created) => {
+        if (pendingCustomSaveRef.current !== pending) return;
+        pendingCustomSaveRef.current = null;
+        setHasPendingCustomSave(false);
+        setIsSavingCustom(false);
+        setCustomForm(null);
+        if (openRef.current) handleItemTap(created);
+      }, (err: unknown) => {
+        if (pendingCustomSaveRef.current !== pending) return;
+        pendingCustomSaveRef.current = null;
+        setHasPendingCustomSave(false);
+        setIsSavingCustom(false);
+        // Bug 54 (X30): formularz zostaje, user może ponowić lub anulować.
+        toast({
+          title: t('custom.toastSaveFailTitle'),
+          description: t('custom.toastSaveFailDesc'),
+          variant: 'destructive',
+        });
+        reportClientErrorWithCurrentUid({
+          code: 'custom-exercise-save',
+          phase: 'other',
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }
+
+    const result = await Promise.race([
+      pending.then(() => 'settled' as const, () => 'settled' as const),
+      new Promise<'pending'>((resolve) => {
+        window.setTimeout(() => resolve('pending'), CUSTOM_SAVE_FEEDBACK_TIMEOUT_MS);
+      }),
+    ]);
+
+    if (result === 'pending' && pendingCustomSaveRef.current === pending) {
+      setIsSavingCustom(false);
       toast({
-        title: t('custom.toastSaveFailTitle'),
-        description: t('custom.toastSaveFailDesc'),
-        variant: 'destructive',
+        title: t('custom.toastSavePendingTitle'),
+        description: t('custom.toastSavePendingDesc'),
       });
       reportClientErrorWithCurrentUid({
-        code: 'custom-exercise-save',
+        code: 'custom-exercise-save-pending',
         phase: 'other',
-        detail: err instanceof Error ? err.message : String(err),
+        detail: `pending>${CUSTOM_SAVE_FEEDBACK_TIMEOUT_MS}ms`,
       });
-    } finally {
-      setIsSavingCustom(false);
     }
   };
 
@@ -207,7 +248,7 @@ export const ExercisePicker = ({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
+        <div data-testid="exercise-picker-scroll" className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 space-y-2">
           {customForm && (
             <div className="rounded-xl border border-border p-3 space-y-3">
               <Input
@@ -215,12 +256,14 @@ export const ExercisePicker = ({
                 onChange={(e) => setCustomForm({ ...customForm, name: e.target.value })}
                 placeholder={t('custom.namePlaceholder')}
                 maxLength={80}
+                disabled={hasPendingCustomSave}
                 autoFocus
               />
               <div className="flex gap-1.5 flex-wrap">
                 {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
                   <button
                     key={key}
+                    disabled={hasPendingCustomSave}
                     onClick={() => setCustomForm({ ...customForm, category: key })}
                     className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
                       customForm.category === key ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
@@ -231,6 +274,7 @@ export const ExercisePicker = ({
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 <button
+                  disabled={hasPendingCustomSave}
                   onClick={() => setCustomForm({ ...customForm, type: 'compound' })}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
                     customForm.type === 'compound' ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
@@ -238,6 +282,7 @@ export const ExercisePicker = ({
                   {t('planbuilder.compound')}
                 </button>
                 <button
+                  disabled={hasPendingCustomSave}
                   onClick={() => setCustomForm({ ...customForm, type: 'isolation' })}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
                     customForm.type === 'isolation' ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
@@ -245,6 +290,7 @@ export const ExercisePicker = ({
                   {t('planbuilder.isolation')}
                 </button>
                 <button
+                  disabled={hasPendingCustomSave}
                   onClick={() => setCustomForm({ ...customForm, isBodyweight: !customForm.isBodyweight })}
                   aria-pressed={customForm.isBodyweight}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
@@ -265,6 +311,7 @@ export const ExercisePicker = ({
                   ] as Array<[CustomExerciseInput['tracking'], string]>).map(([value, label]) => (
                     <button
                       key={label}
+                      disabled={hasPendingCustomSave}
                       onClick={() => setCustomForm({ ...customForm, tracking: value })}
                       className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
                         customForm.tracking === value ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
@@ -275,12 +322,17 @@ export const ExercisePicker = ({
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setCustomForm(null)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 flex-1"
+                  onClick={() => hasPendingCustomSave ? handleOpenChange(false) : setCustomForm(null)}
+                >
                   {t('common.cancel')}
                 </Button>
-                <Button size="sm" className="flex-1" disabled={!customNameValid || isSavingCustom} onClick={handleSaveCustom}>
+                <Button size="sm" className="min-h-11 flex-1" disabled={!customNameValid || isSavingCustom} onClick={handleSaveCustom}>
                   {isSavingCustom && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                  {t('custom.save')}
+                  {hasPendingCustomSave ? t('custom.checkSave') : t('custom.save')}
                 </Button>
               </div>
             </div>

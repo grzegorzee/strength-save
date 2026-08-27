@@ -4,6 +4,8 @@
 // na native plik idzie w systemowy share sheet (iOS ma tam "Zapisz obraz" /
 // "Zapisz do plików"); web zostaje przy <a download>.
 import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 export type ShareExportResult = 'shared' | 'downloaded' | 'aborted' | 'failed';
 
@@ -60,10 +62,92 @@ const downloadFile = (file: File): ShareExportResult => {
   return 'downloaded';
 };
 
+const NATIVE_EXPORT_DIR = 'strength-save-exports';
+
+const isShareCancellation = (err: unknown): boolean => {
+  if (!(err instanceof Error)) return false;
+  if (err.name === 'AbortError') return true;
+  const message = err.message.toLowerCase();
+  return message.includes('share canceled') || message.includes('share cancelled');
+};
+
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(reader.error ?? new Error('file-read-failed'));
+  reader.onload = () => {
+    const result = reader.result;
+    if (typeof result !== 'string') {
+      reject(new Error('file-read-failed'));
+      return;
+    }
+    resolve(result.slice(result.indexOf(',') + 1));
+  };
+  reader.readAsDataURL(file);
+});
+
+const fileToText = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(reader.error ?? new Error('file-read-failed'));
+  reader.onload = () => {
+    if (typeof reader.result === 'string') resolve(reader.result);
+    else reject(new Error('file-read-failed'));
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+const isTextFile = (file: File): boolean => (
+  file.type.startsWith('text/')
+  || file.type.includes('json')
+  || file.type.includes('xml')
+);
+
+const cleanupPreviousNativeExports = async (): Promise<void> => {
+  try {
+    const { files } = await Filesystem.readdir({ path: NATIVE_EXPORT_DIR, directory: Directory.Cache });
+    await Promise.all(files
+      .filter((entry) => entry.type === 'file')
+      .map((entry) => Filesystem.deleteFile({
+        path: `${NATIVE_EXPORT_DIR}/${entry.name}`,
+        directory: Directory.Cache,
+      }).catch(() => undefined)));
+  } catch {
+    // Katalog nie istnieje przy pierwszym eksporcie; cleanup jest best-effort.
+  }
+};
+
+const nativeShare = async (
+  file: File,
+  title: string,
+  onShareError?: (err: unknown) => void,
+): Promise<ShareExportResult> => {
+  try {
+    await cleanupPreviousNativeExports();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-');
+    const path = `${NATIVE_EXPORT_DIR}/${Date.now()}-${safeName}`;
+    const textFile = isTextFile(file);
+    const { uri } = await Filesystem.writeFile({
+      path,
+      data: textFile ? await fileToText(file) : await fileToBase64(file),
+      directory: Directory.Cache,
+      ...(textFile ? { encoding: Encoding.UTF8 } : {}),
+      recursive: true,
+    });
+    await Share.share({ title, files: [uri] });
+    return 'shared';
+  } catch (err) {
+    if (isShareCancellation(err)) return 'aborted';
+    onShareError?.(err);
+    return 'failed';
+  }
+};
+
 export const shareOrDownloadFile = async (
   file: File,
   options?: ShareOrDownloadOptions,
 ): Promise<ShareExportResult> => {
+  if (Capacitor.isNativePlatform()) {
+    return nativeShare(file, options?.title ?? file.name, options?.onShareError);
+  }
   const wantsShare = options?.preferShare === true || Capacitor.isNativePlatform();
   if (wantsShare && canShareFile(file)) {
     return systemShare(file, options?.title ?? file.name, options?.onShareError);

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 const native = vi.hoisted(() => ({
   platform: 'web',
@@ -44,5 +45,14 @@ describe('Z230/G12 — Health bridge matches platform copy', () => {
     const { getHealthBridge } = await import('@/lib/health-bridge');
     expect(await getHealthBridge().isAvailable()).toBe(false);
     expect(native.plugin.isAvailable).not.toHaveBeenCalled();
+  });
+
+  it('registers the local iOS HealthSync plugin in the Capacitor bridge', () => {
+    const bridgeController = readFileSync(
+      'ios/App/App/WatchBridge/BridgeViewController.swift',
+      'utf8',
+    );
+
+    expect(bridgeController).toContain('bridge?.registerPluginInstance(HealthSyncPlugin())');
   });
 });

@@ -3,8 +3,9 @@
 // samej ścieżki co poniedziałkowy harmonogram (buildWeeklyDigestDeps).
 // Firestore: tylko odczyty. DRY_RUN=1 wypisuje temat/statystyki bez wysyłki.
 const admin = require("firebase-admin");
-const { Resend } = require("resend");
+const { SESv2Client } = require("@aws-sdk/client-sesv2");
 const { runWeeklyDigest, buildWeeklyDigestDeps } = require("./lib/weekly-digest");
+const { htmlToPlainText, sendSesEmailWithClient } = require("./lib/ses-email");
 
 const TARGET_EMAIL = process.env.TARGET_EMAIL;
 const DRY_RUN = process.env.DRY_RUN === "1";
@@ -17,8 +18,31 @@ if (!TARGET_EMAIL) {
 admin.initializeApp({ projectId: "fittracker-workouts" });
 
 const main = async () => {
-  const resendKey = process.env.RESEND_API_KEY || "dry-run-key";
-  const deps = buildWeeklyDigestDeps(admin.firestore(), new Resend(resendKey));
+  const region = process.env.STRENGTHSAVE_SES_REGION;
+  const accessKeyId = process.env.STRENGTHSAVE_SES_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.STRENGTHSAVE_SES_SECRET_ACCESS_KEY;
+  const from = process.env.STRENGTHSAVE_SES_FROM;
+  if (!DRY_RUN && (!region || !accessKeyId || !secretAccessKey || !from)) {
+    throw new Error("Brak zmiennych STRENGTHSAVE_SES_* dla kontrolowanej wysyłki");
+  }
+  const client = new SESv2Client({
+    region: region || "eu-central-1",
+    credentials: {
+      accessKeyId: accessKeyId || "dry-run-only",
+      secretAccessKey: secretAccessKey || "dry-run-only",
+    },
+    retryMode: "standard",
+    maxAttempts: 3,
+  });
+  const deps = buildWeeklyDigestDeps(admin.firestore(), ({ to, subject, html }) => (
+    sendSesEmailWithClient(client, {
+      from: from || "noreply@example.invalid",
+      to,
+      subject,
+      html,
+      text: htmlToPlainText(html),
+    })
+  ));
 
   const targetDeps = {
     ...deps,

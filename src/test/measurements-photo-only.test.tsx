@@ -29,6 +29,8 @@ vi.mock('@/components/PhotoCropDialog', () => ({
 // Mocki pod render całej strony Pomiarów (WP-D D5).
 const pageMocks = vi.hoisted(() => ({
   measurements: [] as unknown[],
+  measurementError: null as string | null,
+  retryMeasurements: vi.fn(),
   addMeasurement: vi.fn(async (m: Record<string, unknown>) => ({ measurement: { id: 'new', userId: 'u1', ...m } })),
   toast: vi.fn(),
 }));
@@ -39,6 +41,8 @@ vi.mock('@/contexts/UserContext', () => ({
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
     measurements: pageMocks.measurements,
+    measurementError: pageMocks.measurementError,
+    retryMeasurements: pageMocks.retryMeasurements,
     addMeasurement: pageMocks.addMeasurement,
     getLatestMeasurement: () => undefined,
   }),
@@ -95,6 +99,8 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:preview');
   URL.revokeObjectURL = vi.fn();
   pageMocks.measurements = [];
+  pageMocks.measurementError = null;
+  pageMocks.retryMeasurements.mockClear();
   pageMocks.addMeasurement.mockClear();
   pageMocks.toast.mockClear();
 });
@@ -130,6 +136,15 @@ describe('MeasurementsForm — wpis tylko-zdjęcie (WP-D D2)', () => {
 });
 
 describe('Measurements — sekcja zdjęć i porównania (WP-D D5)', () => {
+  it('bug 40: błąd listenera jest widoczny i ma działającą akcję ponowienia', () => {
+    pageMocks.measurementError = 'permission-denied';
+    renderPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Nie udało się wczytać pomiarów/i);
+    fireEvent.click(screen.getByRole('button', { name: /Spróbuj ponownie/i }));
+    expect(pageMocks.retryMeasurements).toHaveBeenCalledTimes(1);
+  });
+
   it('0 zdjęć: przycisk "Dodaj zdjęcie" + zachęta compareEmpty, bez porównania', () => {
     renderPage();
 

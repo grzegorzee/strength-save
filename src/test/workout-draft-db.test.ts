@@ -191,6 +191,40 @@ class FakeIndexedDbFactory {
   }
 }
 
+const replaceFirstOpenedDatabaseWithBrokenReadConnection = (
+  healthyFactory: FakeIndexedDbFactory,
+): { getOpenCount: () => number } => {
+  let openCount = 0;
+  const brokenDb = {
+    onclose: null,
+    onversionchange: null,
+    close: () => undefined,
+    transaction: () => {
+      throw new DOMException('Connection became inactive after resume', 'InvalidStateError');
+    },
+  } as unknown as IDBDatabase;
+
+  Object.defineProperty(window, 'indexedDB', {
+    configurable: true,
+    writable: true,
+    value: {
+      open: (name: string, version?: number) => {
+        openCount += 1;
+        if (openCount > 1) return healthyFactory.open(name, version);
+
+        const request = new FakeRequest<IDBDatabase>();
+        enqueue(() => {
+          request.result = brokenDb;
+          request.onsuccess?.(new Event('success'));
+        });
+        return request as unknown as IDBOpenDBRequest;
+      },
+    },
+  });
+
+  return { getOpenCount: () => openCount };
+};
+
 const baseDraft: ActiveWorkoutDraft = {
   sessionId: 'workout-123',
   userId: 'user-1',
@@ -235,6 +269,23 @@ describe('workoutDraftDb', () => {
     await workoutDraftDb.saveActiveDraft(baseDraft);
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
     expect(loaded).toEqual(baseDraft);
+  });
+
+  it.each([
+    ['loadActiveDraft', () => workoutDraftDb.loadActiveDraft('user-1')],
+    ['loadDraft', () => workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)],
+    ['listDrafts', () => workoutDraftDb.listDrafts('user-1')],
+  ])('%s ponawia odczyt na świeżym połączeniu po jednorazowej awarii resume', async (_name, read) => {
+    const healthyFactory = window.indexedDB as unknown as FakeIndexedDbFactory;
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    __resetWorkoutDraftDbConnectionForTests();
+    const connection = replaceFirstOpenedDatabaseWithBrokenReadConnection(healthyFactory);
+
+    const result = await read();
+    const loaded = Array.isArray(result) ? result[0] : result;
+
+    expect(loaded).toEqual(baseDraft);
+    expect(connection.getOpenCount()).toBe(2);
   });
 
   it('crash path zapisuje bieżący snapshot synchronicznie do fallbacku bez czekania na IDB', () => {
@@ -360,6 +411,24 @@ describe('workoutDraftDb', () => {
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
     expect(loaded?.dirty).toBe(false);
     expect(loaded?.lastFirebaseSyncAt).toBe(999);
+  });
+
+  // Sekwencja release: udany checkpoint zostawiał pendingWriteId dla tej samej
+  // wersji. Final bez nowej serii reuse'ował ten ID, więc backend uznawał go za
+  // już zastosowany checkpoint i pozostawiał completed=false.
+  it('ACK checkpointu czyści jego writeId, aby final tej samej wersji dostał nowy klucz', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 6,
+      pendingWriteId: 'checkpoint-write',
+      pendingWriteVersion: 6,
+    });
+
+    await workoutDraftDb.markDraftSynced('user-1', 999, 6, baseDraft.sessionId, { revision: 2 });
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+    expect(loaded?.pendingWriteId).toBeUndefined();
+    expect(loaded?.pendingWriteVersion).toBeUndefined();
   });
 
   it('does not clear a newer local draft when an older cloud ACK arrives', async () => {
@@ -519,6 +588,39 @@ describe('workoutDraftDb', () => {
     expect(drafts[0].cloudUpdatedAt).toBe(500);
   });
 
+  it('utrata localStorage tombstone po promocji nie wskrzesza provisional draftu', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+    localStorage.removeItem(getPromotionTombstoneKey('user-1', provisionalId));
+    __resetWorkoutDraftDbConnectionForTests();
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 5,
+      dayNotes: 'późna edycja po utracie localStorage',
+    });
+
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      sessionId: remoteId,
+      sessionOrigin: 'remote',
+      dayNotes: 'późna edycja po utracie localStorage',
+    });
+    expect(await workoutDraftDb.loadDraft('user-1', provisionalId)).toBeNull();
+  });
+
   it('bug 20: redirect po promocji przenosi warmupChecked, sessionSwaps, lastTouchedExerciseId i lastActivityAt', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';
@@ -586,10 +688,50 @@ describe('workoutDraftDb', () => {
     expect(orphan).toBeNull();
   });
 
-  it('bug 3: resolvePromotedSessionId zwraca remote id z tombstone\'a promocji, null gdy brak', async () => {
+  it('wyścig promocji nie wskrzesza provisional, gdy zapis localStorage tombstone rzuca quota error', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';
-    expect(workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBeNull();
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+    const originalSetItem = Storage.prototype.setItem;
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === getPromotionTombstoneKey('user-1', provisionalId)) {
+        throw new DOMException('quota', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    });
+
+    try {
+      const promote = workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+      const racingSave = workoutDraftDb.saveActiveDraft({
+        ...baseDraft,
+        sessionId: provisionalId,
+        sessionOrigin: 'provisional',
+        remoteSessionId: null,
+        version: 4,
+        dayNotes: 'zapis bez localStorage tombstone',
+      });
+      await Promise.all([promote, racingSave]);
+    } finally {
+      setItem.mockRestore();
+    }
+
+    __resetWorkoutDraftDbConnectionForTests();
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ sessionId: remoteId, dayNotes: 'zapis bez localStorage tombstone' });
+    expect(await workoutDraftDb.loadDraft('user-1', provisionalId)).toBeNull();
+  });
+
+  it('bug 3: resolvePromotedSessionId odzyskuje remote id także po utracie localStorage tombstone', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    expect(await workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBeNull();
 
     await workoutDraftDb.saveActiveDraft({
       ...baseDraft,
@@ -598,11 +740,43 @@ describe('workoutDraftDb', () => {
       remoteSessionId: null,
     });
     await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+    localStorage.removeItem(getPromotionTombstoneKey('user-1', provisionalId));
+    __resetWorkoutDraftDbConnectionForTests();
 
     // WorkoutDay po skipped/missingDraft własnej sesji provisional odzyskuje
     // tożsamość remote i może ponowić sync zamiast cichego no-opa.
-    expect(workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBe(remoteId);
-    expect(workoutDraftDb.resolvePromotedSessionId('user-1', 'local-workout-inny')).toBeNull();
+    expect(await workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBe(remoteId);
+    expect(await workoutDraftDb.resolvePromotedSessionId('user-1', 'local-workout-inny')).toBeNull();
+  });
+
+  it('trwały alias nie pozwala staremu ekranowi odtworzyć draftu po finalnym cleanupie', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+    localStorage.removeItem(getPromotionTombstoneKey('user-1', provisionalId));
+    __resetWorkoutDraftDbConnectionForTests();
+    const remote = await workoutDraftDb.loadDraft('user-1', remoteId);
+    expect(remote).not.toBeNull();
+    expect(await workoutDraftDb.clearActiveDraftIfVersion('user-1', remoteId, remote!.version)).toBe(true);
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 4,
+    });
+
+    expect(await workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBe(remoteId);
+    expect(await workoutDraftDb.loadDraft('user-1', provisionalId)).toBeNull();
+    expect(await workoutDraftDb.loadDraft('user-1', remoteId)).toBeNull();
   });
 
   it('bug 4 sekwencja: niedokończony adhoc nie przysłania sesji planu — loadDraftForDay wybiera draft strony', async () => {
@@ -765,7 +939,77 @@ describe('workoutDraftDb', () => {
     expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
   });
 
+  it('fallback po restarcie zachowuje tożsamość i intencję finalnego syncu', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    const finalDraft: ActiveWorkoutDraft = {
+      ...baseDraft,
+      sessionId: 'workout-remote-final',
+      cycleId: 'cycle-final',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'workout-remote-final',
+      dayName: 'Nogi A',
+      dayFocus: 'Siła',
+      lastTouchedExerciseId: 'ex-1',
+      completedLocally: true,
+      finalSyncPending: true,
+      dirty: true,
+      version: 12,
+      finalizedAt: 1_760_000_000_000,
+    };
+
+    await workoutDraftDb.saveActiveDraft(finalDraft);
+    __resetWorkoutDraftDbConnectionForTests();
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', finalDraft.sessionId);
+
+    expect(loaded).toMatchObject({
+      sessionId: finalDraft.sessionId,
+      cycleId: 'cycle-final',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'workout-remote-final',
+      dayName: 'Nogi A',
+      dayFocus: 'Siła',
+      lastTouchedExerciseId: 'ex-1',
+      completedLocally: true,
+      finalSyncPending: true,
+      dirty: true,
+      version: 12,
+      finalizedAt: 1_760_000_000_000,
+    });
+  });
+
+  it('fallback zachowuje updatedEventId potrzebny do tie-breakera cross-device', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      exerciseSets: {
+        'ex-1': [{
+          reps: 5,
+          weight: 80,
+          completed: true,
+          updatedAt: 1_760_000_000_000,
+          updatedEventId: 'watch-event-z',
+        }],
+      },
+    });
+    __resetWorkoutDraftDbConnectionForTests();
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.exerciseSets['ex-1'][0].updatedEventId).toBe('watch-event-z');
+  });
+
   it('corrupted IndexedDB open po kill/resume odtwarza istniejący fallback localStorage', async () => {
+    let openCount = 0;
     workoutDraft.save({
       sessionId: baseDraft.sessionId,
       dayId: baseDraft.dayId,
@@ -782,6 +1026,7 @@ describe('workoutDraftDb', () => {
       writable: true,
       value: {
         open: () => {
+          openCount += 1;
           const request = new FakeRequest<IDBDatabase>();
           enqueue(() => {
             request.error = new Error('IndexedDB connection is corrupted');
@@ -797,6 +1042,7 @@ describe('workoutDraftDb', () => {
     expect(loaded?.sessionId).toBe(baseDraft.sessionId);
     expect(loaded?.exerciseSets).toEqual(baseDraft.exerciseSets);
     expect(loaded?.dayNotes).toBe(baseDraft.dayNotes);
+    expect(openCount).toBe(2);
   });
 
   it('total failure: gdy IDB i localStorage padną, leci DraftSaveTotalFailure ze stage (FIX-A T4)', async () => {
@@ -1029,6 +1275,47 @@ describe('workoutDraftDb', () => {
     expect(loaded?.version).toBe(9);
     expect(loaded?.startedAt).toBe(1_000_000);
     expect(loaded?.lastActivityAt).toBe(5_700_000);
+  });
+
+  it('po odzyskaniu IDB merge zachowuje finalSyncPending z nowszego fallbacku', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 2,
+      completedLocally: false,
+      finalSyncPending: false,
+    });
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      cycleId: 'cycle-after-idb-failure',
+      sessionOrigin: 'remote',
+      remoteSessionId: baseDraft.sessionId,
+      exerciseSets: baseDraft.exerciseSets,
+      exerciseNotes: baseDraft.exerciseNotes,
+      exerciseMetrics: baseDraft.exerciseMetrics,
+      dayNotes: baseDraft.dayNotes,
+      skippedExercises: baseDraft.skippedExercises,
+      savedAt: baseDraft.updatedAt + 100,
+      version: 9,
+      dirty: true,
+      completedLocally: true,
+      finalSyncPending: true,
+      finalizedAt: 1_760_000_000_000,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded).toMatchObject({
+      cycleId: 'cycle-after-idb-failure',
+      sessionOrigin: 'remote',
+      remoteSessionId: baseDraft.sessionId,
+      dirty: true,
+      completedLocally: true,
+      finalSyncPending: true,
+      finalizedAt: 1_760_000_000_000,
+      version: 9,
+    });
   });
 
   it('Z182: fallback localStorage z wyższą wersją wygrywa z IDB (najświeższy snapshot)', async () => {

@@ -5,8 +5,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { shareOrDownloadFile } from '@/lib/share-export';
 
 const nativePlatformMock = vi.hoisted(() => ({ value: false }));
+const nativeMocks = vi.hoisted(() => ({
+  writeFile: vi.fn(),
+  readdir: vi.fn(),
+  deleteFile: vi.fn(),
+  share: vi.fn(),
+}));
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => nativePlatformMock.value },
+}));
+vi.mock('@capacitor/filesystem', () => ({
+  Directory: { Cache: 'CACHE' },
+  Encoding: { UTF8: 'UTF8' },
+  Filesystem: {
+    writeFile: nativeMocks.writeFile,
+    readdir: nativeMocks.readdir,
+    deleteFile: nativeMocks.deleteFile,
+  },
+}));
+vi.mock('@capacitor/share', () => ({
+  Share: { share: nativeMocks.share },
 }));
 
 const shareMock = vi.fn();
@@ -19,6 +37,10 @@ beforeEach(() => {
   nativePlatformMock.value = false;
   shareMock.mockReset().mockResolvedValue(undefined);
   canShareMock.mockReset().mockReturnValue(true);
+  nativeMocks.writeFile.mockReset().mockResolvedValue({ uri: 'file:///cache/test-export.csv' });
+  nativeMocks.readdir.mockReset().mockResolvedValue({ files: [{ name: 'old.csv', type: 'file' }] });
+  nativeMocks.deleteFile.mockReset().mockResolvedValue(undefined);
+  nativeMocks.share.mockReset().mockResolvedValue({ activityType: 'test' });
   Object.defineProperty(navigator, 'share', { configurable: true, value: shareMock });
   Object.defineProperty(navigator, 'canShare', { configurable: true, value: canShareMock });
   vi.stubGlobal('URL', Object.assign(URL, {
@@ -34,12 +56,25 @@ afterEach(() => {
 });
 
 describe('shareOrDownloadFile', () => {
-  it('native + canShare: navigator.share z plikiem, wynik shared', async () => {
+  it('native: sprząta poprzednie eksporty, zapisuje nowy w Cache i udostępnia file:// pluginem', async () => {
     nativePlatformMock.value = true;
     const result = await shareOrDownloadFile(file);
     expect(result).toBe('shared');
-    expect(shareMock).toHaveBeenCalledTimes(1);
-    expect(shareMock.mock.calls[0][0].files).toEqual([file]);
+    expect(nativeMocks.writeFile).toHaveBeenCalledWith(expect.objectContaining({
+      path: expect.stringMatching(/^strength-save-exports\/\d+-test-export\.csv$/),
+      directory: 'CACHE',
+      data: 'dane',
+      encoding: 'UTF8',
+    }));
+    expect(nativeMocks.deleteFile).toHaveBeenCalledWith({
+      path: 'strength-save-exports/old.csv',
+      directory: 'CACHE',
+    });
+    expect(nativeMocks.share).toHaveBeenCalledWith({
+      title: 'test-export.csv',
+      files: ['file:///cache/test-export.csv'],
+    });
+    expect(shareMock).not.toHaveBeenCalled();
     expect(clickSpy).not.toHaveBeenCalled();
   });
 
@@ -52,38 +87,51 @@ describe('shareOrDownloadFile', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock');
   });
 
-  it('native + AbortError (zamknięty sheet): wynik aborted, nie failed', async () => {
+  it('native + komunikat anulowania pluginu: wynik aborted, bez fałszywego błędu', async () => {
     nativePlatformMock.value = true;
-    const abort = new Error('cancelled');
-    abort.name = 'AbortError';
-    shareMock.mockRejectedValue(abort);
+    nativeMocks.share.mockRejectedValue(new Error('Share canceled'));
     const result = await shareOrDownloadFile(file);
     expect(result).toBe('aborted');
     expect(clickSpy).not.toHaveBeenCalled();
   });
 
-  it('native + inny błąd share: wynik failed', async () => {
+  it('native + błąd zapisu/share: wynik failed i telemetria, bez martwego downloadu', async () => {
     nativePlatformMock.value = true;
-    shareMock.mockRejectedValue(new Error('NotAllowedError'));
-    const result = await shareOrDownloadFile(file);
+    const error = new Error('disk-full');
+    const onShareError = vi.fn();
+    nativeMocks.writeFile.mockRejectedValue(error);
+    const result = await shareOrDownloadFile(file, { onShareError });
     expect(result).toBe('failed');
+    expect(onShareError).toHaveBeenCalledWith(error);
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 
-  it('native bez canShare: fallback <a download>, wynik downloaded', async () => {
+  it('native bez Web Share API nadal używa pluginów, nigdy <a download>', async () => {
     nativePlatformMock.value = true;
     canShareMock.mockReturnValue(false);
     const result = await shareOrDownloadFile(file);
-    expect(result).toBe('downloaded');
+    expect(result).toBe('shared');
     expect(shareMock).not.toHaveBeenCalled();
-    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(nativeMocks.share).toHaveBeenCalledTimes(1);
+    expect(clickSpy).not.toHaveBeenCalled();
+  });
+
+  it('native zachowuje pliki binarne jako base64 bez Encoding.UTF8', async () => {
+    nativePlatformMock.value = true;
+    const pdf = new File(['%PDF-1.7'], 'report.pdf', { type: 'application/pdf' });
+    await shareOrDownloadFile(pdf);
+    expect(nativeMocks.writeFile).toHaveBeenCalledWith(expect.objectContaining({
+      data: 'JVBERi0xLjc=',
+    }));
+    expect(nativeMocks.writeFile.mock.calls[0][0]).not.toHaveProperty('encoding');
   });
 
   it('domyślny title share sheeta = nazwa pliku; opcja title nadpisuje', async () => {
     nativePlatformMock.value = true;
     await shareOrDownloadFile(file);
-    expect(shareMock.mock.calls[0][0].title).toBe('test-export.csv');
+    expect(nativeMocks.share.mock.calls[0][0].title).toBe('test-export.csv');
     await shareOrDownloadFile(file, { title: 'Mój trening' });
-    expect(shareMock.mock.calls[1][0].title).toBe('Mój trening');
+    expect(nativeMocks.share.mock.calls[1][0].title).toBe('Mój trening');
   });
 
   it('preferShare (przycisk Udostępnij): share sheet też na webie z canShare', async () => {

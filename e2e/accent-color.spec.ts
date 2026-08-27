@@ -57,7 +57,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
       };
     });
     expect(tokens.primary).toBe('235 86% 65%');
-    expect(tokens.foreground).toBe('0 0% 98%');
+    expect(tokens.foreground).toBe('0 0% 100%');
   });
 
   // Audyt akcentu (2026-08-20): aktywne chipy filtrów (Historia: bg-primary,

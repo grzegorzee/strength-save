@@ -137,14 +137,17 @@ describe('EditMeasurementDialog — otwarcie i hydracja (WP-M)', () => {
 // pierwszy focus na polu daty (iOS podnosił picker). Teraz: Sheet od dołu,
 // data i godzina w OSOBNYCH wierszach, min-w-0 na komórkach, focus na wadze.
 describe('EditMeasurementDialog — arkusz od dołu i focus (WP-G)', () => {
-  it('otwiera się jako Sheet od dołu z overflow-x-hidden i overflow-y-auto', () => {
+  it('otwiera się jako keyboard-aware Sheet od dołu z zachowanym scrollem', () => {
     renderPage();
     const sheet = openEdit(recordedEntry);
 
     expect(sheet).toHaveAttribute('data-testid', 'measurement-edit-sheet');
-    expect(sheet.className).toMatch(/\bbottom-0\b/);
+    expect(sheet.className).toContain('bottom-[var(--keyboard-inset,0px)]');
+    expect(sheet.className).toContain('max-h-[calc(100dvh-var(--keyboard-inset,0px))]');
+    expect(sheet.className).not.toContain('max-h-[92vh]');
     expect(sheet.className).toMatch(/\boverflow-x-hidden\b/);
     expect(sheet.className).toMatch(/\boverflow-y-auto\b/);
+    expect(within(sheet).getByTestId('measurement-edit-save')).toBeTruthy();
   });
 
   it('data i godzina w osobnych wierszach na pełną szerokość (żaden przodek w obrębie arkusza nie jest siatką 2-kolumnową)', () => {

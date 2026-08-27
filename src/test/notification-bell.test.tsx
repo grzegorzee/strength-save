@@ -62,6 +62,8 @@ describe('NotificationBell (B-T6: serwerowe user_events)', () => {
     renderBell();
     emitEvents([]);
     expect(screen.queryByTestId('inbox-unread-dot')).toBeNull();
+    expect(screen.getByLabelText('inbox.open').className).toContain('h-11');
+    expect(screen.getByLabelText('inbox.open').className).toContain('w-11');
   });
 
   it('nieprzeczytane zdarzenie pokazuje kropkę, otwarcie oznacza przeczytane', () => {
@@ -158,5 +160,21 @@ describe('NotificationBell (B-T6: serwerowe user_events)', () => {
     ]);
     fireEvent.click(screen.getByLabelText('inbox.open'));
     expect(screen.getByText('Nowość: eksport CSV').closest('[role="button"]')).toBeNull();
+  });
+
+  it('nie traktuje zewnętrznego ani protokół-relative deepLink jako nawigacji aplikacji', () => {
+    renderBell();
+    emitEvents([
+      event({
+        type: 'announcement',
+        key: 'announcement-unsafe-link',
+        payload: { title: 'Niebezpieczny link', body: 'Opis.' },
+        deepLink: '//evil.example/phishing',
+      }),
+    ]);
+    fireEvent.click(screen.getByLabelText('inbox.open'));
+    expect(screen.getByText('Niebezpieczny link').closest('[role="button"]')).toBeNull();
+    fireEvent.click(screen.getByText('Niebezpieczny link'));
+    expect(screen.getByTestId('location').textContent).toBe('/');
   });
 });

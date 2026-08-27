@@ -89,6 +89,7 @@ describe('emailTypeLabelKey (T21c)', () => {
     expect(emailTypeLabelKey('workout')).toBe('admin.emails.typeWorkout');
     expect(emailTypeLabelKey('weekly_digest')).toBe('admin.emails.typeWeeklyDigest');
     expect(emailTypeLabelKey('verification_code')).toBe('admin.emails.typeVerification');
+    expect(emailTypeLabelKey('bug_report')).toBe('admin.emails.typeBugReport');
   });
 
   it('nieznany typ = null (UI pokazuje surowy string)', () => {

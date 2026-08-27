@@ -84,7 +84,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
             <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               {t('hybrid.stripTitle')}
             </span>
-            <span className="text-[9px] text-muted-foreground/60">{t('hybrid.stripHint')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('hybrid.stripHint')}</span>
           </div>
           <div className="flex items-end gap-1.5">
             {weekLoads.map((d) => {
@@ -121,7 +121,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
                     />
                     <div className="w-full bg-primary" style={{ height: strengthH }} />
                   </div>
-                  <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
+                  <span className="text-[11px] font-bold uppercase text-muted-foreground">{label}</span>
                   {/* Z148: kropka dnia planowego — niezależna od obciążenia. */}
                   {isPlanned
                     ? <span className="h-1 w-1 rounded-full bg-primary/70" data-testid="plan-day-dot" />
@@ -132,11 +132,11 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
           </div>
           {/* Z148: legenda zamiast opisu ukrytego w title (martwy na dotyku). */}
           <div className="mt-2 flex items-center gap-3" data-testid="strip-legend">
-            <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase text-muted-foreground/70">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-muted-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               {t('hybrid.strength')}
             </span>
-            <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase text-muted-foreground/70">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-muted-foreground">
               {/* Naprawa r3: kropka legendy jak słupek — obrys, nie pełne wypełnienie. */}
               <span className="h-1.5 w-1.5 rounded-full bg-fitness-cyan/25 shadow-[inset_0_0_0_1px_hsl(var(--fitness-cyan))]" />
               {t('hybrid.cardio')}

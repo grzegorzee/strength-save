@@ -12,6 +12,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { toast } from '@/hooks/use-toast';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
+import { shareOrDownloadFile } from '@/lib/share-export';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
 
@@ -121,15 +122,18 @@ export const HistoryExportSheet = ({
         const model = buildTrainingReportModel(workouts, now);
         const blob = await generateTrainingReportPdf(model, lang, unit, displayName, now);
         const file = new File([blob], `strength-save-raport-${formatLocalDate(now)}.pdf`, { type: 'application/pdf' });
-        if (navigator.share && navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ title: t('report.title'), files: [file] });
-        } else {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = file.name;
-          link.click();
-          URL.revokeObjectURL(url);
+        const result = await shareOrDownloadFile(file, {
+          title: t('report.title'),
+          onShareError: (err) => reportClientErrorWithCurrentUid({
+            code: 'pdf-export-share',
+            phase: 'other',
+            detail: err instanceof Error ? err.message : String(err),
+          }),
+        });
+        if (result === 'aborted') return;
+        if (result === 'failed') {
+          toast({ title: t('history.exportFailed'), variant: 'destructive' });
+          return;
         }
       }
       onOpenChange(false);

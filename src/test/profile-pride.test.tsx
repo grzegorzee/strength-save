@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 
@@ -68,18 +68,25 @@ const renderProfile = () => {
     <MemoryRouter>
       <LanguageProvider>
         <UnitProvider>
-          <Profile />
+          <Routes>
+            <Route path="*" element={<><Profile /><LocationProbe /></>} />
+          </Routes>
         </UnitProvider>
       </LanguageProvider>
     </MemoryRouter>,
   );
 };
 
+const LocationProbe = () => {
+  const location = useLocation();
+  return <output data-testid="profile-location">{`${location.pathname}${location.search}`}</output>;
+};
+
 describe('Profil: sekcja dumy (PRO-D T6 + kafle fali 2)', () => {
-  it('przy zdobytych odznakach renderuje rząd odznak i link Wszystkie', () => {
-    const { getByText, getAllByTestId } = renderProfile();
+  it('odznaki nie dublują osobnego ekranu, a link Wszystkie pozostaje', () => {
+    const { getByText, queryByTestId } = renderProfile();
     expect(getByText('Wszystkie')).toBeTruthy();
-    expect(getAllByTestId('badge-hex').length).toBeGreaterThan(0);
+    expect(queryByTestId('badge-hex')).toBeNull();
   });
 
   // Fala 2: kafle liczą z okna recent gdy aggregate=null (dzisiejsza semantyka
@@ -91,5 +98,17 @@ describe('Profil: sekcja dumy (PRO-D T6 + kafle fali 2)', () => {
     expect(getAllByText('10').length).toBeGreaterThanOrEqual(2); // kafle Treningi + Serie
     expect(getByText('5.0 t')).toBeTruthy(); // 10 x 500 kg
     expect(getByText('0 tyg.')).toBeTruthy(); // stare daty = streak 0 (prawda)
+  });
+
+  it.each([
+    ['workouts', '/history'],
+    ['streak', '/achievements?view=analytics&tab=charts&chart=streak'],
+    ['tonnage', '/achievements?view=analytics&tab=charts&chart=tonnage'],
+    ['sets', '/history?list=all'],
+  ])('kafel %s jest przyciskiem i prowadzi do istniejącego widoku %s', (key, target) => {
+    const view = renderProfile();
+    fireEvent.click(screen.getByTestId(`profile-pride-${key}`));
+    expect(screen.getByTestId('profile-location')).toHaveTextContent(target);
+    view.unmount();
   });
 });

@@ -9,6 +9,11 @@ export interface WorkoutDraft {
   sessionId: string;
   dayId: string;
   date: string;
+  // Tożsamość sesji i cyklu musi przeżyć awarię IDB. Pola są opcjonalne, aby
+  // zachować odczyt fallbacków zapisanych przed rozszerzeniem formatu.
+  cycleId?: string | null;
+  sessionOrigin?: 'remote' | 'provisional';
+  remoteSessionId?: string | null;
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
   // Metryki autoregulacji RPE/ból/jakość (bug 13, X30) — pole additive; bez niego
@@ -18,7 +23,10 @@ export interface WorkoutDraft {
   // gdy sesja żyje na fallbacku (dodane w locie / swapowane ćwiczenia).
   exerciseNames?: Record<string, string>;
   dayNotes: string;
+  dayName?: string;
+  dayFocus?: string;
   skippedExercises: string[];
+  lastTouchedExerciseId?: string;
   // Odhaczenia rozgrzewki (Z162) — pole additive, przeżywa round-trip przez fallback.
   warmupChecked?: string[];
   // Swapy "tylko dziś" (Z185) — pole additive, przeżywa round-trip przez fallback.
@@ -40,6 +48,12 @@ export interface WorkoutDraft {
   // writeId i kończył się fałszywym WORKOUT_CONFLICT.
   pendingWriteId?: string | null;
   pendingWriteVersion?: number | null;
+  // Intencja finalizacji jest stanem trwałym, nie stanem UI. Jej utrata po
+  // restarcie pozostawiała ukończony lokalnie trening bez finalnego syncu.
+  lastFirebaseSyncAt?: number | null;
+  dirty?: boolean;
+  completedLocally?: boolean;
+  finalSyncPending?: boolean;
 }
 
 export const workoutDraft = {

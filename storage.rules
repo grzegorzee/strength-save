@@ -3,6 +3,14 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    function awaitingBugReport(reportId, userId) {
+      let report = firestore.get(/databases/(default)/documents/bug_reports/$(reportId));
+      return firestore.exists(/databases/(default)/documents/bug_reports/$(reportId))
+             && report.data.userId == userId
+             && report.data.status == 'awaiting_upload'
+             && report.data.uploadPath == 'bug-reports/' + userId + '/' + reportId + '/screenshot.jpg';
+    }
+
     // Zdjęcia profilowe: avatars/{uid}/{plik}
     // Odczyt: każdy zalogowany (user widzi swój avatar, admin widzi userów).
     // Zapis: tylko właściciel ścieżki, wyłącznie obrazy do 5 MB.
@@ -25,6 +33,20 @@ service firebase.storage {
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Zgłoszenia błędów: dokładnie jeden prywatny JPEG tworzony po createBugReport.
+    // Odczyt/status/cleanup idą przez zweryfikowany backend Admin SDK; klient nie
+    // może odczytać, nadpisać ani usunąć załącznika po przesłaniu.
+    match /bug-reports/{userId}/{reportId}/screenshot.jpg {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && resource == null
+                   && request.resource != null
+                   && request.resource.size <= 1572864
+                   && request.resource.contentType == 'image/jpeg'
+                   && awaitingBugReport(reportId, userId);
+      allow read: if false;
     }
 
     // Domyślnie: brak dostępu.

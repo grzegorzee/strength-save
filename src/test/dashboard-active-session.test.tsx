@@ -230,6 +230,38 @@ describe('Z174: jedna prawda o aktywnej sesji', () => {
     expect(screen.getByText('Odhaczone serie: 3')).toBeTruthy();
   });
 
+  it('baner rozpoczętego treningu ma natychmiastowy, dostępny przycisk zamknięcia', async () => {
+    draftFixture.draft = provisionalDraft('day-1');
+    renderDashboard();
+
+    const dismiss = await screen.findByRole('button', { name: 'Ukryj komunikat o synchronizacji' });
+    expect(screen.getByText('Masz trening rozpoczęty offline')).toBeTruthy();
+
+    fireEvent.click(dismiss);
+
+    expect(screen.queryByText('Masz trening rozpoczęty offline')).toBeNull();
+    expect(screen.getAllByText('Kontynuuj trening')).toHaveLength(1);
+  });
+
+  it('nowy błąd kolejki o tej samej liczbie wpisów wraca po dismissie poprzedniego', async () => {
+    const queued = (queueId: string) => ({
+      queueId, userId: 'u1', sessionId: queueId, dayId: 'day-1', date: '2026-08-01',
+      sessionOrigin: 'remote', dirty: true, finalSyncPending: true, updatedAt: 1, enqueuedAt: 1,
+      retryCount: 2, lastError: 'permission-denied', lastErrorAt: 1, permanent: true,
+    });
+    draftFixture.queue = [queued('q1')];
+    renderDashboard();
+
+    const dismiss = await screen.findByRole('button', { name: 'Ukryj komunikat o synchronizacji' });
+    fireEvent.click(dismiss);
+    expect(screen.queryByText('Otwórz Sync Center')).toBeNull();
+
+    draftFixture.queue = [queued('q2')];
+    window.dispatchEvent(new Event('strength-save-workout-sync-state-changed'));
+
+    await waitFor(() => expect(screen.getByText('Otwórz Sync Center')).toBeTruthy());
+  });
+
   it('draft INNEGO dnia planu → baner zachowuje swój przycisk (karta dnia bez CTA)', async () => {
     draftFixture.draft = provisionalDraft('other-day');
     renderDashboard();

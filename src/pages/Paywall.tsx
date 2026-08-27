@@ -242,7 +242,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-primary">
             <Sparkles className="h-3.5 w-3.5" />{t('paywall.teaser.kicker')}
           </p>
-          <h1 className="mt-2 font-heading text-4xl font-black leading-tight tracking-tight">{t('paywall.teaser.title')}</h1>
+          <h1 className="mt-2 font-heading text-4xl font-bold leading-tight tracking-tight">{t('paywall.teaser.title')}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{t('paywall.teaser.subtitle')}</p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
@@ -324,7 +324,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
             <Crown className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="font-heading text-2xl font-black uppercase tracking-tight">{t('paywall.title')}</h1>
+            <h1 className="font-heading text-2xl font-bold uppercase tracking-tight">{t('paywall.title')}</h1>
             <p className="text-sm text-muted-foreground">{t('paywall.subtitle')}</p>
           </div>
         </div>

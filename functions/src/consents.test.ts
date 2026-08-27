@@ -47,6 +47,24 @@ describe("parseConsentPayload", () => {
     })).toThrow(/stale docVersion/);
   });
 
+  it("w oknie migracji przyjmuje privacy 2.0 ze starszego builda i zachowuje tę wersję", () => {
+    const parsed = parseConsentPayload({
+      ...validPayload,
+      entries: [{
+        type: "privacy_ack",
+        action: "granted",
+        docVersion: "2.0",
+        lang: "pl",
+        statementText: "Potwierdzam zapoznanie się z Polityką Prywatności 2.0.",
+      }],
+    });
+
+    expect(parsed.entries[0]?.docVersion).toBe("2.0");
+    expect(buildConsentMirror(parsed.entries)).toEqual({
+      "consents.privacyVersion": "2.0",
+    });
+  });
+
   it("odrzuca withdrawn dla terms i privacy_ack (oświadczenia bez wariantu wycofania)", () => {
     expect(() => parseConsentPayload({
       ...validPayload,

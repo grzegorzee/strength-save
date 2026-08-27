@@ -28,6 +28,18 @@ const renderSheet = (props: Partial<Parameters<typeof PlateCalculatorSheet>[0]> 
 const weightInput = () => screen.getByLabelText(/Waga docelowa/i) as HTMLInputElement;
 
 describe('PlateCalculatorSheet v2 (Z133)', () => {
+  it('utrzymuje arkusz i CTA nad klawiaturą z zachowanym scrollem i safe-area', () => {
+    renderSheet({ exerciseId: 'ex-1', onApplyWeight: vi.fn() });
+    const sheet = screen.getByRole('dialog');
+
+    expect(sheet.className).toContain('bottom-[var(--keyboard-inset,0px)]');
+    expect(sheet.className).toContain('max-h-[calc(100dvh-var(--keyboard-inset,0px))]');
+    expect(sheet.className).not.toContain('max-h-[92vh]');
+    expect(sheet.className).toMatch(/\boverflow-y-auto\b/);
+    expect(sheet.className).toContain('env(safe-area-inset-bottom)');
+    expect(within(sheet).getByRole('button', { name: /Ustaw w serii/i })).toBeTruthy();
+  });
+
   it('pole wagi jest edytowalne i przelicza rozkład talerzy', () => {
     renderSheet({ targetKg: 60 });
     expect(weightInput().value).toBe('60');

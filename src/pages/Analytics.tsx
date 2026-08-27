@@ -38,6 +38,9 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
+import { shareOrDownloadFile } from '@/lib/share-export';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
+import { MeasurementReadError } from '@/components/MeasurementReadError';
 
 type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
@@ -53,7 +56,7 @@ type Period = 'week' | 'month';
 
 const SummaryTab = () => {
   const { uid, profile } = useCurrentUser();
-  const { workouts: liveWorkouts, measurements, isLoaded: liveLoaded } = useFirebaseWorkouts(uid);
+  const { workouts: liveWorkouts, measurements, measurementError, retryMeasurements, isLoaded: liveLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const { toast } = useToast();
@@ -221,15 +224,16 @@ const SummaryTab = () => {
       const model = buildTrainingReportModel(workouts, now);
       const blob = await generateTrainingReportPdf(model, lang, unit, profile?.displayName || '', now);
       const file = new File([blob], `strength-save-raport-${formatLocalDate(now)}.pdf`, { type: 'application/pdf' });
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: t('report.title'), files: [file] });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = file.name;
-        link.click();
-        URL.revokeObjectURL(url);
+      const result = await shareOrDownloadFile(file, {
+        title: t('report.title'),
+        onShareError: (err) => reportClientErrorWithCurrentUid({
+          code: 'pdf-export-share',
+          phase: 'other',
+          detail: err instanceof Error ? err.message : String(err),
+        }),
+      });
+      if (result === 'failed') {
+        toast({ title: t('report.error'), variant: 'destructive' });
       }
     } catch (err) {
       // Anulowanie systemowego share to nie błąd.
@@ -247,6 +251,8 @@ const SummaryTab = () => {
 
   return (
     <div className="space-y-6">
+      <MeasurementReadError error={measurementError} onRetry={retryMeasurements} />
+
       {/* Z93: przegląd miesięcy na górze Podsumowania (liczba treningów, czas, tonaż). */}
       <MonthlyOverviewCard workouts={workouts} />
 
@@ -481,7 +487,7 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
       {/* D-T4: osadzony w Postępach — nagłówek ma strona-matka. */}
       {!embedded && (
         <div>
-          <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('analytics.title')}</h1>
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-tight">{t('analytics.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
         </div>
       )}

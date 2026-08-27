@@ -7,5 +7,6 @@ class BridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(WatchBridgePlugin())
         bridge?.registerPluginInstance(TimerSoundPlugin())
+        bridge?.registerPluginInstance(HealthSyncPlugin())
     }
 }

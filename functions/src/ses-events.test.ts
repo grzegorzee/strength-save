@@ -5,8 +5,11 @@
 import { describe, expect, it } from "vitest";
 import {
   applyLogUpdate,
+  emailEventExpiresAtMs,
+  logUpdateFromRecord,
   mapSesEvent,
   parseSnsEnvelope,
+  shouldApplySesLogUpdate,
   type EmailLogState,
 } from "./ses-events";
 
@@ -162,6 +165,34 @@ describe("mapSesEvent (G-T2)", () => {
     expect(mapSesEvent("Delivery")).toBeNull();
     expect(mapSesEvent({ eventType: "Delivery" })).toBeNull();
     expect(mapSesEvent({ eventType: "Delivery", mail: { timestamp: "x" } })).toBeNull();
+  });
+});
+
+describe("retencja szczegółowych zdarzeń SES", () => {
+  it("wyznacza TTL dokładnie 180 dni po zdarzeniu", () => {
+    expect(emailEventExpiresAtMs("2026-08-20T12:05:00.000Z"))
+      .toBe(Date.parse("2027-02-16T12:05:00.000Z"));
+  });
+
+  it("odrzuca nieprawidłowy timestamp zamiast tworzyć wieczny rekord", () => {
+    expect(() => emailEventExpiresAtMs("not-a-date")).toThrow(/timestamp/i);
+  });
+});
+
+describe("idempotencja i późna rekonsyliacja email_log", () => {
+  it("ten sam event może zaktualizować dany log tylko raz", () => {
+    expect(shouldApplySesLogUpdate([], "log-1")).toBe(true);
+    expect(shouldApplySesLogUpdate(["log-1"], "log-1")).toBe(false);
+    expect(shouldApplySesLogUpdate(["inny-log"], "log-1")).toBe(true);
+  });
+
+  it("odtwarza aktualizację open/click z trwałego rekordu po wyścigu event → log", () => {
+    expect(logUpdateFromRecord({
+      messageId: "m1", eventType: "Open", timestamp: "2026-08-20T12:00:00.000Z", to: "u@example.com",
+    })).toEqual({ kind: "open", timestamp: "2026-08-20T12:00:00.000Z" });
+    expect(logUpdateFromRecord({
+      messageId: "m1", eventType: "Click", timestamp: "2026-08-20T12:05:00.000Z", to: "u@example.com", link: "https://strengthsave.app",
+    })).toEqual({ kind: "click", timestamp: "2026-08-20T12:05:00.000Z", link: "https://strengthsave.app" });
   });
 });
 

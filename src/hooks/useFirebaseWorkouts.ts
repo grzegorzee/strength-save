@@ -33,7 +33,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { e2eCloudMock, isE2ECloudMockEnabled } from '@/lib/e2e-cloud-mock';
 import { clampSet } from '@/lib/workout-sanitizers';
-import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
+import { getWorkoutReadSnapshot, retryMeasurementReads, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -749,9 +749,11 @@ export const useFirebaseWorkouts = (
 ) => {
   const reads = useFirebaseWorkoutReads(userId, opts?.measurements ?? 'full', opts?.workouts ?? 'full');
   const actions = useFirebaseWorkoutActions(userId, reads);
+  const retryMeasurements = useCallback(() => retryMeasurementReads(userId), [userId]);
 
   return {
     ...reads,
     ...actions,
+    retryMeasurements,
   };
 };

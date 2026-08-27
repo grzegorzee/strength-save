@@ -50,11 +50,11 @@ export const RzaMetricsCard = ({ workouts }: { workouts: WorkoutSession[] }) => 
         </div>
 
         <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1.5 text-sm">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('analytics.rza.week')}</span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right">{t('analytics.rza.volume')}</span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right">{t('analytics.rza.avgRpe')}</span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right">{t('analytics.rza.avgPain')}</span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-right">{t('analytics.rza.ok')}</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.rza.week')}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.rza.volume')}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.rza.avgRpe')}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.rza.avgPain')}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('analytics.rza.ok')}</span>
           {rows.map(w => (
             <FragmentRow key={w.weekStart} weekStart={w.weekStart} volume={w.totalVolume} rpe={w.avgRpe} pain={w.avgPain} ok={w.okCount} />
           ))}

@@ -181,6 +181,9 @@ const Dashboard = () => {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   // WP-C (X38): kolejka ma wpis trwały (permission/not-found) albo konflikt.
   const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
+  // Dismiss dotyczy dokładnego zestawu wpisów, nie samej ich liczby. Inaczej
+  // nowy permanent error przy count=1 mógł zostać ukryty przez dismiss starego.
+  const [syncQueueSignature, setSyncQueueSignature] = useState('empty');
 
   // Z217: kafle all-time z agregatu backendu (poprawne też przy >500 treningach);
   // brak/uszkodzony dokument = fallback na dotychczasowe liczenie z okna listenera.
@@ -338,6 +341,13 @@ const Dashboard = () => {
     setCompletedDismissedDate(key);
     try { localStorage.setItem(COMPLETED_DISMISS_KEY, key); } catch { /* nieistotne */ }
   };
+
+  // Dismiss dotyczy konkretnego komunikatu, a nie danych ani kolejki. Zmiana
+  // sesji/stanu/pending count tworzy nową sygnaturę i ważny status wraca.
+  const SYNC_NOTICE_DISMISS_KEY = 'fittracker_sync_notice_dismissed_v1';
+  const [dismissedSyncNotice, setDismissedSyncNotice] = useState<string | null>(() => {
+    try { return localStorage.getItem(SYNC_NOTICE_DISMISS_KEY); } catch { return null; }
+  });
 
   // Z49: żywy draft = trening w toku. Decyzja wspólna z auto-resume (workout-resume.ts).
   const draftResume = useMemo(
@@ -724,6 +734,10 @@ const Dashboard = () => {
         const queueEntries = workoutSyncQueue.list(uid);
         setPendingSyncCount(queueEntries.length);
         setSyncNeedsAttention(queueEntries.some((entry) => entry.permanent || isRevisionConflictError(entry.lastError)));
+        setSyncQueueSignature(queueEntries
+          .map((entry) => [entry.queueId, entry.sessionId, entry.lastError ?? '', entry.permanent ? '1' : '0'].join(','))
+          .sort()
+          .join('|') || 'empty');
       }
     };
 
@@ -814,6 +828,17 @@ const Dashboard = () => {
   // z dotychczasowych bloków — zmienia się wyłącznie miejsce renderu.
   const statusEntries: StatusEntry[] = [];
   const hasPendingCloudWork = (localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0;
+  const syncNoticeSignature = [
+    localDraft?.sessionId ?? 'queue',
+    localDraft?.finalSyncPending ? 'final' : localDraft?.sessionOrigin ?? 'remote',
+    syncNeedsAttention ? 'attention' : 'normal',
+    pendingSyncCount,
+    syncQueueSignature,
+  ].join(':');
+  const dismissSyncNotice = () => {
+    setDismissedSyncNotice(syncNoticeSignature);
+    try { localStorage.setItem(SYNC_NOTICE_DISMISS_KEY, syncNoticeSignature); } catch { /* widok nadal znika */ }
+  };
   // WP-C (X38): zwykłe "czeka na sieć" = pasywna chmurka z kropką, zero CTA
   // (AutoSync domknie sam). Karta z "Otwórz Sync Center"/"Kontynuuj" zostaje
   // TYLKO gdy user ma coś do zrobienia: wpis trwały/konflikt albo żywy draft
@@ -826,7 +851,7 @@ const Dashboard = () => {
         </div>
       ),
     });
-  } else if (hasPendingCloudWork) {
+  } else if (hasPendingCloudWork && dismissedSyncNotice !== syncNoticeSignature) {
     statusEntries.push({
       id: 'offline-sync', priority: 100, node: (
         <Card className="border-primary/30 bg-primary/5">
@@ -856,14 +881,24 @@ const Dashboard = () => {
             </div>
             {/* Z174: gdy karta dnia ma CTA kontynuacji, baner nie dubluje przycisku
                 (zostaje sam status); wariant "Otwórz Sync Center" zawsze zostaje. */}
-            {todayContinueDraft && draftResume.resume ? null : (
-              <Button
-                variant="outline"
-                onClick={() => navigate(draftResume.resume ? draftResume.target : '/profile?section=data')}
+            <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
+              {todayContinueDraft && draftResume.resume ? null : (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(draftResume.resume ? draftResume.target : '/profile?section=data')}
+                >
+                  {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
+                </Button>
+              )}
+              <button
+                type="button"
+                aria-label={t('dash.sync.dismiss')}
+                onClick={dismissSyncNotice}
+                className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
-              </Button>
-            )}
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           </CardContent>
         </Card>
       ),

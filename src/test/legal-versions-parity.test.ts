@@ -5,6 +5,11 @@ import { LEGAL_VERSIONS as SERVER_VERSIONS, CONSENT_DOC_VERSION as SERVER_DOC_VE
 // Klient wysyła docVersion, funkcja recordConsent waliduje przeciw własnej
 // mapie. Rozjazd wersji = każdy zapis zgody odrzucony (onboarding staje).
 describe('legal-versions parity (src vs functions)', () => {
+  it('wymaga publicznej polityki prywatności 2.1', () => {
+    expect(CLIENT_VERSIONS.privacy).toBe('2.1');
+    expect(SERVER_VERSIONS.privacy).toBe('2.1');
+  });
+
   it('LEGAL_VERSIONS identyczne po obu stronach', () => {
     expect(CLIENT_VERSIONS).toEqual(SERVER_VERSIONS);
   });

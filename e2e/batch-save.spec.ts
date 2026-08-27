@@ -398,6 +398,10 @@ test.describe('Batch Save Workflow', () => {
     await firstCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).first().fill('8');
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
     await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(1);
+    const provisionalDraft = await readWorkoutDraftDb(page, E2E_USER_ID) as { sessionId?: string; sessionOrigin?: string } | null;
+    expect(provisionalDraft?.sessionOrigin).toBe('provisional');
+    const provisionalSessionId = provisionalDraft?.sessionId;
+    expect(provisionalSessionId).toBeTruthy();
 
     await page.getByTestId('finish-workout').click();
     await page.getByRole('button', { name: 'Tak, zakończ' }).click();
@@ -414,11 +418,37 @@ test.describe('Batch Save Workflow', () => {
     await page.context().setOffline(false);
     await expect(page.getByTestId('cloud-pending-indicator')).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByText('Trening zapisany w chmurze').first()).toBeVisible();
-    await expect.poll(async () => readWorkoutDraftDb(page, E2E_USER_ID), { timeout: 10_000 }).toBeNull();
-    const cloud = await page.evaluate(() => JSON.parse(localStorage.getItem('fittracker_e2e_workouts') ?? '[]') as Array<{ dayId: string; completed: boolean; exercises: unknown[] }>);
+    const cloud = await page.evaluate(() => JSON.parse(localStorage.getItem('fittracker_e2e_workouts') ?? '[]') as Array<{ id: string; dayId: string; completed: boolean; exercises: unknown[] }>);
     const synced = cloud.find((w) => w.dayId === 'day-1' && w.completed);
     expect(synced).toBeTruthy();
     expect(synced?.exercises.length).toBeGreaterThan(0);
+    const readDurablePromotionState = () => page.evaluate(async ({ userId, provisionalId }) => {
+      const records = await new Promise<Array<Record<string, unknown>>>((resolve, reject) => {
+        const request = indexedDB.open('strength-save-db', 2);
+        request.onsuccess = () => {
+          const getAll = request.result.transaction('workoutDrafts', 'readonly').objectStore('workoutDrafts').getAll();
+          getAll.onsuccess = () => resolve(getAll.result as Array<Record<string, unknown>>);
+          getAll.onerror = () => reject(getAll.error);
+        };
+        request.onerror = () => reject(request.error);
+      });
+      const owned = records.filter((record) => record.userId === userId);
+      const aliases = owned.filter((record) => record.kind === 'promotion-alias');
+      return {
+        activeDraftCount: owned.filter((record) => record.kind !== 'promotion-alias').length,
+        matchingAlias: aliases.some((record) => (
+          record.provisionalSessionId === provisionalId
+          && typeof record.remoteSessionId === 'string'
+          && record.remoteSessionId !== provisionalId
+        )),
+        remoteSessionIds: aliases.map((record) => record.remoteSessionId),
+      };
+    }, { userId: E2E_USER_ID, provisionalId: provisionalSessionId });
+    await expect.poll(readDurablePromotionState, { timeout: 10_000 }).toEqual({
+      activeDraftCount: 0,
+      matchingAlias: true,
+      remoteSessionIds: [synced?.id],
+    });
   });
 
   test('can start workout offline with provisional session and local-only status', async ({ page }) => {

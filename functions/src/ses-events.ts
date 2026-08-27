@@ -24,6 +24,7 @@ export interface SesEventRecord {
   ipAddress?: string;
   userAgent?: string;
   link?: string;
+  failureReason?: string;
 }
 
 /** Instrukcja aktualizacji email_log (wykonuje ją transakcja w webhoooku). */
@@ -50,6 +51,15 @@ export interface EmailLogState {
   openCount?: number;
   clickedAt?: string;
   clickCount?: number;
+}
+
+const EMAIL_EVENT_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+
+/** Firestore TTL szczegółów (IP/user-agent/link) liczony od czasu zdarzenia. */
+export function emailEventExpiresAtMs(timestamp: string): number {
+  const eventMs = Date.parse(timestamp);
+  if (!Number.isFinite(eventMs)) throw new Error("invalid SES event timestamp");
+  return eventMs + EMAIL_EVENT_RETENTION_MS;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -162,12 +172,16 @@ export function mapSesEvent(rawEvent: unknown): MappedSesEvent | null {
     }
     case "Reject": {
       const reject = isRecord(rawEvent.reject) ? rawEvent.reject : {};
-      logUpdate = { kind: "failed", reason: str(reject.reason) ?? "rejected" };
+      const reason = str(reject.reason) ?? "rejected";
+      record.failureReason = reason;
+      logUpdate = { kind: "failed", reason };
       break;
     }
     case "Rendering Failure": {
       const failure = isRecord(rawEvent.failure) ? rawEvent.failure : {};
-      logUpdate = { kind: "failed", reason: str(failure.errorMessage) ?? "rendering-failure" };
+      const reason = str(failure.errorMessage) ?? "rendering-failure";
+      record.failureReason = reason;
+      logUpdate = { kind: "failed", reason };
       break;
     }
     default:
@@ -180,6 +194,32 @@ export function mapSesEvent(rawEvent: unknown): MappedSesEvent | null {
     record,
     logUpdate,
   };
+}
+
+/** Retry SNS lub scheduler może dotknąć dany wpis email_log najwyżej raz. */
+export function shouldApplySesLogUpdate(appliedLogIds: unknown, logId: string): boolean {
+  return !Array.isArray(appliedLogIds) || !appliedLogIds.includes(logId);
+}
+
+/** Odtwarza aktualizację z zapisanego eventu, gdy email_log powstał po webhooku. */
+export function logUpdateFromRecord(record: SesEventRecord): SesLogUpdate {
+  switch (record.eventType) {
+    case "Delivery":
+      return { kind: "delivered", deliveredAt: record.timestamp };
+    case "Bounce":
+      return { kind: "bounced", ...(record.bounceType ? { bounceType: record.bounceType } : {}) };
+    case "Complaint":
+      return { kind: "complaint", ...(record.complaintFeedbackType ? { complaintFeedbackType: record.complaintFeedbackType } : {}) };
+    case "Open":
+      return { kind: "open", timestamp: record.timestamp };
+    case "Click":
+      return { kind: "click", timestamp: record.timestamp, ...(record.link ? { link: record.link } : {}) };
+    case "Reject":
+    case "Rendering Failure":
+      return { kind: "failed", reason: record.failureReason ?? "ses-failure" };
+    default:
+      return null;
+  }
 }
 
 /**
