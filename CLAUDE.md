@@ -150,6 +150,107 @@ złych mockach. Obie warstwy weryfikacji dzieliły jedno ślepe pole: dane.
   nieniszczące dla jego stanu bazowego (nie kończ planu, nie kasuj konta;
   scenariusze destrukcyjne = konto jednorazowe zakładane ad hoc).
 
+> Zasady 12-20 wdrożone 2026-08-28 po analizie stylu pracy sesji Codexa
+> (fala X48-X69, cztery sesje JSONL): wzorce, które mierzalnie zmniejszały
+> liczbę błędów i zwiększały przewidywanie problemów.
+
+### 12. Raport wejściowy to hipoteza, nie lista zadań
+
+Każdy dokument opisujący stan (raport bug-hunt, audyt, plan sprzed kilku dni)
+weryfikuj przeciw dzisiejszemu main, zanim zaplanujesz pracę. Zbuduj macierz
+pozycji z dowodem w kodzie i teście per pozycja (naprawione / częściowe /
+aktywne), dopiero na niej planuj. Analogicznie sprawdzaj świeżość własnych
+artefaktów: mtime raportu vs liczba zmienionych wpisów w drzewie rozstrzyga,
+czy raport w ogóle opisuje bieżący stan. Przykład: raport 54 bugów z 24.08 po
+weryfikacji na main okazał się w 50/54 nieaktualny (naprawione falami
+X30-X38); praca z listy wprost cofałaby cudze poprawki.
+
+### 13. Baseline testowy na nietkniętym kodzie przed pierwszą własną zmianą
+
+Zanim dotkniesz czegokolwiek, uruchom pełny suite na czystym stanie i zapisz
+wynik. Bez baseline'u każdy późniejszy czerwony test jest niejednoznaczny
+(moja zmiana czy zastany dług) i cała dalsza diagnostyka traci wiarygodność.
+Zastane regresje napraw jako osobny P0 przed właściwym zadaniem, w osobnym
+commicie. Przykład: baseline od razu ujawnił 42 czerwone testy Dashboardu
+(regresja kontraktu mocków po X38), naprawione zanim ruszyła praca
+integracyjna.
+
+### 14. Dowód jest przypisany do snapshotu źródła, nie do projektu
+
+Zielony wynik bramki bez powiązania z konkretnym stanem kodu to brak dowodu.
+Przed pełnymi bramkami release zamroź manifest snapshotu
+(`npm run release:manifest`, weryfikacja `release:manifest:verify`) i biegaj
+bramki na nim; każda późniejsza zmiana źródła unieważnia zielone wyniki i
+wymaga ponowienia. Przykład: audyt wykrył 9 zmienionych hashy z 2064 w
+manifeście, więc 3804 zielonych testów przestało być dowodem dla bieżącego
+worktree i werdykt brzmiał "brak udowodnionej gotowości", mimo że wszystko
+było zielone.
+
+### 15. Zielony test dowodzi tylko tego, co pokrywa: bramki też pisz test-first i audytuj ich zasięg
+
+Preflight, skrypt weryfikacyjny i generator manifestu to też kod z bugami:
+zanim mu zaufasz, napisz czerwony test wymuszający odrzucenie złego stanu
+(np. preflight akceptujący dowolny klucz zamiast produkcyjnego klucza Apple).
+Po zielonym biegu wypisz jawnie, czego test NIE dowodzi (viewporty, języki,
+aktywna sesja, zgaszony ekran) i traktuj to jako listę zadań, nie przypis.
+Nigdy nie zaliczaj do oceny dowodów, których środowisko nie może dostarczyć:
+web e2e, symulator i fizyczne urządzenie to trzy osobne klasy dowodu, a to co
+urządzeniowe kończy się checklistą dla właściciela, nie deklaracją.
+
+### 16. Czerwony test klasyfikuj dopiero po deterministycznej reprodukcji
+
+Zanim zdecydujesz fix-produktu vs fix-testu vs flake, powtórz fail (najlepiej
+w dwóch silnikach lub 3x równolegle). Deterministyczny w obu silnikach =
+realny bug produktu; przechodzący 3/3 w izolacji = niestabilność
+obciążeniowa, nie wydłużaj ślepo timeoutów. Nigdy nie osłabiaj asercji, żeby
+przeszło; dane testowe poprawiaj tylko wtedy, gdy masz dowód, że to fixture
+jest błędny (np. stara wersja zgody), a nie że zabezpieczenie działa za
+dobrze.
+
+### 17. Root cause z danych produkcyjnych przed fixem objawowym, także wbrew sugestii usera
+
+Zgłoszenie objawu ("długo trwa, zróbmy w tle") to hipoteza: najpierw sprawdź
+logi i dokumenty produkcyjne, potem projektuj fix. Jeśli proponowany fix
+łamie niezmiennik (zgoda prawna musi być potwierdzona serwerowo, dane
+treningu nie mogą zginąć), odmów z uzasadnieniem i zaproponuj poprawkę
+faktycznej przyczyny. Przykład: "wolne zgody" nie były problemem backendu
+(logi: sukces), tylko klienta czekającego 12 s na zbędny snapshot po
+autorytatywnej odpowiedzi; fire-and-forget stworzyłby lukę prawną i wyścig
+danych.
+
+### 18. Semantykę zależności weryfikuj na źródle w node_modules, nie na docs
+
+Dokumentacja opisuje interfejs, nie zachowanie. Zanim oprzesz decyzję lub
+twierdzenie o zgodności na pluginie/bibliotece, przeczytaj jej faktyczną
+implementację w zainstalowanej wersji i zacytuj file:line. Ta sama zasada dla
+twierdzeń o platformie: składaj oficjalną dokumentację
+(site:developer.apple.com itd.) z lokalnym stanem repo, bo ta sama stała API
+znaczy co innego na iOS i Androidzie. Przykład: docs Text Zoom sugerowały
+wsparcie skalowania, a TextZoom.java:22 pokazał liniowe przeliczenie
+fontScale, czyli brak wymaganej przez Androida 14 nieliniowej skali.
+
+### 19. Zadanie wpadające w locie dostaje izolowany tor i sekwencję kompatybilności
+
+Nowe zgłoszenie w trakcie pakietu nie miesza się z nim: osobny wątek z
+własnym cyklem test-first, osobny commit, punktowy rollback. Artefaktu w
+trakcie podpisu/uploadu nie podmieniaj; nowy zakres wchodzi do następnego
+builda. Przy zmianach klient+backend deployuj backend-first do stanu
+aktywnego, dopiero potem klienta, żeby starszy build w terenie nigdy nie
+rozmawiał z API, którego nie rozumie.
+
+### 20. Nie zostawiaj niezweryfikowanej zmiany; stan pracy utrwalaj w repo, nie w kontekście
+
+Trzy z czterech analizowanych sesji urwały się na limicie tuż po wgraniu
+patcha, przed jego weryfikacją: w drzewie został kod bez dowodu zieloności.
+Reguła: nie aplikuj zmiany, której nie zdążysz sprawdzić w tym samym kroku;
+weryfikacja idzie natychmiast po edycji, nie "w następnej turze". Domykaj
+fale commitami zamiast utrzymywać wielogodzinny dirty worktree (rollback
+punktowy, mniejsze ryzyko kolizji z drugą sesją). Postęp, decyzje z root
+cause i otwarte blockery zapisuj na bieżąco w plikach (PLAN.md, DECYZJE.md,
+macierz), bo przy kompakcjach kontekstu tylko repo jest pamięcią odporną na
+utratę; wnioski typu "moduł nie istnieje" notuj raz, zamiast szukać go
+czwarty raz.
+
 ## Pułapki specyficzne dla projektu (skrót)
 
 - **Radix Sheet/Dialog: NIGDY nie unmountuj w stanie open.** Regresja builda 92
