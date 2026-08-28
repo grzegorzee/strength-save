@@ -5,11 +5,33 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-28 (X70: palety z realnymi rolami kolorów, odduplikowane teksty, buttony)
+**Ostatnia aktualizacja:** 2026-08-28 (X70b: korekty właściciela po przeglądzie galerii X70)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-28: X70b — trzy korekty właściciela po przeglądzie przed/po
+
+Właściciel obejrzał galerię X70 i skorygował kierunek (decyzje produktowe,
+nie bugi): (1) na Dzisiaj wraca stary układ karty sesji — tytuł to nazwa dnia
+w jednej linii, focus w podtytule z liczbą ćwiczeń (duży focus zawijał się na
+dwie linie i rozciągał ekran); na Planie tytuł = focus zostaje, bo tam była
+potrójna duplikacja; (2) zakładki Postępów WYNIKI/WYKRESY/REKORDY to trzy
+OSOBNE przyciski z ramką 1 px (border-border, rounded-full, gap), aktywny
+wypełniony primary — bez wspólnej kapsuły; semantyka tablist/tab i testidy bez
+zmian; (3) wraca pełna etykieta „Zobacz pierwszy tydzień" — zawijanie i h-14
+z X70 gwarantują brak overflow na 320 px (pomiar: 2 linie, zero wyjścia poza
+przycisk). Profil bez zmian („jest super").
+
+Commity: 418b8542 (implementacja + testy) i 27323577 (aktualizacja kontraktu
+selection-button do nowego wyglądu tabów — pełny vitest wykrył, że stary
+kontrakt wymagał border-muted-foreground; kontrakt świadomie przepisany na
+border-border + bg-primary, bez osłabienia focus/nazw). Weryfikacja: QA
+wizualne 6/6 bez regresji; pełny Vitest 3850/3850; Functions 511/12; rules
+312+42; E2E Chromium 305/305 + WebKit 305/305; mobile w bloku 3. Lekcja
+(zasada 15 w praktyce): testy celowane torów nie łapią kontraktów czytających
+źródła innych plików — pełny suite przed wydaniem jest nienegocjowalny.
 
 ### 2026-08-28: X70 — paleta to znów trzy kolory, tap zapisuje, teksty bez duplikacji
 
