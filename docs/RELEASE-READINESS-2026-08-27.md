@@ -5,6 +5,23 @@ podaje własną proweniencję. Nie jest zgodą na publiczną publikację App Sto
 Play Store. Wersje marketingowe pozostają
 `1.0.0`. Audyt nie przywraca RTK, hooków RTK ani `SessionStart`.
 
+## Delta X70 — palety z realnymi rolami, odduplikowane teksty, buttony (2026-08-28 wieczór)
+
+- Zakres i root cause: wpis X70 w DECYZJE.md (kaskada czterech przyczyn "martwych
+  palet", role supportA/B "dane/dekoracja" z fallbackami, tap = zapis, karta
+  startu bez duplikacji z CTA "Zobacz tydzień 1", tytuł karty = focus, redirect
+  /progress, radius kinetic 16 px, słownik focusów EN uzupełniony).
+- Bramki: Vitest **3850/3850** (443 pliki); Functions **511 PASS/12 SKIP** +
+  typecheck; Firestore **312/312**, Storage **42/42**; typecheck, lint, build,
+  bundle budget, dist-smoke, offline, no-emoji, diff-check zielone. Pełne E2E po
+  restarcie Vite: Chromium **305/305**, WebKit **305/305** (pierwszy bieg wykrył
+  kolizję redirectu /progress ze starym kontraktem Z60 — kontrakt zaktualizowany,
+  pełny rerun zielony). QA wizualne 13/13, zero regresji; galeria przed/po
+  opublikowana dla właściciela. `mobile:sync`, Android `assembleDebug` i iOS
+  Simulator App+Watch build+install+launch — zielone.
+- Zmiany wyłącznie frontendowe (rules/functions nietknięte). Wydanie tej delty:
+  web + TestFlight 132 + AAB 44 na jawne zlecenie właściciela.
+
 ## Wydanie X69 — kontrolowany rollout backend-first 2026-08-28 (decyzja właściciela)
 
 - Właściciel jawnie zlecił wydanie („działaj rób push na produkcje") i zapowiedział

@@ -5,11 +5,73 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-28 (X69 WYDANE: backend-first rollout, web B4A79kd5, iOS 131 APPROVED, AAB v43)
+**Ostatnia aktualizacja:** 2026-08-28 (X70: palety z realnymi rolami kolorów, odduplikowane teksty, buttony)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-28: X70 — paleta to znów trzy kolory, tap zapisuje, teksty bez duplikacji
+
+**Kontekst:** po testach builda 131 właściciel zgłosił: wybór palety "nie działa",
+przepełnione CTA na karcie startu, zduplikowane daty na Dzisiaj/Planie, słabe
+kafle Postępów. Audyt (4 agentów po kodzie + weryfikacja na żywo web i iOS
+Simulator ze screenshotami) pokazał, że "nie działa" to kaskada CZTERECH przyczyn,
+z których żadna nie była awarią mechanizmu:
+
+1. **Pulse wizualnie identyczna z domyślną limonką** (#c6ff00 vs #cefc22) i
+   zapisywana każdemu po onboardingu — wybór Pulse nie zmieniał nic widocznego.
+2. **Wyścig ze snapshotem Firestore:** efekt w Profile.tsx miał obiekt w deps
+   (świeży przy każdej emisji, także metadata-only) i bezwarunkowo re-aplikował
+   paletę z chmury; ack własnego zapisu po 0,5-2 s cofał świeży wybór. Mock E2E
+   nie ma snapshotów, dlatego web "działał", a realne konto na iOS nie.
+3. **Tap = tylko podgląd; wyjście bez Zatwierdź po cichu cofało wybór**
+   (unmount pickera robił restoreBase), podczas gdy onboarding zapisywał
+   jednym tapnięciem.
+4. **supportA/supportB bez żadnego konsumenta w UI** poza dwiema seriami
+   wykresów — "paleta trzech kolorów" degradowała się do jednego.
+
+**Decyzje i naprawy (5 torów, commity 61450264, ebb13f94, 5d6d2647, 6f6f3ce1,
+9fa697cf + 1c2325d9):** dep na sygnaturze prymitywnej + no-op gdy paleta z chmury
+równa lokalnej (realna zmiana z innego urządzenia nadal się aplikuje; test
+sekwencji tap Forge → stary ack Pulse → Forge zostaje); tap zapisuje od razu
+również w Profilu (kontrakt preview/confirm usunięty świadomie, z aktualizacją
+testów); karta aktywnej palety z jawnym stanem "Aktywna" i podpisem, że Pulse to
+domyślny wygląd (hexy presetów nietknięte — pilnują ich rules); role kolorów
+wspierających wg decyzji właściciela "dane/dekoracja": supportA = drugi akcent
+danych (ikona rekordów, serie wykresów), supportB = dekoracja (tint banera
+tygodnia, poświata hero bramkowana data-palette, księżyc) z fallbackami równymi
+staremu wyglądowi (bez palety zero zmiany) i nowym testem kontraktowym
+palette-support-roles; legacy siatka 11 kolorów za zwiniętym "Więcej kolorów"
+(koniec prześwitu pod glass navem); karta startu bez zdublowanej daty i bez
+drugiego eyebrow, CTA "Zobacz tydzień 1" h-14 (przedtem tekst 270 px wystawał
+z 208 px wnętrza na 320 px); tytuł karty sesji = focus treningu z fallbackiem na
+dzień (dzień zostaje w nagłówku sekcji); baner zaległości bez błędnej odmiany
+("Trening {day} ({date}) czeka"); delta tonażu ukryta przy poprzednim okresie
+<2 treningów lub bieżącym <3 dni; "Tygodnie z rzędu"; ikona Share2 zamiast
+trzech kropek; redirect /progress → /achievements (był 404); size xl w Button;
+radius kinetic 24→16 px (spójny kształt CTA niezależnie od wysokości).
+
+**Bonus z weryfikacji B5:** mieszany język focusów w EN to była ścieżka
+PRODUKCYJNA — słownik localizeFocus nie znał tokenów Przysiad/Środek/Pleców/
+Szerokie/Uda/Płasko/Jednonóż/Detali i innych; słownik uzupełniony.
+
+**Co poszło nie tak w procesie:** (1) pierwotne zgłoszenie "palety nie działają"
+okazało się czterema różnymi wadami — pojedyncza hipoteza byłaby fixem
+objawowym (zasada 17 obroniona przez równoległy audyt kodu i dwie weryfikacje
+wizualne); (2) pełne e2e wykryły kolizję nowego redirectu /progress ze starym
+kontraktem Z60 ("martwe aliasy = 404") — deterministyczna na obu silnikach,
+rozwiązana aktualizacją kontraktu (Z60 nadal pilnuje /stats i /summary, nowy
+test pilnuje redirectu); (3) błąd operatorski orkiestratora: "cd w kompozycie
+zostaje" — start bloku e2e ze względną ścieżką po zmianie cwd cicho nie
+wystartował procesu; wykryty, bo weryfikujemy pgrep po starcie; skrypty tła
+odpalane odtąd wyłącznie ścieżką absolutną.
+
+**Weryfikacja:** Vitest **3850/3850** (443 pliki, +14 testów), Functions 511
+PASS/12 SKIP, Firestore 312/312, Storage 42/42 (JDK 21), typecheck, lint, build,
+bundle budget, dist-smoke, offline, no-emoji, diff-check zielone; pełne E2E po
+restarcie Vite: Chromium **305/305**, WebKit **305/305**; QA wizualne 13/13 bez
+regresji (galeria przed/po w artifactcie). Mobile w bloku 3.
 
 ### 2026-08-28: X69-release — kontrolowane wydanie backend-first na jawne zlecenie właściciela
 
