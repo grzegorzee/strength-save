@@ -104,11 +104,19 @@ test.describe('Page Load Smoke Tests', () => {
     await expect(page.getByRole('link', { name: /Wróć do strony głównej|Return to Home/i })).toBeVisible();
   });
 
-  test('martwe aliasy tras usunięte (Z60): /stats /summary /progress => 404', async ({ page }) => {
-    for (const path of ['/stats', '/summary', '/progress']) {
+  test('martwe aliasy tras usunięte (Z60): /stats /summary => 404', async ({ page }) => {
+    for (const path of ['/stats', '/summary']) {
       await navigateAndWait(page, path);
       await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
     }
+  });
+
+  // X70 A5: /progress przestał być martwym aliasem — deep linki lądują na
+  // kanonicznych Postępach (jak /settings → /profile), bez ekranu 404.
+  test('/progress przekierowuje na Postępy (X70 A5)', async ({ page }) => {
+    await navigateAndWait(page, '/progress');
+    await expect(page.getByRole('heading', { name: '404' })).not.toBeVisible();
+    await expectHashRoute(page, '/achievements');
   });
 });
 
