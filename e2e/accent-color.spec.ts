@@ -19,6 +19,8 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await expectPageRendered(page);
 
     await page.getByTestId('profile-toggle-accent').click();
+    // D1 (X70): legacy swatche żyją za poziomem "Więcej kolorów".
+    await page.getByTestId('accent-more-colors-toggle').click();
     await expect(page.getByTestId('accent-swatches')).toBeVisible();
     await page.getByTestId('accent-sky').click();
     expect(await primaryVar(page)).toBe('199 92% 56%');
@@ -36,6 +38,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     // Powrót do limonki = czyste tokeny z index.css.
     await navigateAndWait(page, '/profile');
     await page.getByTestId('profile-toggle-accent').click();
+    await page.getByTestId('accent-more-colors-toggle').click();
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });
@@ -51,6 +54,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await page.setViewportSize({ width: 320, height: 667 });
     await navigateAndWait(page, '/profile');
     await page.getByTestId('profile-toggle-accent').click();
+    await page.getByTestId('accent-more-colors-toggle').click();
     const boxes = await page.getByTestId('accent-swatches').getByRole('radio').evaluateAll((radios) =>
       radios.map((radio) => {
         const rect = radio.getBoundingClientRect();
@@ -111,6 +115,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
     await page.getByTestId('profile-toggle-accent').click();
+    await page.getByTestId('accent-more-colors-toggle').click();
     await page.getByTestId('accent-hex-input').fill('#1e90ff');
     await page.getByTestId('accent-hex-apply').click();
     const applied = await primaryVar(page);
@@ -123,6 +128,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
 
     await navigateAndWait(page, '/profile');
     await page.getByTestId('profile-toggle-accent').click();
+    await page.getByTestId('accent-more-colors-toggle').click();
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });

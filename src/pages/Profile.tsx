@@ -55,7 +55,7 @@ import {
   Ruler, Shield, Gem, CreditCard, Medal,
   Dumbbell, Watch, Eye, EyeOff, Timer,
   Bell, Database, UserCog,
-  Palette,
+  Palette, ChevronDown,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
@@ -290,8 +290,17 @@ const Profile = () => {
   const [accentId, setAccentId] = useState(readStoredAccentId());
   const [paletteTheme, setPaletteTheme] = useState<PaletteThemeV2 | null>(readStoredPaletteTheme());
   const [hexInput, setHexInput] = useState('');
+  // D1 (X70): legacy siatka 11 kolorów + własny hex za poziomem "Więcej
+  // kolorów" — domyślnie zwinięty, treść zwinięta NIE jest montowana.
+  const [moreColorsOpen, setMoreColorsOpen] = useState(false);
   const profileAccent = profile?.preferences?.accentColor;
   const profilePalette = profile?.preferences?.paletteTheme;
+  // A1 (X70): listener profilu (includeMetadataChanges) emituje przy każdym
+  // acku ŚWIEŻY obiekt palety o tej samej treści. Dep na sygnaturze
+  // prymitywnej zamiast tożsamości obiektu — stary ack z niezmienioną paletą
+  // nie odpala efektu i nie cofa świeżo zapisanego wyboru.
+  const normalizedProfilePalette = normalizePaletteThemeV2(profilePalette);
+  const profilePaletteSignature = normalizedProfilePalette ? JSON.stringify(normalizedProfilePalette) : '';
   useEffect(() => {
     const pendingPalette = readPalettePreferenceOutbox(uid)?.palette;
     if (pendingPalette) {
@@ -301,10 +310,15 @@ const Profile = () => {
       setAccentId(pendingPalette.primary);
       return;
     }
-    const palette = normalizePaletteThemeV2(profilePalette);
+    const palette = profilePaletteSignature ? JSON.parse(profilePaletteSignature) as PaletteThemeV2 : null;
     const normalizedAccent = profileAccent?.trim() ?? '';
     const paletteMatchesFallback = !normalizedAccent || normalizedAccent.toLowerCase() === palette?.primary;
     if (palette && paletteMatchesFallback) {
+      // Ack własnego zapisu: paleta z chmury identyczna ze stanem lokalnym —
+      // pomiń re-apply. Realna zmiana z innego urządzenia różni się od
+      // readStoredPaletteTheme() i nadal się aplikuje.
+      const stored = readStoredPaletteTheme();
+      if (stored && JSON.stringify(stored) === profilePaletteSignature) return;
       applyPaletteTheme(palette);
       storePaletteTheme(palette);
       setPaletteTheme(palette);
@@ -314,7 +328,7 @@ const Profile = () => {
       setPaletteTheme(null);
       setAccentId(normalizedAccent);
     }
-  }, [profileAccent, profilePalette, uid]);
+  }, [profileAccent, profilePaletteSignature, uid]);
   const handleAccent = (id: string) => {
     discardPalettePreferenceOutbox(uid);
     selectLegacyAccent(id);
@@ -620,6 +634,18 @@ const Profile = () => {
             currentPalette={paletteTheme}
             onConfirm={handlePalette}
           />
+          <button
+            type="button"
+            data-testid="accent-more-colors-toggle"
+            aria-expanded={moreColorsOpen}
+            aria-controls="accent-more-colors"
+            className="mt-5 flex min-h-11 w-full items-center justify-between rounded-xl border border-muted-foreground px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => setMoreColorsOpen((visible) => !visible)}
+          >
+            {t('palette.moreColors')}
+            <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', moreColorsOpen && 'rotate-180')} aria-hidden="true" />
+          </button>
+          {moreColorsOpen && (<div id="accent-more-colors">
           <h3 className="mb-2 mt-5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             {t('palette.legacyTitle')}
           </h3>
@@ -698,6 +724,7 @@ const Profile = () => {
               {t('profile.appearance.hexApply')}
             </Button>
           </div>
+          </div>)}
         </div>
       </ProfileAccordionSection>
 

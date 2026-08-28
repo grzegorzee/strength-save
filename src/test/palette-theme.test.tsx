@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { PaletteThemePicker } from '@/components/PaletteThemePicker';
@@ -11,6 +12,7 @@ import {
   readStoredPaletteTheme,
   selectLegacyAccent,
   storePaletteTheme,
+  type PaletteThemeV2,
 } from '@/lib/palette-theme';
 import { pl } from '@/i18n/locales/pl';
 import { en } from '@/i18n/locales/en';
@@ -129,44 +131,54 @@ describe('PaletteThemeV2: addytywna migracja i runtime', () => {
   });
 });
 
-describe('PaletteThemePicker: preview nie zapisuje, anulowanie przywraca', () => {
-  const renderPicker = (onConfirm = vi.fn()) => render(
+// A2 (X70, decyzja właściciela): tap na kartę ZAPISUJE od razu — bez trybu
+// preview/cancel/confirm; wyjście z ekranu niczego nie cofa.
+describe('PaletteThemePicker: tap zapisuje od razu, bez preview', () => {
+  const StatefulPicker = ({ onConfirm = vi.fn() }: { onConfirm?: (palette: PaletteThemeV2) => void }) => {
+    const [palette, setPalette] = useState<PaletteThemeV2 | null>(null);
+    return (
+      <PaletteThemePicker
+        currentAccentId="rose"
+        currentPalette={palette}
+        onConfirm={(next) => { setPalette(next); onConfirm(next); }}
+      />
+    );
+  };
+  const renderPicker = (onConfirm?: (palette: PaletteThemeV2) => void) => render(
     <LanguageProvider>
-      <PaletteThemePicker currentAccentId="rose" currentPalette={null} onConfirm={onConfirm} />
+      <StatefulPicker onConfirm={onConfirm} />
     </LanguageProvider>,
   );
 
-  it('preview Forge nie mutuje storage, ma niekolorowy marker i można go anulować', () => {
-    selectLegacyAccent('rose');
-    renderPicker();
-
-    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveClass('border-muted-foreground');
-    fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
-    expect(document.documentElement.dataset.palette).toBe('forge');
-    expect(readStoredPaletteTheme()).toBeNull();
-    expect(screen.getByTestId('palette-forge-selected')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Forge/ })).toHaveClass('min-h-12');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Anuluj podgląd' }));
-    expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBe('rose');
-    expect(readStoredPaletteTheme()).toBeNull();
-  });
-
-  it('dopiero potwierdzenie zapisuje pełny obiekt i legacy accentColor', () => {
+  it('tap Forge od razu zapisuje pełny obiekt, legacy accentColor i woła onConfirm; bez przycisków preview', () => {
     const onConfirm = vi.fn();
+    selectLegacyAccent('rose');
     renderPicker(onConfirm);
 
-    fireEvent.click(screen.getByRole('radio', { name: /Pulse/ }));
-    expect(readStoredPaletteTheme()).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Zastosuj paletę' }));
-
-    expect(readStoredPaletteTheme()?.id).toBe('pulse');
-    expect(localStorage.getItem('ss-accent-color')).toBe('#c6ff00');
-    expect(onConfirm).toHaveBeenCalledWith(PALETTE_THEMES[0]);
+    fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
+    expect(document.documentElement.dataset.palette).toBe('forge');
+    expect(readStoredPaletteTheme()?.id).toBe('forge');
+    expect(localStorage.getItem('ss-accent-color')).toBe('#ff6b35');
+    expect(onConfirm).toHaveBeenCalledWith(PALETTE_THEMES[1]);
+    expect(screen.getByTestId('palette-forge-selected')).toBeInTheDocument();
+    expect(screen.queryByTestId('palette-preview-actions')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zastosuj paletę' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Anuluj podgląd' })).toBeNull();
   });
 
-  it('radiogroup ma jeden tab stop i obsługuje wybór strzałkami', () => {
+  it('wyjście z ekranu po tapnięciu NICZEGO nie cofa', () => {
+    selectLegacyAccent('rose');
+    const view = renderPicker();
+    fireEvent.click(screen.getByRole('radio', { name: /Glacier/ }));
+    expect(document.documentElement.dataset.palette).toBe('glacier');
+
+    view.unmount();
+
+    expect(document.documentElement.dataset.palette).toBe('glacier');
+    expect(readStoredPaletteTheme()?.id).toBe('glacier');
+  });
+
+  it('radiogroup ma jeden tab stop i obsługuje wybór strzałkami (wybór = zapis)', () => {
     renderPicker();
     const pulse = screen.getByRole('radio', { name: /Pulse/ });
     const forge = screen.getByRole('radio', { name: /Forge/ });
@@ -179,46 +191,23 @@ describe('PaletteThemePicker: preview nie zapisuje, anulowanie przywraca', () =>
     fireEvent.keyDown(pulse, { key: 'ArrowRight' });
     expect(forge).toHaveFocus();
     expect(forge).toHaveAttribute('aria-checked', 'true');
+    expect(readStoredPaletteTheme()?.id).toBe('forge');
   });
 
-  it('wyjście z ekranu podczas preview przywraca zatwierdzony wcześniej wygląd', () => {
-    selectLegacyAccent('rose');
-    const view = renderPicker();
-    fireEvent.click(screen.getByRole('radio', { name: /Glacier/ }));
-    expect(document.documentElement.dataset.palette).toBe('glacier');
-
-    view.unmount();
-
-    expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBe('rose');
-  });
-
-  it('zewnętrzny wybór legacy podczas preview staje się nową bazą dla anulowania i unmount', () => {
-    selectLegacyAccent('rose');
-    const view = render(
+  // A3 (X70): aktywna karta ma jawny stan (tekst, nie sama ikona), a Pulse
+  // mówi wprost, że to domyślny wygląd Strength Save.
+  it('aktywna paleta ma jawny znacznik "Aktywna", a Pulse opisuje domyślny wygląd', () => {
+    render(
       <LanguageProvider>
-        <PaletteThemePicker currentAccentId="rose" currentPalette={null} onConfirm={vi.fn()} />
+        <PaletteThemePicker currentAccentId="rose" currentPalette={PALETTE_THEMES[0]} onConfirm={vi.fn()} />
       </LanguageProvider>,
     );
-
-    fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
-    expect(document.documentElement.dataset.palette).toBe('forge');
-
-    selectLegacyAccent('sky');
-    view.rerender(
-      <LanguageProvider>
-        <PaletteThemePicker currentAccentId="sky" currentPalette={null} onConfirm={vi.fn()} />
-      </LanguageProvider>,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Anuluj podgląd' }));
-
-    expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBe('sky');
-
-    fireEvent.click(screen.getByRole('radio', { name: /Glacier/ }));
-    view.unmount();
-
-    expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBe('sky');
+    expect(screen.getByTestId('palette-pulse-selected')).toHaveTextContent('Aktywna');
+    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveTextContent('Domyślny wygląd Strength Save.');
+    expect(screen.getByRole('radio', { name: /Forge/ })).not.toHaveTextContent('Domyślny wygląd');
+    expect(pl['palette.defaultHint']).toBe('Domyślny wygląd Strength Save.');
+    expect(en['palette.defaultHint']).toBe('The default Strength Save look.');
+    expect(pl['palette.activeBadge']).toBe('Aktywna');
+    expect(en['palette.activeBadge']).toBe('Active');
   });
 });

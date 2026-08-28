@@ -433,6 +433,9 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
     await expect(page.getByTestId('device-settings')).toHaveCount(0);
     await openProfileSection(page, 'accent');
+    // D1 (X70): legacy swatche za dodatkowym poziomem "Więcej kolorów".
+    await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
+    await page.getByTestId('accent-more-colors-toggle').click();
     await expect(page.getByTestId('accent-swatches')).toBeVisible();
     await page.getByTestId('profile-toggle-accent').click();
     // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
