@@ -17,8 +17,10 @@ export const LapseStatusCard = ({
   onDismiss: () => void;
 }) => {
   const { t, lang } = useTranslation();
+  // B3 (X70): data krotka, bez nazwy dnia — "z poniedziałek, 24 sierpnia"
+  // lamalo fleksje; dzien tygodnia niesie {day} w mianowniku.
   const dateLabel = formatLocalDateLabel(lapse.dateISO, dateLocale(lang), {
-    weekday: 'long', day: 'numeric', month: 'long',
+    day: 'numeric', month: 'long',
   });
   // WP-L (X30): domyslna nazwa weekday podaza za date zaleglosci.
   const description = lapse.kind === 'stale-session' && lapse.day

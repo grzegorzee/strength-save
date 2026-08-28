@@ -860,7 +860,7 @@ export const en: Record<keyof typeof pl, string> = {
   'vac.blockedByMode': 'Easy mode is active. One mode at a time: disable it first.',
   // Lapse tray (Runna p.1, spec C2) — neutral tone.
   'lapse.title': 'Let\'s get back on track',
-  'lapse.staleDesc': 'Your {day} workout from {date} is waiting. No pressure: pick what to do with it.',
+  'lapse.staleDesc': 'Your {day} workout ({date}) is waiting. No pressure: pick what to do with it.',
   'lapse.weekDesc': 'No sessions last week. Let\'s ease back in, starting today.',
   'lapse.continue': 'Continue from today',
   'lapse.continueDesc': 'Overdue sessions get skipped and the engine will suggest a lighter comeback.',

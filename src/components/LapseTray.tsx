@@ -35,8 +35,9 @@ export const LapseTray = ({ open, onOpenChange, lapse, onSkip, onMove, onContinu
   const view = lapse ?? lastLapseRef.current;
   if (!view) return null;
 
+  // B3 (X70): data krotka bez nazwy dnia (spojnie z LapseStatusCard).
   const dateLabel = formatLocalDateLabel(view.dateISO, dateLocale(lang), {
-    weekday: 'long', day: 'numeric', month: 'long',
+    day: 'numeric', month: 'long',
   });
 
   return (

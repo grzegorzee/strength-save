@@ -52,33 +52,41 @@ describe('displayDayNameForDate (WP-L, X30)', () => {
   });
 });
 
-describe('TrainingDayCard: tytul karty podaza za trainingDate (WP-L, X30)', () => {
-  const day = (dayName: string): TrainingDay => ({
+// X70 (B2): tytul karty = focus treningu (dzien+data mieszka w naglowku sekcji
+// timeline); nazwa dnia zostaje w aria-label i jako fallback pustego focusu,
+// gdzie nadal podaza za trainingDate (WP-L, X30).
+describe('TrainingDayCard: tytul = focus, dzien w aria podaza za trainingDate (X70 + WP-L X30)', () => {
+  const day = (dayName: string, focus = 'Barki / Detale'): TrainingDay => ({
     id: 'd1',
     dayName,
     weekday: 'monday',
-    focus: 'Push',
+    focus,
     exercises: [{ id: 'e1', name: 'X', sets: '3x8', instructions: [] }],
   });
 
-  it('przelozenie pn->sr: karta pod sroda pokazuje Sroda', () => {
-    render(<TrainingDayCard day={day('Poniedziałek')} trainingDate={WEDNESDAY} onClick={() => {}} />);
-    expect(screen.getByText('Środa')).toBeTruthy();
+  it('tytulem karty jest focus, nazwa dnia nie powtarza sie w tresci', () => {
+    render(<TrainingDayCard day={day('Poniedziałek')} trainingDate={MONDAY} onClick={() => {}} />);
+    expect(screen.getByText('Barki / Detale')).toBeTruthy();
     expect(screen.queryByText('Poniedziałek')).toBeNull();
   });
 
-  it('wlasna nazwa "Push" zostaje "Push" mimo innej daty', () => {
-    render(<TrainingDayCard day={day('Push')} trainingDate={WEDNESDAY} onClick={() => {}} />);
-    expect(screen.getByText('Push')).toBeTruthy();
+  it('aria-label karty podaza za data przelozenia pn->sr (WP-L)', () => {
+    render(<TrainingDayCard day={day('Poniedziałek')} trainingDate={WEDNESDAY} onClick={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Środa' })).toBeTruthy();
   });
 
-  it('niezmiennik: bez przelozenia i bez trainingDate nazwa jak dotad', () => {
+  it('pusty focus: fallback na nazwe dnia podazajaca za data (tytul nigdy nie jest pusty)', () => {
+    render(<TrainingDayCard day={day('Poniedziałek', '')} trainingDate={WEDNESDAY} onClick={() => {}} />);
+    expect(screen.getByText('Środa')).toBeTruthy();
+  });
+
+  it('pusty focus + wlasna nazwa usera: fallback zostawia wlasna nazwe, takze bez trainingDate', () => {
     const { unmount } = render(
-      <TrainingDayCard day={day('Poniedziałek')} trainingDate={MONDAY} onClick={() => {}} />,
+      <TrainingDayCard day={day('Push', '')} trainingDate={WEDNESDAY} onClick={() => {}} />,
     );
-    expect(screen.getByText('Poniedziałek')).toBeTruthy();
+    expect(screen.getByText('Push')).toBeTruthy();
     unmount();
-    render(<TrainingDayCard day={day('Poniedziałek')} onClick={() => {}} />);
-    expect(screen.getByText('Poniedziałek')).toBeTruthy();
+    render(<TrainingDayCard day={day('Push', '')} onClick={() => {}} />);
+    expect(screen.getByText('Push')).toBeTruthy();
   });
 });

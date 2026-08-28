@@ -128,8 +128,10 @@ describe('WP-A (X29): zakładka Plan honoruje scheduleOverrides', () => {
     renderPlan(move.ok ? move.overrides : {});
 
     // Czwartek: karta przeniesionego dnia A z badge NASTĘPNY.
+    // X70 (B2): tytul karty = focus (day-a='Push', day-b='Pull' w stanie
+    // kanonicznym), wiec grupe dnia identyfikujemy po focusie.
     const thursday = dayGroup(THURSDAY);
-    expect(thursday.textContent).toContain('Dzień A');
+    expect(thursday.textContent).toContain('Push');
     expect(thursday.textContent).toContain(NEXT_BADGE);
     expect(screen.getAllByText(NEXT_BADGE)).toHaveLength(1);
 
@@ -137,14 +139,14 @@ describe('WP-A (X29): zakładka Plan honoruje scheduleOverrides', () => {
     expect(screen.queryByTestId(`plan-day-header-${TODAY}`)).toBeNull();
 
     // Piątek: dzień B nietknięty (przełożenie nie zabiera nic reszcie tygodnia).
-    expect(dayGroup(FRIDAY).textContent).toContain('Dzień B');
+    expect(dayGroup(FRIDAY).textContent).toContain('Pull');
   });
 
   it('niezmiennik (zasada 5): bez overrides wszystkie dni tygodnia na swoich miejscach', () => {
     renderPlan({});
 
-    expect(dayGroup(TODAY).textContent).toContain('Dzień A');
-    expect(dayGroup(FRIDAY).textContent).toContain('Dzień B');
+    expect(dayGroup(TODAY).textContent).toContain('Push');
+    expect(dayGroup(FRIDAY).textContent).toContain('Pull');
     // Badge na dzisiejszym (nieukończonym) dniu, dokładnie jeden.
     expect(dayGroup(TODAY).textContent).toContain(NEXT_BADGE);
     expect(screen.getAllByText(NEXT_BADGE)).toHaveLength(1);

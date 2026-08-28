@@ -4,7 +4,6 @@ import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { displayDayNameForDate, localizeDayName, localizeFocus } from '@/lib/plan-i18n';
-import { dateLocale } from '@/i18n';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,15 +42,14 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
   // completed/missed/skipped renderują dokładnie te badge co przed zmianą).
   const showNext = Boolean(isNext) && !isCompleted && !isMissed && !skipped;
 
-  // Meta w języku mockupu: "PON 17 · Góra A · 6 ćwiczeń" (data opcjonalna).
-  const dateChip = trainingDate
-    ? `${trainingDate.toLocaleDateString(dateLocale(lang), { weekday: 'short' }).replace(/\.$/, '').toUpperCase()} ${trainingDate.getDate()}`
-    : null;
-  const metaParts = [dateChip, localizeFocus(day.focus, lang), t('dash.exercisesCount', { n: day.exercises.length })]
-    .filter(Boolean);
   const dayLabel = trainingDate
     ? displayDayNameForDate(day.dayName, day.weekday, trainingDate, lang)
     : localizeDayName(day.dayName, lang);
+  // X70 (B2): tytul karty = focus treningu (dzien+data mieszkaja w naglowku
+  // sekcji timeline); pusty focus = fallback na dotychczasowa nazwe dnia,
+  // zeby tytul nigdy nie byl pusty. Meta bez powtorki "PT 28" — zostaje
+  // liczba cwiczen.
+  const title = localizeFocus(day.focus, lang) || dayLabel;
   const hasSecondaryActions = Boolean(onReschedule || onToggleSkip);
 
   return (
@@ -72,14 +70,12 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
         <div className="flex items-center gap-2.5">
           {/* Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-            {/* WP-L (X30): domyslna nazwa weekday podaza za data przelozenia. */}
-            <p className="font-heading font-semibold text-base leading-tight truncate">
-              {dayLabel}
+            {/* Bez truncate: dlugi focus zawija sie naturalnie zamiast gubic
+                koncowke (utrata informacji vs stan sprzed zmiany tytulu). */}
+            <p className="font-heading font-semibold text-base leading-tight">
+              {title}
             </p>
-            {/* Bez truncate/clamp: przy długich polskich nazwach focusu ucinanie
-                gubiło liczbę ćwiczeń (utrata informacji vs stan sprzed redesignu);
-                meta zawija się naturalnie, karta rośnie o linię. */}
-            <p className="text-xs text-muted-foreground">{metaParts.join(' · ')}</p>
+            <p className="text-xs text-muted-foreground">{t('dash.exercisesCount', { n: day.exercises.length })}</p>
           </div>
 
           {/* Badge statusu (mockup: DONE przygaszony akcent, NEXT wypełniony akcent) */}

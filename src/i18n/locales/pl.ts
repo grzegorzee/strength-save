@@ -867,7 +867,7 @@ export const pl = {
   'vac.blockedByMode': 'Aktywny tryb "nie na 100%". Jeden tryb naraz: najpierw go wyłącz.',
   // Tray zaległości (Runna p.1, spec C2) — ton neutralny, zero pretensji.
   'lapse.title': 'Wróćmy do planu',
-  'lapse.staleDesc': 'Trening {day} z {date} czeka. Bez presji: wybierz, co z nim zrobić.',
+  'lapse.staleDesc': 'Trening {day} ({date}) czeka. Bez presji: wybierz, co z nim zrobić.',
   'lapse.weekDesc': 'W zeszłym tygodniu nie było żadnej sesji. Wracamy spokojnie, od dziś.',
   'lapse.continue': 'Kontynuuj od dziś',
   'lapse.continueDesc': 'Zaległe sesje odpuszczamy, a silnik zaproponuje lżejsze wejście po przerwie.',

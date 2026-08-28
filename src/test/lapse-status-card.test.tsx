@@ -45,4 +45,18 @@ describe('zaległość na Dashboardzie', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zobacz opcje' }));
     expect(screen.getByTestId('lapse-tray')).toBeTruthy();
   });
+
+  // B3 (X70): szablon bez odmiany — "z poniedziałek, 24 sierpnia" łamało
+  // fleksję; data w nawiasie, krótka (bez nazwy dnia), dzień w mianowniku.
+  it('opis karty i traya: "Trening {day} ({date}) czeka." z krótką datą bez nazwy dnia', () => {
+    render(<Harness />);
+
+    expect(
+      screen.getByText('Trening Push (7 sierpnia) czeka. Bez presji: wybierz, co z nim zrobić.'),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zobacz opcje' }));
+    const tray = screen.getByTestId('lapse-tray');
+    expect(tray.textContent).toContain('Trening Push (7 sierpnia) czeka.');
+  });
 });

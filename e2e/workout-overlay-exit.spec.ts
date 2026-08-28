@@ -50,7 +50,8 @@ test.describe('wyjście z treningu przy otwartym popupie (blackout)', () => {
 
     // To jest zachowanie widoczne dla usera: po wyjściu da się od razu wejść
     // w pierwszy trening, zamiast zostać pod czarną, nieklikalną warstwą.
-    await page.getByText('Poniedziałek', { exact: true }).click();
+    // X70 (B2): tytul karty = focus; dzien zyje w aria-label karty.
+    await page.getByRole('button', { name: 'Poniedziałek', exact: true }).click();
     await expect(page).toHaveURL(/#\/workout\/day-1/);
   });
 
