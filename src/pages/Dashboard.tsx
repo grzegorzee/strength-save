@@ -1084,10 +1084,6 @@ const Dashboard = () => {
         // WP-L (X30): nazwa dnia podaza za dzisiejsza data (przelozenie).
         const todayPlanDayName = displayDayNameForDate(todayTraining.day.dayName, todayTraining.day.weekday, today, lang);
         const showTodayPlanDayName = todayPlanDayName.toLocaleLowerCase(dateLocale(lang)) !== todayWeekdayLabel.toLocaleLowerCase(dateLocale(lang));
-        // X70 (B2): data ("Piatek, 28 sierpnia") mieszka wylacznie pod
-        // powitaniem, wiec h2 hero pokazuje focus treningu zamiast powtorki
-        // weekday; pusty focus = fallback na weekday (tytul nigdy pusty).
-        const todayHeroTitle = localizeFocus(todayTraining.day.focus, lang) || todayWeekdayLabel;
         return (
         // A4 (X70): hero-support-glow = poświata w kolorze wspierającym B,
         // aktywna wyłącznie przy palecie (index.css, :root[data-palette]).
@@ -1096,15 +1092,17 @@ const Dashboard = () => {
             {t('dash.hero.today')}
             {showTodayPlanDayName && ` · ${todayPlanDayName}`}
           </span>
-          {/* leading-tight zamiast none: focus bywa dluzszy niz weekday i moze
-              zlamac sie na dwie linie. */}
-          <h2 className="min-w-0 font-heading text-[27px] font-bold capitalize leading-tight tracking-tight">
-            {todayHeroTitle}
+          {/* X70b (korekta wlasciciela): powrot do ukladu sprzed toru 4 X70.
+              h2 = weekday (krotki, jedna linia), focus zyje w podtytule razem
+              z liczba cwiczen. Focus jako tytul zawijal sie na 2 linie i
+              rozciagal karte. */}
+          <h2 className="min-w-0 font-heading text-[27px] font-bold capitalize leading-none tracking-tight">
+            {todayWeekdayLabel}
           </h2>
           <p className="text-sm text-muted-foreground">
             {continueDraft
               ? t('dash.today.continueSets', { n: continueDraft.completedSets })
-              : t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}
+              : `${localizeFocus(todayTraining.day.focus, lang)} · ${t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}`}
           </p>
           {/* Naprawa r2 (2026-08-21): CTA hero w klasie kinetic jak FINISH WORKOUT
               i BACK TO DASHBOARD (tokens.md par. 2.8: jeden jezyk dla CTA hero). */}

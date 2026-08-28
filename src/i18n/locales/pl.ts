@@ -897,7 +897,7 @@ export const pl = {
   'trainingplan.manage': 'Zarządzaj planem',
   'trainingplan.history': 'Historia',
   'trainingplan.preStart': 'Przed startem',
-  'trainingplan.seeFirstWeek': 'Zobacz tydzień 1',
+  'trainingplan.seeFirstWeek': 'Zobacz pierwszy tydzień',
   'trainingplan.weekOf': 'Tydzień {current}/{total}',
   'trainingplan.start': 'Start',
   'trainingplan.percentDone': '{percent}% ukończone',

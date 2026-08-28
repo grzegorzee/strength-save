@@ -1,6 +1,6 @@
 // WP-F (X35a): zakładka Plan przed startem cyklu. Plan od poniedziałku 7.09,
 // dziś 25.08: bieżący tydzień to "Przed startem" (nie "Historia") z kartą
-// pre-start nad zakresem tygodnia; CTA "Zobacz tydzień 1" skacze do
+// pre-start nad zakresem tygodnia; CTA "Zobacz pierwszy tydzień" skacze do
 // tygodnia 1 z realnymi treningami. Niezmiennik: plan wystartowany = zero karty,
 // tydzień sprzed startu dalej "Historia". Fixtury: canonical-states (zasada 11).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -116,9 +116,15 @@ describe('WP-F (X35a) — Plan przed startem cyklu', () => {
     expect(screen.queryByText(/Tydzień \d+\/8/)).toBeNull();
   });
 
-  it('CTA "Zobacz tydzień 1" skacze do tygodnia 1 z treningami; karta znika', () => {
+  it('CTA "Zobacz pierwszy tydzień" skacze do tygodnia 1 z treningami; karta znika', () => {
     renderPlan('plan-future-start-wpc');
-    fireEvent.click(screen.getByRole('button', { name: 'Zobacz tydzień 1' }));
+    // X70b: pełna etykieta wraca; overflow z 320px nie wróci, bo przycisk
+    // zawija tekst (whitespace-normal + leading-tight, wysokość h-14 z X70).
+    const cta = screen.getByRole('button', { name: 'Zobacz pierwszy tydzień' });
+    expect(cta.className).toContain('whitespace-normal');
+    expect(cta.className).toContain('leading-tight');
+    expect(cta.className).toContain('h-14');
+    fireEvent.click(cta);
 
     expect(screen.getByText('Tydzień 1/8')).toBeInTheDocument();
     expect(screen.getByText(/Start planu/)).toBeInTheDocument();
@@ -131,7 +137,7 @@ describe('WP-F (X35a) — Plan przed startem cyklu', () => {
 
   it('strzałka wstecz z tygodnia 1 wraca do "Przed startem" z kartą', () => {
     renderPlan('plan-future-start-wpc');
-    fireEvent.click(screen.getByRole('button', { name: 'Zobacz tydzień 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zobacz pierwszy tydzień' }));
     fireEvent.click(screen.getByLabelText('Poprzedni tydzień'));
     expect(screen.getByText('Przed startem')).toBeInTheDocument();
     expect(screen.getByTestId('plan-prestart-card')).toBeInTheDocument();

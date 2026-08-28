@@ -275,25 +275,23 @@ describe('hero: weekday realnej daty w nagłówku, dzień planu w eyebrow (WP-A 
     expect(eyebrow.textContent).toBe('Następna sesja');
   });
 
-  // X70 (B2): data mieszka wyłącznie pod powitaniem ("Piątek, 28 sierpnia"),
-  // więc h2 hero pokazuje focus treningu zamiast powtórki weekday.
-  it('karta dzisiejsza: h2 = focus treningu, eyebrow z nazwą dnia planu, zero powtórki weekday', async () => {
-    renderDashboard();
-    await waitFor(() => expect(screen.getByText('Rozpocznij trening')).toBeTruthy());
-
-    const hero = screen.getByTestId('dash-hero');
-    expect(hero.querySelector('h2')!.textContent).toBe('Push');
-    const eyebrow = within(hero).getByText(/Dzisiejsza sesja/);
-    expect(eyebrow.textContent).toContain('Dzień A');
-    expect(hero.textContent).not.toContain(plWeekday(new Date()));
-  });
-
-  it('karta dzisiejsza: pusty focus = fallback na weekday (tytuł nigdy nie jest pusty)', async () => {
-    planFixture.plan = [{ ...dayToday(), focus: '' }];
+  // X70b (korekta wlasciciela): powrot ukladu sprzed toru 4 X70 — h2 = weekday
+  // dzisiejszej daty (krotki tytul, jedna linia), focus zyje w podtytule.
+  it('karta dzisiejsza: h2 = weekday dzisiejszej daty, eyebrow z nazwą dnia planu', async () => {
     renderDashboard();
     await waitFor(() => expect(screen.getByText('Rozpocznij trening')).toBeTruthy());
 
     const hero = screen.getByTestId('dash-hero');
     expect(hero.querySelector('h2')!.textContent).toBe(plWeekday(new Date()));
+    const eyebrow = within(hero).getByText(/Dzisiejsza sesja/);
+    expect(eyebrow.textContent).toContain('Dzień A');
+  });
+
+  it('karta dzisiejsza: podtytul = focus + liczba ćwiczeń (X70b)', async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText('Rozpocznij trening')).toBeTruthy());
+
+    const hero = screen.getByTestId('dash-hero');
+    expect(within(hero).getByText('Push · 1 ćwiczeń')).toBeTruthy();
   });
 });

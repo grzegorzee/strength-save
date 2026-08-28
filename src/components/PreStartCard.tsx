@@ -7,7 +7,7 @@ import type { PreStartInfo } from '@/lib/plan-prestart';
 
 // WP-F (X35a): wspólna karta "Plan startuje" (Dashboard T3 + zakładka Plan).
 // Wygląd 1:1 z dotychczasowej karty Dashboardu; CTA zależy od miejsca
-// (Dashboard: "Zobacz plan" -> /plan, Plan: "Zobacz tydzień 1").
+// (Dashboard: "Zobacz plan" -> /plan, Plan: "Zobacz pierwszy tydzień").
 
 interface PreStartCardProps {
   info: PreStartInfo;

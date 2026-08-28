@@ -890,7 +890,7 @@ export const en: Record<keyof typeof pl, string> = {
   'trainingplan.manage': 'Manage plan',
   'trainingplan.history': 'History',
   'trainingplan.preStart': 'Before start',
-  'trainingplan.seeFirstWeek': 'See week 1',
+  'trainingplan.seeFirstWeek': 'See first week',
   'trainingplan.weekOf': 'Week {current}/{total}',
   'trainingplan.start': 'Start',
   'trainingplan.percentDone': '{percent}% done',
