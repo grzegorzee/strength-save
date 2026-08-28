@@ -3199,7 +3199,7 @@ const WorkoutDay = () => {
           )}
           <div className="flex flex-col gap-2">
             <Button
-              className="kinetic-primary-button w-full"
+              className="kinetic-primary-button h-12 w-full"
               data-testid="prestart-yes"
               disabled={isExplicitSaving}
               onClick={() => {

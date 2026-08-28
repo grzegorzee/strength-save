@@ -517,7 +517,7 @@ const TrainingPlan = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2.5 min-w-0">
-              <h2 className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
+              <h2 className="eyebrow-mono text-primary whitespace-nowrap shrink-0">
                 {/* WP-F (X35a): tydzień przed startem planu = "Przed startem", nie "Historia". */}
                 {isHistoricalWeek
                   ? t(planStarted ? 'trainingplan.history' : 'trainingplan.preStart')
@@ -619,7 +619,7 @@ const TrainingPlan = () => {
       {/* ── S4: nawigacja tygodnia (mono zakres + okrągłe strzałki, mockup) ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-mono text-[11.5px] tracking-[0.1em] text-foreground/80 whitespace-nowrap">
+          <span className="font-mono text-[11px] tracking-[0.1em] text-foreground/80 whitespace-nowrap">
             {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} - {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
           </span>
           {/* WP-C (X28): link powrotu TYLKO gdy plan wystartował i user ogląda

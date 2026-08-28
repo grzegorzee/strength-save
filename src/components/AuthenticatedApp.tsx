@@ -12,6 +12,8 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { WatchEventRouter } from '@/components/WatchEventRouter';
 // X35b (WP-B): /settings zniknęło — sekcje żyją w Profilu, stare ?section= mapowane na kotwice.
 import { SettingsRedirect } from '@/components/SettingsRedirect';
+// A5 (X70): zakładka "Postępy" żyje pod /achievements — /progress to redirect.
+import { ProgressRedirect } from '@/components/ProgressRedirect';
 import { ActiveWorkoutResume } from '@/components/ActiveWorkoutResume';
 import { TelemetryHeartbeat } from '@/components/TelemetryHeartbeat';
 import { ProductTelemetry } from '@/components/ProductTelemetry';
@@ -254,6 +256,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                   <Route path="/plan" element={<TrainingPlan />} />
                   <Route path="/workout/:dayId" element={<WorkoutDay />} />
                   <Route path="/achievements" element={<Achievements />} />
+                  <Route path="/progress" element={<ProgressRedirect />} />
                   <Route path="/plan/edit" element={<PlanEditor />} />
                   <Route path="/analytics" element={<AnalyticsRedirect />} />
                   <Route path="/exercises" element={<ExerciseLibrary />} />
