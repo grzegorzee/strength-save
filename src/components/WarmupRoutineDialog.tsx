@@ -92,10 +92,13 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
   const renderCheckItem = (nameKey: string, label: string, badge?: string, isActive = false) => (
     <button
       key={nameKey}
+      type="button"
+      role="checkbox"
+      aria-checked={checked.has(nameKey)}
       data-testid="warmup-item"
       data-active={isActive ? 'true' : undefined}
       className={cn(
-        'flex items-center gap-3 w-full p-3 rounded-lg transition-colors text-left',
+        'flex items-center gap-3 w-full p-3 rounded-lg transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         checked.has(nameKey)
           ? 'bg-fitness-success/10'
           : isActive ? 'bg-primary/[0.08] ring-1 ring-primary/70' : 'bg-muted/30 hover:bg-muted/50',
@@ -104,12 +107,12 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
     >
       <div className={cn(
         'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-        checked.has(nameKey) ? 'bg-fitness-success border-fitness-success' : isActive ? 'border-primary' : 'border-muted-foreground/30',
+        checked.has(nameKey) ? 'bg-fitness-success border-fitness-success' : isActive ? 'border-primary' : 'border-muted-foreground',
       )}>
         {checked.has(nameKey) && <Check className="h-4 w-4 text-white" />}
       </div>
       <span className={cn('flex-1 text-sm', checked.has(nameKey) && 'line-through text-muted-foreground')}>{label}</span>
-      {badge && <Badge variant="outline" className="text-[10px] shrink-0 tabular-nums">{badge}</Badge>}
+      {badge && <Badge variant="outline" className="text-[11px] shrink-0 tabular-nums">{badge}</Badge>}
     </button>
   );
 
@@ -127,6 +130,18 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
         </DialogHeader>
 
         <Progress value={progress} className="h-2" />
+
+        {active && (
+          <div
+            className="rounded-lg border border-primary/30 bg-primary/[0.06] p-3"
+            data-testid="warmup-active-instruction"
+          >
+            <p className="text-sm font-medium">{t(active.key)}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              {t(active.instructionKey)}
+            </p>
+          </div>
+        )}
 
         {/* Odliczanie aktywnej pozycji czasowej (za flagą intervalTimers). */}
         {countdownEnabled && deadline !== null && (

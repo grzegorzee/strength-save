@@ -8,7 +8,7 @@ import type { WorkoutSession } from '@/types';
 
 export const WORKOUT_CSV_HEADERS = [
   'date', 'day', 'focus', 'exercise', 'set_no', 'set_type',
-  'weight_kg', 'reps', 'completed', 'rpe', 'pain', 'exercise_note',
+  'weight_kg', 'reps', 'completed', 'rpe', 'pain', 'quality', 'exercise_note',
   'day_note', 'session_rating', 'tonnage_kg', 'duration_sec', 'prs',
 ] as const;
 
@@ -53,6 +53,7 @@ export function buildWorkoutsCsv(workouts: WorkoutSession[], prCounts: Record<st
           cell(set.completed),
           cell(ex.rpe),
           cell(ex.pain),
+          cell(ex.quality),
           cell(ex.notes),
           cell(workout.notes),
           cell(workout.sessionRating),

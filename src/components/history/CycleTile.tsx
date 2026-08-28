@@ -48,7 +48,7 @@ export const CycleTile = ({
       <div className="flex w-full items-baseline justify-between gap-2">
         {tag !== null && (
           <span className={cn(
-            'truncate font-mono text-[8px] font-bold uppercase tracking-[0.12em]',
+            'truncate font-mono text-[11px] font-bold uppercase tracking-[0.12em]',
             tagAccent ? 'text-primary' : 'text-muted-foreground',
           )}
           >
@@ -56,7 +56,7 @@ export const CycleTile = ({
           </span>
         )}
         {prCount > 0 && (
-          <span className="ml-auto shrink-0 font-mono text-[9px] font-semibold text-primary tabular-nums">
+          <span className="ml-auto shrink-0 font-mono text-[11px] font-semibold text-primary tabular-nums">
             {prLabel}
           </span>
         )}
@@ -84,11 +84,11 @@ export const CycleTile = ({
 
       <div className="min-w-0 w-full">
         <p className="truncate font-heading text-[15px] font-bold">{name}</p>
-        <p className="mt-0.5 truncate font-mono text-[8.5px] uppercase tracking-[0.08em] text-muted-foreground tabular-nums">
+        <p className="mt-0.5 truncate font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground tabular-nums">
           {metaLabel}
         </p>
         {rangeLabel && (
-          <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/80">{rangeLabel}</p>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{rangeLabel}</p>
         )}
       </div>
     </button>

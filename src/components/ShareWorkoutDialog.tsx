@@ -7,6 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Loader2, Download, Share2, Camera, Check, X } from 'lucide-react';
 import { downscalePhoto, generateWorkoutImage, type ShareData, type ShareHero, type ShareTemplate } from '@/lib/share-utils';
 import { shareOrDownloadFile } from '@/lib/share-export';
@@ -199,6 +200,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
               aria-pressed={template === id}
               className={cn(
                 'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                toggleButtonClasses(template === id),
                 template === id ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
               )}
             >
@@ -218,6 +220,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
                 aria-pressed={hero === id}
                 className={cn(
                   'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                  toggleButtonClasses(hero === id),
                   hero === id ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground',
                 )}
               >

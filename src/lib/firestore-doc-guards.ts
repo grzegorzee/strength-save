@@ -113,6 +113,10 @@ export const sanitizeWorkoutDoc = (id: string, data: unknown): WorkoutSession | 
   optionalFinite(target, 'updatedAt', data.updatedAt);
   optionalFinite(target, 'revision', data.revision);
   optionalString(target, 'lastWriteId', data.lastWriteId);
+  optionalFinite(target, 'healthSidecarRevision', data.healthSidecarRevision);
+  if (typeof data.healthSidecarPresent === 'boolean') {
+    workout.healthSidecarPresent = data.healthSidecarPresent;
+  }
   if (Array.isArray(data.skippedExercises)) {
     workout.skippedExercises = data.skippedExercises.filter((item): item is string => typeof item === 'string');
   }

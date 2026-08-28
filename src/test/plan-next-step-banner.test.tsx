@@ -59,7 +59,10 @@ describe('PlanNextStepCard wariant banner (fala 2)', () => {
     expect(screen.queryByText('Przygotuj kolejny plan')).toBeNull();
     expect(screen.queryByTestId('plan-next-repeat')).toBeNull();
     // X (dismiss) dostępny bez rozwijania.
-    expect(screen.getByLabelText('dash.dismissHint')).toBeTruthy();
+    const dismiss = screen.getByLabelText('dash.dismissHint');
+    expect(dismiss).toBeTruthy();
+    expect(dismiss.className).toContain('min-h-11');
+    expect(dismiss.className).toContain('min-w-11');
   });
 
   it('rozwinięcie ujawnia KOMPLET akcji wariantu card (primary/secondary/repeat)', () => {

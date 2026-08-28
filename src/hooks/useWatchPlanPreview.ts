@@ -35,6 +35,8 @@ interface UseWatchPlanPreviewOptions {
   dateStr?: string;
   workouts: WorkoutSession[];
   capability?: WatchCapabilitySnapshot;
+  /** Brak/false zachowuje trening Watch, ale wyłącza odczyt i zapis HealthKit. */
+  healthFeaturesEnabled?: boolean;
 }
 
 const SEND_DEBOUNCE_MS = 1200;
@@ -44,7 +46,7 @@ const watchTrackingForName = (name: string) => {
   return getTrackingType(library ?? { isBodyweight: isBodyweightExercise(name) });
 };
 
-export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capability }: UseWatchPlanPreviewOptions) {
+export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capability, healthFeaturesEnabled }: UseWatchPlanPreviewOptions) {
   // Z164: zegarek dostaje język UI (kontrakt jak w useWatchWorkoutSync).
   const { lang } = useTranslation();
 
@@ -59,6 +61,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
           protocolVersion: WORKOUT_PROTOCOL_VERSION,
           uid,
           deviceId: getOrCreateWatchPhoneDeviceId(),
+          healthFeaturesEnabled: healthFeaturesEnabled === true,
         } as const;
         let inheritedCapability = applyLastKnownWatchLink(capability);
         const watchStatus = await getWatchAvailability();
@@ -186,5 +189,5 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [uid, type, day, dateStr, workouts, lang, capability]);
+  }, [uid, type, day, dateStr, workouts, lang, capability, healthFeaturesEnabled]);
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MANUAL_ACTIVITY_TYPES,
+  buildManualActivityWriteInput,
   manualActivityToUnified,
   sanitizeManualActivity,
   stravaToUnified,
@@ -44,6 +45,34 @@ describe('sanitizeManualActivity (Z111)', () => {
       distance: -5, averageHeartrate: 500, perceivedIntensity: 'ultra' as never,
     })!;
     expect(out).toEqual({ type: 'Walk', date: '2026-07-19', movingTime: 1200 });
+  });
+});
+
+describe('buildManualActivityWriteInput — granica health', () => {
+  const input = {
+    type: 'Run', date: '2026-07-19', movingTime: 1800, distance: 5000,
+    averageHeartrate: 152, calories: 400, perceivedIntensity: 'moderate' as const,
+  };
+
+  it('bez aktywnego grantu zachowuje cardio bazowe i usuwa pola health', () => {
+    expect(buildManualActivityWriteInput(input, null)).toEqual({
+      type: 'Run', date: '2026-07-19', movingTime: 1800, distance: 5000,
+    });
+  });
+
+  it('aktywny grant przypina epoch do pól health', () => {
+    expect(buildManualActivityWriteInput(input, { healthEpoch: 7 })).toEqual({
+      ...input,
+      healthEpoch: 7,
+    });
+  });
+
+  it('nie dodaje epoch do wpisu bez pól health', () => {
+    expect(buildManualActivityWriteInput({
+      type: 'Walk', date: '2026-07-19', movingTime: 900,
+    }, { healthEpoch: 7 })).toEqual({
+      type: 'Walk', date: '2026-07-19', movingTime: 900,
+    });
   });
 });
 

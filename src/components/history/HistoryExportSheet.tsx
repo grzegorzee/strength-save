@@ -8,6 +8,7 @@ import { downloadWorkoutsCsvFile, fetchWorkoutsForBounds } from '@/lib/workout-c
 import { exportRangeBounds, type ExportRangeBounds } from '@/lib/workout-export-range';
 import { buildExportCycleOptions, defaultExportCycleId } from '@/lib/export-cycle-options';
 import { cn, formatLocalDate } from '@/lib/utils';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { toast } from '@/hooks/use-toast';
@@ -227,6 +228,7 @@ export const HistoryExportSheet = ({
               onClick={() => setScope(item.id)}
               className={cn(
                 'touch-manipulation select-none whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
+                toggleButtonClasses(scope === item.id),
                 scope === item.id ? 'bg-accent text-accent-foreground' : 'bg-surface-highest text-muted-foreground',
                 item.disabled && 'opacity-40',
               )}
@@ -256,7 +258,8 @@ export const HistoryExportSheet = ({
                   onClick={() => setSelectedCycleId(option.id)}
                   className={cn(
                     'flex w-full items-start gap-3 rounded-[15px] px-4 py-3 text-left transition-colors',
-                    checked ? 'bg-accent/10 ring-1 ring-accent' : 'bg-surface-highest',
+                    toggleButtonClasses(checked),
+                    checked ? 'bg-accent/10' : 'bg-surface-highest',
                   )}
                 >
                   <span

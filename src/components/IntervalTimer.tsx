@@ -118,7 +118,7 @@ export const IntervalTimer = ({ spec, exerciseLabel, onClose }: IntervalTimerPro
           <div className={cn('text-2xl font-bold tabular-nums', isFinished && 'text-fitness-success')}>
             {isFinished ? t('interval.done') : fmt(leftInUnit)}
           </div>
-          <div className="text-[10px] tabular-nums text-muted-foreground mt-1">
+          <div className="text-[11px] tabular-nums text-muted-foreground mt-1">
             {fmt(elapsed)} / {fmt(spec.totalSec)}
           </div>
         </div>

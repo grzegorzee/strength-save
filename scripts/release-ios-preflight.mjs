@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { findBuildNumberMismatch } from './release-ios-preflight-checks.mjs';
+import { loadEnv } from 'vite';
+import {
+  findBuildNumberMismatch,
+  validateRevenueCatAppleApiKey,
+} from './release-ios-preflight-checks.mjs';
 
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 const info = readFileSync('ios/App/App/Info.plist', 'utf8');
@@ -21,8 +25,15 @@ if (!buildCheck.ok) {
     `iOS CURRENT_PROJECT_VERSION must be present and consistent in project.pbxproj (${buildCheck.reason}: ${buildCheck.values.join(', ') || 'none found'}).`
   );
 }
-if (!process.env.VITE_REVENUECAT_APPLE_API_KEY) {
-  throw new Error('VITE_REVENUECAT_APPLE_API_KEY is required before an iOS archive.');
+// Ten sam mode co `npm run build:mobile`; jawny env procesu ma pierwszeństwo.
+const mobileEnv = loadEnv('mobile', process.cwd(), 'VITE_');
+const revenueCatAppleKey = process.env.VITE_REVENUECAT_APPLE_API_KEY
+  ?? mobileEnv.VITE_REVENUECAT_APPLE_API_KEY;
+const revenueCatKeyCheck = validateRevenueCatAppleApiKey(revenueCatAppleKey);
+if (!revenueCatKeyCheck.ok) {
+  throw new Error(
+    `VITE_REVENUECAT_APPLE_API_KEY must be a production Apple public SDK key (${revenueCatKeyCheck.reason}).`,
+  );
 }
 
 console.log(`iOS release preflight passed for ${version}.`);

@@ -237,7 +237,7 @@ try {
   await page.getByPlaceholder('Email').first().fill(email);
   await page.getByPlaceholder(/^(Hasło|Password)$/i).first().fill(password);
   await page.getByRole('button', { name: /Zaloguj przez email|Sign in with email/i }).click();
-  await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 20_000 });
+  await page.getByRole('heading', { name: /Dzisiaj|Today/ }).waitFor({ timeout: 20_000 });
   await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).waitFor({ timeout: 15_000 });
   result.onlineDashboard = true;
 
@@ -255,7 +255,7 @@ try {
   activePage = offlinePage;
   offlinePage.on('pageerror', (error) => pageErrors.push(error.stack || error.message));
   await offlinePage.goto(`${emulatorUrl}#/`, { waitUntil: 'load', timeout: 30_000 });
-  await offlinePage.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 20_000 });
+  await offlinePage.getByRole('heading', { name: /Dzisiaj|Today/ }).waitFor({ timeout: 20_000 });
   result.cachedDashboardOffline = true;
   await offlinePage.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).waitFor({ timeout: 10_000 });
   result.dashboardCtaOffline = true;
@@ -264,7 +264,9 @@ try {
   // D-T4: /analytics przekierowuje na scalony ekran Postępy (?view=analytics),
   // gdzie AnalyticsEmbedded lazy-loaduje ten sam chunk.
   await offlinePage.goto(`${emulatorUrl}#/analytics`, { waitUntil: 'commit', timeout: 10_000 });
-  await offlinePage.getByRole('main').getByRole('heading', { name: /Postępy|Progress/i }).waitFor({ timeout: 15_000 });
+  // Tytuł rootu należy do wspólnego AppHeader poza <main>. Dowodem gotowego
+  // ekranu jest widoczne main oraz kontrolka z lazy-loaded AnalyticsEmbedded.
+  await offlinePage.getByRole('main').waitFor({ timeout: 15_000 });
   // Zakładka z wnętrza Analytics = dowód, że lazy chunk realnie się załadował.
   await offlinePage.getByRole('tab', { name: /Podsumowanie|Summary/i }).waitFor({ timeout: 15_000 });
   result.coldLazyRouteOffline = true;
@@ -279,6 +281,9 @@ try {
   // stabilnym i dostępnym dowodem, że sesja naprawdę przeszła do stanu aktywnego.
   await offlinePage.getByRole('button', { name: /Zakończ trening|Finish workout/i }).waitFor({ timeout: 15_000 });
   const firstCard = offlinePage.locator('.exercise-card').first();
+  const setInputs = firstCard.locator('input');
+  await setInputs.nth(0).fill('20');
+  await setInputs.nth(1).fill('5');
   await firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first().click();
 
   result.draftSavedOffline = await offlinePage.evaluate(async ({ expectedUid, expectedExerciseId }) => {

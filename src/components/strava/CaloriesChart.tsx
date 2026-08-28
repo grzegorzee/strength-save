@@ -38,7 +38,7 @@ export const CaloriesChart = ({ activities, referenceDate }: CaloriesChartProps)
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={2} />
             <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kcal" />
             <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kcal`, t('strava.calories')]} />
             <Bar dataKey="calories" name={t('strava.calories')} fill="#ef4444" radius={[4, 4, 0, 0]} />

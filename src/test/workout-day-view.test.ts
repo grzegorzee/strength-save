@@ -139,6 +139,27 @@ describe('hasAnyCompletedSet — blokada zapisu pustego treningu (regresja 2026-
     expect(hasAnyCompletedSet({ a: [{ reps: 8, weight: 60, completed: true }] })).toBe(true);
   });
 
+  it('legacy/corrupt: completed=true bez żadnego wyniku nadal jest pustym treningiem', () => {
+    expect(hasAnyCompletedSet({
+      a: [{ reps: 0, weight: 0, completed: true }],
+    })).toBe(false);
+  });
+
+  it('legacy/corrupt: sama waga albo sama asysta bez ruchu nadal są pustym treningiem', () => {
+    expect(hasAnyCompletedSet({
+      a: [{ reps: 0, weight: 100, completed: true }],
+    })).toBe(false);
+    expect(hasAnyCompletedSet({
+      a: [{ reps: 0, weight: 0, assistWeight: 30, completed: true }],
+    })).toBe(false);
+  });
+
+  it('prawidłowy wynik reps-only, czasowy albo dystansowy przechodzi', () => {
+    expect(hasAnyCompletedSet({ a: [{ reps: 10, weight: 0, completed: true }] })).toBe(true);
+    expect(hasAnyCompletedSet({ a: [{ reps: 0, weight: 0, durationSec: 45, completed: true }] })).toBe(true);
+    expect(hasAnyCompletedSet({ a: [{ reps: 0, weight: 0, distanceM: 100, completed: true }] })).toBe(true);
+  });
+
   it('sama rozgrzewka też się liczy (user coś zrobił)', () => {
     expect(hasAnyCompletedSet({ a: [{ reps: 12, weight: 20, completed: true, isWarmup: true }] })).toBe(true);
   });

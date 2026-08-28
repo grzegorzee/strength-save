@@ -25,6 +25,7 @@ functions/.secret.local
 
 # Production user-data snapshots (contain private account data)
 private-backups/
+private-audits/
 
 # Local scratch / test artifacts
 tmp/

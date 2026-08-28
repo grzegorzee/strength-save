@@ -166,7 +166,11 @@ export const AdminCommsCard = ({ cohorts, recipientCounts }: AdminCommsCardProps
           {channel === 'push' && (
             <label className="flex items-center justify-between gap-3 rounded-xl bg-surface-low px-3 py-2">
               <span className="text-sm text-muted-foreground">{t('admin.commsInboxToggle')}</span>
-              <Switch checked={inbox} onCheckedChange={setInbox} />
+              <Switch
+                checked={inbox}
+                onCheckedChange={setInbox}
+                aria-label={t('admin.commsInboxToggle')}
+              />
             </label>
           )}
 

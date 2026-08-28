@@ -58,8 +58,9 @@ const photoEntry = buildPhotoWeightMeasurement('2026-08-12', 84);
 const legacyEntry = buildMeasurement('2026-08-01');
 const measurements = [recordedEntry, photoEntry, legacyEntry];
 
+const HEALTH_EPOCH = 3;
 const setup = () => renderHook(
-  () => useFirebaseWorkoutActions(CANONICAL_UID, { workouts: [], measurements }),
+  () => useFirebaseWorkoutActions(CANONICAL_UID, { workouts: [], measurements }, HEALTH_EPOCH),
 ).result.current;
 
 beforeEach(() => {
@@ -84,6 +85,7 @@ describe('updateMeasurement (WP-M)', () => {
       userId: CANONICAL_UID,
       date: recordedEntry.date,
       weight: 90,
+      healthEpoch: HEALTH_EPOCH,
       // Zachowany DOKLADNIE oryginalny epoch — nie Date.now() jak w add.
       recordedAt: recordedEntry.recordedAt,
     });
@@ -209,7 +211,19 @@ describe('addMeasurement — niezmiennik starego przeplywu (WP-M)', () => {
     expect(String(payload.id)).toMatch(/^measurement-/);
     expect(payload.date).toBe('2026-08-20');
     expect(payload.weight).toBe(80);
+    expect(payload.healthEpoch).toBe(HEALTH_EPOCH);
     expect(payload.recordedAt).toBeGreaterThanOrEqual(before);
     expect(payload.recordedAt).toBeLessThanOrEqual(after);
+  });
+
+  it('bez aktywnej epoki zgody fail-closed i nie dotyka Firestore', async () => {
+    const actions = renderHook(
+      () => useFirebaseWorkoutActions(CANONICAL_UID, { workouts: [], measurements }),
+    ).result.current;
+
+    const result = await actions.addMeasurement({ date: '2026-08-20', weight: 80 });
+
+    expect(result).toEqual({ measurement: null, error: 'HEALTH_CONSENT_REQUIRED' });
+    expect(fs.setDoc).not.toHaveBeenCalled();
   });
 });

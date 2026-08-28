@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 
-// PRO-D T6: sekcja dumy w Profilu (3 najwyższe zdobyte odznaki) + brak sekcji przy zeru.
+// Profil służy tożsamości i ustawieniom. Metryki oraz odznaki mają własny ekran.
 
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
 
@@ -82,33 +82,28 @@ const LocationProbe = () => {
   return <output data-testid="profile-location">{`${location.pathname}${location.search}`}</output>;
 };
 
-describe('Profil: sekcja dumy (PRO-D T6 + kafle fali 2)', () => {
-  it('odznaki nie dublują osobnego ekranu, a link Wszystkie pozostaje', () => {
-    const { getByText, queryByTestId } = renderProfile();
-    expect(getByText('Wszystkie')).toBeTruthy();
-    expect(queryByTestId('badge-hex')).toBeNull();
+describe('Profil: tożsamość i ustawienia bez duplikowania postępów', () => {
+  it('po tożsamości zaczynają się ustawienia, bez sekcji i kafli metryk', () => {
+    const { container } = renderProfile();
+    const sections = Array.from(container.querySelectorAll('section'));
+
+    expect(sections[0]?.id).toBe('profile-identity');
+    expect(sections[1]?.id).toBe('profile-accent');
+    expect(container.querySelector('#profile-pride')).toBeNull();
+    ['workouts', 'streak', 'tonnage', 'sets'].forEach((key) => {
+      expect(screen.queryByTestId(`profile-pride-${key}`)).toBeNull();
+    });
+    expect(screen.queryByTestId('chip-tier')).toBeNull();
+    expect(screen.queryByTestId('tier-progress')).toBeNull();
+    expect(screen.getByText('10 treningów')).toBeInTheDocument();
   });
 
-  // Fala 2: kafle liczą z okna recent gdy aggregate=null (dzisiejsza semantyka
-  // fallbacku completedCount) — zera i wartości są prawdziwe, nie zmyślone.
-  it('kafle: treningi/seria/tonaż/serie z okna recent (fallback bez agregatu)', () => {
-    const { getByText, getAllByText } = renderProfile();
-    ['Treningi', 'Seria', 'Tonaż', 'Serie'].forEach((l) => expect(getByText(l)).toBeTruthy());
-    // 10 treningów, każdy 1 seria robocza 10x50 kg.
-    expect(getAllByText('10').length).toBeGreaterThanOrEqual(2); // kafle Treningi + Serie
-    expect(getByText('5.0 t')).toBeTruthy(); // 10 x 500 kg
-    expect(getByText('0 tyg.')).toBeTruthy(); // stare daty = streak 0 (prawda)
-  });
-
-  it.each([
-    ['workouts', '/history'],
-    ['streak', '/achievements?view=analytics&tab=charts&chart=streak'],
-    ['tonnage', '/achievements?view=analytics&tab=charts&chart=tonnage'],
-    ['sets', '/history?list=all'],
-  ])('kafel %s jest przyciskiem i prowadzi do istniejącego widoku %s', (key, target) => {
-    const view = renderProfile();
-    fireEvent.click(screen.getByTestId(`profile-pride-${key}`));
-    expect(screen.getByTestId('profile-location')).toHaveTextContent(target);
-    view.unmount();
+  it('ustawienia danych nie dublują Historii ani Postępów z dolnej nawigacji', () => {
+    renderProfile();
+    fireEvent.click(screen.getByTestId('profile-toggle-data'));
+    const dataSection = screen.getByTestId('profile-section-data');
+    expect(within(dataSection).queryByText('Historia')).toBeNull();
+    expect(within(dataSection).queryByText('Postępy')).toBeNull();
+    expect(within(dataSection).getByText('Pomiary ciała')).toBeInTheDocument();
   });
 });

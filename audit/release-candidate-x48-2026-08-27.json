@@ -1,0 +1,52 @@
+{
+  "candidate": "x48-2026-08-27",
+  "created_at": "2026-08-27T23:58:00+02:00",
+  "status": "automatic_gates_passed_manual_and_external_gates_open",
+  "deployed": false,
+  "published": false,
+  "base_head": "c01a91293dd005d43133e5508939ca735d2ec5d5",
+  "tracked_diff_sha256": "e2c10d824c66e47a0406d479cf4e4d2127ac033964f658536c54d7b12610108c",
+  "tracked_modified_paths": 178,
+  "untracked_total_paths": 335,
+  "untracked_candidate_source_paths": 30,
+  "untracked_candidate_source_sha256": "65ad688239bb07d65376f9826bcaaf77bcbf9c139a0c298455655dc2f3cb9dec",
+  "evidence_docs_sha256": "b03d8739fe10d6e763a19f00d4389bdf5977d3d0f1a412e401c2c92bd5901494",
+  "scope_note": "Hash źródła obejmuje wszystkie nieśledzone pliki w src/e2e/functions/scripts/public/ios/android oraz główne konfiguracje. Nie obejmuje zastanych animacji, zrzutów i materiałów roboczych, których nie wolno traktować jako kodu kandydata.",
+  "versions": {
+    "package": "1.0.0",
+    "ios_marketing": "1.0.0",
+    "ios_build": 130,
+    "android_version_name": "1.0.0",
+    "android_version_code": 42
+  },
+  "automatic_gates": {
+    "vitest": "3663/3663",
+    "typecheck": "passed",
+    "lint": "passed with 0 errors and 15 existing Fast Refresh warnings",
+    "build": "passed",
+    "bundle_budget": "passed; initial JS 1431041/1536000 bytes",
+    "dist_smoke": "passed",
+    "dist_offline": "passed",
+    "no_emoji": "passed for 270 files",
+    "ios_release_preflight": "passed for 1.0.0",
+    "functions": "454 passed, 12 skipped",
+    "firestore_rules": "282/282",
+    "storage_rules": "11/11",
+    "chromium_e2e": "286/286 after fresh Vite cache",
+    "webkit_e2e": "286/286 after separate fresh Vite cache",
+    "mobile_sync": "passed for iOS and Android",
+    "android_debug": "assembleDebug passed",
+    "ios_simulator": "build and launch passed"
+  },
+  "release_blockers": [
+    "physical iOS and Android smoke on this exact source",
+    "screen-off/background/resume, notification cold start and interrupted-workout recovery on devices",
+    "native JSON/CSV/PDF/PNG share and restart recovery on devices",
+    "VoiceOver/TalkBack and font scale/reflow 100/150/200 percent",
+    "Google/Apple auth return, HealthKit/Health Connect, Camera process recovery and billing sandbox on devices",
+    "confirm the pending SES reputation-alarm email subscription",
+    "rotate the previously exposed Strava client secret at the provider",
+    "restore exercise media CDN with a valid certificate and successful JPG/MP4 smoke",
+    "create new signed artifacts only after the physical gates; build 130/versionCode 42 predate this candidate"
+  ]
+}

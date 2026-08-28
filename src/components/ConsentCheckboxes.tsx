@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Check } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -16,54 +17,69 @@ interface ConsentRowProps {
   checked: boolean;
   onToggle: () => void;
   testId: string;
+  disabled?: boolean;
   children: React.ReactNode;
 }
 
-const ConsentRow = ({ checked, onToggle, testId, children }: ConsentRowProps) => (
-  <div className="flex items-start gap-3 rounded-2xl bg-surface-low p-4">
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      data-testid={testId}
-      onClick={onToggle}
-      className={cn(
-        'mt-0.5 h-6 w-6 shrink-0 rounded-md flex items-center justify-center transition-colors',
-        checked ? 'bg-primary text-primary-foreground' : 'border-2 border-surface-highest',
-      )}
-    >
-      {checked && <Check className="h-4 w-4" />}
-    </button>
-    <p className="text-[13px] leading-snug">{children}</p>
-  </div>
-);
+const ConsentRow = ({ checked, onToggle, testId, disabled = false, children }: ConsentRowProps) => {
+  const labelId = useId();
+
+  return (
+    <div className="flex items-start gap-3 rounded-2xl bg-surface-low p-4">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        aria-labelledby={labelId}
+        data-testid={testId}
+        disabled={disabled}
+        onClick={onToggle}
+        className="mt-[-0.5rem] grid h-11 w-11 shrink-0 place-items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-wait disabled:opacity-60"
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'grid h-6 w-6 place-items-center rounded-md border-2 transition-colors',
+            checked
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-muted-foreground bg-surface-highest',
+          )}
+        >
+          {checked && <Check className="h-4 w-4" />}
+        </span>
+      </button>
+      <p id={labelId} className="text-[13px] leading-snug">{children}</p>
+    </div>
+  );
+};
 
 interface ConsentCheckboxesProps {
   value: ConsentSelection;
   onChange: (value: ConsentSelection) => void;
   /** Ukryj checkbox marketingowy (np. gdy zgoda już wyrażona wcześniej). */
   showMarketing?: boolean;
+  disabled?: boolean;
 }
 
-export const ConsentCheckboxes = ({ value, onChange, showMarketing = true }: ConsentCheckboxesProps) => {
+export const ConsentCheckboxes = ({ value, onChange, showMarketing = true, disabled = false }: ConsentCheckboxesProps) => {
   const { t } = useTranslation();
   const toggle = (key: keyof ConsentSelection) => onChange({ ...value, [key]: !value[key] });
 
   return (
     <div className="space-y-2">
-      <ConsentRow checked={value.terms} onToggle={() => toggle('terms')} testId="consent-terms">
+      <ConsentRow checked={value.terms} onToggle={() => toggle('terms')} testId="consent-terms" disabled={disabled}>
         {t('consent.termsPrefix')}{' '}
         <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-primary">{t('consent.termsLink')}</a>.
       </ConsentRow>
-      <ConsentRow checked={value.privacy} onToggle={() => toggle('privacy')} testId="consent-privacy">
+      <ConsentRow checked={value.privacy} onToggle={() => toggle('privacy')} testId="consent-privacy" disabled={disabled}>
         {t('consent.privacyPrefix')}{' '}
         <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-primary">{t('consent.privacyLink')}</a>.
       </ConsentRow>
-      <ConsentRow checked={value.health} onToggle={() => toggle('health')} testId="consent-health">
+      <ConsentRow checked={value.health} onToggle={() => toggle('health')} testId="consent-health" disabled={disabled}>
         {t('consent.health')}
       </ConsentRow>
       {showMarketing && (
-        <ConsentRow checked={value.marketing} onToggle={() => toggle('marketing')} testId="consent-marketing">
+        <ConsentRow checked={value.marketing} onToggle={() => toggle('marketing')} testId="consent-marketing" disabled={disabled}>
           {t('consent.marketing')}
         </ConsentRow>
       )}

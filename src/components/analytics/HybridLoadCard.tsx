@@ -77,8 +77,8 @@ export const HybridLoadCard = () => {
         <ResponsiveContainer width="100%" height={220}>
           <ComposedChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="week" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-            <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+            <XAxis dataKey="week" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
             <Bar dataKey={labelStrength} stackId="load" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />

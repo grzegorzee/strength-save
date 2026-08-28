@@ -2,11 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf } from 'lucide-react';
+import { Flame, Sun, Moon, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, Zap, HeartPulse, Leaf } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useToday } from '@/hooks/useToday';
@@ -35,10 +33,8 @@ import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { useUnit } from '@/contexts/UnitContext';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
-import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate, type ScheduledTrainingDay } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
@@ -64,6 +60,9 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 import { markStartup } from '@/lib/startup-performance';
+import { PostPlanGuide } from '@/components/PostPlanGuide';
+import { isPostPlanGuideSeen } from '@/lib/post-plan-guide';
+import { useHealthConsent } from '@/hooks/useHealthConsent';
 
 // WP-B (X28): before-start z silnika przełożeń to NIE blokada ukończonym
 // treningiem — toast generyczny zamiast mylącego completedBlocked.
@@ -71,12 +70,11 @@ const isCompletedMoveReason = (reason?: string) => reason === 'completed-source'
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const healthConsent = useHealthConsent();
   const [searchParams, setSearchParams] = useSearchParams();
   // Confetti tylko po ukończeniu onboardingu (?welcome=1). Po treningu
   // (?celebrate=1) zostaje highlight karty + „+1" w headerze — confetti należy
   // do sekwencji completion i tylko dla PR/kamieni milowych (PRO-C T3).
-  // X17D Z139.4: drugie wejście do „Twoich liczb" (pierwsze to licznik w nagłówku).
-  const [statsOpen, setStatsOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(
     () => searchParams.get('welcome') === '1',
   );
@@ -91,31 +89,34 @@ const Dashboard = () => {
   const wantsMeasurePrompt = useRef(searchParams.get('welcome') === '1');
   const [measurePromptOpen, setMeasurePromptOpen] = useState(false);
   useEffect(() => {
-    if (searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1') {
+    if (searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1' || searchParams.get('guide') === '1') {
       const next = new URLSearchParams(searchParams);
       next.delete('welcome');
       next.delete('celebrate');
+      next.delete('guide');
       setSearchParams(next, { replace: true }); // czyść URL, żeby odświeżenie nie powtarzało confetti
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const { t, lang } = useTranslation();
-  const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
+  const [postPlanGuideMode, setPostPlanGuideMode] = useState<'welcome' | 'replay' | null>(() => {
+    if (searchParams.get('guide') === '1') return 'replay';
+    if (searchParams.get('welcome') === '1' && !isPostPlanGuideSeen(uid)) return 'welcome';
+    return null;
+  });
   const subscription = useSubscription();
   const watchCapability = subscription.loading
     ? undefined
     : buildWatchCapabilitySnapshot(subscription);
   const {
     workouts,
-    getTotalWeight,
-    getCompletedWorkoutsCount,
     getLatestMeasurement,
     isLoaded,
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, hasServerSnapshot: planFromServer, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation, planStatus, setPlanStatus } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planName, isLoaded: planIsLoaded, isCustom: hasCustomPlan, planError, hasServerSnapshot: planFromServer, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation, planStatus, setPlanStatus } = useTrainingPlan(uid);
   // WP-PLANS-1 (X27): jawny stan "plan zakończony" z dokumentu — Dashboard nie
   // planuje niczego z martwego planu.
   const planEndedByStatus = planStatus === 'ended';
@@ -125,11 +126,11 @@ const Dashboard = () => {
   // T4: popup pomiarów tylko dla usera BEZ żadnego pomiaru (stały user wracający
   // przez redirect /onboarding -> /?welcome=1 go nie zobaczy).
   useEffect(() => {
-    if (!wantsMeasurePrompt.current || !isLoaded) return;
+    if (!wantsMeasurePrompt.current || !isLoaded || postPlanGuideMode !== null) return;
     wantsMeasurePrompt.current = false;
     if (!getLatestMeasurement()) setMeasurePromptOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded]);
+  }, [isLoaded, postPlanGuideMode]);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -185,15 +186,9 @@ const Dashboard = () => {
   // nowy permanent error przy count=1 mógł zostać ukryty przez dismiss starego.
   const [syncQueueSignature, setSyncQueueSignature] = useState('empty');
 
-  // Z217: kafle all-time z agregatu backendu (poprawne też przy >500 treningach);
-  // brak/uszkodzony dokument = fallback na dotychczasowe liczenie z okna listenera.
+  // Pełny agregat jest nadal potrzebny do obliczenia streaka poza oknem
+  // ostatnio załadowanych treningów.
   const aggregate = useWorkoutAggregate(uid);
-  const completedCount = useMemo(
-    () => aggregate?.totals.workoutCount ?? workouts.filter(w => w.completed).length,
-    [aggregate, workouts],
-  );
-  const latestMeasurement = getLatestMeasurement();
-  const totalWeight = aggregate?.totals.totalTonnageKg ?? getTotalWeight();
 
   const thisWeek = useMemo(() => {
     if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today, scheduleOverrides);
@@ -442,6 +437,12 @@ const Dashboard = () => {
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
   }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides, planEndedByStatus]);
 
+  const postPlanFirstEntry = todayTraining.type === 'training'
+    ? { day: todayTraining.day, dateKey: todayTraining.dateStr, date: today }
+    : todayTraining.type === 'preStart'
+      ? todayTraining.firstEntry
+      : todayTraining.next;
+
   // Przełożenie treningu (spec 2026-08-11): stan sheeta + handlery. Blokada
   // żywego draftu dnia źródłowego — komunikat zamiast otwarcia (spec, brzeg 2).
   const [rescheduleFrom, setRescheduleFrom] = useState<string | null>(null);
@@ -493,6 +494,7 @@ const Dashboard = () => {
       </p>
       {/* Naprawa r2 (2026-08-21): ten sam jezyk kinetic co CTA dnia treningowego. */}
       <Button
+        data-testid="dashboard-primary-action"
         size="lg"
         className="kinetic-primary-button mt-0.5 h-14 w-full gap-1.5 text-base hover:brightness-105"
         onClick={() => navigate(`/workout/${entry.day.id}?date=${entry.dateKey}`)}
@@ -640,13 +642,6 @@ const Dashboard = () => {
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
       : { title: t(isCompletedMoveReason(result.reason) ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
-  const handleMissedDoToday = async (fromDateISO: string) => {
-    const result = await moveScheduledDay(fromDateISO, todayISO, { completedDates: completedWorkoutDates, planStartDateISO: planStartDate });
-    toast(result.success
-      ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t(isCompletedMoveReason(result.reason) ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
-  };
-
   // Bug 4 (X30): hero dnia szuka draftu WŁASNEGO dnia planu, nie tylko globalnego
   // picku — porzucony szybki trening (nowszy, dirty) nie odbiera żywej sesji planu
   // jedynej ścieżki powrotu z Dashboardu.
@@ -706,6 +701,7 @@ const Dashboard = () => {
     dateStr: todayTraining.type === 'training' ? todayTraining.dateStr : undefined,
     workouts,
     capability: watchCapability,
+    healthFeaturesEnabled: healthConsent,
   });
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)
@@ -816,10 +812,24 @@ const Dashboard = () => {
     );
   }
 
+  if (planError && !hasCustomPlan && !planFromServer) {
+    return (
+      <div role="alert" className="mx-auto flex min-h-64 max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-destructive">{t('trainingplan.loadError')}</p>
+        <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+          {t('gate.retry')}
+        </Button>
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-destructive">{t('dash.error')}: {error}</p>
+      <div role="alert" className="mx-auto flex min-h-64 max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-destructive">{t('dash.error')}</p>
+        <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+          {t('gate.retry')}
+        </Button>
       </div>
     );
   }
@@ -981,6 +991,30 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
+      {postPlanGuideMode && planIsLoaded && (
+        <PostPlanGuide
+          userId={uid}
+          mode={postPlanGuideMode}
+          planName={planName}
+          nextWorkoutName={postPlanFirstEntry
+            ? displayDayNameForDate(
+              postPlanFirstEntry.day.dayName,
+              postPlanFirstEntry.day.weekday,
+              postPlanFirstEntry.date,
+              lang,
+            )
+            : null}
+          firstWorkoutPath={todayTraining.type === 'training'
+            ? `/workout/${todayTraining.day.id}?date=${todayTraining.dateStr}`
+            : null}
+          onDismiss={() => setPostPlanGuideMode(null)}
+          onNavigate={(path) => {
+            wantsMeasurePrompt.current = false;
+            setPostPlanGuideMode(null);
+            navigate(path);
+          }}
+        />
+      )}
       {/* T4: zawsze zamontowany — widoczność wyłącznie przez open (pułapka Radix:
           unmount otwartego dialogu zostawia scroll-lock na body). */}
       <ConfirmDialog
@@ -992,7 +1026,6 @@ const Dashboard = () => {
         cancelLabel={t('dash.measurePrompt.decline')}
         onConfirm={() => navigate('/measurements')}
       />
-      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} uid={uid} />
       {/* Greeting (fala 2): ikona pory dnia w akcencie (warning był ozdobny,
           nie semantyczny — reguła "jeden akcent") + chip streaka przy dacie.
           Naprawa r2 (2026-08-21): bez italica (Space Grotesk nie ma kroju italic,
@@ -1008,7 +1041,7 @@ const Dashboard = () => {
           {streak > 0 && (
             <span
               data-testid="dash-streak-chip"
-              className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-primary"
+              className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.1em] text-primary"
             >
               <Flame className="h-3 w-3" aria-hidden />
               {t('dash.streakChip', { n: streak })}
@@ -1065,6 +1098,7 @@ const Dashboard = () => {
           {/* Naprawa r2 (2026-08-21): CTA hero w klasie kinetic jak FINISH WORKOUT
               i BACK TO DASHBOARD (tokens.md par. 2.8: jeden jezyk dla CTA hero). */}
           <Button
+            data-testid="dashboard-primary-action"
             size="lg"
             className="kinetic-primary-button mt-0.5 h-14 w-full gap-1.5 text-base hover:brightness-105"
             onClick={() => navigate(continueDraft
@@ -1178,20 +1212,6 @@ const Dashboard = () => {
       {/* PRO-E T2/T3: slot stanu za kartą dnia */}
       <DashboardStatusSlot entries={statusEntries} />
 
-      {/* D-T2: kontekstowe banery AKCJI (samo-ukrywające) zaraz pod slotem statusu. */}
-      {planStarted && !planEndedByStatus && (
-        <MissedWorkoutBanner
-          planDays={trainingPlan}
-          overrides={scheduleOverrides}
-          workouts={workouts}
-          todayISO={todayISO}
-          planStartDate={planStartDate}
-          skippedDates={skippedDates}
-          onDoToday={handleMissedDoToday}
-          onReschedule={(fromDateISO) => setRescheduleFrom(fromDateISO)}
-        />
-      )}
-
       {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż.
           Spec C4: przerwa urlopowa pełni rolę deloadu (nie dubluje się).
           WP-PLANS-1 (X27): martwy plan nie renderuje planu tygodnia. */}
@@ -1217,10 +1237,9 @@ const Dashboard = () => {
       />
 
 
-      {/* Z104 szybki trening + Z112 ręczne cardio + fala 2: grid 2x2 szybkich
-          akcji (mockup "tray"). Kafle 3-4 przywracają wejścia: "Twoje liczby"
-          (X17D Z139.4) i Analitykę (dawny pełnowymiarowy przycisk). Ochrona
-          niezmiennika reguły #5: ad-hoc DOKŁADA, nie podmienia. */}
+      {/* Operacyjne wyjątki zostają bezpośrednio na Dzisiaj. Dane i analityka
+          mają jeden dom w głównej zakładce Postępy, więc nie dublujemy ich tutaj.
+          Ochrona niezmiennika reguły #5: ad-hoc DOKŁADA, nie podmienia. */}
       <div data-testid="dash-actions" className="grid grid-cols-2 gap-2.5">
         <button
           type="button"
@@ -1242,24 +1261,6 @@ const Dashboard = () => {
         >
           <HeartPulse className="h-4 w-4 shrink-0 text-muted-foreground" />
           {t('cardio.addButton')}
-        </button>
-        <button
-          type="button"
-          className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface-low px-3.5 py-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-high"
-          onClick={() => setStatsOpen(true)}
-          data-testid="dash-your-numbers"
-        >
-          <Weight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          {t('stats.title')}
-        </button>
-        <button
-          type="button"
-          className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface-low px-3.5 py-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-high"
-          onClick={() => navigate('/achievements?view=analytics&tab=summary')}
-          data-testid="dash-analytics"
-        >
-          <BarChart3 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          {t('layout.title.analytics')}
         </button>
       </div>
 

@@ -1,0 +1,108 @@
+{
+  "score": 9.0,
+  "mode": "web-e2e (Playwright Chromium + WebKit, fresh Vite, VITE_E2E_MODE) + visual/code audit + native simulator/build",
+  "date": "2026-08-27",
+  "run_at": "2026-08-27T20:53:27+02:00",
+  "seeded": true,
+  "scenarios_audited": [
+    "active-user (plan + 5 completed workouts)",
+    "new-user (onboarding)",
+    "active-admin (panel)",
+    "legacy #/settings redirect to #/profile",
+    "keyboard-safe bug report, custom exercise and plate calculator",
+    "portrait and landscape"
+  ],
+  "summary": "The current product surface is substantially simpler and more coherent: one main Dashboard action, a single five-destination navigation contract, session-first History, clickable Profile stats without decorative badge rows, resilient onboarding recovery, three real palette presets and a test-first fix for rapid dialog close/reopen blackouts. Full Vitest, Chromium, WebKit, build, offline and native simulator/build gates pass. The remaining release blockers are physical-device lifecycle, accessibility scaling and native export/share verification; the main visible product debt is progressive disclosure of the large palette editor and splitting the crowded first onboarding step.",
+  "blockers_red": [],
+  "orange": [
+    {
+      "route": "#/profile",
+      "title": "The full palette editor dominates the upper Profile",
+      "evidence": "audit/shots/2026-08-27/active-user_profile.png shows presets, legacy swatches and custom hex before the settings list, consuming more than one viewport.",
+      "suggestion": "Keep a compact current-palette preview in Profile and reveal the full editor only after entering a collapsed Appearance section.",
+      "owner": "product/design/frontend",
+      "weight": -0.5
+    }
+  ],
+  "yellow": [
+    {
+      "route": "#/onboarding",
+      "title": "The first onboarding step still combines identity, palette and legal consent",
+      "evidence": "audit/shots/2026-08-27/new-user_onboarding.png requires a long scroll before the primary action despite the one-task-per-step principle.",
+      "suggestion": "Split personalization from legally required consent without changing legal copy, consent authority or persisted draft boundaries; verify abandonment and resume.",
+      "owner": "product/legal/frontend",
+      "weight": -0.5
+    }
+  ],
+  "fixed_during_audit": [
+    "Centralized Dzisiaj, Plan, Historia, Postępy and Ćwiczenia in MAIN_DESTINATIONS with full PL/EN labels and 44 px targets.",
+    "Reduced Dzisiaj to one dominant workout action plus two operational shortcuts; removed duplicate statistics and analytics links.",
+    "Made History session-first and moved cycles into a secondary collapsed disclosure without an overlay.",
+    "Implemented Pulse, Forge and Glacier PaletteThemeV2 with preview, cancel, confirmation, cold-start cache, cloud sync and legacy compatibility.",
+    "Persisted onboarding state per UID using official Capacitor Preferences; kept consent server-authoritative and retained the complete custom-plan draft until confirmed save.",
+    "Fixed the Radix blackout root cause: watchdog cleanup no longer mutates React-owned dialog content, closed content is declaratively non-interactive, and modal layers have an explicit stack.",
+    "Added mobile safe-area, keyboard, focus, Android Back and 44/48 target contracts to the main onboarding flow.",
+    "Added visible focus and target contracts to SettingRow, logout, calendar/week navigation and secondary Plan mode controls."
+  ],
+  "native_not_covered": [
+    "physical iOS and Android screen-off/background/resume",
+    "physical interrupted-workout sequence and notification cold-start tap",
+    "physical native Share sheet and Files/FileProvider for JSON, CSV, PDF and PNG",
+    "physical force-kill and restart recovery",
+    "VoiceOver and TalkBack",
+    "Dynamic Type / Android font scale 100/150/200%",
+    "real Google and Apple authentication",
+    "physical HealthKit / Health Connect and haptics/sound"
+  ],
+  "top_fixes": [
+    "Complete physical iOS and Android background/resume, interrupted workout, export/share and restart recovery.",
+    "Complete physical VoiceOver/TalkBack and 100/150/200% text-scale QA.",
+    "Move the full palette editor behind progressive disclosure while keeping a compact current-palette preview.",
+    "Split the first onboarding step into personalization and legal consent without weakening server authority or recovery."
+  ],
+  "checks": {
+    "vitest": "3637/3637",
+    "typecheck": "passed",
+    "lint": "0 errors, 15 existing Fast Refresh warnings",
+    "build": "passed",
+    "bundle_budget": "passed",
+    "dist_smoke": "passed",
+    "offline_contract": "passed",
+    "no_emoji": "219 files passed",
+    "console_errors_unexpected": 0,
+    "page_errors": 0,
+    "blank_screens": 0,
+    "nan_in_ui": 0,
+    "horizontal_overflow_routes": 0,
+    "chromium_tests_covered": "284/284 (277 full run + 7/7 fresh-Vite retry)",
+    "webkit_tests_covered": "284/284 (283 full run + 1/1 fresh-Vite retry)",
+    "ios_simulator": "build and launch passed",
+    "android_debug": "assembleDebug passed",
+    "viewports": ["320x568", "390x844", "844x390"],
+    "fresh_vite": true
+  },
+  "screenshots": [
+    "audit/shots/2026-08-27/active-user_dashboard.png",
+    "audit/shots/2026-08-27/active-user_day.png",
+    "audit/shots/2026-08-27/active-user_plan.png",
+    "audit/shots/2026-08-27/active-user_plan-edit.png",
+    "audit/shots/2026-08-27/active-user_history.png",
+    "audit/shots/2026-08-27/active-user_progress.png",
+    "audit/shots/2026-08-27/active-user_measurements.png",
+    "audit/shots/2026-08-27/active-user_exercises.png",
+    "audit/shots/2026-08-27/active-user_exercise-detail.png",
+    "audit/shots/2026-08-27/active-user_cycles.png",
+    "audit/shots/2026-08-27/active-user_profile.png",
+    "audit/shots/2026-08-27/active-user_new-plan.png",
+    "audit/shots/2026-08-27/active-user_workout.png",
+    "audit/shots/2026-08-27/new-user_onboarding.png",
+    "audit/shots/2026-08-27/active-admin_admin.png",
+    "audit/shots/2026-08-27/landscape_dashboard.png",
+    "audit/shots/2026-08-27/landscape_workout.png",
+    "audit/shots/2026-08-27/landscape_history.png",
+    "audit/shots/2026-08-27/landscape_profile.png",
+    "audit/shots/2026-08-27/keyboard-report-bug.png",
+    "audit/shots/2026-08-27/keyboard-custom-exercise.png",
+    "audit/shots/2026-08-27/keyboard-plate-calculator.png"
+  ]
+}

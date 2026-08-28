@@ -79,4 +79,18 @@ describe('Swift Apple Watch contract (X25/Z225)', () => {
     expect(store).toContain('updatedEventId = eventId');
     expect(store).toContain('eventId: eventId');
   });
+
+  it('uruchamia i odzyskuje HealthKit wyłącznie po jawnej aktywnej zgodzie z telefonu', () => {
+    const models = read('ios/App/WatchApp/WorkoutModels.swift');
+    const store = read('ios/App/WatchApp/WorkoutStore.swift');
+    const delegate = read('ios/App/WatchApp/WatchExtensionDelegate.swift');
+    expect(models).toContain('var healthFeaturesEnabled: Bool?');
+    expect(models).toContain('static var isEnabled: Bool');
+    expect(models).toContain('enabled == true');
+    expect(store).toContain('var healthFeaturesEnabled: Bool');
+    expect(store).toContain('payload?.healthFeaturesEnabled == true');
+    expect(store).toContain('guard healthFeaturesEnabled else');
+    expect(store).toContain('WorkoutSessionManager.shared.discard()');
+    expect(delegate).toContain('guard WatchHealthFeatureGate.isEnabled else { return }');
+  });
 });

@@ -223,25 +223,25 @@ describe('ExerciseCard duration: odliczanie w dol i auto-odhaczenie', () => {
     expect(within(card).queryByRole('timer')).toBeNull();
   });
 
-  it('reczne odhaczenie w trakcie odliczania konczy odliczanie (bez podwojnego zapisu)', () => {
+  it('reczne odhaczenie bez wyniku nie kończy odliczania i wskazuje bezpieczne wyjście', () => {
     const { card, onSetsChange, onRestStart } = renderPlank();
     fireEvent.click(startButton(card, 1));
     act(() => { vi.advanceTimersByTime(5_000); });
     fireEvent.click(within(card).getAllByRole('button', { name: /Zaznacz serię jako zrobioną/ })[1]);
 
-    expect(within(card).queryByRole('timer')).toBeNull();
-    expect(lastSets(onSetsChange)[1].completed).toBe(true);
-    expect(onRestStart).toHaveBeenCalledTimes(1);
-    act(() => { vi.advanceTimersByTime(60_000); });
-    // Odliczanie nie dojechalo do zera "po cichu" i nie odhaczylo nic drugi raz.
-    expect(onRestStart).toHaveBeenCalledTimes(1);
+    expect(within(card).getByRole('timer')).toBeTruthy();
+    expect(onSetsChange).not.toHaveBeenCalled();
+    expect(within(card).getByRole('alert')).toHaveTextContent('Wpisz czas serii albo uruchom odliczanie.');
+    expect(onRestStart).not.toHaveBeenCalled();
+    expect(within(card).getByRole('button', { name: /Stop odliczania: Set 1/ })).toBeTruthy();
   });
 
-  it('stary przeplyw bez zmian: reczne odhaczenie pustej serii czasowej nadal dziala jak dotad', () => {
+  it('reczne odhaczenie pustej serii czasowej nie tworzy ukończonego pustego wyniku', () => {
     const { card, onSetsChange, onRestStart } = renderPlank();
     fireEvent.click(within(card).getAllByRole('button', { name: /Zaznacz serię jako zrobioną/ })[1]);
-    expect(lastSets(onSetsChange)[1].completed).toBe(true);
-    expect(onRestStart).toHaveBeenCalledTimes(1);
+    expect(onSetsChange).not.toHaveBeenCalled();
+    expect(within(card).getByRole('alert')).toHaveTextContent('Wpisz czas serii albo uruchom odliczanie.');
+    expect(onRestStart).not.toHaveBeenCalled();
   });
 });
 

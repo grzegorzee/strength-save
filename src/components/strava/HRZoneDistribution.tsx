@@ -41,7 +41,7 @@ export const HRZoneDistribution = ({ activities, estimatedMaxHR }: HRZoneDistrib
                   className={`h-full ${z.color} rounded transition-all duration-300 flex items-center justify-end pr-1`}
                   style={{ width: `${Math.max(widthPercent, count > 0 ? 8 : 0)}%` }}
                 >
-                  {count > 0 && <span className="text-[10px] font-bold text-white">{count}</span>}
+                  {count > 0 && <span className="text-[11px] font-bold text-white">{count}</span>}
                 </div>
               </div>
             </div>

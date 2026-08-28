@@ -2,7 +2,7 @@
 // funkcja), kroki, Pomiń zapisuje klucz, drugi render bez toura, Dalej x3 kończy,
 // atrybuty data-tour na aktywnej serii karty ćwiczenia.
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -29,6 +29,10 @@ vi.mock('@/lib/firebase', () => ({ db: {} }));
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 const baseCtx = { completedCount: 0, seen: false, isResume: false, isAutostart: false, isDesktop: false };
@@ -87,7 +91,9 @@ describe('FirstWorkoutTour: 3 kroki, Dalej i Pomiń', () => {
     const { onClose } = renderTour();
     const step1 = await screen.findByTestId('tour-step-1');
     expect(step1.getAttribute('role')).toBe('dialog');
-    expect(step1.getAttribute('aria-modal')).toBe('true');
+    // Coachmark zostawia podświetlony input/przycisk interaktywny poza dymkiem,
+    // więc nie może deklarować semantyki modala ukrywającej cel przed VoiceOver.
+    expect(step1.getAttribute('aria-modal')).toBe('false');
     expect(screen.getByText('Wpisz ciężar i powtórzenia.')).toBeTruthy();
     expect(screen.getByTestId('tour-skip')).toBeTruthy();
 
@@ -140,6 +146,47 @@ describe('FirstWorkoutTour: 3 kroki, Dalej i Pomiń', () => {
     expect(root.className).toContain('fixed');
     expect(root.className).toContain('select-none');
     expect(root.className).toContain('z-[70]');
+  });
+
+  it('landscape i 200% font: dymek respektuje boczne safe-area, przewija treść i trzyma CTA 48 px', async () => {
+    renderTour();
+    const bubble = await screen.findByTestId('tour-step-1');
+    const actions = screen.getByTestId('tour-actions');
+    const skip = screen.getByTestId('tour-skip');
+    const next = screen.getByTestId('tour-next');
+
+    expect(bubble.className).toContain('left-[max(1rem,env(safe-area-inset-left))]');
+    expect(bubble.className).toContain('right-[max(1rem,env(safe-area-inset-right))]');
+    expect(bubble.className).toMatch(/\boverflow-y-auto\b/);
+    expect(bubble.style.maxHeight).toContain('safe-area-inset');
+    expect(actions.className).toMatch(/\bsticky\b/);
+    expect(skip.className).toMatch(/\bh-12\b/);
+    expect(skip.className).toMatch(/\bmin-w-12\b/);
+    expect(next.className).toMatch(/\bh-12\b/);
+    expect(next.className).toMatch(/\bmin-w-12\b/);
+  });
+
+  it('prefers-reduced-motion przewija do celu końca bez smooth animation', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const scrollIntoView = vi.spyOn(window.HTMLElement.prototype, 'scrollIntoView');
+
+    renderTour();
+    await screen.findByTestId('tour-step-1');
+    fireEvent.click(screen.getByTestId('tour-next'));
+    await screen.findByTestId('tour-step-2');
+    fireEvent.click(screen.getByTestId('tour-next'));
+    await screen.findByTestId('tour-step-3');
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' });
   });
 
   it('Escape zamyka tour i zapisuje seen', async () => {

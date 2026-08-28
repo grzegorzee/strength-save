@@ -48,7 +48,7 @@ export const WorkoutDayNoteSection = ({ dateISO, dayNote, onSave, showFutureHint
   return (
     <div className={cn('rounded-lg bg-surface-lowest px-3 py-2.5', className)} data-testid="workout-day-note-section">
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
           <StickyNote className="h-3 w-3" />
           {t('daynote.title')}
           {showFutureHint && (

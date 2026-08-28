@@ -1,6 +1,7 @@
 // Import wyłącznie typu — ten plik trafia też do webowego programu TS
 // (src/test/functions-security.test.ts), gdzie globalny namespace FirebaseFirestore nie istnieje.
 import type { Firestore } from "firebase-admin/firestore";
+import { LEGAL_VERSIONS } from "./legal-versions";
 
 export type AuthProvider = "google" | "password" | "apple";
 
@@ -38,6 +39,7 @@ const STRENGTH_SAVE_NATIVE_APP_CHECK_IDS = new Set([
 // konta; retencja opisana w Polityce Prywatności (sekcje 5 i 10).
 export const GDPR_USER_ID_COLLECTIONS = [
   "workouts",
+  "workout_health_v2",
   "measurements",
   "plan_cycles",
   "weekly_summaries",
@@ -148,6 +150,25 @@ export function canUseApiExport(profile: AccessProfile | undefined): boolean {
 export function canUseStravaIntegration(profile: AccessProfile | undefined): boolean {
   if (!hasCallableAppAccess(profile)) return false;
   return profile?.role === "admin" || profile?.features?.strava === true;
+}
+
+/**
+ * Centralna, fail-closed granica przetwarzania danych zdrowotnych w Functions.
+ * Samo `healthGranted` nie wystarcza: grant musi wskazywać aktualny dokument,
+ * dodatnią epokę i niepusty identyfikator nadany atomowo przez recordConsent.
+ */
+export function hasActiveHealthConsent(profile: unknown): boolean {
+  if (typeof profile !== "object" || profile === null) return false;
+  const consents = (profile as { consents?: unknown }).consents;
+  if (typeof consents !== "object" || consents === null) return false;
+
+  const state = consents as Record<string, unknown>;
+  return state.healthGranted === true
+    && state.healthVersion === LEGAL_VERSIONS.health
+    && Number.isSafeInteger(state.healthEpoch)
+    && (state.healthEpoch as number) > 0
+    && typeof state.healthGrantId === "string"
+    && state.healthGrantId.trim().length > 0;
 }
 
 export function isValidStravaOAuthState(state: unknown): state is string {

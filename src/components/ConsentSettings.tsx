@@ -12,6 +12,8 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { getConsentMirror } from '@/lib/consent-selection';
 import { recordConsents } from '@/lib/consents-api';
+import { hasActiveHealthConsent } from '@/lib/legal-versions';
+import { disableHealthFeatures } from '@/lib/health-bridge';
 
 // Zarządzanie zgodami (pakiet prawny v2): wycofanie ma być tak łatwe jak
 // udzielenie (art. 7 ust. 3 RODO). Każda zmiana idzie przez recordConsent
@@ -31,7 +33,7 @@ export const ConsentSettings = ({ hideTitle = false }: { hideTitle?: boolean } =
   const [busy, setBusy] = useState(false);
 
   const marketingOn = marketingLocal ?? mirror?.marketingGranted === true;
-  const healthOn = healthLocal ?? mirror?.healthGranted !== false;
+  const healthOn = healthLocal ?? hasActiveHealthConsent(mirror);
 
   const toggleMarketing = async (value: boolean) => {
     setMarketingLocal(value);
@@ -56,6 +58,7 @@ export const ConsentSettings = ({ hideTitle = false }: { hideTitle?: boolean } =
           statementText: value ? t('consent.health') : t('consent.healthWithdrawStatement'),
         },
       ], lang);
+      if (!value) disableHealthFeatures();
     } catch {
       setHealthLocal(!value);
       toast({ title: t('consent.saveError'), variant: 'destructive' });

@@ -3,16 +3,38 @@ import { translate, type LanguageCode, type TranslationKey } from '@/i18n';
 export interface WarmupExercise {
   /** Klucz i18n nazwy cwiczenia (kanoniczny identyfikator). */
   nameKey: TranslationKey;
+  /** Klucz i18n krótkiej instrukcji wykonania. */
+  instructionKey: TranslationKey;
   /** Klucz i18n czasu trwania. */
   durationKey: TranslationKey;
 }
 
 export const warmupExercises: WarmupExercise[] = [
-  { nameKey: 'warmup.jumpingJacks', durationKey: 'warmup.dur.30sec' },
-  { nameKey: 'warmup.hipCircles', durationKey: 'warmup.dur.10eachSide' },
-  { nameKey: 'warmup.armCircles', durationKey: 'warmup.dur.10eachSide' },
-  { nameKey: 'warmup.bodyweightSquats', durationKey: 'warmup.dur.15reps' },
-  { nameKey: 'warmup.lightJog', durationKey: 'warmup.dur.1min' },
+  {
+    nameKey: 'warmup.jumpingJacks',
+    instructionKey: 'warmup.jumpingJacks.instruction',
+    durationKey: 'warmup.dur.30sec',
+  },
+  {
+    nameKey: 'warmup.hipCircles',
+    instructionKey: 'warmup.hipCircles.instruction',
+    durationKey: 'warmup.dur.10eachSide',
+  },
+  {
+    nameKey: 'warmup.armCircles',
+    instructionKey: 'warmup.armCircles.instruction',
+    durationKey: 'warmup.dur.10eachSide',
+  },
+  {
+    nameKey: 'warmup.bodyweightSquats',
+    instructionKey: 'warmup.bodyweightSquats.instruction',
+    durationKey: 'warmup.dur.15reps',
+  },
+  {
+    nameKey: 'warmup.lightJog',
+    instructionKey: 'warmup.lightJog.instruction',
+    durationKey: 'warmup.dur.1min',
+  },
 ];
 
 export interface StretchExercise {

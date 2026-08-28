@@ -14,11 +14,13 @@ import {
 import { db } from '@/lib/firebase';
 import {
   sanitizeManualActivity,
+  buildManualActivityWriteInput,
   type ManualActivity,
   type ManualActivityInput,
   type ManualActivityType,
 } from '@/lib/manual-activity';
 import { syncCardioToHealth } from '@/lib/health-bridge';
+import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
 
 const MANUAL_ACTIVITIES_COLLECTION = 'manual_activities';
 // Rok codziennego cardio z zapasem; limit chroni koszty czytań.
@@ -44,6 +46,7 @@ const writeE2EActivities = (activities: ManualActivity[]): void => {
 /** CRUD ręcznych wpisów cardio (Z111). Edycja/usuwanie DOTYCZY tylko tej kolekcji — Strava read-only.
  * Z214: sinceDate zawęża listener do ostatniego okna (Dashboard: bieżący tydzień). */
 export const useManualActivities = (userId: string, sinceDate?: string) => {
+  const activeHealthGrant = useActiveHealthGrant();
   const [activities, setActivities] = useState<ManualActivity[]>(readE2EActivities);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -86,10 +89,11 @@ export const useManualActivities = (userId: string, sinceDate?: string) => {
   const addActivity = useCallback(async (input: ManualActivityInput): Promise<{ ok: boolean; error?: string }> => {
     const sanitized = sanitizeManualActivity(input);
     if (!sanitized) return { ok: false, error: 'invalid' };
+    const writeInput = buildManualActivityWriteInput(sanitized, activeHealthGrant);
 
     if (import.meta.env.VITE_E2E_MODE === 'true') {
       const created: ManualActivity = {
-        ...(sanitized as ManualActivityInput & { type: ManualActivityType }),
+        ...(writeInput as ManualActivityInput & { type: ManualActivityType }),
         id: `ma-e2e-${Date.now()}`,
         userId,
         createdAt: Date.now(),
@@ -104,7 +108,7 @@ export const useManualActivities = (userId: string, sinceDate?: string) => {
 
     try {
       const ref = await addDoc(collection(db, MANUAL_ACTIVITIES_COLLECTION), {
-        ...sanitized,
+        ...writeInput,
         userId,
         createdAt: Date.now(),
       });
@@ -114,22 +118,23 @@ export const useManualActivities = (userId: string, sinceDate?: string) => {
         id: ref.id,
         userId,
         createdAt: Date.now(),
-      });
+      }, activeHealthGrant !== null);
       return { ok: true };
     } catch (err) {
       console.error('[useManualActivities] add error:', err);
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
-  }, [userId]);
+  }, [activeHealthGrant, userId]);
 
   const updateActivity = useCallback(async (id: string, input: ManualActivityInput): Promise<{ ok: boolean; error?: string }> => {
     const sanitized = sanitizeManualActivity(input);
     if (!sanitized) return { ok: false, error: 'invalid' };
+    const writeInput = buildManualActivityWriteInput(sanitized, activeHealthGrant);
 
     if (import.meta.env.VITE_E2E_MODE === 'true') {
       setActivities((prev) => {
         const next = prev.map((a) => (a.id === id
-          ? { ...(sanitized as ManualActivityInput & { type: ManualActivityType }), id, userId: a.userId, createdAt: a.createdAt }
+          ? { ...(writeInput as ManualActivityInput & { type: ManualActivityType }), id, userId: a.userId, createdAt: a.createdAt }
           : a));
         writeE2EActivities(next);
         return next;
@@ -139,7 +144,7 @@ export const useManualActivities = (userId: string, sinceDate?: string) => {
 
     try {
       await updateDoc(doc(db, MANUAL_ACTIVITIES_COLLECTION, id), {
-        ...sanitized,
+        ...writeInput,
         userId,
         createdAt: activities.find((a) => a.id === id)?.createdAt ?? Date.now(),
       });
@@ -148,7 +153,7 @@ export const useManualActivities = (userId: string, sinceDate?: string) => {
       console.error('[useManualActivities] update error:', err);
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
-  }, [userId, activities]);
+  }, [userId, activities, activeHealthGrant]);
 
   const deleteActivity = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
     if (import.meta.env.VITE_E2E_MODE === 'true') {

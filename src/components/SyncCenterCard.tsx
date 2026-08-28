@@ -63,6 +63,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       workoutDraftDb.setCloudBaseline(ownerId, sessionId, cloudState),
     setPendingWrite: (ownerId, sessionId, pending) =>
       workoutDraftDb.setPendingWrite(ownerId, sessionId, pending),
+    markHealthPending: (ownerId, sessionId, expectedVersion, cloudState) =>
+      workoutDraftDb.markHealthWritePending(ownerId, sessionId, expectedVersion, cloudState),
     clearDraftIfVersion: (ownerId, sessionId, expectedVersion) =>
       workoutDraftDb.clearActiveDraftIfVersion(ownerId, sessionId, expectedVersion),
     queue: workoutSyncQueue,

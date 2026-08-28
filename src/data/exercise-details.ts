@@ -1,5 +1,6 @@
 // Rozszerzone dane ćwiczeń dla ekranu szczegółów (mockup [16]).
-// Generowane przez AI i weryfikowane. Klucz = dokładna nazwa ćwiczenia z exerciseLibrary.ts.
+// Robocze opisy techniki. Klucz = dokładna nazwa ćwiczenia z exerciseLibrary.ts.
+// Bez udokumentowanego przeglądu eksperckiego nie dodajemy obietnic bezpieczeństwa ani rehabilitacji.
 // Dopóki ćwiczenie nie ma wpisu, ekran szczegółów korzysta z fallbacku (instructions + kategoria).
 
 import type { LanguageCode } from '@/i18n';
@@ -24,7 +25,7 @@ export interface ExerciseDetails {
 export const exerciseDetails: Record<string, ExerciseDetails> = {
   'Wyciskanie sztangi na ławce płaskiej': {
     steps: ["Połóż się na ławce, oczy pod gryfem, łopatki ściągnięte i wbite w ławkę, stopy mocno na podłodze.", "Chwyć gryf nieco szerzej niż barki, zdejmij z asekuracji i ustaw nad klatką.", "Opuść kontrolowanie sztangę do dolnej części klatki, łokcie pod kątem ok. 45 stopni do tułowia.", "Wypchnij sztangę dynamicznie w górę do pełnego wyprostu, nie blokując gwałtownie łokci."],
-    proTip: "Utrzymuj napięte łopatki i lekki most piersiowy przez cały ruch, to chroni barki i zwiększa siłę.",
+    proTip: "Utrzymuj napięte łopatki i lekki most piersiowy przez cały ruch. Przerwij serię, jeśli nie utrzymujesz tej pozycji.",
     targetMuscles: ["Klatka piersiowa", "Triceps", "Przednie aktony barków"],
     primaryMuscle: "chest",
     equipment: "Sztanga olimpijska",
@@ -143,7 +144,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Wyciskanie sztangi nad głowę (OHP)': {
     steps: ["Stań w rozkroku na szerokość bioder, chwyć sztangę nieco szerzej niż barki, gryf na wysokości obojczyków.", "Napnij brzuch i pośladki, łokcie skierowane do przodu i lekko pod gryf.", "Wyciśnij sztangę pionowo nad głowę, lekko cofając głowę z linii ruchu.", "Po minięciu czoła wsuń głowę do przodu i zablokuj sztangę nad głową, potem opuść kontrolowanie."],
-    proTip: "Prowadź sztangę po linii prostej nad środek stóp, napięty korpus chroni kręgosłup przed odchylaniem.",
+    proTip: "Prowadź sztangę po linii prostej nad środkiem stóp i utrzymuj napięty korpus bez odchylania tułowia.",
     targetMuscles: ["Aktony barków", "Triceps", "Mięśnie czworoboczne", "Mięśnie brzucha"],
     primaryMuscle: "shoulders",
     equipment: "Sztanga olimpijska",
@@ -206,7 +207,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Prasa nożna': {
     steps: ["Usiądź na maszynie, oprzyj plecy i biodra, stopy ustaw na platformie na szerokość barków.", "Zwolnij blokady, ugnij kolana, opuszczając platformę kontrolowanie.", "Zejdź do kąta ok. 90 stopni w kolanach, nie odrywając bioder od oparcia.", "Wypchnij platformę w górę przez całe stopy, nie blokując sztywno kolan."],
-    proTip: "Nie prostuj kolan do pełnego zablokowania w szczycie, by zachować napięcie i chronić stawy.",
+    proTip: "Nie prostuj kolan gwałtownie do pełnego zablokowania; zachowaj kontrolę w górnej fazie ruchu.",
     targetMuscles: ["Mięśnie czworogłowe ud", "Pośladki", "Mięśnie dwugłowe ud"],
     primaryMuscle: "quads",
     equipment: "Maszyna",
@@ -255,7 +256,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Uginanie nóg na maszynie (Leżąc)': {
     steps: ["Połóż się brzuchem na maszynie, wałek ustaw nad ścięgnami Achillesa.", "Chwyć uchwyty, biodra dociśnięte do leżanki.", "Zegnij kolana, ściągając wałek w stronę pośladków do pełnego skurczu.", "Opuść wałek kontrolowanie do niemal pełnego wyprostu nóg."],
-    proTip: "Nie odrywaj bioder od leżanki podczas zginania, to izoluje dwugłowe i chroni odcinek lędźwiowy.",
+    proTip: "Nie odrywaj bioder od leżanki podczas zginania; utrzymuj tułów nieruchomo przez całą serię.",
     targetMuscles: ["Mięśnie dwugłowe ud", "Mięśnie łydek"],
     primaryMuscle: "hamstrings",
     equipment: "Maszyna",
@@ -360,7 +361,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Plank': {
     steps: ["Oprzyj się na przedramionach i palcach stóp.", "Łokcie pod barkami, ciało w jednej linii od głowy do pięt.", "Napnij brzuch i pośladki, nie unoś bioder ani ich nie opuszczaj.", "Utrzymaj pozycję przez zadany czas, oddychając spokojnie."],
-    proTip: "Aktywnie podwiń miednicę i napnij pośladki, by uniknąć zapadania lędźwi i odciążyć kręgosłup.",
+    proTip: "Aktywnie podwiń miednicę i napnij pośladki, nie pozwalając lędźwiom zapadać się w dół.",
     targetMuscles: ["Mięśnie głębokie tułowia", "Prosty brzucha", "Barki"],
     primaryMuscle: "core",
     equipment: "Masa ciała",
@@ -479,7 +480,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Szrugi ze sztangą': {
     steps: ["Stań prosto, chwyć sztangę nachwytem na szerokość barków.", "Ramiona wyprostowane, sztanga przed udami.", "Unieś barki prosto do góry w stronę uszu.", "Ściśnij kaptury na szczycie i kontrolowanie opuść barki."],
-    proTip: "Ruszaj tylko barkami prosto w górę, bez obracania nimi w kółko, by bezpiecznie obciążyć kaptury.",
+    proTip: "Ruszaj barkami prosto w górę i w dół, bez wykonywania nimi okręgów.",
     targetMuscles: ["Czworoboczny", "Dźwigacz łopatki"],
     primaryMuscle: "back",
     equipment: "Sztanga olimpijska",
@@ -591,7 +592,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Przysiady wykroczne': {
     steps: ["Stań prosto, zrób krok w przód jedną nogą na długość wykroku.", "Opuść biodra w dół, zginając oba kolana do kąta około 90 stopni, tylne kolano blisko podłoża.", "Trzymaj tułów wyprostowany, a przednie kolano nad linią stopy.", "Odepchnij się przednią piętą i wróć do pozycji stojącej, zmieniając nogę."],
-    proTip: "Stawiaj krok wystarczająco długi, by przednia goleń pozostała pionowa, co odciąża staw kolanowy.",
+    proTip: "Dobierz długość kroku tak, aby utrzymać stabilną stopę i prowadzić kolano zgodnie z kierunkiem palców.",
     targetMuscles: ["Mięśnie czworogłowe uda", "Mięśnie pośladkowe", "Mięśnie dwugłowe uda"],
     primaryMuscle: "quads",
     equipment: "Masa ciała",
@@ -640,7 +641,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Uginanie na modlitewniku (Preacher)': {
     steps: ["Usiądź przy modlitewniku, oprzyj tylną część ramion płasko o poduszkę.", "Chwyć ciężar (sztangielkę lub uchwyt) z ramionami niemal wyprostowanymi.", "Uginaj przedramię, przyciągając ciężar do barku, trzymając łokcie na poduszce.", "Opuść kontrolowanie do niemal pełnego wyprostu, nie blokując stawu."],
-    proTip: "Nie prostuj ramienia gwałtownie do końca, by chronić ścięgno bicepsa, zatrzymaj tuż przed pełnym wyprostem.",
+    proTip: "Nie prostuj ramienia gwałtownie; kontroluj końcowy zakres ruchu i nie odbijaj ciężaru.",
     targetMuscles: ["Mięsień dwugłowy ramienia", "Mięsień ramienny", "Mięsień ramienno-promieniowy"],
     primaryMuscle: "biceps",
     equipment: "Maszyna",
@@ -675,7 +676,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   'Wyciskanie wąsko (Close-grip)': {
     steps: ["Połóż się na ławce, chwyć sztangę nieco węziej niż szerokość barków.", "Zdejmij sztangę i ustaw ją nad klatką z wyprostowanymi ramionami.", "Opuść sztangę do dolnej części klatki, trzymając łokcie blisko tułowia.", "Wypchnij sztangę do wyprostu, napinając tricepsy na szczycie."],
-    proTip: "Nie zwężaj chwytu zbyt mocno, rozstaw rąk na szerokość barków chroni nadgarstki i nadal mocno angażuje tricepsy.",
+    proTip: "Nie zwężaj chwytu zbyt mocno; ustaw dłonie mniej więcej na szerokość barków i utrzymuj nadgarstki nad przedramionami.",
     targetMuscles: ["Mięsień trójgłowy ramienia", "Mięśnie klatki piersiowej", "Przedni akton naramiennego"],
     primaryMuscle: "triceps",
     equipment: "Sztanga olimpijska",
@@ -768,7 +769,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   // chest (added)
   "Wyciskanie sztangi na ławce ujemnej (deklina)": {
     steps: ["Połóż się na ławce ustawionej na ujemnym kącie i zahacz nogi pod wałkami.","Chwyć sztangę nieco szerzej niż barki i zdejmij ją ze stojaka.","Opuść sztangę kontrolowanie do dolnej części klatki.","Wyciśnij sztangę w górę napinając dolne partie klatki."],
-    proTip: "Trzymaj łokcie pod kątem ~45 stopni, żeby maksymalnie zaangażować dolną klatkę i chronić barki.",
+    proTip: "Prowadź łokcie pod kątem około 45 stopni do tułowia i kontroluj opuszczanie gryfu.",
     targetMuscles: ["Dolna część klatki piersiowej","Triceps","Przedni akton barku"],
     primaryMuscle: "chest",
     equipment: "Sztanga",
@@ -782,14 +783,14 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie na Smith maszynie (ławka skośna)": {
     steps: ["Ustaw ławkę skośną pod gryfem Smith maszyny tak, by gryf opadał na górną klatkę.","Chwyć gryf nieco szerzej niż barki i obróć go, by odblokować.","Opuść gryf kontrolowanie do górnej części klatki.","Wyciśnij gryf w górę po prowadnicy, nie blokując łokci."],
-    proTip: "Stała tor ruchu pozwala bezpiecznie dociążyć górną klatkę nawet bez asekuracji.",
+    proTip: "Prowadzony tor ogranicza potrzebę stabilizacji; przed serią ustaw ograniczniki na odpowiedniej wysokości.",
     targetMuscles: ["Górna część klatki piersiowej","Przedni akton barku","Triceps"],
     primaryMuscle: "chest",
     equipment: "Maszyna Smith",
   },
   "Wyciskanie na Smith maszynie (ławka płaska)": {
     steps: ["Ustaw płaską ławkę centralnie pod gryfem Smith maszyny.","Połóż się tak, by gryf opadał na środek klatki, chwyć nieco szerzej niż barki.","Odblokuj gryf i opuść go kontrolowanie do klatki.","Wyciśnij gryf w górę po prowadnicy, napinając klatkę."],
-    proTip: "Dobre rozwiązanie na trening do upadku mięśniowego: hak bezpieczeństwa zastępuje asekuranta.",
+    proTip: "Przed serią ustaw ograniczniki na wysokości, która pozwala odłożyć gryf bez dociskania klatki.",
     targetMuscles: ["Klatka piersiowa","Triceps","Przedni akton barku"],
     primaryMuscle: "chest",
     equipment: "Maszyna Smith",
@@ -889,7 +890,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Ściąganie drążka neutralnym chwytem": {
     steps: ["Zaczep uchwyt V do wyciągu górnego i chwyć go neutralnym chwytem.","Usiądź, zablokuj uda i lekko odchyl tułów do tyłu.","Pociągnij uchwyt do mostka, prowadząc łokcie w dół i do tyłu.","Powoli wróć do pozycji wyjściowej, kontrolując ciężar."],
-    proTip: "Neutralny chwyt odciąża nadgarstki i równo angażuje grzbiet oraz ramienne.",
+    proTip: "Neutralny chwyt zmienia ustawienie dłoni i angażuje grzbiet oraz mięśnie ramienne.",
     targetMuscles: ["Najszerszy grzbietu","Obły większy","Ramienny"],
     primaryMuscle: "back",
     equipment: "Wyciąg górny z uchwytem V",
@@ -952,7 +953,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Szrugi w maszynie Smitha": {
     steps: ["Ustaw gryf Smitha na wysokości ud i chwyć go nachwytem na szerokość barków.","Stań prosto, ramiona wyprostowane, gryf przed udami.","Unieś barki prosto w górę w kierunku uszu, ściskając kapturowe na szczycie.","Opuść barki kontrolowanie do pełnego rozciągnięcia."],
-    proTip: "Nie rotuj barkami, ruch prowadź wyłącznie pionowo dla bezpieczeństwa stawów.",
+    proTip: "Nie rotuj barkami; prowadź ruch wyłącznie pionowo i kontroluj opuszczanie.",
     targetMuscles: ["Czworoboczny (górny)","Dźwigacz łopatki"],
     primaryMuscle: "back",
     equipment: "Maszyna Smitha",
@@ -973,7 +974,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Wiosłowanie na lince stojąc (Face Pull do twarzy)": {
     steps: ["Ustaw linę na wyciągu na wysokości twarzy i chwyć oba końce neutralnie.","Cofnij się, by napiąć linkę, i stań w lekkim rozkroku.","Pociągnij linę do twarzy, rozdzielając końce i rotując ramiona na zewnątrz.","Powoli wróć do wyprostu ramion, kontrolując ciężar."],
-    proTip: "Prowadź łokcie wysoko i rozdziel końce liny przy twarzy dla zdrowia barków.",
+    proTip: "Prowadź łokcie wysoko i rozdziel końce liny przy twarzy, utrzymując tułów nieruchomo.",
     targetMuscles: ["Tylny akton barku","Czworoboczny (środkowy)","Romboidalne"],
     primaryMuscle: "back",
     equipment: "Wyciąg górny z liną",
@@ -1010,7 +1011,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie nad głowę w Smith (Smith OHP)": {
     steps: ["Ustaw ławkę lub stań pod gryfem maszyny Smith tak, by gryf był na wysokości obojczyków.","Chwyć gryf nieco szerzej niż barki, łokcie skierowane lekko do przodu.","Odbezpiecz gryf i wyciśnij go pionowo nad głowę do wyprostu ramion.","Opuść gryf kontrolowanie do poziomu brody.","Powtórz, trzymając tułów napięty i nie odchylając się nadmiernie do tyłu."],
-    proTip: "Prowadzony tor Smitha pozwala bezpiecznie dobierać większe ciężary i skupić się na samym wyciskaniu bez balansowania.",
+    proTip: "Prowadzony tor ogranicza potrzebę balansowania; dobierz ciężar, przy którym utrzymasz tułów bez odchylania.",
     targetMuscles: ["Aktony przednie barku","Aktony boczne barku","Triceps"],
     primaryMuscle: "shoulders",
     equipment: "Maszyna Smith",
@@ -1045,7 +1046,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Podciąganie hantli wzdłuż tułowia (Dumbbell Upright Row)": {
     steps: ["Stań prosto, trzymając hantle nachwytem przed udami, dłonie blisko siebie.","Podciągnij hantle pionowo wzdłuż tułowia, prowadząc łokcie na boki i w górę.","Doprowadź hantle do wysokości górnej części klatki, łokcie wyżej niż dłonie.","Zatrzymaj na szczycie i powoli opuść hantle.","Powtórz, trzymając hantle blisko ciała."],
-    proTip: "Hantle dają większą swobodę nadgarstków niż sztanga, co odciąża stawy przy podciąganiu.",
+    proTip: "Hantle pozwalają niezależnie ustawić dłonie; prowadź łokcie bez unoszenia barków do uszu.",
     targetMuscles: ["Aktony boczne barku","Czworoboczny (góra)","Aktony przednie barku"],
     primaryMuscle: "shoulders",
     equipment: "Hantle",
@@ -1066,7 +1067,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Landmine Press (wyciskanie jednorącz)": {
     steps: ["Zamocuj jeden koniec sztangi w landmine, drugi unieś i przytrzymaj przy barku.","Stań w lekkim rozkroku, trzymając koniec gryfu jedną ręką przy obojczyku.","Wyciśnij gryf po skosie w górę i do przodu, prostując ramię.","Powoli wróć gryf do barku, kontrolując ruch.","Wykonaj wszystkie powtórzenia, potem zmień rękę."],
-    proTip: "Skośny tor landmine jest łagodniejszy dla barków niż pionowe wyciskanie, dobry przy problemach z mobilnością.",
+    proTip: "Tor ruchu przebiega po skosie; utrzymuj stabilną łopatkę i nie przechylaj tułowia.",
     targetMuscles: ["Aktony przednie barku","Aktony boczne barku","Mięśnie core","Triceps"],
     primaryMuscle: "shoulders",
     equipment: "Sztanga (landmine)",
@@ -1080,7 +1081,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie hantli neutralnym chwytem nad głowę": {
     steps: ["Usiądź na ławce z oparciem, trzymając hantle na wysokości barków chwytem neutralnym (dłonie zwrócone do siebie).","Łokcie skieruj lekko do przodu, a nie maksymalnie na boki.","Wyciśnij hantle nad głowę, utrzymując dłonie zwrócone ku sobie przez cały ruch.","Wyprostuj ramiona bez blokowania łokci, potem powoli opuść hantle.","Powtórz, trzymając tułów napięty i oparty o ławkę."],
-    proTip: "Chwyt neutralny ustawia barki w bardziej naturalnej pozycji i odciąża staw przy problemach z wyciskaniem pronacyjnym.",
+    proTip: "Chwyt neutralny zmienia ustawienie ramion; prowadź łokcie pod nadgarstkami i kontroluj opuszczanie.",
     targetMuscles: ["Aktony przednie barku","Aktony boczne barku","Triceps"],
     primaryMuscle: "shoulders",
     equipment: "Hantle",
@@ -1124,7 +1125,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Prasa nożna pozioma (siedząc)": {
     steps: ["Usiądź w maszynie poziomej, plecy oparte o oparcie, stopy na platformie na szerokość bioder.","Zwolnij blokady i kontrolowanie przyciągnij platformę do siebie.","Zegnij kolana do około 90 stopni, nie odrywając pośladków.","Wypchnij platformę napierając piętami, nie blokując kolan na końcu."],
-    proTip: "Wariant poziomy mniej obciąża kręgosłup niż prasa pod kątem, dobry przy bólu pleców.",
+    proTip: "Poziomy tor zmienia ustawienie względem prasy pod kątem; utrzymuj plecy i miednicę przy oparciu.",
     targetMuscles: ["Czworogłowy uda","Pośladkowy wielki","Dwugłowy uda"],
     primaryMuscle: "quads",
     equipment: "Maszyna do prasy poziomej",
@@ -1152,7 +1153,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Przysiad Belt Squat (z pasem biodrowym)": {
     steps: ["Załóż pas biodrowy podpięty do obciążenia, stań na podestach maszyny.","Trzymaj uchwyty, tułów pionowo, brzuch napięty.","Schodź w przysiad zginając kolana i biodra, ciężar ciągnie w dół od bioder.","Wypchnij się piętami do wyprostu bioder."],
-    proTip: "Belt squat obciąża nogi bez nacisku na kręgosłup, idealny przy regeneracji pleców.",
+    proTip: "Obciążenie jest podpięte do pasa biodrowego; utrzymuj tułów stabilny i kontroluj głębokość przysiadu.",
     targetMuscles: ["Czworogłowy uda","Pośladkowy wielki","Dwugłowy uda"],
     primaryMuscle: "quads",
     equipment: "Maszyna Belt Squat",
@@ -1208,14 +1209,14 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Przysiad z masą ciała (Air Squat)": {
     steps: ["Stań na szerokość barków, ręce przed sobą lub na biodrach.","Napnij brzuch, klatka wysoko.","Schodź w dół cofając biodra aż uda będą równoległe do podłoża.","Wypchnij się piętami do pełnego wyprostu."],
-    proTip: "Idealne na rozgrzewkę i naukę wzorca przysiadu przed obciążeniem.",
+    proTip: "Wykonuj ruch bez obciążenia, kontrolując ustawienie stóp, kolan i tułowia przed przejściem do wersji z ciężarem.",
     targetMuscles: ["Czworogłowy uda","Pośladkowy wielki","Dwugłowy uda"],
     primaryMuscle: "quads",
     equipment: "Masa ciała",
   },
   "Sissy Squat na maszynie": {
     steps: ["Ustaw nogi pod wałkami maszyny sissy, pięty na podnóżku.","Tułów i uda w jednej linii, brzuch napięty.","Odchylaj się do tyłu zginając kolana, wysuwając je w przód.","Wróć do pionu napinając czworogłowe na końcu ruchu."],
-    proTip: "Maszyna ustawia tor i odciąża kolana w porównaniu do wersji wolnej.",
+    proTip: "Maszyna prowadzi ruch po stałym torze; dopasuj ustawienie i zakres do pełnej kontroli ruchu.",
     targetMuscles: ["Czworogłowy uda","Mięsień prosty uda"],
     primaryMuscle: "quads",
     equipment: "Maszyna Sissy Squat",
@@ -1266,7 +1267,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Hip Thrust w maszynie Smith": {
     steps: ["Oprzyj górną część pleców o ławkę, gryf maszyny Smith ułóż nisko na biodrach (użyj poduszki).","Stopy ustaw płasko na szerokość bioder, lekko przed kolanami.","Odbezpiecz gryf i wypchnij biodra w górę aż tułów będzie równoległy do podłogi.","Napnij pośladki na szczycie, następnie opuść biodra kontrolowanie."],
-    proTip: "Prowadzona ścieżka gryfu Smith pozwala bezpiecznie dokładać ciężar bez balansowania, idealne na progresję obciążenia.",
+    proTip: "Prowadzona ścieżka gryfu ogranicza potrzebę balansowania; zwiększaj ciężar stopniowo, utrzymując kontrolę.",
     targetMuscles: ["Pośladki wielkie","Dwugłowe uda","Pośladki średnie"],
     primaryMuscle: "glutes",
     equipment: "Maszyna Smith",
@@ -1457,7 +1458,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Dipy na maszynie (Assisted Dip Machine)": {
     steps: ["Usiądź w maszynie do dipów i chwyć uchwyty po bokach.","Ustaw obciążenie i oprzyj dłonie, trzymając tułów wyprostowany.","Prostuj łokcie, wypychając uchwyty w dół do pełnego wyprostu ramion.","Powoli wróć, zginając łokcie do kąta prostego."],
-    proTip: "Maszyna pozwala bezpiecznie dobrać obciążenie i utrzymać stałą trajektorię.",
+    proTip: "Maszyna prowadzi ruch po stałej trajektorii; dobierz asystę i zakres do kontrolowanego wykonania.",
     targetMuscles: ["Triceps","Klatka piersiowa (dół)","Barki przednie"],
     primaryMuscle: "triceps",
     equipment: "Maszyna do dipów",
@@ -1471,7 +1472,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Dipy na ławce (Bench Dips)": {
     steps: ["Usiądź na krawędzi ławki i oprzyj dłonie tuż obok bioder.","Zsuń biodra z ławki, trzymając nogi wyprostowane lub zgięte.","Opuszczaj ciało, zginając łokcie do kąta prostego.","Wypchnij się do góry, prostując łokcie i napinając triceps."],
-    proTip: "Trzymaj plecy blisko ławki, by chronić barki i mocniej obciążyć triceps.",
+    proTip: "Trzymaj plecy blisko ławki, łokcie kieruj do tyłu i kontroluj dolny zakres ruchu.",
     targetMuscles: ["Triceps","Barki przednie","Klatka piersiowa (dół)"],
     primaryMuscle: "triceps",
     equipment: "Masa ciała",
@@ -1648,7 +1649,7 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Burpees": {
     steps: ["Z pozycji stojącej zrób przysiad i połóż dłonie na podłodze.","Wyrzuć nogi dynamicznie do tyłu do pozycji deski (plank).","Wykonaj pompkę lub samo dotknięcie klatką podłoża, potem podciągnij nogi z powrotem pod tułów.","Wyskocz dynamicznie w górę z wyciągnięciem rąk nad głowę i ląduj miękko."],
-    proTip: "Utrzymuj napięty brzuch przez całą fazę deski, by chronić dolny odcinek pleców.",
+    proTip: "Utrzymuj napięty brzuch przez całą fazę deski i nie pozwalaj biodrom opadać.",
     targetMuscles: ["Całe ciało","Mięśnie brzucha","Klatka piersiowa","Nogi"],
     primaryMuscle: "fullbody",
     equipment: "Masa ciała",
@@ -1692,14 +1693,14 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
   "Wznosy palców na piszczel (Tibialis Raise)": {
     steps: ["Oprzyj się plecami i pośladkami o ścianę, pięty około 15-30 cm od niej.","Wyprostuj nogi i postaw stopy płasko na podłodze.","Unieś palce i śródstopie jak najwyżej w stronę piszczeli, pięty pozostają na ziemi.","Przytrzymaj skurcz na szczycie sekundę.","Opuść powoli stopy do pełnego rozciągnięcia przodu goleni."],
-    proTip: "Trening mięśnia przeciwstawnego do łydki poprawia balans wokół kostki i zmniejsza ryzyko shin splints.",
+    proTip: "Unoszenie palców angażuje mięsień piszczelowy przedni; prowadź ruch powoli w pełnym kontrolowanym zakresie.",
     targetMuscles: ["Piszczelowy przedni","Prostowniki palców"],
     primaryMuscle: "calves",
     equipment: "Masa ciała",
   },
   "Skakanka jako trening łydek": {
     steps: ["Chwyć skakankę, łokcie blisko tułowia, stopy razem.","Obracaj skakankę nadgarstkami i odbijaj się nisko ze śródstopia.","Ląduj miękko na palcach, amortyzując łydkami i kostkami.","Utrzymuj równy rytm i sprężystą pracę stawu skokowego przez cały czas trwania serii."],
-    proTip: "Skacz nisko i miękko ze śródstopia, aby maksymalnie zaangażować łydki i oszczędzić kolana.",
+    proTip: "Skacz nisko i ląduj miękko na śródstopiu, utrzymując równy rytm i lekko ugięte kolana.",
     targetMuscles: ["Brzuchaty łydki","Płaszczkowaty","Piszczelowy przedni"],
     primaryMuscle: "calves",
     equipment: "Skakanka",
@@ -1724,6 +1725,32 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
     targetMuscles: ["Płaszczkowaty","Brzuchaty łydki"],
     primaryMuscle: "calves",
     equipment: "Maszyna Smitha",
+  },
+  "Spacer farmera (Farmer's Walk)": {
+    steps: [
+      "Ustaw dwa hantle lub uchwyty po bokach stóp i stań między nimi.",
+      "Ugnij biodra i kolana, chwyć oba ciężary, a następnie wstań z napiętym brzuchem i wyprostowanym tułowiem.",
+      "Opuść barki, trzymaj ręce prosto i patrz przed siebie.",
+      "Idź krótkimi, równymi krokami przez wyznaczony dystans lub czas, nie kołysząc ciężarami.",
+      "Zatrzymaj się, ugnij biodra i kolana, po czym odłóż oba ciężary pod kontrolą.",
+    ],
+    proTip: "Dobierz ciężar, przy którym utrzymasz równy krok, stabilny tułów i pewny chwyt przez całą serię.",
+    targetMuscles: ["Przedramiona", "Mięśnie brzucha", "Czworoboczne", "Pośladki"],
+    primaryMuscle: "core",
+    equipment: "Hantle lub uchwyty farmera",
+  },
+  "Dipy wspomagane na maszynie": {
+    steps: [
+      "Ustaw poziom asysty maszyny; większa asysta ułatwia wykonanie ruchu.",
+      "Wejdź na stopień, chwyć poręcze i oprzyj kolana lub stopy na ruchomej platformie.",
+      "Opuść barki, napnij brzuch i rozpocznij z wyprostowanymi ramionami.",
+      "Ugnij łokcie i opuszczaj tułów powoli tylko do zakresu, w którym zachowujesz kontrolę.",
+      "Odepchnij poręcze, wróć do góry bez gwałtownego blokowania łokci, a po serii poczekaj, aż platforma się zatrzyma przed zejściem.",
+    ],
+    proTip: "Najpierw opanuj równy ruch z większą asystą; zmniejszaj ją dopiero wtedy, gdy każde powtórzenie wygląda tak samo.",
+    targetMuscles: ["Klatka piersiowa", "Triceps", "Przednie aktony barków"],
+    primaryMuscle: "chest",
+    equipment: "Maszyna do dipów z asystą",
   },
 };
 

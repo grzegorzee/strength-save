@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildConsentMirror, extractClientIp, parseConsentPayload } from "./consents";
+import { buildConsentMirror, extractClientIp, nextHealthConsentState, parseConsentPayload } from "./consents";
 import { LEGAL_VERSIONS } from "./legal-versions";
 
 const validEntry = {
@@ -90,6 +90,16 @@ describe("parseConsentPayload", () => {
     expect(parsed.entries.map((entry) => entry.action)).toEqual(["withdrawn", "withdrawn"]);
   });
 
+  it("odrzuca dwa wpisy tego samego typu w jednym payloadzie", () => {
+    expect(() => parseConsentPayload({
+      ...validPayload,
+      entries: [
+        { type: "health", action: "granted", docVersion: LEGAL_VERSIONS.health, lang: "pl", statementText: "Tak" },
+        { type: "health", action: "withdrawn", docVersion: LEGAL_VERSIONS.health, lang: "pl", statementText: "Nie" },
+      ],
+    })).toThrow(/duplicate consent type/);
+  });
+
   it("odrzuca zły kanał, język, pusty i za długi statementText", () => {
     expect(() => parseConsentPayload({ ...validPayload, channel: "watch" })).toThrow(/channel/);
     expect(() => parseConsentPayload({
@@ -148,6 +158,32 @@ describe("buildConsentMirror", () => {
       "consents.healthGranted": false,
       "consents.healthVersion": LEGAL_VERSIONS.health,
     });
+  });
+});
+
+describe("nextHealthConsentState", () => {
+  const grant = { type: "health", action: "granted", docVersion: LEGAL_VERSIONS.health, lang: "pl", statementText: "h" } as const;
+  const withdraw = { ...grant, action: "withdrawn" } as const;
+
+  it("pierwsza jawna decyzja zaczyna epoch=1, a zwykła zgoda nie zmienia epoch", () => {
+    expect(nextHealthConsentState(undefined, [grant])).toMatchObject({ healthEpoch: 1, changed: true });
+    expect(nextHealthConsentState({ healthEpoch: 7, healthGranted: true, healthVersion: LEGAL_VERSIONS.health }, [validEntry])).toEqual(null);
+  });
+
+  it("retry tego samego grant/withdraw nie zwiększa epoch drugi raz", () => {
+    expect(nextHealthConsentState({ healthEpoch: 4, healthGranted: true, healthVersion: LEGAL_VERSIONS.health, healthGrantId: "g-4" }, [grant])).toEqual(null);
+    expect(nextHealthConsentState({ healthEpoch: 5, healthGranted: false, healthVersion: LEGAL_VERSIONS.health, healthGrantId: null }, [withdraw])).toEqual(null);
+  });
+
+  it("withdraw, regrant i aktualizacja starej wersji zwiększają monotoniczny epoch", () => {
+    expect(nextHealthConsentState({ healthEpoch: 4, healthGranted: true, healthVersion: LEGAL_VERSIONS.health, healthGrantId: "g-4" }, [withdraw])).toMatchObject({ healthEpoch: 5, healthGranted: false, changed: true });
+    expect(nextHealthConsentState({ healthEpoch: 5, healthGranted: false, healthVersion: LEGAL_VERSIONS.health, healthGrantId: null }, [grant])).toMatchObject({ healthEpoch: 6, healthGranted: true, changed: true });
+    expect(nextHealthConsentState({ healthEpoch: 8, healthGranted: true, healthVersion: "1.0", healthGrantId: "legacy" }, [grant])).toMatchObject({ healthEpoch: 9, healthGranted: true, changed: true });
+  });
+
+  it("nie ufa ujemnej ani niebezpiecznie dużej epoce legacy", () => {
+    expect(nextHealthConsentState({ healthEpoch: -1 }, [grant])).toMatchObject({ healthEpoch: 1 });
+    expect(nextHealthConsentState({ healthEpoch: Number.MAX_VALUE }, [grant])).toMatchObject({ healthEpoch: 1 });
   });
 });
 

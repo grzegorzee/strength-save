@@ -28,6 +28,7 @@ import {
 import {
   canUseApiExport,
   canUseStravaIntegration,
+  hasActiveHealthConsent,
   isValidStravaOAuthState,
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
@@ -38,6 +39,7 @@ import {
   loadExistingActivities,
   manualSyncRetryAfterSeconds,
   mapStravaActivityToDoc,
+  nextEstimatedMaxHr,
   REFRESHABLE_ACTIVITY_FIELDS,
   type ExistingActivitiesSource,
   type StravaActivityDoc,
@@ -105,6 +107,10 @@ export { dailyCostDigest } from "./cost-digest";
 export { dailyErrorDigest } from "./error-digest";
 // Pakiet prawny v2: log zgód z IP i timestampem serwerowym (rozliczalność RODO).
 export { recordConsent } from "./consents";
+// Addytywna, wersjonowana ścieżka zapisu treningu z osobnym health side-write.
+export { syncWorkoutV2 } from "./workout-sync-v2";
+// Atomowe odtworzenie pojedynczego treningu z rozdzielonego backupu schema v3.
+export { restoreWorkoutBackupV3 } from "./workout-restore-v3";
 // Szczegółowe zdarzenia SES (open/click/IP/user-agent/link) są usuwane po 180 dniach.
 export { cleanupExpiredSesEvents } from "./ses-event-retention";
 // Prywatny, atestowany przepływ zgłoszeń: create -> opcjonalny upload -> finalize.
@@ -1005,6 +1011,7 @@ interface SyncResult {
 async function syncUserActivities(userId: string, accessToken: string, fullSync = false): Promise<SyncResult> {
   const userDoc = await getUserRef(userId).get();
   const userData = userDoc.data();
+  const healthConsentActive = hasActiveHealthConsent(userData);
   const lastSync = userData?.stravaLastSync;
 
   const now = Math.floor(Date.now() / 1000);
@@ -1097,12 +1104,17 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
 
   for (const activity of activities) {
     const docRef = getStravaActivityRef(userId, activity.id);
-    const fullDoc = mapStravaActivityToDoc(userId, activity, new Date().toISOString());
+    const fullDoc = mapStravaActivityToDoc(
+      userId,
+      activity,
+      new Date().toISOString(),
+      healthConsentActive,
+    );
     const existing = existingActivities.get(activity.id);
 
     if (existing) {
       // Known activity — refresh only the fields Strava may have backfilled.
-      const changes = diffRefreshableFields(existing, fullDoc);
+      const changes = diffRefreshableFields(existing, fullDoc, healthConsentActive);
       if (!changes) {
         alreadyExisted++;
         continue;
@@ -1128,15 +1140,16 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
     stravaLastSync: new Date().toISOString(),
   }, { merge: true });
 
-  // Auto-update estimatedMaxHR (unless manually overridden)
-  if (!userData?.maxHRManualOverride) {
-    const fetchedMaxHR = activities.reduce((max, activity) => (
-      activity.max_heartrate && activity.max_heartrate > max ? activity.max_heartrate : max
-    ), Number(userData?.estimatedMaxHR || 0));
-    if (fetchedMaxHR > Number(userData?.estimatedMaxHR || 0)) {
-      await getUserRef(userId).set({ estimatedMaxHR: fetchedMaxHR }, { merge: true });
-      logger.info(`[Strava] Updated estimatedMaxHR=${fetchedMaxHR} for ${userId}`);
-    }
+  // Dane zdrowotne są przetwarzane wyłącznie w granicach aktualnego grantu 1.1.
+  const estimatedMaxHrUpdate = nextEstimatedMaxHr(
+    activities,
+    userData?.estimatedMaxHR,
+    userData?.maxHRManualOverride === true,
+    healthConsentActive,
+  );
+  if (estimatedMaxHrUpdate !== null) {
+    await getUserRef(userId).set({ estimatedMaxHR: estimatedMaxHrUpdate }, { merge: true });
+    logger.info(`[Strava] Updated estimatedMaxHR=${estimatedMaxHrUpdate} for ${userId}`);
   }
 
   logger.info(`[Strava] Result: ${synced} new, ${refreshed} refreshed, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
@@ -1302,6 +1315,9 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
       ...(typeof data.displayName === "string" ? { displayName: data.displayName } : {}),
       // WP-I: jednostka maila wg ustawień usera (jak weekly-digest).
       ...(typeof unit === "string" ? { unit } : {}),
+      // Fail-closed: rdzeń e-mail używa centralnego predykatu i bez aktywnego
+      // grantu pomija RPE, ból i ocenę sesji, zachowując bazowy eksport.
+      ...(data.consents !== undefined ? { consents: data.consents } : {}),
     };
   },
   consumeQuota: async (uid, today) => {

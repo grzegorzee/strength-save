@@ -52,8 +52,8 @@ export const ConsentGate = ({ profile, onConfirmed, onLogout }: {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <Card className="w-full max-w-lg">
+    <div className="flex min-h-[100dvh] justify-center overflow-y-auto bg-background pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <Card className="my-auto w-full max-w-lg">
         <CardContent className="pt-6">
           <div className="flex items-center gap-3 mb-4">
             <ShieldCheck className="h-7 w-7 text-primary shrink-0" />

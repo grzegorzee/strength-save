@@ -29,7 +29,7 @@ import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { hapticSuccess } from '@/lib/haptics';
 import { Capacitor } from '@capacitor/core';
 import { InAppReview } from '@capacitor-community/in-app-review';
-import { useHealthConsent } from '@/hooks/useHealthConsent';
+import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
 import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } from '@/lib/review-prompt';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
@@ -42,7 +42,7 @@ import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId, parseWatchQuickExer
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { keepScreenAwake, allowScreenSleep } from '@/lib/keep-awake';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
-import { formatDurationSec, getTrackingType, type TrackingType } from '@/lib/set-tracking';
+import { formatDurationSec, getTrackingType, resolveCompletionTracking, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
 import { useWorkoutDayNotes } from '@/hooks/useWorkoutDayNotes';
@@ -70,13 +70,17 @@ import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequenc
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
-import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise, supportsZeroWeight } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
+import {
+  applyHealthMetricChangeFence,
+  type ExerciseMetricGrants,
+} from '@/lib/workout-health-fence';
 import { addAppStateListener } from '@/lib/app-lifecycle';
 import { deriveWorkoutSessionPhase, isActiveTrainingPhase, shouldStartRest } from '@/lib/workout-session-state';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
@@ -163,7 +167,8 @@ const WorkoutDay = () => {
   const { uid, profile } = useCurrentUser();
   // Wycofana zgoda zdrowotna chowa panel metryk RPE/ból/jakość (brak
   // onMetricsChange = ExerciseCard nie renderuje chipa ani inputów).
-  const healthConsent = useHealthConsent();
+  const activeHealthGrant = useActiveHealthGrant();
+  const healthConsent = activeHealthGrant !== null;
   const subscription = useSubscription();
   const requiresPaywall = isPaywallPlatform() && !subscription.loading && !subscription.isPro;
   const watchCapability = subscription.loading
@@ -344,6 +349,8 @@ const WorkoutDay = () => {
   const exerciseSetsRef = useRef(exerciseSets);
   const exerciseNotesRef = useRef(exerciseNotes);
   const exerciseMetricsRef = useRef(exerciseMetrics);
+  const exerciseMetricGrantsRef = useRef<ExerciseMetricGrants>({});
+  const pendingHealthGrantRef = useRef(activeHealthGrant);
   const dayNotesRef = useRef(dayNotes);
   const skippedExercisesRef = useRef(skippedExercises);
   const warmupCheckedRef = useRef(warmupChecked);
@@ -599,6 +606,13 @@ const WorkoutDay = () => {
       exerciseMetricsRef.current = nextExerciseMetrics;
       setExerciseMetrics(nextExerciseMetrics);
 
+      const nextExerciseMetricGrants = { ...exerciseMetricGrantsRef.current };
+      if (nextExerciseMetricGrants[exerciseId]) {
+        nextExerciseMetricGrants[swappedId] = nextExerciseMetricGrants[exerciseId];
+      }
+      delete nextExerciseMetricGrants[exerciseId];
+      exerciseMetricGrantsRef.current = nextExerciseMetricGrants;
+
       setSkippedExercises(prev => prev.filter(id => id !== exerciseId));
       const nextSessionSwaps = {
         ...sessionSwaps,
@@ -617,6 +631,7 @@ const WorkoutDay = () => {
         },
         lastTouchedExerciseId: swappedId,
         sessionSwaps: nextSessionSwaps,
+        exerciseMetricGrants: nextExerciseMetricGrants,
       });
     }
     setSwapExerciseId(null);
@@ -763,6 +778,8 @@ const WorkoutDay = () => {
       exerciseSets: exerciseSetsRef.current,
       exerciseNotes: exerciseNotesRef.current,
       exerciseMetrics: exerciseMetricsRef.current,
+      exerciseMetricGrants: exerciseMetricGrantsRef.current,
+      pendingHealthGrant: pendingHealthGrantRef.current,
       dayNotes: dayNotesRef.current,
       skippedExercises: skippedExercisesRef.current,
       // Pole tylko gdy sesja realnie ma odhaczenia (albo już je miała) — legacy draft
@@ -860,6 +877,8 @@ const WorkoutDay = () => {
       workoutDraftDb.setCloudBaseline(ownerId, draftSessionId, cloudState),
     setPendingWrite: (ownerId, draftSessionId, pending) =>
       workoutDraftDb.setPendingWrite(ownerId, draftSessionId, pending),
+    markHealthPending: (ownerId, draftSessionId, expectedVersion, cloudState) =>
+      workoutDraftDb.markHealthWritePending(ownerId, draftSessionId, expectedVersion, cloudState),
     clearDraftIfVersion: (ownerId, draftSessionId, expectedVersion) =>
       workoutDraftDb.clearActiveDraftIfVersion(ownerId, draftSessionId, expectedVersion),
     queue: workoutSyncQueue,
@@ -1107,6 +1126,8 @@ const WorkoutDay = () => {
     exerciseSets: Record<string, SetData[]>;
     exerciseNotes: Record<string, string>;
     exerciseMetrics?: Record<string, ExerciseMetrics>;
+    exerciseMetricGrants?: ExerciseMetricGrants;
+    pendingHealthGrant?: ActiveWorkoutDraft['pendingHealthGrant'];
     dayNotes: string;
     skippedExercises: string[];
     warmupChecked?: string[];
@@ -1116,7 +1137,11 @@ const WorkoutDay = () => {
     setIsCompleted(next.completed);
     setExerciseSets(next.exerciseSets);
     setExerciseNotes(next.exerciseNotes);
-    setExerciseMetrics(next.exerciseMetrics ?? {});
+    const nextMetrics = next.exerciseMetrics ?? {};
+    setExerciseMetrics(nextMetrics);
+    exerciseMetricsRef.current = nextMetrics;
+    exerciseMetricGrantsRef.current = next.exerciseMetricGrants ?? {};
+    pendingHealthGrantRef.current = next.pendingHealthGrant ?? null;
     setDayNotes(next.dayNotes);
     setSkippedExercises(next.skippedExercises);
     // Z162: brak pola = nowa/inna sesja → rozgrzewka startuje czysta.
@@ -1235,6 +1260,8 @@ const WorkoutDay = () => {
         exerciseSets: currentPageDraft.exerciseSets,
         exerciseNotes: currentPageDraft.exerciseNotes,
         exerciseMetrics: currentPageDraft.exerciseMetrics,
+        exerciseMetricGrants: currentPageDraft.exerciseMetricGrants,
+        pendingHealthGrant: currentPageDraft.pendingHealthGrant,
         dayNotes: currentPageDraft.dayNotes,
         skippedExercises: currentPageDraft.skippedExercises,
         warmupChecked: currentPageDraft.warmupChecked,
@@ -1750,7 +1777,12 @@ const WorkoutDay = () => {
         setDayNotes(adoptableDraft?.dayNotes ?? '');
         setSkippedExercises(adoptableDraft?.skippedExercises ?? []);
         setWarmupChecked(adoptableDraft?.warmupChecked ?? []);
-        if (adoptableDraft) setExerciseMetrics(adoptableDraft.exerciseMetrics);
+        if (adoptableDraft) {
+          setExerciseMetrics(adoptableDraft.exerciseMetrics);
+          exerciseMetricsRef.current = adoptableDraft.exerciseMetrics;
+          exerciseMetricGrantsRef.current = adoptableDraft.exerciseMetricGrants ?? {};
+          pendingHealthGrantRef.current = adoptableDraft.pendingHealthGrant ?? null;
+        }
 
         const initialDraft = buildStartDraft({
           uid,
@@ -2019,6 +2051,7 @@ const WorkoutDay = () => {
 
   useWatchWorkoutSync({
     enabled: isActiveTrainingPhase(sessionPhase) && !isViewingPastWorkout,
+    healthFeaturesEnabled: healthConsent,
     uid,
     ...(sessionId ? { sessionId } : {}),
     date: targetDate,
@@ -2039,16 +2072,46 @@ const WorkoutDay = () => {
 
   // Metryki (RPE/ból/jakość) — tryb edycji: tylko stan lokalny.
   const handleMetricsChangeLocal = useCallback((exerciseId: string, metrics: ExerciseMetrics) => {
-    setExerciseMetrics(prev => ({ ...prev, [exerciseId]: metrics }));
-  }, []);
+    const previousMetrics = exerciseMetricsRef.current[exerciseId] ?? {};
+    const nextMetrics = { ...exerciseMetricsRef.current, [exerciseId]: metrics };
+    const fenced = applyHealthMetricChangeFence({
+      exerciseId,
+      previousMetrics,
+      nextMetrics: metrics,
+      previousGrants: exerciseMetricGrantsRef.current,
+      previousPendingHealthGrant: pendingHealthGrantRef.current,
+      currentGrant: activeHealthGrant,
+    });
+    exerciseMetricsRef.current = nextMetrics;
+    exerciseMetricGrantsRef.current = fenced.exerciseMetricGrants;
+    pendingHealthGrantRef.current = fenced.pendingHealthGrant;
+    setExerciseMetrics(nextMetrics);
+  }, [activeHealthGrant]);
 
   // Metryki — aktywny trening: stan + draft (Firebase na checkpointach/zakończeniu).
   const handleMetricsChange = useCallback((exerciseId: string, metrics: ExerciseMetrics) => {
+    const previousMetrics = exerciseMetricsRef.current[exerciseId] ?? {};
     const nextMetrics = { ...exerciseMetricsRef.current, [exerciseId]: metrics };
+    const fenced = applyHealthMetricChangeFence({
+      exerciseId,
+      previousMetrics,
+      nextMetrics: metrics,
+      previousGrants: exerciseMetricGrantsRef.current,
+      previousPendingHealthGrant: pendingHealthGrantRef.current,
+      currentGrant: activeHealthGrant,
+    });
+    exerciseMetricsRef.current = nextMetrics;
+    exerciseMetricGrantsRef.current = fenced.exerciseMetricGrants;
+    pendingHealthGrantRef.current = fenced.pendingHealthGrant;
     setExerciseMetrics(nextMetrics);
-    saveDraftSnapshot({ exerciseMetrics: nextMetrics, lastTouchedExerciseId: exerciseId });
+    saveDraftSnapshot({
+      exerciseMetrics: nextMetrics,
+      exerciseMetricGrants: fenced.exerciseMetricGrants,
+      pendingHealthGrant: fenced.pendingHealthGrant,
+      lastTouchedExerciseId: exerciseId,
+    });
     setSaveError(null);
-  }, [saveDraftSnapshot]);
+  }, [activeHealthGrant, saveDraftSnapshot]);
 
   const handleDayNotesChange = useCallback((value: string) => {
     setDayNotes(value);
@@ -2176,7 +2239,7 @@ const WorkoutDay = () => {
       const name = day.exercises.find((exercise) => exercise.id === exerciseId)?.name ?? exerciseId;
       const tracking = resolveTracking(name);
       // Karta chowa kolumnę KG dla bodyweight niezależnie od trackingu (isBodyweight prop).
-      return tracking === 'weight_reps' && resolveIsBodyweight(name) ? 'bodyweight_reps' : tracking;
+      return resolveCompletionTracking(tracking, resolveIsBodyweight(name), supportsZeroWeight(name));
     });
     for (const exerciseId of autoCompletion.changedExerciseIds) {
       handleSetsChange(exerciseId, autoCompletion.exerciseSets[exerciseId]);
@@ -2335,7 +2398,7 @@ const WorkoutDay = () => {
         exercises: [],
         ...(activeDraftRef.current?.startedAt && { startedAt: activeDraftRef.current.startedAt }),
         completedAt: Date.now(),
-      });
+      }, healthConsent);
     }
 
     // Z83: natywna prośba o ocenę po kamieniach ukończonych treningów (5., 15., 30. ...),
@@ -2818,7 +2881,7 @@ const WorkoutDay = () => {
                         {localizeExerciseName(exercise.name, lang)}
                       </span>
                       <span className={cn(
-                        "shrink-0 font-mono text-[10px]",
+                        "shrink-0 font-mono text-[11px]",
                         incompleteSets ? "text-fitness-warning" : "text-muted-foreground/70",
                       )}>
                         {isSkipped
@@ -3067,12 +3130,12 @@ const WorkoutDay = () => {
   // ACTIVE WORKOUT VIEW
   // Padding dolny: miejsce na sticky REST (aktywna przerwa) i fixed CTA startu
   // (pre-start) + safe-area — FINISH w przepływie nie może chować się pod paskiem.
-  // WP-D (X29): paski wiszą teraz NAD bottom navem (bottom 6rem), więc rezerwa
-  // musi sięgać do topu najwyższego z nich: CTA startu top ≈ 6rem + 5.5rem
-  // wysokości = 11.5rem. Razem z pb-7.5rem maina Layoutu tutejsze 7rem daje
-  // 14.5rem — ostatni element listy wychodzi nad pasek z zapasem.
+  // WP-D (X29): paski wiszą NAD bottom navem, którego realną wysokość niesie
+  // --mobile-nav-clearance (rośnie z systemową skalą tekstu); 7rem to fallback
+  // przed pierwszym pomiarem. Razem z pb-7.5rem maina Layoutu ostatni element
+  // listy wychodzi nad pasek z zapasem.
   return (
-    <div className="space-y-6 pb-[calc(7rem+env(safe-area-inset-bottom))]">
+    <div className="space-y-6 pb-[var(--mobile-nav-clearance,calc(7rem+env(safe-area-inset-bottom)))]">
       {/* Fala 2 (2026-08-20, mockup exercise-card 2a): header wstecz · tytuł ·
           rozgrzewka + badge Saved (AutoSaveIndicator przeniesiony z fixed). */}
       <div className="grid grid-cols-[40px_1fr_auto] items-center gap-3 pt-[env(safe-area-inset-top)]">
@@ -3100,17 +3163,17 @@ const WorkoutDay = () => {
       {isWorkoutStarted && !isCompleted && (
         <div className="grid grid-cols-3 gap-2 rounded-2xl bg-surface-container px-4 py-3" data-testid="session-stats">
           <div className="min-w-0 text-center">
-            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{t('workout.statTime')}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{t('workout.statTime')}</p>
             <p className="mt-0.5 truncate font-heading text-[19px] font-bold tabular-nums text-primary">
               {sessionClockStartedAt !== null ? <SessionClock startedAt={sessionClockStartedAt} /> : fmtDuration(0)}
             </p>
           </div>
           <div className="min-w-0 text-center">
-            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{t('dash.stat.tonnage')}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{t('dash.stat.tonnage')}</p>
             <p className="mt-0.5 truncate font-heading text-[19px] font-bold tabular-nums">{fmt(sessionVolumeKg)}</p>
           </div>
           <div className="min-w-0 text-center">
-            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{t('workout.statSets')}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{t('workout.statSets')}</p>
             <p className="mt-0.5 truncate font-heading text-[19px] font-bold tabular-nums">{sessionCompletedSets}</p>
           </div>
         </div>
@@ -3379,11 +3442,14 @@ const WorkoutDay = () => {
       )}
 
       {/* WP-D (X29): pasek startu ląduje NAD bottom navem (nav widoczny też
-          w sesji) — offset = 0.75rem odstęp nav od dołu + ~4.85rem wysokości
-          nav + luz. Safe-area padding wewnątrz tylko na md (tam pasek nadal
-          dotyka krawędzi ekranu). */}
+          w sesji). Rezerwę wyznacza zmierzona wysokość paska nawigacji
+          (--mobile-nav-clearance z AppNavigation) — etykiety przy skali 200%
+          zawijają się na 2 linie i pasek przerasta każdą stałą wartość;
+          7rem zostaje wyłącznie jako fallback przed pierwszym pomiarem.
+          Desktopowa powłoka zaczyna się dopiero przy wystarczającej
+          szerokości i wysokości. */}
       {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
-        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background/85 p-4 backdrop-blur-xl md:bottom-0 md:pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="fixed bottom-[var(--mobile-nav-clearance,calc(7rem+env(safe-area-inset-bottom)))] left-0 right-0 z-50 bg-background/85 p-4 backdrop-blur-xl desktop-shell:bottom-0 desktop-shell:pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {/* Z244: przycisk nie może wyglądać na martwy — dopóki źródła startu się
               ładują, pokazujemy to wprost; po 8 s dajemy wyjście (odśwież). */}
           {!startSourcesReady && startSourcesTimedOut && (
@@ -3391,7 +3457,7 @@ const WorkoutDay = () => {
           )}
           <Button
             size="lg"
-            className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
+            className="kinetic-primary-button h-auto min-h-14 w-full whitespace-normal break-words px-4 py-3 text-base leading-tight hover:brightness-105"
             onClick={() => {
               if (!startSourcesReady && startSourcesTimedOut) {
                 window.location.reload();

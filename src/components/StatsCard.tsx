@@ -57,7 +57,7 @@ export const StatsCard = ({
               {value}
             </p>
             {subtitle && (
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>
             )}
           </div>
           {onClick && (

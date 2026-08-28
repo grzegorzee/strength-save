@@ -93,24 +93,24 @@ export const UsersActivityTable = ({
                   <p className="font-medium text-sm truncate">{user.displayName || t('admin.noNameShort')}</p>
                   <Badge
                     variant={user.role === 'admin' ? 'default' : 'secondary'}
-                    className="text-[10px] h-5 shrink-0"
+                    className="text-[11px] h-5 shrink-0"
                   >
                     {user.role}
                   </Badge>
                   <Badge
                     variant={user.accessEnabled ? 'outline' : 'destructive'}
-                    className="text-[10px] h-5 shrink-0"
+                    className="text-[11px] h-5 shrink-0"
                   >
                     {user.accessEnabled ? t('admin.accessOn') : t('admin.accessOff')}
                   </Badge>
                   <Badge
                     variant={user.status === 'suspended' ? 'destructive' : 'secondary'}
-                    className="text-[10px] h-5 shrink-0"
+                    className="text-[11px] h-5 shrink-0"
                   >
                     {user.status}
                   </Badge>
                   {isSubscriptionActive(user.subscription ?? null) && (
-                    <Badge variant="outline" className="text-[10px] h-5 shrink-0 border-primary/40 bg-primary/10 text-primary">
+                    <Badge variant="outline" className="text-[11px] h-5 shrink-0 border-primary/40 bg-primary/10 text-primary">
                       PRO
                     </Badge>
                   )}
@@ -118,7 +118,7 @@ export const UsersActivityTable = ({
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 {/* Z98: kolumny aktywności z rollupu (brak danych = kreski). */}
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
-                  <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', BADGE_STYLES[badge])}>
+                  <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide', BADGE_STYLES[badge])}>
                     {t(BADGE_LABEL_KEY[badge])}
                   </span>
                   <span>{lastActive || '-'}</span>
@@ -156,6 +156,7 @@ export const UsersActivityTable = ({
                       checked={user.accessEnabled}
                       onCheckedChange={(checked) => onToggleAccess(user.uid, checked)}
                       disabled={user.role === 'admin'}
+                      aria-label={user.accessEnabled ? t('admin.accessActive') : t('admin.accessDisabled')}
                     />
                   </div>
                 </div>
@@ -181,6 +182,7 @@ export const UsersActivityTable = ({
                         checked={user.features[feat.key] ?? (feat.defaultOn || user.role === 'admin')}
                         onCheckedChange={(checked) => onToggleFeature(user.uid, feat.key, checked)}
                         disabled={user.role === 'admin'}
+                        aria-label={feat.label}
                       />
                     </div>
                   ))}

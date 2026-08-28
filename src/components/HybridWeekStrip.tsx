@@ -81,7 +81,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
               zostaje nagłówkiem listy kart dni (to ona jest planem), a ten pasek
               mówi wprost, że pokazuje WYKONANE obciążenie. */}
           <div className="mb-2 flex items-baseline justify-between gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               {t('hybrid.stripTitle')}
             </span>
             <span className="text-[11px] text-muted-foreground">{t('hybrid.stripHint')}</span>

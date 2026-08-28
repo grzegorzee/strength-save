@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { blockFirebase, localDaysAgo, setE2EAuthScenario, setE2EWorkouts } from './helpers';
+import { blockFirebase, expectHashRoute, localDaysAgo, setE2EAuthScenario, setE2EWorkouts } from './helpers';
 
 // Release-readiness audit: dowód renderowania najważniejszych tras dla trzech
 // ról i w dwóch orientacjach. To nie zastępuje natywnego smoke (safe-area,
@@ -27,8 +27,8 @@ const observeRuntime = (page: Page): AuditIssue[] => {
 const assertHealthyPage = async (page: Page, issues: AuditIssue[], expectsMain = true) => {
   await expect.poll(() => page.locator('#root > *').count()).toBeGreaterThan(0);
   if (expectsMain) await expect(page.getByRole('main')).toBeVisible();
+  await expect.poll(async () => (await page.locator('body').innerText()).trim().length).toBeGreaterThan(20);
   const bodyText = await page.locator('body').innerText();
-  expect(bodyText.trim().length).toBeGreaterThan(20);
   expect(bodyText).not.toMatch(/\bNaN\b/);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
@@ -37,17 +37,26 @@ const assertHealthyPage = async (page: Page, issues: AuditIssue[], expectsMain =
 
 const activeRoutes = [
   ['dashboard', '/'],
+  ['day', '/day'],
   ['plan', '/plan'],
+  ['plan-edit', '/plan/edit'],
   ['history', '/history'],
   ['progress', '/achievements'],
   ['measurements', '/measurements'],
   ['exercises', '/exercises'],
+  ['exercise-detail', '/exercise/wyciskanie-sztangi-na-lawce-plaskiej'],
   ['cycles', '/cycles'],
-  ['settings', '/settings'],
+  ['profile', '/profile'],
+  ['new-plan', '/new-plan'],
   ['workout', '/workout/day-1'],
 ] as const;
 
 const seedActiveUser = async (page: Page) => {
+  // Render audit ma być deterministyczny i jednocześnie dowodzić lekkiego
+  // fallbacku offline. Media CDN są osobno testowane lokalnymi fixtures w
+  // exercise-video.spec.ts; tutaj żadna zewnętrzna strefa nie może decydować o
+  // wyniku bramki release.
+  await page.route('**/media.gjasionowicz.pl/**', (route) => route.abort());
   await setE2EAuthScenario(page, 'active-user');
   await setE2EWorkouts(page, [1, 4, 9, 16, 24].map((daysAgo, index) => ({
     id: `audit-workout-${index + 1}`,
@@ -71,19 +80,32 @@ for (const [name, route] of activeRoutes) {
     await blockFirebase(page);
     await seedActiveUser(page);
     await page.goto(`./#${route}`);
-    await assertHealthyPage(page, issues);
-    await page.screenshot({ path: `audit/shots/2026-08-27/active-user_${name}.png`, fullPage: true });
+    // /new-plan jest celowo pełnoekranowym flow poza semantycznym <main>
+    // Layoutu; nadal przechodzi wspólne kontrole treści, NaN, overflow i konsoli.
+    await assertHealthyPage(page, issues, route !== '/new-plan');
+    await page.screenshot({ path: `audit/shots/2026-08-28/active-user_${name}.png`, fullPage: true });
   });
 }
+
+test('audit legacy settings redirect reaches rendered Profile', async ({ page }) => {
+  const issues = observeRuntime(page);
+  await blockFirebase(page);
+  await seedActiveUser(page);
+  await page.goto('./#/settings');
+  await expectHashRoute(page, '/profile');
+  await expect(page.getByText('Backup i przywracanie')).toBeVisible();
+  await assertHealthyPage(page, issues);
+});
 
 test('audit new-user portrait: onboarding', async ({ page }) => {
   const issues = observeRuntime(page);
   await blockFirebase(page);
   await setE2EAuthScenario(page, 'new-user');
   await page.goto('./#/onboarding');
-  await expect(page.getByTestId('consent-terms')).toBeVisible();
+  await expect(page.getByTestId('ob-personalization-next')).toBeVisible();
+  await expect(page.getByTestId('consent-terms')).toHaveCount(0);
   await assertHealthyPage(page, issues, false);
-  await page.screenshot({ path: 'audit/shots/2026-08-27/new-user_onboarding.png', fullPage: true });
+  await page.screenshot({ path: 'audit/shots/2026-08-28/new-user_onboarding.png', fullPage: true });
 });
 
 test('audit active-admin portrait: panel', async ({ page }) => {
@@ -92,14 +114,14 @@ test('audit active-admin portrait: panel', async ({ page }) => {
   await setE2EAuthScenario(page, 'active-admin');
   await page.goto('./#/admin');
   await assertHealthyPage(page, issues);
-  await page.screenshot({ path: 'audit/shots/2026-08-27/active-admin_admin.png', fullPage: true });
+  await page.screenshot({ path: 'audit/shots/2026-08-28/active-admin_admin.png', fullPage: true });
 });
 
 for (const [name, route] of [
   ['dashboard', '/'],
   ['workout', '/workout/day-1'],
   ['history', '/history'],
-  ['settings', '/settings'],
+  ['profile', '/profile'],
 ] as const) {
   test(`audit active-user landscape: ${name}`, async ({ page }) => {
     await page.setViewportSize({ width: 844, height: 390 });
@@ -108,6 +130,6 @@ for (const [name, route] of [
     await seedActiveUser(page);
     await page.goto(`./#${route}`);
     await assertHealthyPage(page, issues);
-    await page.screenshot({ path: `audit/shots/2026-08-27/landscape_${name}.png`, fullPage: true });
+    await page.screenshot({ path: `audit/shots/2026-08-28/landscape_${name}.png`, fullPage: true });
   });
 }

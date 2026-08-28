@@ -9,11 +9,13 @@ import { installFirestoreCrashGuard } from "./lib/firestore-crash-guard";
 import { installResumeRepaint } from "./lib/resume-repaint";
 import { markStartup } from "./lib/startup-performance";
 import { applyStoredAccent } from "./lib/accent-theme";
+import { installSystemTextZoom } from "./lib/system-text-zoom";
 
 // F-T2: kolor przewodni z localStorage PRZED pierwszym renderem (bez mrugnięcia).
 applyStoredAccent();
 installFirestoreCrashGuard(() => window.location.reload());
 installResumeRepaint();
+installSystemTextZoom();
 void setupNativeUI();
 initKeyboardInset();
 void configurePurchases();

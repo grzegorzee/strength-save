@@ -1,8 +1,8 @@
 // Plan I (2026-08-20): wybór koloru aplikacji w kroku Welcome onboardingu.
 // Warunki właściciela: bez osobnego kroku, tylko paleta, LIVE PREVIEW od
-// kliknięcia. Niezmiennik (zasada #5): bieg bez dotknięcia kolorów = limonka
-// i onboarding działa jak dotąd.
-import { test, expect } from '@playwright/test';
+// kliknięcia. Niezmiennik (zasada #5): bieg bez dotknięcia kolorów = świeża
+// paleta Pulse i onboarding działa jak dotąd.
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { advanceWizardToStep6, blockFirebase, expectPageRendered, navigateAndWait, setE2EAuthScenario } from './helpers';
 
 // UWAGA: ekran onboardingu (PlanWizard) nie renderuje <main> — helper
@@ -11,6 +11,26 @@ import { advanceWizardToStep6, blockFirebase, expectPageRendered, navigateAndWai
 
 const primaryVar = (page: import('@playwright/test').Page) => page.evaluate(() =>
   getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
+
+const expectFullyReachable = async (page: Page, action: Locator) => {
+  await expect(action).toBeVisible();
+  const [box, viewport] = await Promise.all([
+    action.boundingBox(),
+    page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })),
+  ]);
+  expect(box, 'primary action must have a measurable box').not.toBeNull();
+  expect(box!.y, 'top edge must not be clipped').toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height, 'bottom edge must not be clipped').toBeLessThanOrEqual(viewport.height + 1);
+  expect(box!.x, 'left edge must not be clipped').toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width, 'right edge must not be clipped').toBeLessThanOrEqual(viewport.width + 1);
+  expect(box!.height, 'primary action must keep a mobile touch target').toBeGreaterThanOrEqual(44);
+};
+
+const phoneViewports = [
+  { width: 320, height: 568 },
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+] as const;
 
 test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
   test.beforeEach(async ({ page }) => {
@@ -22,10 +42,14 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
   test('kropki przy pytaniu o imię: klik indigo przebarwia ekran NATYCHMIAST i kolor trzyma się przez kroki wizarda', async ({ page }) => {
     await navigateAndWait(page, '/');
 
-    // Rząd kropek pod polem imienia (bez osobnego kroku, bez custom hex).
+    // Główna ścieżka pokazuje trzy gotowe palety; dodatkowe kropki są na żądanie.
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
+    await expect(page.getByTestId('palette-theme-picker').getByRole('radio')).toHaveCount(3);
+    await expect(page.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('ob-accent-swatches')).toHaveCount(0);
+    await page.getByTestId('ob-custom-colors-toggle').click();
     await expect(page.getByTestId('ob-accent-swatches')).toBeVisible();
-    await expect(page.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'false');
     await expect(page.getByTestId('ob-accent-swatches').getByRole('radio')).toHaveCount(11);
 
     // LIVE PREVIEW: klik = natychmiastowa zmiana tokenów + localStorage.
@@ -34,10 +58,11 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
     expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('indigo');
 
     // Kolor trzyma się przez kolejne kroki wizarda aż do podglądu planu.
+    await page.getByTestId('ob-personalization-next').click();
     await page.getByTestId('consent-terms').click();
     await page.getByTestId('consent-privacy').click();
     await page.getByTestId('consent-health').click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByTestId('ob-legal-submit').click();
     // X34: 5A (wybór) -> 6/6 (Start planu) -> "Podgląd planu".
     await advanceWizardToStep6(page);
     expect(await primaryVar(page)).toBe('235 86% 65%');
@@ -46,19 +71,69 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
     expect(await primaryVar(page)).toBe('235 86% 65%');
   });
 
-  test('NIEZMIENNIK: bieg bez dotknięcia kolorów = limonka, Welcome działa jak dotąd', async ({ page }) => {
+  test('NIEZMIENNIK: bieg bez dotknięcia kolorów = paleta Pulse, Welcome działa jak dotąd', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
-    expect(await primaryVar(page)).toBe('73 97% 56%');
-    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBeNull();
+    await expect(page.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('ob-accent-swatches')).toHaveCount(0);
+    expect(await primaryVar(page)).toBe('73 100% 50%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('#c6ff00');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ss-palette-theme-v2') ?? 'null')?.id)).toBe('pulse');
 
+    await page.getByTestId('ob-personalization-next').click();
     await page.getByTestId('consent-terms').click();
     await page.getByTestId('consent-privacy').click();
     await page.getByTestId('consent-health').click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByTestId('ob-legal-submit').click();
     await expect(page.getByRole('button', { name: 'Następny krok' })).toBeVisible();
-    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await primaryVar(page)).toBe('73 100% 50%');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ss-palette-theme-v2') ?? 'null')?.id)).toBe('pulse');
   });
+
+  test('tryb podstawowy przechodzi dalej bez zaznaczenia funkcji zdrowotnych', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByTestId('ob-personalization-next').click();
+    await page.getByTestId('consent-terms').click();
+    await page.getByTestId('consent-privacy').click();
+    await expect(page.getByTestId('consent-health')).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByTestId('ob-legal-submit')).toBeEnabled();
+    await page.getByTestId('ob-legal-submit').click();
+    await expect(page.getByRole('button', { name: 'Następny krok' })).toBeVisible();
+  });
+
+  for (const viewport of phoneViewports) {
+    test(`${viewport.width}×${viewport.height}: pełny CTA pozostaje osiągalny w starym przepływie kroków 1–5`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await navigateAndWait(page, '/');
+
+      const personalizationNext = page.getByTestId('ob-personalization-next');
+      await expectFullyReachable(page, personalizationNext);
+      await personalizationNext.click();
+
+      const legalSubmit = page.getByTestId('ob-legal-submit');
+      await expectFullyReachable(page, legalSubmit);
+      await page.getByTestId('consent-terms').click();
+      await page.getByTestId('consent-privacy').click();
+      await page.getByTestId('consent-health').click();
+      await legalSubmit.click();
+
+      const baselineNext = page.getByRole('button', { name: 'Następny krok' });
+      await expectFullyReachable(page, baselineNext);
+      await baselineNext.click();
+
+      const objectiveNext = page.getByRole('button', { name: 'Dalej', exact: true });
+      await expectFullyReachable(page, objectiveNext);
+      await objectiveNext.click();
+
+      const protocolNext = page.getByRole('button', { name: 'Dalej', exact: true });
+      await expectFullyReachable(page, protocolNext);
+      await protocolNext.click();
+
+      const matchNext = page.getByTestId('ob-match-next');
+      await expectFullyReachable(page, matchNext);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
 });
 
 test.describe('Po onboardingu: Dashboard w wybranym kolorze (plan I)', () => {

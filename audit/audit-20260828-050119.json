@@ -1,0 +1,23 @@
+{
+  "score": 9.2,
+  "score_scope": "wspólna warstwa web/UI i buildy lokalne; pełny raport tej iteracji znajduje się w audit/latest.json",
+  "mode": "fresh Chromium + WebKit + visual/code audit + native local builds",
+  "date": "2026-08-28",
+  "run_at": "2026-08-28T05:01:19+02:00",
+  "blockers_red": ["mandatory-health-consent-wall"],
+  "orange": ["physical-device-gates", "dirty-release-snapshot"],
+  "yellow": ["training-content-review", "profile-density-follow-up"],
+  "checks": {
+    "vitest": "3707/3707",
+    "chromium": "295/295",
+    "webkit": "295/295",
+    "functions": "454 passed, 12 skipped",
+    "functions_emulator": "12/12",
+    "firestore_rules": "282/282",
+    "storage_rules": "11/11",
+    "typecheck_lint_build": "passed",
+    "android_debug": "passed",
+    "ios_simulator": "passed"
+  },
+  "canonical_report": "audit/latest.json"
+}

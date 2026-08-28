@@ -49,6 +49,12 @@ export const saveHealthSettings = (settings: HealthSettings): void => {
   try { window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
 };
 
+/** Wycofanie zgody zatrzymuje lokalne IO i usuwa wyłącznie kolejkę Health. */
+export const disableHealthFeatures = (): void => {
+  saveHealthSettings(DEFAULT_SETTINGS);
+  try { window.localStorage.removeItem(SYNC_STATE_KEY); } catch { /* ignore */ }
+};
+
 const loadSyncState = (): HealthSyncState => {
   try {
     const raw = window.localStorage.getItem(SYNC_STATE_KEY);
@@ -134,14 +140,16 @@ const syncPayload = async (uid: string, docId: string, payload: HealthWorkoutPay
 };
 
 /** Fire-and-forget po finalnym zapisie treningu siłowego (retry x3, log przy porażce). */
-export const syncWorkoutToHealth = (uid: string, workout: WorkoutSession): void => {
+export const syncWorkoutToHealth = (uid: string, workout: WorkoutSession, healthConsent: boolean): void => {
+  if (!healthConsent) return;
   const payload = mapWorkoutToHealth(workout);
   if (!payload) return;
   void syncPayload(uid, workout.id, payload);
 };
 
 /** Fire-and-forget po zapisie wpisu cardio (X15A). */
-export const syncCardioToHealth = (uid: string, activity: ManualActivity): void => {
+export const syncCardioToHealth = (uid: string, activity: ManualActivity, healthConsent: boolean): void => {
+  if (!healthConsent) return;
   const payload = mapCardioToHealth(activity);
   if (!payload) return;
   void syncPayload(uid, activity.id, payload);

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { RangeCalendar } from '@/components/ui/range-calendar';
 import {
   exportRangeBounds,
@@ -159,10 +160,11 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles, workouts
                 data-testid={option.testId}
                 onClick={() => setKind(option.value)}
                 className={cn(
-                  'rounded-lg border px-3 py-2 text-sm transition-colors',
+                  'rounded-lg px-3 py-2 text-sm transition-colors',
+                  toggleButtonClasses(kind === option.value),
                   kind === option.value
-                    ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                    : 'border-border text-muted-foreground',
+                    ? 'bg-primary/10 font-semibold text-foreground'
+                    : 'text-muted-foreground',
                 )}
               >
                 {option.label}

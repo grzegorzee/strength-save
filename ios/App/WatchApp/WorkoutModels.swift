@@ -74,6 +74,9 @@ struct WatchWorkoutPayload: Codable {
     var restBetweenExercisesSeconds: Int?
     // Globalna flaga timerów treningowych. Brak/false = timer wyłączony.
     var timersEnabled: Bool?
+    // Dobrowolne funkcje zdrowotne. Brak/false = trening i kolejka działają,
+    // ale Watch nie uruchamia, nie odzyskuje ani nie zapisuje HealthKit.
+    var healthFeaturesEnabled: Bool?
     // Jednostka WYŚWIETLANIA ("kg"/"lbs"). Model i eventy zawsze trzymają kg.
     var unit: String?
     // Język UI zegarka (Z122): "pl"/"en", spójny z telefonem.
@@ -82,6 +85,20 @@ struct WatchWorkoutPayload: Codable {
     var capability: WatchCapabilitySnapshot?
     var exercises: [WatchExercise]?
     var recentExercises: [WatchRecentExercise]?
+}
+
+/// Trwała granica także dla systemowego recovery, które może nastąpić zanim UI
+/// odtworzy payload. Stary kontekst bez pola jest celowo traktowany jak false.
+enum WatchHealthFeatureGate {
+    private static let key = "watch.healthFeaturesEnabled.v1"
+
+    static var isEnabled: Bool {
+        UserDefaults.standard.bool(forKey: key)
+    }
+
+    static func update(_ enabled: Bool?) {
+        UserDefaults.standard.set(enabled == true, forKey: key)
+    }
 }
 
 // Z122: minimalny słownik UI zegarka (PL/EN) — bez katalogów lokalizacji,

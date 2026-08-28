@@ -3,6 +3,7 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import {
   buildWatchExercises,
+  buildWatchHealthBoundary,
   getOrCreateWatchPhoneDeviceId,
   getRestSettingsForWatch,
 } from '@/lib/watch-bridge';
@@ -118,6 +119,14 @@ describe('Watch protocol metadata (X25/Z224)', () => {
       betweenSetsSeconds: 120,
       betweenExercisesSeconds: 180,
     });
+  });
+});
+
+describe('Apple Watch health consent boundary', () => {
+  it('jest fail-closed dla braku pola i false, a true zachowuje funkcje HealthKit', () => {
+    expect(buildWatchHealthBoundary(false)).toEqual({ healthFeaturesEnabled: false });
+    expect(buildWatchHealthBoundary(undefined)).toEqual({ healthFeaturesEnabled: false });
+    expect(buildWatchHealthBoundary(true)).toEqual({ healthFeaturesEnabled: true });
   });
 });
 

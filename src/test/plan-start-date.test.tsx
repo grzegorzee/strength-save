@@ -398,8 +398,10 @@ describe('(8) TrainingPlan przekazuje planStartDateISO do moveScheduledDay', () 
       </MemoryRouter>,
     );
 
-    // Dzisiejsza karta dnia ma akcję przełożenia; klik otwiera sheet z datami.
-    fireEvent.click(screen.getAllByLabelText('Przełóż trening')[0]);
+    // Dzisiejsza karta dnia grupuje akcje wtórne; wybór „Przełóż” otwiera sheet.
+    const actionsTrigger = screen.getAllByLabelText('Więcej akcji')[0];
+    fireEvent.pointerDown(actionsTrigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Przełóż trening' }));
     // Pierwszy wolny dzień horyzontu = handleRescheduleSelect(toDateISO).
     fireEvent.click(screen.getAllByText('wolne')[0].closest('button')!);
 

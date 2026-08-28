@@ -346,7 +346,7 @@ const AdminUserDetail = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 11 }}
                     className="fill-muted-foreground"
                     tickFormatter={(value: string) => value.slice(5)}
                     interval={4}
@@ -490,6 +490,7 @@ const AdminUserDetail = () => {
               checked={user.accessEnabled}
               onCheckedChange={(checked) => void actions.toggleAccess(user.uid, checked)}
               disabled={user.role === 'admin'}
+              aria-label={user.accessEnabled ? t('admin.accessActive') : t('admin.accessDisabled')}
             />
           </div>
           {AVAILABLE_FEATURES.map((feat) => (
@@ -502,6 +503,7 @@ const AdminUserDetail = () => {
                 checked={user.features[feat.key] ?? user.role === 'admin'}
                 onCheckedChange={(checked) => void actions.toggleFeature(user.uid, feat.key, checked)}
                 disabled={user.role === 'admin'}
+                aria-label={feat.label}
               />
             </div>
           ))}
@@ -514,6 +516,7 @@ const AdminUserDetail = () => {
               checked={user.status === 'suspended'}
               onCheckedChange={(checked) => void actions.applySuspended(user.uid, checked)}
               disabled={user.role === 'admin'}
+              aria-label={t('admin.detail.suspend')}
             />
           </div>
         </CardContent>

@@ -4,6 +4,7 @@ import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, 
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -640,7 +641,7 @@ const AdminDashboard = () => {
                 {stats.map(s => (
                   <div key={s.label} className="rounded-xl bg-surface-low p-3">
                     <p className="font-heading font-bold text-2xl tabular-nums leading-none">{s.value}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{s.label}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -867,11 +868,31 @@ const AdminDashboard = () => {
             </div>
             <div className="flex flex-wrap gap-1.5">
               {([['all', t('admin.filterAll')], ['active', t('admin.filterActive')], ['suspended', t('admin.filterSuspended')], ['no-access', t('admin.filterNoAccess')], ['unverified', t('admin.filterUnverified')]] as [UserFilter, string][]).map(([key, label]) => (
-                <button key={key} onClick={() => setUserFilter(key)} className={cn('rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', userFilter === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>{label}</button>
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={userFilter === key}
+                  onClick={() => setUserFilter(key)}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
+                    toggleButtonClasses(userFilter === key),
+                    userFilter === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground',
+                  )}
+                >{label}</button>
               ))}
               <span className="mx-1 w-px self-stretch bg-surface-high" />
               {([['activity', t('admin.sortActivity')], ['recent', t('admin.sortRecent')], ['name', t('admin.sortName')]] as [UserSort, string][]).map(([key, label]) => (
-                <button key={key} onClick={() => setUserSort(key)} className={cn('rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', userSort === key ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}>{label}</button>
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={userSort === key}
+                  onClick={() => setUserSort(key)}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
+                    toggleButtonClasses(userSort === key),
+                    userSort === key ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
+                  )}
+                >{label}</button>
               ))}
             </div>
           </div>

@@ -18,6 +18,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
+    await page.getByTestId('profile-toggle-accent').click();
     await expect(page.getByTestId('accent-swatches')).toBeVisible();
     await page.getByTestId('accent-sky').click();
     expect(await primaryVar(page)).toBe('199 92% 56%');
@@ -34,6 +35,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
 
     // Powrót do limonki = czyste tokeny z index.css.
     await navigateAndWait(page, '/profile');
+    await page.getByTestId('profile-toggle-accent').click();
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });
@@ -43,6 +45,21 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     expect(await primaryVar(page)).toBe('199 92% 56%');
+  });
+
+  test('mały ekran 320 px: wszystkie legacy swatche mają co najmniej 44×44', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 667 });
+    await navigateAndWait(page, '/profile');
+    await page.getByTestId('profile-toggle-accent').click();
+    const boxes = await page.getByTestId('accent-swatches').getByRole('radio').evaluateAll((radios) =>
+      radios.map((radio) => {
+        const rect = radio.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      }),
+    );
+    expect(boxes.length).toBeGreaterThan(0);
+    expect(boxes.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
   test('ciemny akcent palety (indigo) dostaje jasny foreground na CTA', async ({ page }) => {
@@ -93,6 +110,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
   test('własny kolor po hex barwi tokeny i przeżywa reload', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
+    await page.getByTestId('profile-toggle-accent').click();
     await page.getByTestId('accent-hex-input').fill('#1e90ff');
     await page.getByTestId('accent-hex-apply').click();
     const applied = await primaryVar(page);
@@ -104,6 +122,7 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     expect(await primaryVar(page)).toBe(applied);
 
     await navigateAndWait(page, '/profile');
+    await page.getByTestId('profile-toggle-accent').click();
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });

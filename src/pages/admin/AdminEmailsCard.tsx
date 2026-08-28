@@ -3,6 +3,7 @@ import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import { Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -83,7 +84,7 @@ export const AdminEmailsCard = () => {
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl bg-surface-low p-3">
             <p className="font-heading font-bold text-2xl tabular-nums leading-none">{stat.value}</p>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{stat.label}</p>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -136,9 +137,12 @@ export const AdminEmailsCard = () => {
                   {STATUS_FILTERS.map((key) => (
                     <button
                       key={key}
+                      type="button"
+                      aria-pressed={statusFilter === key}
                       onClick={() => setStatusFilter(key)}
                       className={cn(
                         'rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
+                        toggleButtonClasses(statusFilter === key),
                         statusFilter === key
                           ? 'bg-fitness-cyan text-background'
                           : 'bg-surface-highest text-muted-foreground',

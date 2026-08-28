@@ -10,6 +10,7 @@ import {
   canUseApiExport,
   canUseStravaIntegration,
   canCreateUserProfile,
+  hasActiveHealthConsent,
   hasCallableAppAccess,
   isValidStravaOAuthState,
   providerFromSignInProvider,
@@ -171,6 +172,32 @@ describe("canUseStravaIntegration", () => {
   });
 });
 
+describe("hasActiveHealthConsent", () => {
+  const activeHealthConsent = {
+    healthGranted: true,
+    healthVersion: "1.1",
+    healthEpoch: 3,
+    healthGrantId: "grant-3",
+  };
+
+  it("accepts only the complete current health grant", () => {
+    expect(hasActiveHealthConsent({ consents: activeHealthConsent })).toBe(true);
+  });
+
+  it.each([
+    undefined,
+    {},
+    { consents: null },
+    { consents: { ...activeHealthConsent, healthGranted: false } },
+    { consents: { ...activeHealthConsent, healthVersion: "1.0" } },
+    { consents: { ...activeHealthConsent, healthEpoch: 0 } },
+    { consents: { ...activeHealthConsent, healthEpoch: 1.5 } },
+    { consents: { ...activeHealthConsent, healthGrantId: "" } },
+  ])("fails closed for an incomplete or stale profile: %j", (profile) => {
+    expect(hasActiveHealthConsent(profile)).toBe(false);
+  });
+});
+
 describe("isValidStravaOAuthState", () => {
   it("accepts base64url-like strings of 32-256 chars", () => {
     expect(isValidStravaOAuthState("a".repeat(32))).toBe(true);
@@ -193,6 +220,7 @@ describe("GDPR collection coverage", () => {
   it("covers all per-userId collections required by the audit plan", () => {
     expect(GDPR_USER_ID_COLLECTIONS).toEqual(expect.arrayContaining([
       "workouts",
+      "workout_health_v2",
       "measurements",
       "plan_cycles",
       "strava_activities",

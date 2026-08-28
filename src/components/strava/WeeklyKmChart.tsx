@@ -32,7 +32,7 @@ export const WeeklyKmChart = ({ activities, referenceDate }: WeeklyKmChartProps)
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={2} />
             <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" km" />
             <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} km`, t('strava.distance')]} />
             <Bar dataKey="km" name="km" fill="#f97316" radius={[4, 4, 0, 0]} />

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -50,9 +51,10 @@ import { useUnit } from '@/contexts/UnitContext';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
 
-// WP-H (X28), design-history-tiles.md: Historia v2 "tiles".
-// Poziom 1 (bez paramów): kafle cykli (sparkline, tag, PR) + PERIOD + jeden
-// Export + LATEST SESSIONS. Poziom 2 (?cycle=<id>|outside): CycleDetailView.
+// WP-H (X28), design-history-tiles.md: Historia v2.
+// Poziom 1 (bez paramów): chronologia sesji + wtórne, zwijane kafle cykli
+// (sparkline, tag, PR) + PERIOD + jeden Export.
+// Poziom 2 (?cycle=<id>|outside): CycleDetailView.
 // Pełna płaska lista (?list=all): wyszukiwarka + dotychczasowe filtry +
 // grupowanie miesiącami + paginacja. Dialogi (mail, delete, export sheet)
 // zamontowane ZAWSZE na poziomie strony — Radix zamyka się tylko przez
@@ -86,10 +88,11 @@ const WorkoutHistory = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
+  const [cyclesOpen, setCyclesOpen] = useState(false);
   const { toast } = useToast();
   const toggleExpanded = (id: string) =>
     setExpandedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const { workouts, isLoaded, isLoadingMore, hasMore, loadMore } = useWorkoutHistoryPage(uid, {
+  const { workouts, isLoaded, isLoadingMore, hasMore, loadMore, error, retry } = useWorkoutHistoryPage(uid, {
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
     completed: selectedStatus === 'all' ? undefined : selectedStatus === 'completed',
@@ -148,6 +151,7 @@ const WorkoutHistory = () => {
       })
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
   }, [liveSessions, resolver, fromDate, onlyPRs, rowMeta, searchQuery, selectedDay, selectedStatus, toDate]);
+  const recentWorkouts = filteredWorkouts.slice(0, 5);
 
   const comparison = useMemo(() => {
     if (compareIds.length !== 2) return null;
@@ -279,7 +283,7 @@ const WorkoutHistory = () => {
     ? aggregate.totals.workoutCount
     : filteredWorkouts.length;
 
-  // ── Widoki: kafle (default) / ?cycle= / ?list=all ─────────────────────────
+  // ── Widoki: chronologia + cykle (default) / ?cycle= / ?list=all ───────────
   const rawCycleParam = searchParams.get('cycle');
   const detailCycle = rawCycleParam && rawCycleParam !== 'outside'
     ? visibleCycles.find((cycle) => cycle.id === rawCycleParam) ?? null
@@ -395,6 +399,17 @@ const WorkoutHistory = () => {
     );
   }
 
+  if (error && workouts.length === 0) {
+    return (
+      <div role="alert" className="mx-auto flex min-h-64 max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-destructive">{t('history.loadFailed')}</p>
+        <Button type="button" variant="outline" onClick={retry}>
+          {t('history.retryLoad')}
+        </Button>
+      </div>
+    );
+  }
+
   const activeCoversStart = activeCycle
     ? windowCoversCycleStart(oldestLoadedDate, activeCycle, hasMore)
     : false;
@@ -444,8 +459,6 @@ const WorkoutHistory = () => {
     tonnageKg: calculateTonnage(outsideFiltered),
     prs: outsideFiltered.reduce((acc, workout) => acc + (rowMeta.get(workout.id)?.prCount ?? 0), 0),
   };
-
-  const latestSessions = filteredWorkouts.slice(0, 3);
 
   const periodSet = fromDate !== '' || toDate !== '';
   const periodLabel = periodSet
@@ -534,7 +547,7 @@ const WorkoutHistory = () => {
         </HeaderActions>
       )}
 
-      {/* ═══ POZIOM 1: kafle cykli ═══ */}
+      {/* ═══ POZIOM 1: chronologia + wtórne cykle ═══ */}
       {view === 'tiles' && (
         <>
           <div className="flex gap-2">
@@ -548,7 +561,7 @@ const WorkoutHistory = () => {
                 >
                   <CalendarRange className="h-4 w-4 shrink-0 text-primary" />
                   <span className="min-w-0 flex-1">
-                    <span className="block font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    <span className="block font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                       {t('history.period')}
                     </span>
                     <span className="block truncate text-[13px]">{periodLabel}</span>
@@ -593,89 +606,108 @@ const WorkoutHistory = () => {
 
           {comparisonCard}
 
-          {hasAnyTile && (
-            <div className="grid grid-cols-2 gap-2.5">
-              {activeCycle && liveActiveCycle && isCycleTileVisible(activeCycle.id) && (
-                <CycleTile
-                  name={t('history.cycleN', { n: cycleNumberById.get(activeCycle.id) ?? 1 })}
-                  tag={currentWeekNo !== null
-                    ? t('history.tileActiveTag', { n: currentWeekNo })
-                    : t('history.activeBadge')}
-                  tagAccent
-                  prCount={tileStats(activeCycle.id, {
-                    sessions: liveActiveCycle.stats.totalWorkouts,
-                    tonnageKg: liveActiveCycle.stats.totalTonnage,
-                    prs: liveActiveCycle.stats.prs.length,
-                  }).prs}
-                  prLabel={t('history.tilePRs', {
-                    n: tileStats(activeCycle.id, {
-                      sessions: liveActiveCycle.stats.totalWorkouts,
-                      tonnageKg: liveActiveCycle.stats.totalTonnage,
-                      prs: liveActiveCycle.stats.prs.length,
-                    }).prs,
-                  })}
-                  sparkline={activeSparkline}
-                  currentWeekNo={currentWeekNo}
-                  metaLabel={tileMetaLabel(tileStats(activeCycle.id, {
-                    sessions: liveActiveCycle.stats.totalWorkouts,
-                    tonnageKg: liveActiveCycle.stats.totalTonnage,
-                    prs: liveActiveCycle.stats.prs.length,
-                  }))}
-                  rangeLabel={cycleRangeOnly(activeCycle)}
-                  variant="active"
-                  onOpen={() => openCycleView(activeCycle.id)}
-                />
-              )}
-              {pastCycles.filter((cycle) => isCycleTileVisible(cycle.id)).map((cycle) => {
-                const stats = tileStats(cycle.id, pastAllTimeStats(cycle));
-                return (
-                  <CycleTile
-                    key={cycle.id}
-                    name={t('history.cycleN', { n: cycleNumberById.get(cycle.id) ?? 1 })}
-                    tag={t('history.weeksShort', { n: cycle.durationWeeks })}
-                    prCount={stats.prs}
-                    prLabel={t('history.tilePRs', { n: stats.prs })}
-                    sparkline={pastSparkline(cycle)}
-                    metaLabel={tileMetaLabel(stats)}
-                    rangeLabel={cycleRangeOnly(cycle)}
-                    variant="past"
-                    onOpen={() => openCycleView(cycle.id)}
-                  />
-                );
-              })}
-              {/* Niezmiennik: KAŻDA sesja osiągalna — sesje bez cyklu mają kafel. */}
-              {outsideStats.sessions > 0 && (
-                <CycleTile
-                  name={t('history.outsideCycles')}
-                  tag={null}
-                  prCount={outsideStats.prs}
-                  prLabel={t('history.tilePRs', { n: outsideStats.prs })}
-                  sparkline={null}
-                  metaLabel={tileMetaLabel(outsideStats)}
-                  rangeLabel={null}
-                  variant="outside"
-                  onOpen={() => openCycleView('outside')}
-                />
-              )}
-            </div>
-          )}
-
-          {/* LATEST SESSIONS: 3 najnowsze + wejście do pełnej listy. */}
-          {latestSessions.length > 0 && (
+          {/* Pierwszy widok odpowiada krótko: co było ostatnio. Pełna chronologia,
+              wyszukiwanie i paginacja pozostają pod ?list=all. */}
+          {filteredWorkouts.length > 0 && (
             <div className="space-y-2" data-testid="history-latest">
               <p className="eyebrow-mono text-muted-foreground">{t('history.latestSessions')}</p>
               <div className="space-y-2 rounded-[20px] bg-surface-low p-3">
-                {latestSessions.map((workout) => renderSessionRow(workout, 'container'))}
+                {recentWorkouts.map((workout) => renderSessionRow(workout, 'container'))}
                 <button
                   type="button"
                   data-testid="history-all-sessions-link"
                   onClick={openListView}
-                  className="flex w-full items-center justify-center gap-1 py-2 text-[12.5px] font-semibold text-primary"
+                  className="flex min-h-11 w-full items-center justify-center gap-1 text-[12.5px] font-semibold text-primary"
                 >
-                  {t('history.allSessionsNewest', { n: headerSessionCount })}
+                  {t('history.allSessionsTitle')}
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Cykle są wtórnym sposobem przeglądania tej samej historii. Native
+              button + warunkowa treść nie zostawiają overlay/scroll-lock po
+              suspendzie WKWebView. */}
+          {hasAnyTile && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                data-testid="history-cycles-toggle"
+                aria-expanded={cyclesOpen}
+                aria-controls="history-cycle-list"
+                onClick={() => setCyclesOpen((open) => !open)}
+                className="flex min-h-11 w-full items-center justify-between rounded-[14px] bg-surface-high px-4 text-left font-heading text-sm font-bold"
+              >
+                {t('cycles.title')}
+                <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', cyclesOpen && 'rotate-180')} />
+              </button>
+              {cyclesOpen && (
+                <div id="history-cycle-list" data-testid="history-cycle-list" className="grid grid-cols-2 gap-2.5">
+                  {activeCycle && liveActiveCycle && isCycleTileVisible(activeCycle.id) && (
+                    <CycleTile
+                      name={t('history.cycleN', { n: cycleNumberById.get(activeCycle.id) ?? 1 })}
+                      tag={currentWeekNo !== null
+                        ? t('history.tileActiveTag', { n: currentWeekNo })
+                        : t('history.activeBadge')}
+                      tagAccent
+                      prCount={tileStats(activeCycle.id, {
+                        sessions: liveActiveCycle.stats.totalWorkouts,
+                        tonnageKg: liveActiveCycle.stats.totalTonnage,
+                        prs: liveActiveCycle.stats.prs.length,
+                      }).prs}
+                      prLabel={t('history.tilePRs', {
+                        n: tileStats(activeCycle.id, {
+                          sessions: liveActiveCycle.stats.totalWorkouts,
+                          tonnageKg: liveActiveCycle.stats.totalTonnage,
+                          prs: liveActiveCycle.stats.prs.length,
+                        }).prs,
+                      })}
+                      sparkline={activeSparkline}
+                      currentWeekNo={currentWeekNo}
+                      metaLabel={tileMetaLabel(tileStats(activeCycle.id, {
+                        sessions: liveActiveCycle.stats.totalWorkouts,
+                        tonnageKg: liveActiveCycle.stats.totalTonnage,
+                        prs: liveActiveCycle.stats.prs.length,
+                      }))}
+                      rangeLabel={cycleRangeOnly(activeCycle)}
+                      variant="active"
+                      onOpen={() => openCycleView(activeCycle.id)}
+                    />
+                  )}
+                  {pastCycles.filter((cycle) => isCycleTileVisible(cycle.id)).map((cycle) => {
+                    const stats = tileStats(cycle.id, pastAllTimeStats(cycle));
+                    return (
+                      <CycleTile
+                        key={cycle.id}
+                        name={t('history.cycleN', { n: cycleNumberById.get(cycle.id) ?? 1 })}
+                        tag={t('history.weeksShort', { n: cycle.durationWeeks })}
+                        prCount={stats.prs}
+                        prLabel={t('history.tilePRs', { n: stats.prs })}
+                        sparkline={pastSparkline(cycle)}
+                        metaLabel={tileMetaLabel(stats)}
+                        rangeLabel={cycleRangeOnly(cycle)}
+                        variant="past"
+                        onOpen={() => openCycleView(cycle.id)}
+                      />
+                    );
+                  })}
+                  {/* Niezmiennik: KAŻDA sesja osiągalna — sesje bez cyklu mają kafel. */}
+                  {outsideStats.sessions > 0 && (
+                    <CycleTile
+                      name={t('history.outsideCycles')}
+                      tag={null}
+                      prCount={outsideStats.prs}
+                      prLabel={t('history.tilePRs', { n: outsideStats.prs })}
+                      sparkline={null}
+                      metaLabel={tileMetaLabel(outsideStats)}
+                      rangeLabel={null}
+                      variant="outside"
+                      onOpen={() => openCycleView('outside')}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -791,8 +823,9 @@ const WorkoutHistory = () => {
               data-testid="history-compare-toggle"
               onClick={() => setCompareMode((prev) => !prev)}
               className={cn(
-                'inline-flex touch-manipulation select-none items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
-                compareMode ? 'border-accent bg-accent text-accent-foreground' : 'border-border bg-transparent text-foreground/80',
+                'inline-flex touch-manipulation select-none items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
+                toggleButtonClasses(compareMode),
+                compareMode ? 'bg-accent text-accent-foreground' : 'bg-transparent text-foreground/80',
               )}
             >
               <ArrowRightLeft className="h-3.5 w-3.5" />

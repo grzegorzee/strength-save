@@ -1,9 +1,15 @@
-// Bramka: zero emoji w chrome UI. Whitelist: treść kopiowana do schowka.
+// Bramka: zero dekoracyjnych emoji w chrome UI i treściach generowanych przez aplikację.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOTS = ['src/components', 'src/pages', 'src/i18n', 'src/lib/share-utils.ts'];
-const WHITELIST = new Set(['src/pages/Analytics.tsx']); // copy do schowka = treść, nie chrome
+const ROOTS = [
+  'src/components',
+  'src/pages',
+  'src/i18n',
+  'src/data',
+  'src/lib/share-utils.ts',
+  'functions/src',
+];
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
 
 const files = [];
@@ -23,7 +29,6 @@ const stripComments = (src) =>
 
 const offenders = [];
 for (const f of files) {
-  if (WHITELIST.has(f.replaceAll('\\', '/'))) continue;
   stripComments(readFileSync(f, 'utf8')).split('\n').forEach((line, i) => {
     if (EMOJI.test(line)) offenders.push(`${f}:${i + 1}: ${line.trim().slice(0, 80)}`);
   });

@@ -1,4 +1,18 @@
-# FitTracker - Dokumentacja Systemu v6.9.4
+# Strength Save — dokumentacja systemu
+
+> **Aktualizacja architektury 2026-08-28:** wersja produktu to `1.0.0`, a aktywny
+> web to `https://app.strengthsave.app/`. Onboarding jest lokalny i
+> deterministyczny. Krytyczny trening nie zależy od OpenAI. Draft ma IndexedDB +
+> localStorage recovery, referencyjną kolejkę oraz aktywny adapter
+> `syncWorkoutV2`; `workout_health_v2` jest owner-readable i admin-write-only,
+> eksport/usunięcie/backup v3/restore v3 obejmują sidecar health. Strava callback
+> to `https://app.strengthsave.app/strava-callback.html`.
+>
+> Rozdziały poniżej, które nadal wymieniają v6.x, 84 ćwiczenia,
+> generowanie planu onboardingowego przez OpenAI, bezpośredni klientowy writeBatch
+> albo niepodłączoną `offline-queue.ts`, są zapisem historycznym i nie stanowią
+> kontraktu bieżącego release. Źródło prawdy dla aktualnego przepływu stanowią kod,
+> `AGENTS.md`, `DECYZJE.md` X63–X66 i `docs/RELEASE-READINESS-2026-08-27.md`.
 
 > **v6.9.4 (2026-05-29):** Historia treningów odporna na zmianę planu. Kluczowe: `src/lib/exercise-name-resolver.ts`
 > (resolver nazw: snapshot → cykl → plan → id) + snapshot w modelu (`ExerciseProgress.name`, `WorkoutSession.dayName/dayFocus`).
@@ -78,7 +92,7 @@
 | Image Gen | html2canvas-pro | - | Share Workout PNG |
 | Routing | React Router DOM | 7.x | HashRouter (GitHub Pages), synchroniczne przejścia `useTransitions={false}` |
 | Wykresy | Recharts | 2.x | Liniowe, słupkowe, multi-line |
-| AI | OpenAI API | - | Generowanie planów + AI Coach |
+| AI | OpenAI API | - | Funkcje dodatkowe; poza krytycznym onboardingiem i treningiem |
 | Fitness | Strava API | v3 | Import aktywności sportowych |
 | State | React Query | 5.x | Cache, background refetch |
 | Theme | next-themes | 0.3.x | Dark mode (class strategy) |
@@ -89,7 +103,7 @@
 | Forms | React Hook Form | 7.x | + @hookform/resolvers |
 | Toasts | Sonner | 1.x | Eleganckie powiadomienia |
 | Testy | Vitest | 3.x | + Testing Library + jsdom |
-| Deploy | gh-pages | 6.x | GitHub Pages |
+| Deploy | GitHub Pages + custom domain | - | `app.strengthsave.app`; deploy wyłącznie po bramkach |
 
 ### Zasada native-first dla integracji mobilnych
 

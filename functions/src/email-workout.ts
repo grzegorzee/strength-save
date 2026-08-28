@@ -5,6 +5,7 @@ import { esc, type Lang } from "./email-templates";
 import { detectEmailPRs, type EmailPR } from "./email-prs";
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { localizeFocusEn } from "./focus-en";
+import { hasActiveHealthConsent } from "./security";
 
 /** WP-I: jednostka maila wg users/{uid}.preferences.unit (kg kanoniczne). */
 export type EmailUnit = "kg" | "lbs";
@@ -73,6 +74,7 @@ export interface EmailUserContext {
   language?: string;
   displayName?: string;
   unit?: string;
+  consents?: unknown;
 }
 
 export interface EmailWorkoutDeps {
@@ -106,6 +108,30 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export const isValidRecipient = (to: unknown): to is string =>
   typeof to === "string" && to.length <= 254 && EMAIL_RE.test(to);
+
+/**
+ * RPE, ból i ocena sesji są formalnymi polami health. Po wycofaniu zgody
+ * istniejące dane zostają w źródle, ale nie trafiają do nowej treści e-mail.
+ * Serie, ciężary i zwykłe notatki zachowują dotychczasowy przepływ eksportu.
+ */
+export const withoutWorkoutHealthFields = (workout: EmailWorkout): EmailWorkout => {
+  const {
+    sessionRating: _sessionRating,
+    sessionRatingReasons: _sessionRatingReasons,
+    ...base
+  } = workout;
+  return {
+    ...base,
+    ...(workout.exercises
+      ? {
+          exercises: workout.exercises.map((exercise) => {
+            const { rpe: _rpe, pain: _pain, ...baseExercise } = exercise;
+            return baseExercise;
+          }),
+        }
+      : {}),
+  };
+};
 
 /** WP-I: imię trenera z payloadu klienta — opcjonalne, trim, twarde 80 znaków.
  *  Śmieć (nie-string, pusty) = brak powitania, nigdy blokada wysyłki. */
@@ -550,9 +576,12 @@ export async function runEmailWorkout(
   if (!workout) return { ok: false, code: "not-found" };
   if (workout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang, displayName, unit } = await resolveUserContext(deps, params.uid, params.lang);
+  const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
   // J-T3: tłumaczenie PRZED detekcją PR — nazwy w sekcji rekordów idą z sesji.
-  const localized = localizeEmailWorkout(workout, lang);
+  const localized = localizeEmailWorkout(
+    includeHealth ? workout : withoutWorkoutHealthFields(workout),
+    lang,
+  );
   // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
   let earlier: EmailWorkout[] = [];
   try {
@@ -579,7 +608,7 @@ const resolveUserContext = async (
   deps: EmailWorkoutDeps,
   uid: string,
   clientLang: Lang | undefined,
-): Promise<{ lang: Lang; displayName?: string; unit: EmailUnit }> => {
+): Promise<{ lang: Lang; displayName?: string; unit: EmailUnit; includeHealth: boolean }> => {
   let ctx: EmailUserContext = {};
   try {
     ctx = await deps.getUserContext(uid);
@@ -590,7 +619,12 @@ const resolveUserContext = async (
     : ctx.language === "pl" ? "pl"
       : clientLang === "en" ? "en" : "pl";
   const unit: EmailUnit = ctx.unit === "lbs" ? "lbs" : "kg";
-  return { lang, unit, ...(ctx.displayName ? { displayName: ctx.displayName } : {}) };
+  return {
+    lang,
+    unit,
+    includeHealth: hasActiveHealthConsent({ consents: ctx.consents }),
+    ...(ctx.displayName ? { displayName: ctx.displayName } : {}),
+  };
 };
 
 export async function runEmailHistory(
@@ -605,9 +639,12 @@ export async function runEmailHistory(
     : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
   if (workouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang, displayName, unit } = await resolveUserContext(deps, params.uid, params.lang);
+  const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
   // J-T3: tłumaczenie PRZED detekcją PR — nazwy w sekcjach rekordów idą z sesji.
-  const localizedWorkouts = workouts.map((w) => localizeEmailWorkout(w, lang));
+  const localizedWorkouts = workouts.map((w) => localizeEmailWorkout(
+    includeHealth ? w : withoutWorkoutHealthFields(w),
+    lang,
+  ));
   // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
   const rangeIds = new Set(workouts.map((w) => w.id));
   const oldestDate = workouts.map((w) => w.date).sort()[0];

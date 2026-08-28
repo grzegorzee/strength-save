@@ -42,17 +42,17 @@ export const ProfileAccordionSection = ({
           <button
             type="button"
             data-testid={`profile-toggle-${id}`}
-            className="flex min-h-[50px] w-full items-center gap-3 rounded-2xl bg-surface-low px-3.5 py-2 text-left transition-colors hover:opacity-80"
+            className="flex min-h-[50px] w-full touch-manipulation items-center gap-3 rounded-2xl bg-surface-low px-3.5 py-2 text-left transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           >
             {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
-            <span data-section-label className="min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-snug">
+            <span data-section-label className="min-w-0 flex-1 whitespace-normal break-words text-[13.5px] font-semibold leading-snug">
               {label}
             </span>
             {value != null && value !== '' && (
               <span
                 data-section-value
                 className={cn(
-                  'max-w-[46%] shrink-0 truncate font-mono text-[10.5px]',
+                  'max-w-[46%] shrink-0 truncate font-mono text-[11px]',
                   valueAccent ? 'text-primary' : 'text-muted-foreground',
                 )}
               >

@@ -109,7 +109,7 @@ export const HistorySessionRow = ({
           isSelected && 'ring-2 ring-inset ring-primary/50',
         )}
       >
-        <span className="w-9 shrink-0 font-mono text-[10px] tracking-[0.04em] text-muted-foreground tabular-nums">
+        <span className="w-9 shrink-0 font-mono text-[11px] tracking-[0.04em] text-muted-foreground tabular-nums">
           {dateShort}
         </span>
         <div className="min-w-0 flex-1">
@@ -120,7 +120,7 @@ export const HistorySessionRow = ({
               <span className="chip-mono shrink-0 px-2 py-0.5">{t('history.badgeDraft')}</span>
             )}
           </div>
-          <p className="flex min-w-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+          <p className="flex min-w-0 font-mono text-[11px] text-muted-foreground tabular-nums">
             <span className="truncate">{metaLead}</span>
             {meta?.durationLabel && (
               <span className="shrink-0 whitespace-pre">{` · ${meta.durationLabel}`}</span>
@@ -133,7 +133,7 @@ export const HistorySessionRow = ({
           </span>
         )}
         <span className="shrink-0 text-right font-mono text-xs font-semibold tabular-nums">
-          {Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang))}
+          {Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang))} {unit}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -188,7 +188,7 @@ export const HistorySessionRow = ({
             const hasMetrics = e.rpe !== undefined || e.pain !== undefined || e.quality !== undefined;
             return (
               <div key={e.exerciseId} className="space-y-1">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                   {resolveExerciseName(workout, e.exerciseId)}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -226,7 +226,7 @@ export const HistorySessionRow = ({
           })}
           {workout.notes?.trim() && (
             <div>
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <StickyNote className="h-3 w-3" />
                 {t('notes.dayNote')}
               </p>

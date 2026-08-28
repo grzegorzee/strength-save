@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils';
 interface ProfileHeaderChipsProps {
   /** Plan płatny/trial/comp/admin (hasProPlan). Darmowy user bez chipa FREE. */
   showPro: boolean;
-  tierLabel: string;
+  /** Legacy: poziom może być użyty poza Profilem, ale Profil 1.0 go nie pokazuje. */
+  tierLabel?: string;
   className?: string;
 }
 
@@ -17,16 +18,18 @@ export const ProfileHeaderChips = ({ showPro, tierLabel, className }: ProfileHea
     {showPro && (
       <span
         data-testid="chip-pro"
-        className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary"
+        className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-primary"
       >
         PRO
       </span>
     )}
-    <span
-      data-testid="chip-tier"
-      className="inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground ring-1 ring-border"
-    >
-      {tierLabel}
-    </span>
+    {tierLabel && (
+      <span
+        data-testid="chip-tier"
+        className="inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground ring-1 ring-border"
+      >
+        {tierLabel}
+      </span>
+    )}
   </div>
 );

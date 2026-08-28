@@ -6,6 +6,7 @@ import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
 import { callProtectedFunction } from "@/lib/protected-callable";
 import type { RestSettings } from "@/lib/rest-timer";
+import type { PaletteThemeV2 } from "@/lib/palette-theme";
 
 const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
 
@@ -93,6 +94,8 @@ export interface AppUserProfile {
     /** X35b: jedno źródło prawdy o przerwach (RestSettings). */
     rest?: Partial<RestSettings>;
     timerSound?: boolean;
+    accentColor?: string;
+    paletteTheme?: PaletteThemeV2;
   };
 }
 

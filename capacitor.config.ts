@@ -7,6 +7,11 @@ const config: CapacitorConfig = {
   appId: 'com.grzegorzjasionowicz.strengthsave',
   appName: 'Strength Save',
   webDir: 'dist',
+  ios: {
+    // Oficjalny wymóg @capacitor/text-zoom na iPadzie. Nie blokujemy preferencji
+    // Larger Text przez desktopowy content mode WKWebView.
+    preferredContentMode: 'mobile',
+  },
   experimental: {
     ios: {
       spm: {

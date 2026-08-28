@@ -7,6 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Loader2, Download, Share2, Check } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { hapticSuccess } from '@/lib/haptics';
@@ -350,6 +351,7 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
 
   const chip = (active: boolean) => cn(
     'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+    toggleButtonClasses(active),
     active ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
   );
 

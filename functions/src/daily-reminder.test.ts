@@ -47,7 +47,7 @@ describe("runDailyReminder (R2-12)", () => {
 
     expect(deps.sendMulticast).toHaveBeenCalledWith(
       ["t1"],
-      "Hey John! Time to train 💪",
+      "Hey John! Time to train",
       "Today's plan: Upper A. Open the app and log your first set.",
     );
   });
@@ -63,7 +63,7 @@ describe("runDailyReminder (R2-12)", () => {
 
     expect(deps.sendMulticast).toHaveBeenCalledWith(
       ["t1"],
-      "Cześć Jan! Czas na trening 💪",
+      "Cześć Jan! Czas na trening",
       "Dziś w planie: Góra A. Wejdź i odhacz pierwszą serię.",
     );
   });
@@ -79,7 +79,7 @@ describe("runDailyReminder (R2-12)", () => {
 
     expect(deps.sendMulticast).toHaveBeenCalledWith(
       ["t1"],
-      "Time to train 💪",
+      "Time to train",
       "Today's plan: Push. Open the app and log your first set.",
     );
   });
@@ -248,7 +248,7 @@ describe("runDailyReminder: strefa usera (bug 11, X30)", () => {
     await runDailyReminder(deps);
 
     expect(sentTokens(deps)).toEqual(["t-la"]);
-    expect(deps.sendMulticast).toHaveBeenCalledWith(["t-la"], "Hey Joe! Time to train 💪", expect.stringContaining("Pull"));
+    expect(deps.sendMulticast).toHaveBeenCalledWith(["t-la"], "Hey Joe! Time to train", expect.stringContaining("Pull"));
     // Tłumienie po dzisiejszym treningu: data z zegara usera, nie serwera.
     expect(deps.getTodayWorkout).toHaveBeenCalledWith("la", "2026-07-07");
   });

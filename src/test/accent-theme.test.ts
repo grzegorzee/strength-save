@@ -165,6 +165,14 @@ describe('accent-theme (F-T2 + plan I)', () => {
     expect(root.style.getPropertyValue('--primary-light')).toMatch(/^\d+ \d+% \d+%$/);
   });
 
+  it('ciemny własny hex zachowuje fill, ale dostaje widoczny ring zamiast zlewać się z tłem', () => {
+    const applied = applyAccent('#0e0e0e');
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue('--primary')).toBe(applied.hsl);
+    expect(root.style.getPropertyValue('--ring')).not.toBe(applied.hsl);
+    expect(lightnessOf(root.style.getPropertyValue('--ring'))).toBeGreaterThanOrEqual(40);
+  });
+
   it('ciemny własny kolor dostaje jasny tekst na akcencie; jasny zostaje przy ciemnym', () => {
     applyAccent('#1a2a6c');
     expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 100%');

@@ -15,8 +15,10 @@ vi.mock('@/components/PlanPreview', () => ({
   ),
 }));
 const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
+const trackTelemetryEvent = vi.hoisted(() => vi.fn());
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
 vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent }));
 // X29 WP-H: photoURL mutowalne per test (propozycje akcentu z avatara).
 const mockProfile = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
@@ -60,10 +62,11 @@ const withProviders = (node: React.ReactNode) => (
 );
 
 const walkWizardToConfirm = async () => {
+  fireEvent.click(screen.getByTestId('ob-personalization-next'));
   fireEvent.click(screen.getByTestId('consent-terms'));
   fireEvent.click(screen.getByTestId('consent-privacy'));
   fireEvent.click(screen.getByTestId('consent-health'));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByTestId('ob-legal-submit'));
   await screen.findByRole('button', { name: /Następny krok/ });
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
@@ -92,72 +95,139 @@ beforeEach(() => {
 });
 
 describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
+  it('web/PWA wznawia zweryfikowany szkic dopiero przy aktualnym mirrorze zgód', async () => {
+    mockProfile.current = {
+      displayName: 'Grzegorz',
+      photoURL: '',
+      consents: {
+        termsVersion: '2.0', privacyVersion: '2.1', healthGranted: true,
+        healthVersion: '1.0', marketingGranted: false, marketingVersion: '1.0',
+      },
+    };
+    localStorage.setItem('CapacitorStorage.strength-save:onboarding-draft:v1:u1', JSON.stringify({
+      version: 1,
+      updatedAt: Date.now(),
+      phase: 'wizard',
+      wizardStep: 4,
+      level: 'advanced',
+      objective: 'peak_strength',
+      daysPerWeek: 3,
+      trainingDays: ['tuesday', 'thursday', 'saturday'],
+    }));
+
+    render(withProviders(<Onboarding />));
+
+    expect(await screen.findByText('Ile dni treningowych w tygodniu?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('consent-terms')).toBeNull();
+    expect(trackTelemetryEvent).toHaveBeenCalledWith('u1', 'onboarding_resumed');
+  });
+
+  it('lokalny szkic nie omija obowiązkowych zgód, gdy mirror serwera jest niepełny', async () => {
+    localStorage.setItem('CapacitorStorage.strength-save:onboarding-draft:v1:u1', JSON.stringify({
+      version: 1,
+      updatedAt: Date.now(),
+      phase: 'wizard',
+      wizardStep: 5,
+      level: 'advanced',
+      objective: 'peak_strength',
+      daysPerWeek: 3,
+      trainingDays: ['tuesday', 'thursday', 'saturday'],
+    }));
+
+    render(withProviders(<Onboarding />));
+
+    expect(await screen.findByTestId('ob-personalization-next')).toBeInTheDocument();
+    expect(screen.queryByTestId('consent-terms')).toBeNull();
+    fireEvent.click(screen.getByTestId('ob-personalization-next'));
+    expect(await screen.findByTestId('consent-terms')).not.toBeChecked();
+    expect(screen.getByTestId('consent-privacy')).not.toBeChecked();
+    expect(screen.getByTestId('consent-health')).not.toBeChecked();
+    expect(screen.queryByTestId('ob-match-next')).toBeNull();
+  });
+
   it('wybrany indigo ląduje w preferences.accentColor przy markOnboardingComplete', async () => {
     render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
     fireEvent.click(screen.getByTestId('ob-accent-indigo'));
     await walkWizardToConfirm();
     expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       onboardingCompleted: true,
       'preferences.accentColor': 'indigo',
     }));
+    expect(trackTelemetryEvent).toHaveBeenCalledWith('u1', 'onboarding_completed');
   });
 
-  it('bieg bez dotknięcia kolorów zapisuje domyślną limonkę (zawsze jedno pole)', async () => {
+  it('wybrana jednym tapnięciem Glacier zapisuje PaletteThemeV2 oraz primary dla starego klienta', async () => {
     render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByRole('radio', { name: /Glacier/ }));
     await walkWizardToConfirm();
     expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       onboardingCompleted: true,
-      'preferences.accentColor': 'lime',
+      'preferences.accentColor': '#38bdf8',
+      'preferences.paletteTheme': {
+        version: 2,
+        id: 'glacier',
+        source: 'preset',
+        primary: '#38bdf8',
+        supportA: '#818cf8',
+        supportB: '#2dd4bf',
+      },
+    }));
+  });
+
+  it('bieg bez dotknięcia kolorów ma zaznaczone Pulse i zapisuje pełną paletę', async () => {
+    render(withProviders(<Onboarding />));
+    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    await walkWizardToConfirm();
+    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      onboardingCompleted: true,
+      'preferences.accentColor': '#c6ff00',
+      'preferences.paletteTheme': {
+        version: 2,
+        id: 'pulse',
+        source: 'preset',
+        primary: '#c6ff00',
+        supportA: '#22d3ee',
+        supportB: '#a78bfa',
+      },
     }));
   });
 });
 
-// Aktualny kontrakt prywatności: konto Google pokazuje CTA, a lokalna analiza
-// niczego nie wybiera automatycznie. Cichy fail = gotowa paleta i możliwość retry.
-describe('Onboarding: propozycje akcentu z avatara (X29 WP-H)', () => {
-  it('photoURL + brak wyboru: sky pojawia się jako propozycja, lecz zapisuje się dopiero po tapnięciu', async () => {
-    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
+// Kontrakt 1.0: avatar jest tylko identyfikacją konta. Analiza zdjęcia pozostaje
+// poza UI, dopóki nie ma bezpiecznego generatora pełnego motywu i testów urządzeń.
+describe('Onboarding: avatar bez analizy kolorów w 1.0', () => {
+  it('zaufane zdjęcie Google nie uruchamia ani nie oferuje analizy kolorów', async () => {
+    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.googleusercontent.com/a.jpg' };
     deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
     render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
+    expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
+    expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
-    await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
-    expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalledWith('https://lh3.example/a.jpg');
-    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'false');
-    expect(localStorage.getItem('ss-accent-color')).toBeNull();
-    fireEvent.click(screen.getByTestId('ob-accent-sky'));
-    expect(document.documentElement.dataset.accent).toBe('sky');
-    expect(localStorage.getItem('ss-accent-color')).toBe('sky');
-  });
-
-  it('wpis w localStorage: analiza po CTA NIE nadpisuje wcześniejszego wyboru', async () => {
-    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
-    deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
-    localStorage.setItem('ss-accent-color', 'indigo');
-    render(withProviders(<Onboarding />));
-    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
-    await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
-    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'false');
-    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
-  });
-
-  it('derive daje pustą listę (szary avatar): limonka zostaje zaznaczona', async () => {
-    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
-    deriveAccentCandidatesFromAvatar.mockResolvedValueOnce([]);
-    render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByRole('button', { name: /Dopasuj kolory ze zdjęcia/i }));
-    await waitFor(() => expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalled());
-    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
-    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    expect(localStorage.getItem('ss-accent-color')).toBe('#c6ff00');
   });
 
   it('brak photoURL: automat NIE odpala się', async () => {
     render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
     await Promise.resolve();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('avatar spoza Google również nie pokazuje CTA analizy kolorów', async () => {
+    mockProfile.current = {
+      ...mockProfile.current,
+      photoURL: 'https://firebasestorage.googleapis.com/v0/b/user-avatar.jpg',
+    };
+    render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
+
+    expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
+    expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
+    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
   });
 });

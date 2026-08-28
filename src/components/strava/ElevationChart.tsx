@@ -42,7 +42,7 @@ export const ElevationChart = ({ activities, referenceDate }: ElevationChartProp
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={2} />
             <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" m" />
             <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} m`, t('strava.elevation')]} />
             <Bar dataKey="elevation" name={t('strava.elevation')} fill="#b45309" radius={[4, 4, 0, 0]} />

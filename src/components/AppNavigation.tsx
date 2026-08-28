@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, Calendar, Trophy, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import {
+  MAIN_DESTINATIONS,
+  type MainDestinationId,
+} from '@/lib/main-navigation';
 import { maskEmail, readEmailVisible } from '@/lib/mask-email';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,19 +25,26 @@ interface AppNavigationProps {
   hideMobileNav?: boolean;
 }
 
+const MAIN_DESTINATION_ICONS = {
+  today: Home,
+  plan: Calendar,
+  history: ScrollText,
+  progress: Trophy,
+  profile: User,
+} satisfies Record<MainDestinationId, typeof Home>;
+
+const mainNavItems = MAIN_DESTINATIONS.map((item) => ({
+  to: item.path,
+  icon: MAIN_DESTINATION_ICONS[item.id],
+  labelKey: item.labelKey,
+}));
+
 const navItems = [
-  // D-T1: pierwsze 5 = mobilny bottom nav (Dzisiaj / Plan / Historia / Postępy /
-  // Ćwiczenia). Profil przez avatar w headerze; Analytics w sidebarze do czasu
-  // scalenia z Postępami (D-T4) — deep linki i trasy bez zmian.
-  { to: '/', icon: Home, labelKey: 'nav.today' as const },
-  { to: '/plan', icon: Calendar, labelKey: 'nav.plan' as const },
-  { to: '/history', icon: ScrollText, labelKey: 'nav.history' as const },
-  { to: '/achievements', icon: Trophy, labelKey: 'nav.progress' as const },
-  { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
+  ...mainNavItems,
   // Pozostałe — sidebar (desktop)
+  { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
   { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
-  { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
 ];
 
 // Boczne menu pogrupowane w sekcje (mniej przytłaczające niż płaska lista 9 pozycji).
@@ -47,7 +58,7 @@ const STORAGE_KEY = 'sidebar-collapsed';
 
 export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => {
   const navigate = useNavigate();
-  const { profile, isAdmin } = useCurrentUser();
+  const { profile, avatarSrc, isAdmin } = useCurrentUser();
   const { logout } = useAuth();
   const { t } = useTranslation();
 
@@ -67,8 +78,39 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
     }
   }, [collapsed]);
 
+  // Dolny pasek rośnie z systemową skalą tekstu (etykiety zawijają się na
+  // 2 linie przy 200%), więc stała rezerwa w px pod sticky CTA prędzej czy
+  // później pęka. Pasek publikuje swoją realną wysokość (wraz z odsunięciem
+  // od dołu) jako --mobile-nav-clearance; konsumenci mają fallback 7rem.
+  const mobileNavRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const nav = mobileNavRef.current;
+    const root = document.documentElement;
+    if (!nav) {
+      root.style.removeProperty('--mobile-nav-clearance');
+      return;
+    }
+    const update = () => {
+      const rect = nav.getBoundingClientRect();
+      if (rect.height <= 0) {
+        // desktop-shell chowa pasek przez CSS — wracamy do fallbacku.
+        root.style.removeProperty('--mobile-nav-clearance');
+        return;
+      }
+      root.style.setProperty('--mobile-nav-clearance', `${Math.ceil(window.innerHeight - rect.top)}px`);
+    };
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(nav);
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      root.style.removeProperty('--mobile-nav-clearance');
+    };
+  }, [hideMobileNav]);
+
   const displayName = profile?.displayName || t('dash.defaultName');
-  const photoURL = profile?.photoURL || '';
   const initials = displayName
     .split(' ')
     .map(n => n[0])
@@ -166,8 +208,8 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     "flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-muted transition-colors cursor-pointer",
                     collapsed && "desktop-shell:justify-center desktop-shell:px-0"
                   )}>
-                    {photoURL ? (
-                      <img src={photoURL} alt={displayName} className="h-9 w-9 rounded-full shrink-0 object-cover" referrerPolicy="no-referrer" />
+                    {avatarSrc ? (
+                      <img src={avatarSrc} alt={displayName} className="h-9 w-9 rounded-full shrink-0 object-cover" />
                     ) : (
                       <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shrink-0">
                         {initials}
@@ -175,7 +217,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     )}
                     <div className={cn("flex-1 min-w-0 text-left", collapsed && "desktop-shell:hidden")}>
                       <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                      <p className="text-[10px] text-muted-foreground">v{__APP_VERSION__}</p>
+                      <p className="text-[11px] text-muted-foreground">v{__APP_VERSION__}</p>
                     </div>
                   </button>
                 </DropdownMenuTrigger>
@@ -189,7 +231,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                         {readEmailVisible() ? profile.email : maskEmail(profile.email)}
                       </p>
                     )}
-                    <p className="text-[10px] text-muted-foreground mt-0.5">v{__APP_VERSION__}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">v{__APP_VERSION__}</p>
                   </div>
                   {/* X35b: /settings zniknęło — wszystkie ustawienia żyją w Profilu. */}
                   <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
@@ -232,12 +274,12 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
       {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background to-background/0 desktop-shell:hidden" />}
 
       {!hideMobileNav && (
-        <nav aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
-          {navItems.slice(0, 5).map((item) => (
+        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
+          {mainNavItems.map((item) => (
             <NavLink
               key={`mobile-${item.to}`}
               to={item.to}
-              className="flex flex-1 flex-col items-center gap-1 py-1"
+              className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 py-1"
             >
               {({ isActive }) => (
                 <>
@@ -249,10 +291,10 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     <item.icon className="h-5 w-5" />
                   </span>
                   <span className={cn(
-                    "text-[11px] font-bold uppercase tracking-wide transition-colors",
+                    "max-w-full break-words text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors",
                     isActive ? "text-foreground" : "text-muted-foreground"
                   )}>
-                    {t(item.labelKey).split(' ')[0]}
+                    {t(item.labelKey)}
                   </span>
                 </>
               )}

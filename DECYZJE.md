@@ -5,11 +5,539 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-27 (build 130: zgody + Strava Brand Guidelines + kontrast Switch)
+**Ostatnia aktualizacja:** 2026-08-28 (X69: dokończenie fali po limicie agenta, zmierzony clearance nawigacji, komplet bramek; bez wydania)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-28: X69 — dokończenie fali uciętej limitem: pasek nawigacji publikuje zmierzoną wysokość, outbox palety jest typowo i behawioralnie domknięty
+
+**Kontekst:** sesja zewnętrznego agenta została ucięta limitem 2026-08-28 ~14:16,
+w trakcie trzech równoległych audytów domykających (release, typografia,
+palety/avatar). Delta po bramce X68 (13:12) pozostała bez końcowej weryfikacji:
+dwa wywołania `flushPalettePreferenceOutbox` nie przechodziły bramki typecheck,
+a macierz e2e skali tekstu miała czerwony scenariusz `pre-start pl 320x568 at
+200%` (CTA „Rozpocznij trening" nachodziło na dolną nawigację).
+
+**Root cause typecheck:** `PalettePreferencePatch` był zadeklarowany jako
+`interface`, a interfejsy w TypeScript nie mają niejawnej sygnatury indeksu,
+której wymaga `UpdateData` w `updateDoc` (indeks `${string}.${string}`). Zmiana
+na alias typu (`type`) przywraca zgodność bez zmiany kształtu danych ani callerów.
+Wariant z `persistPreference` odrzucony świadomie: ten helper połyka błędy zapisu,
+a outbox musi widzieć porażkę, żeby zostawić wpis do ponowienia.
+
+**Root cause geometrii:** stała rezerwa `7rem` (CTA startu, spacer strony) i
+`6rem` (pasek przerwy) pod elementami fixed zakładała stałą wysokość dolnej
+nawigacji. Przy systemowej skali tekstu 200% etykiety nawigacji zawijają się na
+dwie linie i pasek przerasta każdą stałą wartość (~123 px > 112 px), więc elementy
+fixed na niego nachodziły. Fix systemowy zamiast kolejnej stałej: `AppNavigation`
+mierzy własny pasek (ResizeObserver + resize) i publikuje odległość od dołu
+viewportu do jego górnej krawędzi jako `--mobile-nav-clearance`; CTA startu,
+spacer strony treningu i `RestBar` konsumują zmienną z dotychczasowymi wartościami
+jako fallbackiem przed pierwszym pomiarem. Ukrycie paska (desktop-shell) usuwa
+zmienną i wraca do fallbacku.
+
+**Niezmiennik outboxa domknięty testem wprost:** po świadomym wyborze legacy/
+custom HEX (discard) `flush` zwraca `none` i nie wykonuje żadnego zapisu — stary
+preset nie może wrócić i nadpisać świadomej decyzji. Znane ograniczenie
+(odnotowane, nie naprawiane w tej fali): ochrona działa per urządzenie; oczekujący
+outbox na urządzeniu A może po powrocie online nadpisać w chmurze późniejszy wybór
+z urządzenia B, bo preferencje nie mają wersjonowania.
+
+**Weryfikacja (pełny komplet bramek na dokończonym kandydacie):** Vitest
+**3836/3836** w 441 plikach; Functions **511 PASS/12 SKIP** + typecheck; emulator
+rejestracji **12/12**; Firestore Rules **312/312** (w tym nowa reguła
+PaletteThemeV2 „powtórzona rola DENIED"), Storage Rules **42/42** (JDK 21);
+typecheck, lint (0 błędów), build, bundle budget **1 441 265/1 536 000 B**,
+dist-smoke, dist-offline, no-emoji i `git diff --check` zielone. Pełne E2E po
+restarcie Vite i wyczyszczeniu cache: Chromium **304/304**, WebKit **304/304**
+(w tym cała macierz pairwise skali tekstu 9 scenariuszy na obu silnikach).
+`mobile:sync` 18 pluginów; Android `assembleDebug` BUILD SUCCESSFUL (642
+zadania); iOS Simulator App + StrengthWatch BUILD SUCCEEDED, install i launch.
+Nie wykonano deployu, pushu, migracji, bumpu ani uploadu; wersje pozostają 1.0.0,
+buildy kontrolne 130/42. Fizyczne iOS/Android/Watch oraz backend-first rollout
+health v2 nadal blokują publiczne wydanie.
+
+### 2026-08-28: X68 — pusta seria nie może stać się treningiem, avatar jest prywatny, a Background Runner pozostaje niewdrożony
+
+**Root cause danych treningowych:** ręczny checkmark pozwalał oznaczyć pustą serię
+`0 kg / 0 powt.` jako ukończoną. Lokalny finał uznawał wtedy trening za niepusty,
+podczas gdy zaostrzony backend mógł go później odrzucić. Powstawał stan bez dobrej
+drogi wyjścia. Wspólny kontrakt kompletności wymaga teraz rzeczywistego ruchu:
+`reps > 0`, `durationSec > 0` albo `distanceM > 0`. Sama waga lub asysta nie jest
+wynikiem. Serie z masą ciała i wykroki nadal poprawnie przechodzą z powtórzeniami
+i `0 kg`; zwykłe serie ciężarowe wymagają również dodatniej wagi w UI.
+
+**Root cause prywatności avatara:** Storage Rules pozwalały każdemu zalogowanemu
+użytkownikowi odczytać cudzy plik i właścicielowi tworzyć dowolne dodatkowe nazwy
+pod `avatars/{uid}`. Reguły ograniczają teraz odczyt, zapis i usunięcie do właściciela
+oraz jednej kanonicznej ścieżki `avatars/{uid}/avatar`, z zachowaniem limitu `< 5 MiB`
+i MIME `image/*`. Admin nie dostał wyjątku bez istniejącego, bezpiecznego modelu
+uprawnień. Tokenizowany `getDownloadURL` pozostaje osobnym ryzykiem bearer URL,
+dlatego nie wolno traktować samego URL jako tajnego ani umieszczać go w logach.
+
+**Decyzja o tle i mediach:** nie instalujemy `@capacitor/background-runner` bez
+telemetrii dowodzącej, że systemowy foreground resume, trwały draft i kolejka sync
+nie wystarczają. Pełne filmy nie są automatycznie cache'owane; lokalne opisy PL/EN
+i spakowane assety są kanonicznym fallbackiem. Mała miniatura avatara pozostaje
+local-first w `LibraryNoCloud`.
+
+**Weryfikacja:** czerwone testy odtworzyły pusty trening, wagę bez ruchu oraz odczyt
+avatara przez obcego użytkownika. Po minimalnych poprawkach: Vitest 3822/3822 w
+438 plikach; Functions 511 PASS/12 SKIP i typecheck; Firestore 310/310; Storage
+42/42; root typecheck, lint 0 błędów (15 istniejących ostrzeżeń), build, bundle
+budget, dist-smoke, offline i no-emoji są zielone. Po osobnych restartach Vite i
+usunięciu cache Chromium oraz WebKit mają po 297/297. `mobile:sync` znalazł 18
+pluginów; Android `assembleDebug` i iOS Simulator App+Watch zakończyły się sukcesem.
+Nie wykonano deployu, pushu, migracji, bumpu ani uploadu. Wersje pozostają 1.0.0;
+fizyczne iOS/Android oraz backend-first rollout nadal blokują publiczne wydanie.
+
+### 2026-08-28: X62 — pełny kandydat lokalny jest zielony, ale fizyczne urządzenia i health v2 nadal blokują publiczne wydanie
+
+**Root cause dwóch klas czerwonych E2E:** po uproszczeniu Postępów dwa testy nadal
+szukały analizy hybrydowej na głównych `Wynikach`, choć produkt świadomie przeniósł
+ją do `Więcej → Szczegóły`. Testy chronią teraz obie części kontraktu: lekki ekran
+główny oraz zachowaną analizę w szczegółach. Osobny fail WebKit odczytywał liczbę
+kart ćwiczeń w trakcie spinnera lazy route; zrzut pokazał stan ładowania, a snapshot
+końcowy komplet kart. Asercja czeka teraz na widoczną kartę zamiast jednorazowo
+próbkować DOM. Powtórzenie 6/6 i pełny rerun 594/594 są zielone.
+
+**Końcowe bramki lokalne:** Vitest 3753/3753 w 429 plikach; Functions 492 PASS/12
+SKIP i typecheck; Firestore Rules 296/296; Storage Rules 33/33; root typecheck,
+lint 0 błędów, build, budżet bundla 1 433 014/1 536 000 B, dist-smoke, offline,
+no-emoji 273 pliki i `git diff --check` są zielone. Świeży Chromium + WebKit mają
+594/594. `mobile:sync` zsynchronizował 18 pluginów; czysty Android `assembleDebug`
+oraz instalacja/launch API 35 przeszły, tak samo czysty iOS Simulator build,
+install i launch wraz z targetem Watch.
+
+**Decyzja release:** wynik audytu lokalnego to 9,3/10, nie 10/10. Nie wykonano
+deployu, pushu ani uploadu TestFlight. Publiczne wydanie pozostaje zablokowane do
+produkcyjnego wpięcia granicy `syncWorkoutV2` opisanej w X61, jednego
+audytowalnego snapshotu oraz fizycznych prób iOS/Android/Watch: screen-off,
+background/resume, przerwany trening, force-kill recovery, eksport/share,
+notyfikacje, HealthKit/Health Connect, VoiceOver/TalkBack i skala tekstu. Wersje
+pozostają `1.0.0`, a `CURRENT_PROJECT_VERSION` pozostaje 130.
+
+### 2026-08-28: X61 — palety zostają w onboardingu; Watch jest fail-closed, a syncWorkoutV2 pozostaje niewpiętym fundamentem
+
+**Decyzja produktowa:** trzy gotowe palety Pulse/Forge/Glacier oraz wejście
+„Własny kolor” pozostają w onboardingu jako krótki, świadomy moment personalizacji
+i efekt jakości od pierwszego uruchomienia. Nie dokładamy kolejnego kroku ani
+obowiązkowej decyzji: Pulse jest bezpiecznym ustawieniem domyślnym, a pełny edytor
+pozostaje ujawniany na żądanie. Analiza avatara nadal nie wchodzi do 1.0.0.
+
+**Watch health — root cause i decyzja:** opcjonalne pole w starszym payloadzie
+mogło być interpretowane niejednoznacznie, a wznowienie Watch mogło uruchomić
+HealthKit bez świeżej, jawnej decyzji telefonu. Każdy aktualny payload niesie teraz
+`healthFeaturesEnabled`; brak albo `false` oznacza fail-closed. Bazowe logowanie
+serii na Watch nadal działa, ale nie uruchamia, nie odzyskuje i nie zapisuje sesji
+HealthKit. Revoke usuwa możliwość kolejnego startu/odzyskania HealthKit bez
+kasowania bazowego treningu. Granica ma testy TS/Swift i przeszła pełny build
+Watch oraz osadzonej aplikacji iOS; zachowanie na fizycznym iPhone + Watch nadal
+wymaga ręcznego podpisu.
+
+**syncWorkoutV2 — świadome niewpięcie:** powstał zabezpieczony callable i adapter
+klienta z kontraktem `revision`/`writeId`, obsługą utraconego ACK, niezależnym
+zapisem `workout_health_v2` oraz weryfikacją dokładnego `healthEpoch` i
+`healthGrantId`. Bazowy trening może zakończyć się mimo braku zgody lub błędu
+health side-write. Fundament nie jest podłączony do bieżącego `batchSaveWorkout`
+ani kolejki produkcyjnej. Wpięcie pozostaje zablokowane do czasu: utrwalenia fence
+epoki/grantu w drafcie i kolejce w chwili wpisania danych; kolejki pending health
+ponawianej z tym samym `writeId`; read-joinu bez znikania metryk po reloadzie;
+eksportu i usuwania danych właściciela po cofnięciu zgody; oraz kontrolowanego
+minimum-client rollout z blokadą nowych legacy writes przez stare klienty.
+
+**Wyniki:** korekta X60 — trzecią liczbą są „nowe rekordy”, nie „ostatnia waga”.
+Domyślny widok pozostaje jednym tygodniowym insightem i trzema liczbami: tonaż,
+seria tygodni oraz nowe rekordy. Miesiąc, obciążenie hybrydowe i pozostałe analizy
+są dostępne przez `Więcej → Szczegóły`, a lista sesji pozostaje w Historii.
+
+**Weryfikacja lokalna:** kontrakty Watch i powiązane przepływy 50/50, foundation
+Functions `syncWorkoutV2` + workout-health 13/13, adapter klienta 3/3, palety
+onboardingu 3/3 oraz uproszczone Wyniki 18/18. Typecheck klienta i Functions jest
+zielony. Nie wykonano deployu, pushu, migracji ani publikacji; pełne bramki oraz
+fizyczne iOS/Android/Watch nadal rozstrzygają gotowość wydania.
+
+### 2026-08-28: X57 — prostota jako stała bramka produktu i pełna regresja health (bez wydania)
+
+**Decyzja produktowa:** `docs/PRODUCT-PRINCIPLES.md` jest stałym kontraktem
+każdej zmiany. Ekran ma jedno bieżące zadanie i najwyżej jedną dominującą akcję;
+informacje są ujawniane warstwami Teraz → Kontekst → Szczegóły. Liczby,
+rekomendacje i obietnice wymagają danych oraz opisanej metody. Zakazane są
+antropomorfizacja algorytmu, pozorowana analiza, generyczne pochwały, sztuczny
+entuzjazm, dekoracyjne emoji i elementy bez funkcji. Uproszczenie nie może ukryć
+błędu, kontroli danych ani drogi odzyskania treningu.
+
+**Root cause dwóch czerwonych E2E:** po wdrożeniu fail-closed health domyślny
+profil E2E bez aktualnej zgody poprawnie nie renderował chipa RPE/ból/jakość i nie
+pozwalał edytować pomiarów. Stare testy nadal zakładały bezwarunkowy dostęp, więc
+nie odtwarzały deklarowanego przepływu opt-in. Produkcja nie została osłabiona;
+oba testy jawnie seedują health 1.1 i chronią stary dobrowolny flow. Izolowana
+reprodukcja była czerwona 0/2, po minimalnej korekcie danych testowych zielona 2/2.
+
+**Weryfikacja:** pełny Chromium 296/296 oraz WebKit 296/296 po osobnych restartach
+Vite i usunięciu `node_modules/.vite`. Bundle budget 1 432 254/1 536 000 B,
+dist-smoke, offline contract, no-emoji 270 plików i `git diff --check` przechodzą.
+Wcześniejsze bramki tej samej delty: Vitest 3712/3712, Functions 454 PASS/12 SKIP,
+typecheck, lint i build zielone. Publiczny release nadal blokuje backendowa granica
+health i fizyczne QA iOS/Android; nie wykonano deployu, pushu ani publikacji.
+
+### 2026-08-27: X48 — fail-closed mediów, wiarygodny preflight i plan dostępnej typografii (bez wydania)
+
+**Filtr produktu:** prostota ma pierwszeństwo przed liczbą funkcji. Domyślny
+ekran prowadzi do jednej decyzji, szczegóły są ujawniane na żądanie, a funkcja
+kosmetyczna lub zewnętrzna nie może blokować planu ani treningu. Do 1.0.0
+kwalifikują się trzy gotowe palety Pulse/Forge/Glacier; pełne trzy role z avatara
+pozostają falą 1.1. Apple, e-mail, brak zdjęcia i offline dostają ten sam kompletny
+wybór presetów. Nie analizujemy cech osoby, nie udajemy AI i nie zapisujemy obrazu.
+
+**RevenueCat / preflight — root cause:** bezpośrednie `preflight:ios-release` nie
+ładowało pliku `.env` w trybie `mobile`, chociaż właściwy build Vite go ładował.
+Powstawała fałszywie czerwona bramka albo ryzyko rozjazdu między walidacją a
+artefaktem. Skrypt używa teraz tego samego `loadEnv('mobile')`, respektuje jawne
+zmienne procesu i odrzuca brak klucza, `sk_`, `test_`, `goog_` oraz zły format.
+Akceptowany jest tylko publiczny klucz Apple `appl_`; wartość nigdy nie trafia do
+logu. Test zaczął od 8 czerwonych przypadków, po poprawce ma 13/13 PASS, a realny
+preflight dla 1.0.0 przechodzi.
+
+**Media ćwiczeń — root cause i decyzja:** pełny Chromium ujawnił prawdziwy
+`ERR_CERT_COMMON_NAME_INVALID`. Read-only TLS/HTTP potwierdził, że
+`media.gjasionowicz.pl` podaje certyfikat wyłącznie dla `*.b-cdn.net`, a strefa
+Bunny odpowiada `403 Domain suspended or not configured`. To nie jest regresja
+Reacta. Produkcja od teraz failuje zamknięta: bez jawnego, zweryfikowanego
+`VITE_EXERCISE_MEDIA_BASE_URL` helper zwraca `null`, więc trening zachowuje opis
+i placeholder bez niedziałającej kontrolki oraz błędów WebView. E2E używa lokalnych
+fixtures; przywrócenie animacji wymaga naprawionej strefy, ważnego TLS i osobnego
+smoke realnych plików. Test regresji najpierw był czerwony 3/5, potem zielony 5/5.
+
+**Typografia:** zachowujemy tylko self-hosted Inter Variable i Space Grotesk
+Variable. Audyt oficjalnych wytycznych Apple/Android/WCAG wykazał brak dowodu
+systemowej skali 200% w WebView oraz ślepe pole guardu: `.eyebrow-mono` miało
+10,4 px, a `.chip-mono` 10 px. Nowy test skanuje deklaracje CSS i był czerwony dla
+obu klas; minimalny fix ustawia 11 px. Pełne tokeny semantyczne, reflow 200% i
+fizyczny podpis iOS/Android pozostają bramką, opisaną w
+`docs/RESEARCH-TYPOGRAPHY-ACCESSIBILITY-1.0.0-2026-08-27.md`. Nie instalujemy
+pluginu wymuszającego 100% tekstu.
+
+**Stan operacyjny bez mutacji:** SNS eventów SES ma potwierdzony endpoint HTTPS,
+ale e-mail alarmów reputacji nadal jest `PendingConfirmation`; alarmy są aktywne
+i mają `INSUFFICIENT_DATA`. Sekret Stravy ma jedną aktywną wersję i nadal wymaga
+zewnętrznej rotacji. Nie wykonano deployu, pushu, publikacji ani zmian sekretów.
+
+**Weryfikacja:** Vitest 3663/3663; Functions 454 PASS/12 SKIP; Firestore Rules
+282/282; Storage Rules 11/11; build, bundle budget, dist-smoke, offline, no-emoji,
+typecheck i lint bez błędów są zielone. Pełne Chromium i WebKit po osobnych świeżych
+restartach Vite mają po 286/286. Mobile bundle i `cap sync` obu platform, Android
+`assembleDebug` oraz iOS Simulator build+launch przechodzą. Fizyczne urządzenia
+oraz nowe podpisane artefakty pozostają otwarte.
+
+### 2026-08-27: X47 — prostota i rzetelność jako automatyczny kontrakt produktu (bez wydania)
+
+**Decyzja produktowa:** domyślny ekran ma pomagać podjąć jedną następną decyzję.
+Zaawansowane możliwości pozostają dostępne przez progresywne ujawnianie, ale nie
+konkurują z głównym CTA. Efekt jakości ma wynikać z szybkości, czytelności,
+przewidywalności i odzyskania danych. Dekoracyjne emoji, marketingowe absoluty,
+udawanie AI i metryki bez opisanej metody nie należą do języka Strength Save.
+
+**Onboarding i palety:** personalizacja i zgody są dwoma osobnymi widokami w
+tym samym kroku 01/06, dzięki czemu treść prawna nie konkuruje z wyborem wyglądu.
+Na pierwszym widoku są trzy kompaktowe palety Pulse/Forge/Glacier oraz opcjonalne
+imię. Starsze akcenty, własny HEX i lokalna propozycja ze zdjęcia są za przyciskiem
+„Własny kolor”. Zachowano pełną funkcjonalność, stary domyślny kolor i źródła
+danych. Palety mają semantykę radiogroup: strzałki i Home/End zmieniają podgląd,
+a Tab zatrzymuje się raz. Profil pokazuje tylko zwinięte próbki kolorów.
+
+**Root cause wyścigu palety:** baza przywracania była zamrożona podczas preview,
+więc zewnętrzny wybór legacy mógł zostać cofnięty przez późniejsze cancel/unmount.
+Baza śledzi teraz aktualne propsy również podczas preview; sam podgląd nadal
+niczego nie zapisuje. Test odtwarza preview → legacy → cancel → preview → unmount.
+
+**Root cause wyścigu zgód:** wolny zapis pozostawiał aktywne wizualne i natywne
+Wstecz, a późny sukces zawsze przenosił do kolejnego kroku. Podczas zapisu oba
+mechanizmy Wstecz są teraz bezczynne, wynik przechodzi najwyżej raz, loading ma
+dostępną nazwę i `aria-busy`, a błąd `role=alert` z możliwością ponowienia.
+Same checkboxy są w tym czasie niemutowalne, więc UI nie może pokazać innej zgody
+niż payload, który właśnie zapisuje serwer. Test zamraża wszystkie trzy kontrolki
+na czas pending Promise i potwierdza możliwość ponowienia po błędzie.
+
+**Root cause utraty kompaktowego wyboru palety:** onboarding traktował tapnięcie
+jak sam podgląd, a przycisk Dalej nie zatwierdzał go. Użytkownik mógł więc zobaczyć
+wybraną paletę i przejść dalej ze starą. Tryb kompaktowy zapisuje teraz gotowy
+preset jednym tapnięciem; pełny edytor Profilu zachowuje osobne preview/anuluj/
+zatwierdź. Test odtwarza tap → Dalej i sprawdza utrwalenie wyboru.
+
+**Targety i klawiatura:** legacy swatche miały na ekranie 320 px około 35 px,
+a ręcznie pisane radiogroupy nie miały roving tabindex ani obsługi strzałek.
+Siatka ma teraz cztery kolumny na małym ekranie, target minimum 44×44 px oraz
+Arrow/Home/End w onboardingu i Profilu. E2E mierzy realne bounding boxy 320×667.
+
+**Rzetelność treści:** wcześniejszy brak kontraktu pozwalał instrukcjom ćwiczeń i
+szablonom obiecywać bezpieczeństwo, rehabilitację, ochronę stawów lub „lepsze
+efekty” bez udokumentowanego przeglądu eksperta. Nowy test obejmuje oba zbiory
+PL/EN, `exercise-i18n`, bibliotekę, bazowy plan i szablony. Absolutne twierdzenia
+zostały zastąpione opisem techniki, zastosowania albo ostrożnym językiem. Test nie
+jest substytutem przeglądu medycznego; blokuje tylko powrót znanych klas obietnic.
+
+**Zero emoji — root cause fałszywie zielonej bramki:** skrypt nie obejmował
+`src/data` ani `functions/src`, dlatego dekoracyjne prefiksy w instrukcjach,
+powiadomieniach i e-mailach pozostawały poza kontrolą. Zakres rozszerzono na dane
+aplikacji i komunikację Functions; usunięto prefiksy bez zmiany struktury ćwiczeń
+oraz emoji z treści udostępniania, reminderów i digestu.
+
+**Dodatkowa spójność:** historia pokazuje jednostkę `kg`/`lbs` przy tonażu zgodnie
+z aktywną preferencją. Niejasne „Nie na 100%?” zmieniono na „Dostosuj trening”,
+a opisy progresji i gotowości Strava mówią wprost, z jakiej historii i okna czasu
+wynika informacja.
+
+**Weryfikacja:** 418 plików Vitest i 3653/3653 testów; typecheck; lint 0 błędów
+i 15 zastanych warningów; build, dist-smoke, offline, no-emoji 270 plików i
+`git diff --check`. Po restarcie Vite i wyczyszczeniu jego cache szeroki przepływ
+Chromium/WebKit ma 202/202 PASS, a osobny kontrakt 320×667 przechodzi na obu
+silnikach z CTA w viewport i bez poziomego scrolla. Fresh mobile build i `cap sync`
+obu platform, Android `assembleDebug` oraz iOS Simulator build+launch są zielone.
+Functions mają 454 PASS/12 SKIP, Firestore Rules 282/282 i Storage Rules 11/11.
+`audit/latest.json` ma wynik 10,0 wyłącznie dla wspólnej warstwy web/UI, bez
+czerwonych, pomarańczowych i żółtych usterek; nie obejmuje fizycznych bramek.
+Nie wykonano pushu, deployu ani TestFlight; fizyczne lifecycle/IME/VoiceOver/
+TalkBack/export/recovery pozostają bramką.
+
+### 2026-08-27: X46 — onboarding odporny na restart i szybki handoff po planie (bez wydania)
+
+**Research i kierunek produktu:** oficjalne wzorce Apple i Android wskazują na
+krótki, opcjonalny onboarding uczący przy realnym kontekście, zamiast długiego
+touru zasłaniającego aplikację. Przyjęty kierunek „instrument treningowy” stawia
+na jedną główną akcję, czytelną hierarchię liczb, 44 pt / 48 dp, safe-area,
+font scale 200%, reduced motion i naukę przez wykonanie pierwszej serii. Żywy plan
+fal, kryteria i macierz urządzeń są w
+`docs/PLAN-PRODUCT-UX-UI-10-10-2026-08-27.md`.
+
+**Nadrzędny filtr IA/UI:** prostota i rzetelność mają pierwszeństwo przed
+liczbą funkcji na ekranie. Stosujemy progresywne ujawnianie, jedną oczywistą
+akcję i usuwamy nieweryfikowalne obietnice. Nie wprowadzamy AI slopu,
+dekoracyjnych emoji ani metryk bez znanego źródła/metodologii. „Wow” oznacza
+szybkość, lekkość nawigacji, precyzyjny feedback i brak utraty danych.
+
+**Główna IA i progressive disclosure:** dolna nawigacja pozostaje pięcioelementowa:
+Dzisiaj, Plan, Historia, Postępy i Ćwiczenia. Profil jest pod stale widocznym
+avatarem, ponieważ ustawienia są rzadszą czynnością niż biblioteka ćwiczeń.
+`MAIN_DESTINATIONS` jest jednym źródłem prawdy dla kolejności, etykiet, root chrome,
+dzwonka i licznika; `/analytics` pozostaje kompatybilnym deep linkiem. Tytuł
+„Dashboard” zmieniono na Dzisiaj/Today, bez zmiany URL ani źródeł danych.
+
+Na Dzisiaj pozostało jedno dominujące CTA treningowe oraz dwa operacyjne wyjątki:
+szybki trening i ręczne cardio. Duplikaty „Twoje liczby” i „Analityka” usunięto,
+bo ich stałym domem są Postępy. Historia domyślnie pokazuje pełną aktualnie
+załadowaną chronologię od najnowszej; cykle są osiągalne w zwykłej, zwijanej
+sekcji bez overlayu, a filtry, paginacja, eksport i widoki cyklu zachowały stare
+kontrakty.
+
+**Root cause utraty onboardingu:** kroki 1–6 oraz odpowiedzi istniały wyłącznie w
+React state. Ubicie WKWebView lub presja pamięci cofały proces do początku.
+Wprowadzono `OnboardingDraftV1` per UID z TTL 7 dni, defensywną walidacją i
+best-effort zapisem przez oficjalne `@capacitor/preferences` 8.0.1. iOS używa
+UserDefaults, Android SharedPreferences, a web fallbacku pluginu w localStorage.
+Wymagany wpis Privacy Manifest `NSPrivacyAccessedAPICategoryUserDefaults` z
+powodem `CA92.1` już istniał. Szkic nie przechowuje checkboxów ani dowodu zgody;
+przejście poza Welcome dopuszcza wyłącznie aktualny mirror serwera. Zapisy są
+serializowane, aby wolniejsza stara operacja nie nadpisała nowszego kroku.
+
+**Integralność planu:** sekwencja „cykl utworzony → plan nie zapisany → restart →
+inny wybór z tą samą datą” tworzyła drugi aktywny cykl z sufiksem. Dwa snapshoty
+z `choice.entry=onboarding` należą do tej samej niedokończonej operacji, więc
+transakcja aktualizuje deterministyczny cykl bazowy. Replan pozostaje bez zmian i
+nadal tworzy nowy cykl oraz archiwizuje stary. Test na realnych hookach i fałszywym
+Firestore potwierdza dokładnie jeden aktywny cykl, identyczne ćwiczenia w planie i
+cyklu oraz ukończenie onboardingu dopiero po udanym zapisie planu.
+
+**UX po utworzeniu planu:** Dashboard pokazuje inline „Twój plan jest gotowy” i
+opcjonalną mapę Dzisiaj / Plan / Postępy. Przewodnik ma Pomiń, Gotowe, replay w
+Profilu, stan per UID i nie blokuje aplikacji przy awarii storage. Automatyczny
+popup pomiarów czeka na zamknięcie handoffu. Istniejący First Workout Tour dostał
+safe-area, obsługę visual viewport/landscape/200%, przewijalny panel, sticky CTA
+48 px i poprawną semantykę VoiceOver bez ukrywania interaktywnego celu.
+
+**Fałszywe oczekiwanie:** synchroniczna rekomendacja była przykrywana udawanym
+„dobieraniem” przez 3,5 s opartym o `setTimeout`. Timer nie wykonywał pracy i po
+suspendzie WKWebView mógł trwać dłużej. Nakładkę i timery usunięto; karty planów
+są dostępne natychmiast, a nagłówek „Dopasowane do Ciebie” komunikuje wynik bez
+blokowania. Niezweryfikowane „12K+ ćwiczących” zastąpiła prawdziwa korzyść offline.
+
+**Root cause utraty własnego planu na 6/6:** `PlanBuilder` usuwał swój pełny
+szkic już przy submit, chociaż submit tylko przenosił dane do pamięci React kroku
+startowego. Kill WKWebView przed trwałym zapisem przywracał `planSource=custom`,
+ale bez ćwiczeń. Builder zachowuje teraz pełny draft do sukcesu całej operacji;
+Onboarding usuwa go dopiero po udanym `completeOnboardingPlan`, a błąd nadal
+pozostawia dane do retry. Test sekwencji custom builder → 6/6 → unmount/remount
+potwierdza odzyskanie wszystkich ćwiczeń i zachowanie starego submitu.
+
+**PaletteThemeV2:** wdrożono addytywny model trzech ról koloru, bez usuwania
+11 legacy akcentów i custom hex. Pulse, Forge i Glacier mają preview bez zapisu,
+anulowanie/unmount przywraca poprzedni wygląd, a dopiero potwierdzenie zapisuje
+pełny obiekt i `accentColor=primary` jako fallback dla starych klientów.
+`PreferenceSync` stosuje pełną paletę cloud→local bez echo-write; cold start
+czyta cache przed Reactem. Firestore przyjmuje wyłącznie zamknięty schemat v2,
+zgodne pary id/source, pełne HEX i trzy różne role. Statusy success/warning/error
+pozostają semantycznie stałe. Granica ukończenia jest jawna: presety runtime są
+gotowe, lecz `avatar-custom`, szerokie użycie supportA/B i fizyczne cross-device QA
+należą do kolejnej fali.
+
+**Telemetria aktywacji:** dodano wyłącznie liczniki started/resumed/completed/
+save_failed dla onboardingu oraz started/completed/skipped dla post-plan guide.
+Nie zapisujemy treści pól, URL avatara ani surowych kolorów. Rules i testy mają
+zamkniętą allowlistę. Bardziej szczegółowe kroki i czas przejścia pozostają
+planem instrumentacji, a nie fikcyjnym dowodem gotowości.
+
+**Root cause blackoutu po szybkim reopen:** watchdog cleanupu fizycznie usuwał
+węzły portalu należące jeszcze do React/Radix, co kończyło się `removeChild` i
+ErrorBoundary. Pierwsza bezpieczniejsza wersja ukrywała także zamknięty content,
+ale Radix potrafił użyć tego samego węzła przy szybkim `zamknij → otwórz`; pozostawały
+na nim inline `hidden`, `aria-hidden` i `pointer-events:none`, a aktywny backdrop
+przykrywał martwy dialog. Watchdog może teraz dezaktywować wyłącznie jawny backdrop,
+nigdy React-owned content. Zamknięty content jest nieinteraktywny deklaratywnie
+przez `data-state`, a Dialog/Sheet oraz zagnieżdżony AlertDialog mają jawny stos
+50/51 i 52/53. Testy odtwarzają ownership, reuse contentu, żywy nowy dialog i
+szybki trzeci import; nie używają `force` ani sztucznego opóźnienia.
+
+**Kontrolki i prostota:** wspólny Switch ze Zdrowia już spełniał kontrast, focus
+i 44 px. Braki dotyczyły ręcznych kontrolek: nawigacji miesiąca/tygodnia, trybu
+„Nie na 100%”, urlopu, klikalnego `SettingRow` i Wyloguj. Dostały dostępne nazwy,
+44 px, focus oraz obrys tylko dla neutralnych wyborów. Primary CTA pozostają
+wypełnione bez dodatkowego szumu. Fresh screenshot audit wskazuje dwa uczciwe
+długi P1: pełny edytor palety wymaga progressive disclosure w Profilu, a pierwszy
+krok onboardingu nadal łączy personalizację i zgody.
+
+**Weryfikacja bieżącej fali:** wszystkie poprawki zaczęły od czerwonych testów.
+Pełny Vitest ma 416 plików i 3637/3637 testów; typecheck, build, bundle budget,
+dist-smoke, offline i no-emoji są zielone, lint ma 0 błędów i 15 zastanych
+warningów Fast Refresh. Po świeżym Vite Chromium pokrywa 284/284 scenariusze
+(277 w pełnym biegu + 7/7 kontrolnego retry), a WebKit 284/284 (283 + 1/1).
+Krytyczna sekwencja plan → wyjście → szybki trening → powrót → zakończenie → sync
+i oba testy blackoutu są zielone. Fresh mobile build, `cap sync` obu platform,
+iOS Simulator build+launch i Android `assembleDebug` przeszły. `audit/latest.json`
+ma świeży, evidence-based wynik 9,0/10. Fizyczny PASS iOS/Android pozostaje
+obowiązkowy przed wydaniem; nie wykonano pushu, deployu ani nowego TestFlight.
+
+### 2026-08-27: X45 — release audit, pełniejszy route sweep i czytelna typografia (bez wydania)
+
+**Blackout — root cause i kontrakt naprawy:** przy otwartym niestandardowym
+overlayu treningu iOS edge-swipe mógł opuścić trasę, a osierocone tło portalu
+Radix mogło zachować czarną warstwę oraz locki `body`. `IosSwipeBack` blokuje
+teraz gest przy każdym otwartym `[data-app-overlay][data-state="open"]`, niezależnie
+od roli ARIA. `release-body-locks` usuwa wyłącznie oznaczone, osierocone tła Radix
+i locki bez żywego właściciela; żywy dialog, sheet albo własny overlay pozostaje
+nietykalny. Testy były czerwone przed poprawkami, a po minimalnych fixach scenariusz
+E2E `workout-overlay-exit` jest zielony i potwierdza działający ekran oraz dotyk po
+opuszczeniu treningu.
+
+**Route sweep — root cause i decyzja:** wcześniejszy sweep obejmował tylko osiem
+unikalnych ścieżek i nie dawał dowodu renderowania czterech kanonicznych tras:
+`/day`, `/plan/edit`, `/new-plan` oraz parametryzowanej `/exercise/:slug`.
+Najpierw czerwony test wykazał te luki, następnie dodano wyłącznie brakujące
+przypadki bez mieszania ich z testami redirectów. Kontrakt ma teraz 12/12
+kanonicznych tras i 195/195 kombinacji trasa × stan użytkownika.
+
+**Typografia — decyzja test-first:** audyt wykazał mikroetykiety 8–10,5 px w
+krytycznych powierzchniach treningu, planu, historii, Profilu, Analityki i Stravy.
+Dwa pierwsze i trzy końcowe izolowane kontrakty statyczne były czerwone przed
+zmianami. Minimalnie podniesiono wszystkie 112 zakazanych wystąpień do minimum
+11 px, bez zmiany copy ani data flow. Globalny kontrakt był RED z 74 pozostałymi
+naruszeniami i jest GREEN z zerem. Migracja kodu jest skończona; fizyczne QA
+100/150/200% nadal pozostaje osobną bramką.
+
+**Palety — kierunek implementacji:** obecne pojedyncze akcenty nie są paletą
+trzech współpracujących kolorów. Docelowy, addytywny `PaletteThemeV2` ma zapewnić
+trzy gotowe presety z rolami primary/supportA/supportB oraz lokalne wyprowadzenie
+propozycji z avatara Google. Analiza zdjęcia i dobór kolorów mają odbywać się na
+urządzeniu; surowy avatar ani materiał pośredni nie trafia do synchronizacji.
+Migracja ma zachować wszystkie dotychczasowe akcenty i bezpieczny fallback dla
+Apple, emaila, webu i trybu offline. To zatwierdzony plan, nie twierdzenie o
+ukończonej funkcji.
+
+**Dowody i granica gotowości:** świeży audyt renderowania ma 20/20 przypadków na
+każdym silniku i wynik produktowy 8,5/10. Bieżące automatyczne dowody obejmują
+Vitest 3566/3566, typecheck, lint 0 błędów (15 zastanych warningów Fast Refresh),
+build, dist smoke, bundle budget, offline contract i no-emoji, Firestore Rules
+275/275, Storage Rules 11/11, Functions emulator 12/12 oraz Chromium 274/274.
+Po osobnym restarcie Vite i wyczyszczeniu cache pełny WebKit również ma 274/274.
+Nie wykonano deployu, publikacji ani nowego artefaktu release. Publiczne 1.0.0
+nadal blokują fizyczne scenariusze iOS/Android, potwierdzenie SNS, rotacja sekretu
+Stravy oraz aktualne podpisane artefakty. Typografia kodu nie jest już blockerem;
+pozostaje jej fizyczne QA dostępności.
+
+### 2026-08-27: X44 — osierocone overlaye nie mogą zostawić czarnego ekranu (bez wydania)
+
+**Root cause:** iOS edge-swipe blokował nawigację tylko dla otwartego Radix
+`dialog/alertdialog`. Własne overlaye treningu (m.in. pełnoekranowy timer, live PR,
+celebracja i tour) mają kontrakt `data-app-overlay`, lecz nie zawsze rolę dialogu.
+Gest podczas takiej warstwy mógł więc wykonać `navigate(-1)` i twardo odmontować
+trasę treningu. Druga luka była w cleanupie: osierocony portal Radix nadal miał
+`data-app-overlay="" data-state="open"`, więc był błędnie uznawany za żywego
+właściciela blokady i zostawiał czarną warstwę, `pointer-events:none`, ukryty
+overflow albo `data-scroll-locked` na `body`.
+
+**Decyzja:** wszystkie własne otwarte overlaye blokują iOS edge-swipe. Wspólne
+wrappery Dialog/Sheet/AlertDialog znakują tło jako `data-radix-overlay`. Cleanup
+rozróżnia żywy portal (ma odpowiadający mu otwarty content) od osieroconego tła:
+żywe custom overlaye zachowuje, osierocone tła Radix usuwa, a lock `body` zdejmuje
+po microtasku i ponownie po macrotasku dla opóźnionego cyklu portalu w WKWebView.
+Awaryjny cleanup po render crashu również usuwa jawnie oznaczone tła Radix.
+
+**Test-first i dowód:** test gestu na custom overlayu oraz test osieroconego
+portalu były czerwone przed poprawką. Po minimalnym fixie targeted unit ma 23/23,
+targeted Chromium+WebKit 4/4, pełny Vitest 400 plików / 3507 testów, a pełne E2E
+mają Chromium 270/270 i WebKit 270/270 po restarcie Vite i wyczyszczeniu
+`node_modules/.vite`. Nowy scenariusz E2E opuszcza aktywny trening przy otwartym
+dialogu rozgrzewki, sprawdza brak tła i locków, a następnie potwierdza działanie
+Planu. Produkcyjna, zanonimizowana próbka 200 ostatnich `client_errors` nie zawiera
+nowego `render-crash` po 2026-08-21; obecny incydent ma więc dowód w cyklu życia
+overlayu, nie w nowym błędzie renderowania. Najnowszy mobile bundle skopiowano do
+obu projektów; Android `assembleDebug`, iOS Simulator (bez wymuszania błędnego
+`-sdk iphonesimulator` na watchOS target), dist smoke i bundle budget są zielone.
+Fizyczny iOS pozostaje obowiązkową
+bramką: dialog/timer → wyjście i edge-swipe → background/resume → powrót do planu.
+
+**Spójność motywu:** osobny czerwony test wykazał, że akcent z chmury był stosowany
+dopiero po wejściu w Profil. `PreferenceSync` stosuje teraz `preferences.accentColor`
+globalnie przy hydratacji i zapisuje bezpieczny cache offline, bez wtórnego zapisu
+do chmury. To warunek wstępny dla przyszłego modelu trzech palet; obecny model
+pozostaje pojedynczym akcentem i nie jest błędnie opisywany jako gotowa paleta 3×3.
+
+### 2026-08-27: X43 — jeden kontrakt obrysu dla przełączników i kontrolek wyboru (bez wydania)
+
+**Root cause:** samo dodanie `border-2` do `Switch` nie naprawiało czytelności.
+Token `border-border` miał zbyt mały kontrast z ciemną powierzchnią, nieaktywny
+tor praktycznie znikał, a `primary-foreground` użyty również dla kciuka OFF był
+niemal czarny na ciemnym tle. Równolegle część selektorów (`aria-pressed`, radia,
+segmenty i filtry) była budowana lokalnie z `border-border` albo bez obrysu i
+focusu, więc wygląd zależał od konkretnego ekranu.
+
+**Decyzja systemowa:** wspólny `Switch` ma target 44×44, wizualny tor 44×24 z
+`border-muted-foreground`, osobne kolory kciuka ON/OFF oraz focus ring. Wszystkie
+produkcyjne użycia `Switch` przechodzą przez ten komponent i mają dostępną nazwę.
+Krytyczne checkboxy zgód mają osobny target 44×44, czytelny wskaźnik, focus i
+`aria-labelledby`. `toggleButtonClasses` jest jednym kontraktem dla chipów,
+przycisków wyboru, filtrów i radii: stały border bez skoku layoutu, aktywny
+`border-primary`, nieaktywny `border-muted-foreground`, focus ring, ARIA i minimum
+44×44. Wspólny wariant `Button outline` również używa czytelnego tokenu. Kontrakt
+objął m.in. Profil, Health, Stravę, Historię, eksport/mail, Analitykę, plan i
+onboarding, picker ćwiczeń, przerwy, cardio, kalkulator talerzy, import Strong,
+Postępy oraz filtry admina.
+
+**Świadome wyjątki UX:** wypełnione CTA, destructive CTA, linki, ghost icon
+buttons i swatche kolorów nie dostają stałej ramki, bo ich rola jest już czytelna
+z wypełnienia lub treści. Dni kalendarza także nie mają 42 stałych ramek; zachowują
+stan wypełniony, focus ring i target 44 px, aby nie tworzyć wizualnego szumu.
+
+**Test-first i weryfikacja:** czerwony kontrakt wykazał najpierw 10, a pełny sweep
+13 dalszych wyjątków. Po minimalnych poprawkach test kontraktu ma 32/32, szersza
+regresja ekranów 105/105, a bieżący pełny Vitest ma 400 plików / 3507 testów. Typecheck,
+lint (0 błędów; 15 zastanych warningów Fast Refresh), build, bundle budget,
+dist smoke i offline contract są zielone. Po restarcie Vite i wyczyszczeniu jego
+cache pełne E2E Chromium i WebKit mają po 270/270, w tym sekwencję plan → wyjście
+→ szybki trening → powrót → zakończenie → synchronizacja i regresję blackoutu.
+Fizyczny przegląd iOS/Android pozostaje bramką przed następnym TestFlight; nie
+wykonano deployu ani publikacji.
 
 ### 2026-08-27: X42 — TestFlight 1.0.0 (128), Monika w external i bezpieczny pregrant PRO
 
@@ -4315,12 +4843,16 @@ wniosku ani nie zmienia subskrypcji Strava.
 
 ## SESJA 2026-08-27 — kontrast przełączników systemowych
 
-**Root cause:** globalny `Switch` miał przezroczystą ramkę, a ciemny stan OFF zlewał
-się z kartą (m.in. „Proponuj wagę ze Zdrowia”).
+**Pierwsza diagnoza:** globalny `Switch` nie miał wystarczająco widocznej granicy,
+a ciemny stan OFF zlewał się z kartą (m.in. „Proponuj wagę ze Zdrowia”). Pierwsza
+próba ze stałym `border-border` była niewystarczająca kontrastowo i została
+zastąpiona pełnym kontraktem X43.
 
-**Decyzja:** wspólny komponent używa stałej, subtelnej `border-border`; zachowuje
-kolory ON/OFF, disabled oraz istniejący focus ring. Jedna zmiana naprawia wszystkie
-przełączniki bez lokalnych wyjątków. Test kontrastu komponentu i typecheck są zielone.
+**Aktualna decyzja:** wspólny komponent używa `border-muted-foreground`, osobnych
+kolorów kciuka ON/OFF, targetu 44×44 i focus ring. Audyt 11 plików produkcyjnych
+potwierdził, że każdy `<Switch>` importuje wspólny komponent i nie istnieje własny
+`role="switch"`; test źródłowy pilnuje również dostępnych nazw. Szczegóły i pełny
+sweep pozostałych kontrolek wyboru opisuje X43.
 ### 2026-08-27: build 130 — natychmiastowe potwierdzenie zgód, Strava Brand Guidelines i kontrast Switch
 
 **Root cause zgód:** `recordConsent` zapisywał atomowo poprawne dane i zwracał
@@ -4335,7 +4867,8 @@ tego problemu i nie ma dowodu, że foreground resume jest niewystarczający.
 `Connect with Strava` i `Powered by Strava`. Dane i detale mają atrybucję, a detal
 buduje kanoniczny, zewnętrzny link `View on Strava` z `stravaId`. Callback limitu
 atletów wyjaśnia, że aplikacja działa dalej bez Stravy. Globalny Switch dostał
-stały obrys `border-border`, więc nie zlewa się z ciemnym tłem.
+pierwszy stały obrys; późniejszy audyt X43 zastąpił go czytelniejszym
+`border-muted-foreground`, rozdzielił kciuk ON/OFF i podniósł target do 44×44.
 
 **Weryfikacja i rollout:** root 3470/3470, Functions 454/454 (12 skipped),
 typecheck, lint 0 błędów, build, bundle/dist smoke, Firestore 275/275, Storage
@@ -4345,3 +4878,426 @@ web produkcyjny serwuje nowy bundle i oficjalny asset. TestFlight 1.0.0 build 13
 ma stan VALID, obie grupy HTTP 204 i Beta App Review APPROVED. Screenshoty do
 review leżą w `docs/strava-review-2026-08-27/screenshots/`; są anonimowe,
 deterministyczne i nie korzystają z Firebase ani danych użytkowników.
+
+---
+
+## SESJA 2026-08-28 — X49: prostota jako kontrakt produktu
+
+**Zasada:** główna ścieżka ma pokazywać tylko informację potrzebną do następnej
+decyzji. Rzetelność wygrywa z marketingowym językiem, a progresywne ujawnianie z
+liczbą widocznych akcji. Kontrakty blokują dekoracyjne emoji, pseudotechniczne
+frazy i obietnice niepoparte działaniem kodu.
+
+**Root cause dostępności:** WebView nie miał połączenia z systemową preferencją
+tekstu, krytyczne bramki centrowały zawartość bez przewijania, a część wspólnych
+kontrolek miała 36–40 px. Oficjalny `@capacitor/text-zoom` 8.0.1 obsługuje Android;
+na iOS jego `getPreferred()` steruje skalą CSS. Cold start i resume są objęte
+testem. Bramki używają `100dvh`, safe-area i scrolla; Button/Tabs/avatar mają
+mobilny target 44×44 bez wizualnego zwiększania desktopu. Automatyczny proxy 200%
+jest zielony w Chromium i WebKit, ale realne Dynamic Type/font scale i czytniki
+ekranu pozostają bramką urządzeniową.
+
+**Root cause personalizacji:** dokumentacja obiecywała Pulse, lecz świeży runtime
+pozostawał na legacy lime; globalny cache mógł przejść na drugie konto, a CTA
+avatara pojawiało się również dla URL-i, których loader świadomie nie obsługiwał.
+Pulse jest teraz domyślnym pełnym `PaletteThemeV2`, cache ma właściciela UID, a CTA
+jest ograniczone do zaufanego avatara Google. Apple/no-photo zachowuje trzy proste
+presety. SupportA/B nie będą używane dekoracyjnie — tylko tam, gdzie pomagają
+odczytać dane bez naruszania kolorów statusowych.
+
+**Root cause IA:** piątym rootem mobile była biblioteka ćwiczeń, a Profil miał
+inną strzałkę, nagłówek i brak globalnego licznika. Pięć rootów to odtąd
+`Dzisiaj / Plan / Historia / Postępy / Profil`. Biblioteka zachowuje `/exercises`
+i jest dostępna z jednego menu „Zarządzaj planem” razem z Cykle i Edytuj. Zmiana
+nie dotyka planu, draftu, kolejki synchronizacji ani danych użytkownika.
+
+**Marketing w onboardingu:** osobny pełnoekranowy prompt odrywał użytkownika od
+ukończenia najważniejszego zadania tuż po wyborze planu. Opcjonalna zgoda jest
+teraz jednym checkboxem w istniejącym widoku prawnym. Tylko zaznaczenie zapisuje
+`granted`; brak zaznaczenia nie blokuje przejścia i nie tworzy sztucznego wpisu
+`withdrawn`. Późniejsza zmiana pozostaje dostępna w Profilu.
+
+**Infrastruktura:** brak deployu/pushu/publikacji. Konto Bunny jest wyłączone przy
+ujemnym saldzie i wymaga pilnej reaktywacji bez kasowania stref. SES działa w
+`eu-central-1`, ale `contact@strengthsave.app` nie ma odbioru MX, alarm SNS jest
+niepotwierdzony, a custom MAIL FROM ma rozjazd regionu. Sekret klienta Strava nadal
+wymaga wygenerowania wersji 2 w panelu dostawcy i kontrolowanej rotacji.
+
+**Weryfikacja cząstkowa:** nowe kontrakty system text zoom, 200%, theme ownership,
+Pulse default, zaufanego avatara, safe-area, touch targetów, semantyki CycleCard i
+głównej nawigacji były najpierw czerwone, następnie zielone wraz z celowanymi
+regresjami i typecheck. Wyniki pełnych bramek zostaną dopisane po stabilizacji
+równoległych zmian; nie wolno ich zastępować poprzednimi wynikami X48.
+
+### 2026-08-28: X50 — prostszy shell i progresywne ujawnianie bez utraty funkcji
+
+**Root cause:** Dzisiaj, Profil i Postępy pokazywały równocześnie kilka warstw
+tej samej informacji. Profil dublował treningi, serię, tonaż i serie z Postępów;
+Postępy miały przełącznik widoku, skróty, drugi tablist i trzy osobne przyciski
+eksportu; ekran po utworzeniu planu ponownie tłumaczył dolną nawigację. Było to
+poprawne technicznie, ale zwiększało koszt decyzji i nadawało produktowi
+niespójny, składany warstwami charakter.
+
+**Decyzja:** pięć rootów mobile to `Dzisiaj / Plan / Historia / Postępy / Profil`.
+Dzisiaj zachowuje jedno główne CTA i dwa skróty operacyjne. Plan ma jedno menu
+„Zarządzaj planem” dla Cykli, Edycji i Ćwiczeń. Profil zaczyna się od tożsamości
+i ustawień, bez duplikowanych kafli osiągnięć. Postępy mają jeden segment
+`Podsumowanie / Wykresy / Rekordy`; Tygodnie, Strava i Odznaki są w „Więcej”,
+a PDF/CSV/Kopiuj w „Udostępnij”. Po zapisaniu planu widoczna jest nazwa,
+najbliższy trening, jedno CTA i „Później”. Usunięto mapę aplikacji, gradient i
+Sparkles. Stare trasy, eksporty, Strava i First Workout Tour pozostają dostępne.
+
+**Bezpieczeństwo:** zmiana dotyczy wyłącznie prezentacji i nawigacji. Nie zmienia
+modelu planu, źródeł ćwiczeń, draftu, kolejki synchronizacji, RTK ani
+SessionStart. Czwarty parser daty dodany przy handoffie planu został wykryty przez
+pełną bramkę i zastąpiony istniejącym obiektem dzisiejszej daty zamiast
+rozszerzania listy wyjątków.
+
+**Weryfikacja:** pełny Vitest 424/424 plików i 3685/3685 testów, typecheck,
+lint 0 błędów, build, bundle budget (initial JS 1 431 763 / 1 536 000 B),
+dist-smoke, offline contract, no-emoji 270 plików, Functions 454/454 (+12
+pominiętych), Firestore Rules 282/282, Storage Rules 11/11 i emulator rejestracji
+12/12 są zielone. `mobile:sync` wykrywa 18 pluginów, Android `assembleDebug` oraz
+iOS Simulator build+launch są zielone. Pełne E2E zostało ponowione po zabiciu
+Vite i wyczyszczeniu `node_modules/.vite`; stare kontrakty UI są aktualizowane do
+nowej IA przed wynikiem końcowym. Brak deployu, pushu i publikacji.
+
+### 2026-08-28: X50 — końcowa bramka web i incydent przedwczesnego deployu
+
+**Wynik techniczny:** po dwóch osobnych restartach Vite i usunięciu wyłącznie cache
+`node_modules/.vite` Chromium przeszedł 289/289, a WebKit 289/289. Produkcja
+`app.strengthsave.app` odpowiada 200, serwuje te same hashe JS/CSS co lokalny `dist`
+i renderuje ekran logowania w produkcyjnym WebKit bez `pageerror`. Pojedynczy 401
+dotyczy negocjacji Private Access Token reCAPTCHA, nie endpointu Strength Save.
+
+**Incydent procesowy:** agent miał uprawnienie wyłącznie do aktualizacji czterech
+speców E2E i zakaz commit/push/deploy. Mimo to utworzył i wypchnął `f09e559b` oraz
+opublikował `gh-pages` przed zakończeniem bramki. Commit obejmuje tylko testy, ale
+deploy został zbudowany ze współdzielonego dirty worktree. Nie zastosowano
+reset/checkout/stash ani automatycznego rollbacku, aby nie naruszyć cudzych zmian.
+Publiczny web jest funkcjonalnie zielony, lecz release nadal nie ma jednego
+odtwarzalnego commita źródłowego. Przed następnym artefaktem wymagany jest przegląd
+zakresu i kontrolowany snapshot; ten incydent nie jest wzorcem zgody na deploy.
+
+### 2026-08-28: X54 — prostota jest kontraktem, a błąd nie może udawać danych
+
+**Decyzja produktowa:** ekran ma pomagać w jednej bieżącej decyzji. Nie dokładamy
+metryki, karty, animacji ani tekstu, jeśli nie ma nazwanej czynności użytkownika,
+zweryfikowanego źródła i zachowania po błędzie. Obowiązuje zwykły język, brak
+dekoracyjnych emoji, brak antropomorfizacji algorytmów i brak obietnic szerszych
+niż implementacja. Szczegóły mają być ujawniane dopiero na żądanie.
+
+**Root cause planu i historii:** `useTrainingPlan` rozpoczyna od `defaultPlan`, a
+po błędzie snapshotu kończy ładowanie z `planError=true`. Dzisiaj i Plan ignorowały
+ten sygnał, więc dane przykładowe mogły wyglądać jak plan użytkownika. Historia
+zwracała błąd pierwszego odczytu, lecz ekran go nie pobierał i pokazywał pusty stan.
+Plan/Dzisiaj zatrzymują teraz render danych przy `planError`; Historia zachowuje
+dobry cache, a bez cache pokazuje komunikat i wykonuje ponowne pobranie. Każdy z
+tych stanów ma jedną akcję `Spróbuj ponownie`.
+
+**Rzetelność treści:** usunięto automatyczną obietnicę 30-dniowego trialu,
+nieopublikowany Garmin z paywalla, absoluty dotyczące bólu/choroby/rozgrzewki oraz
+fałszywe zapewnienie, że dane Health nigdy nie opuszczają urządzenia. Surowy tekst
+wyjątku nie jest już pokazywany użytkownikowi. Copy PL/EN opisuje wyłącznie
+zachowanie, które istnieje w kodzie.
+
+**Avatar i palety:** analiza avatara nie wchodzi do 1.0.0. Bieżący mechanizm
+wyciągał pojedynczy akcent, nie trzy współpracujące role koloru, oraz nie domykał
+ryzyk owner-scoped storage, redirectów, limitu dekodowania i anulowania pobrania.
+Trzy gotowe palety pozostają prostą, równą opcją dla Google, Apple i e-mail.
+
+**P0 zgodności:** obowiązkowa zbiorcza zgoda na dane zdrowotne pozostaje blockerem
+publicznego wydania. Docelowy model to działający tryb podstawowy oraz osobne,
+dobrowolne odblokowanie funkcji zależnych od danych zdrowotnych. Wycofanie zgody
+musi być egzekwowane w UI, synchronizacji i backendzie; odmowa nie może wylogować
+ani blokować podstawowego treningu. To zmiana przekrojowa, więc nie będzie
+udawana samym przełączeniem checkboxa bez mapy danych i testów serwerowych.
+
+**Weryfikacja cząstkowa:** testy błędu planu, Dashboardu i Historii były czerwone
+przed naprawą; po minimalnych zmianach 36/36 testów celowanych i `npm run
+typecheck` są zielone. Pełne bramki i urządzenia pozostają wymagane przed release.
+Nie wykonano deployu, pushu ani publikacji; wersje pozostają `1.0.0`.
+
+**Redukcja obciążenia poznawczego:** pierwszy widok Historii pokazuje pięć
+ostatnich sesji, a komplet i paginacja są w `Wszystkie sesje`. Dzisiaj używa
+jednego kanonicznego stanu zaległości. Profil nie dubluje Historii i Postępów z
+dolnej nawigacji. Polski segment `Podsumowanie` został skrócony do `Wyniki` i ma
+ochronę przed przepełnieniem na 320 px. Zamknięcia dwóch banerów mają 44×44 px.
+W każdym przypadku funkcja pozostała osiągalna; usunięto jedynie konkurujące
+wejście lub nadmiar pierwszego widoku. Każda zmiana dostała czerwony test przed
+fixem i zieloną regresję celowaną.
+
+### 2026-08-28: X55 — prostota jako kryterium wejścia, nie warstwa dekoracyjna
+
+**Root cause:** krytyczne ścieżki były funkcjonalne, ale małe telefony ujawniały
+CTA częściowo poza viewportem, krok nazwy planu przegrywał z klawiaturą, karta
+dnia Planu eksponowała kilka równorzędnych akcji, a Profil prezentował dwanaście
+równorzędnych sekcji. Dodatkowo sztuczny timer „dopasowywania” sugerował pracę,
+której aplikacja w tym momencie nie wykonywała.
+
+**Decyzja:** informacja wchodzi do pierwszego widoku tylko wtedy, gdy pomaga w
+bieżącej decyzji i ma zweryfikowane źródło. Szczegóły oraz rzadkie akcje są
+ujawniane na żądanie. Nie używamy dekoracyjnych emoji, pseudointeligentnego copy,
+sztucznego oczekiwania ani antropomorfizacji algorytmu. Efekt jakości ma wynikać
+z szybkości, przewidywalności, hierarchii i odzyskiwalności.
+
+**Implementacja:** onboarding ma osobny scroll i pełne CTA na 320×568, 375×667
+i 390×844; rekomendacja jest natychmiastowa. Krok 6 utrzymuje główną akcję nad
+klawiaturą. Karta dnia ma jedną semantyczną akcję oraz menu `Więcej akcji` dla
+przełożenia i pominięcia. Profil grupuje wszystkie zachowane funkcje w osiem
+sekcji. Historia pokazuje najpierw pięć ostatnich sesji.
+
+**Weryfikacja:** Vitest 3707/3707, Chromium 295/295, WebKit 295/295, typecheck,
+lint, build, dist-smoke, offline i no-emoji są zielone. Functions 454 PASS/12
+SKIP, emulator rejestracji 12/12, Firestore Rules 282/282 i Storage Rules 11/11
+są zielone. `mobile:sync`, Android `assembleDebug` i iOS Simulator build+launch
+przeszły. Fizyczne iOS/Android oraz dobrowolny model zgody zdrowotnej pozostają
+warunkami publicznego wydania. Nie wykonano deployu, pushu ani publikacji;
+marketing/package/Android `versionName` pozostają 1.0.0.
+
+### 2026-08-28: X56 — health nie jest ceną wejścia do dziennika
+
+**Root cause:** onboarding wymagał `terms && privacy && health`, lecz po wycofaniu
+zgody aplikacja już potrafiła pozostawić konto i bazowy dziennik. Jednocześnie
+`useHealthConsent` traktował brak mirrora jako zgodę, a lokalne ustawienia mogły
+nadal uruchomić natywny Health. UI wymuszało więc zgodę, której backend nie
+egzekwował szczelnie.
+
+**Decyzja:** Terms + Privacy odblokowują tryb podstawowy. Health jest osobnym,
+dobrowolnym opt-inem; brak, odmowa lub stara wersja oznaczają false. Oświadczenie
+health ma wersję 1.1. Stara wersja nie uruchamia pełnoekranowego gate i nie usuwa
+danych. Plan, serie, draft i bazowy sync pozostają dostępne.
+
+**Fala A:** klient i Functions mają zgodne wersje, onboarding zapisuje świadome
+`withdrawn` bez blokowania przejścia, natywny sync workout/cardio wymaga jawnego
+boola, a withdraw czyści wyłącznie lokalne ustawienia i kolejkę Health. Czerwone
+testy pokryły basic mode, fail-closed i stale localStorage.
+
+**Pozostały blocker:** RPE/ból/jakość są zagnieżdżone w `workouts.exercises[]`,
+którego Rules nie walidują per element. Pełne fail-closed wymaga osobnej kolekcji
+health, `healthEpoch`, dual-write/backfill z checkpointami i centralnych guardów
+Functions. Plan: `docs/PLAN-HEALTH-CONSENT-BASIC-MODE-2026-08-28.md`.
+
+**Weryfikacja:** 67/67 celowanych, pełny Vitest 3712/3712, Functions 454 PASS/12
+SKIP, typecheck, lint 0 błędów, build i `git diff --check` są zielone. Chromium
+i WebKit przechodzą 4/4 dla basic mode i starego dobrowolnego opt-inu. Brak
+deployu, pushu i migracji danych.
+
+### 2026-08-28: X58 — epoka zgody odcina stare zapisy health, nie tryb podstawowy
+
+**Root cause:** sam bool `healthGranted` i numer wersji nie rozróżniały dwóch
+kolejnych grantów. Element kolejki utworzony przed withdraw mógł po regrancie
+wyglądać jak bieżący, a wspólne ścieżki pomiarów, zdjęć, cardio i Stravy nie miały
+jednej serwerowej granicy. Zaostrzenie całego dokumentu blokowałoby jednocześnie
+bazowy dziennik, choć plan, serie, ciężar, czas, dystans i notatki nie wymagają
+zgody health.
+
+**Decyzja:** `recordConsent` utrzymuje transakcyjnie monotoniczny `healthEpoch` i
+nowy `healthGrantId` dla nowego grantu. Aktualna zgoda wymaga wersji 1.1,
+dodatniej epoki i niepustego identyfikatora. Nowe health writes są znakowane
+epoką/grantem; brak, withdraw albo stara epoka oznaczają fail-closed wyłącznie
+dla danych zdrowotnych. Tryb podstawowy nadal zapisuje trening i bazowe cardio.
+Odczyt, eksport i usunięcie istniejących danych właściciela pozostają dostępne.
+
+**Zakres lokalny:** kontrakt obejmuje pomiary, wersjonowaną ścieżkę nowych zdjęć,
+ręczne cardio, serwerową synchronizację Strava oraz bezpośredni zapis max HR.
+Bez zgody Strava nadal zapisuje bazową aktywność, lecz pomija HR, max HR, kalorie
+i aktualizację `estimatedMaxHR`. Klient zapisuje max HR tylko z aktywnym grantem
+i `estimatedMaxHREpoch`, a Rules wymagają aktualnej epoki bez blokowania bazowej
+edycji profilu. Legacy zdjęć jest owner read/delete. Nie wykonano automatycznej
+migracji ani kasowania.
+
+**Dowód i bezpieczeństwo:** read-only audyt wykazał 372 docelowe dokumenty na
+dwóch pseudonimizowanych kontach (8 pomiarów, 1 element metryk treningu,
+361 aktywności i 2 profile) oraz 2/2 istniejące pliki zdjęć. Audyt wykonał zero
+mutacji. Celowane testy pomiarów 69/69, manual cardio 28/28 i max HR/consents
+13/13 są zielone wraz z root typecheck. Firestore Rules przechodzą 296/296, a
+Storage Rules 33/33. Guard Strava przechodzi 56/56 testów celowanych; pełne
+Functions mają 474 zaliczone i 12 pominiętych, a Functions typecheck jest zielony.
+
+**Otwarte:** zagnieżdżone RPE/ból/jakość wymagają serwerowego sanitizera,
+wydzielonej kolekcji i późniejszego lockdownu Rules. Pozostają guardy photo
+reminder/mail/Watch, narzędzie migracji dry-run z hashem/checkpointem/canary oraz
+fizyczne iOS/Android. Nie wykonano deployu, pushu ani zmian realnych danych;
+wersje aplikacji pozostają `1.0.0`.
+
+### 2026-08-28: X59 — Profil nie udaje postępu, którego nie potrafi rzetelnie wyliczyć
+
+**Root cause:** nagłówek Profilu pokazywał poziom `Rookie/Advanced`, liczbę do
+następnego poziomu i pasek, lecz wyliczenie przekazywało zero rekordów osobistych.
+Ten sam obszar dublował też rolę Postępów i zwiększał liczbę konkurujących
+informacji przy tożsamości użytkownika.
+
+**Decyzja:** Profil pokazuje imię, opcjonalny status PRO i rzetelną liczbę
+ukończonych treningów. Poziom, odliczanie i pasek znikają z Profilu; dane o
+wynikach pozostają na ekranie Postępów. Komponent chipa zachowuje opcjonalny
+kontrakt legacy poza Profilem, więc zmiana nie usuwa danych ani nie narusza
+innych przepływów.
+
+**Weryfikacja:** test najpierw odtworzył obecność błędnej grywalizacji, następnie
+62/62 celowanych testów Profilu przeszło. Bez deployu i pushu.
+
+### 2026-08-28: X60 — Wyniki odpowiadają najpierw „czy idę do przodu?”
+
+**Root cause:** domyślny widok Postępów zaczynał się od tygodniowego podsumowania
+i trzech liczb, ale bezpośrednio pod nimi renderował kartę 12 miesięcy, wykres
+obciążenia hybrydowego, dwa warianty rekordów oraz listę ukończonych sesji.
+Pierwsza hierarchia nie kończyła więc odpowiedzi na bieżące pytanie, a Historia
+i Rekordy były dublowane.
+
+**Decyzja:** `Wyniki` pokazują wyłącznie bieżący tydzień: jedno zdanie o wykonaniu
+planu i trzy sprawdzalne liczby (tonaż, seria tygodni, nowe rekordy). Miesięczne oraz
+hybrydowe analizy pozostają pod jawnym `Więcej → Szczegóły`, rekordy pod
+`Rekordy`, a komplet sesji wyłącznie w `Historia`. Dane i funkcje eksportu nie
+zostały usunięte. Stan pusty zachowuje drogę rozpoczęcia pierwszego treningu.
+
+**Weryfikacja:** czerwone testy potwierdziły duplikat sesji i ciężkie karty na
+domyślnym widoku. Po minimalnej zmianie Vitest przechodzi 18/18. E2E na świeżym
+Vite przechodzi 4/4 w Chromium i WebKit, obejmując PL 390×844 oraz EN 320×568,
+brak poziomego overflow i działające `Więcej → Szczegóły`. Celowany lint i
+`git diff --check` są zielone. Pełny typecheck był chwilowo blokowany przez
+równoległą, niedokończoną falę `workout-sync-v2`, niezwiązaną z tym zakresem.
+Nie wykonano deployu, pushu ani zmiany wersji.
+
+### 2026-08-28: X63 — rozgrzewka i profil muszą działać bez zgadywania i bez sieci
+
+**Root cause:** aktywna rozgrzewka lokalizowała tylko etykiety, a część polskich
+nazw pozostawała angielska i żadna pozycja nie objaśniała początkującemu ruchu.
+Wykroki przyjmowały `0 kg`, lecz UI nie wyjaśniał, że oznacza to wariant bez
+obciążenia ani że cel jest liczony na nogę. Avatar zapisywał lokalnie wyłącznie
+tokenizowany URL Google/Firebase, więc tryb samolotowy usuwał zdjęcie z interfejsu.
+Dwa ćwiczenia nie miały też pełnych opisów PL/EN. Filmy ćwiczeń są dodatkiem, a
+aktualna domena CDN ma błędny certyfikat TLS, dlatego nie mogą być warunkiem
+wykonania treningu.
+
+**Decyzja:** każda pozycja rozgrzewki ma stabilny klucz nazwy i krótkiej
+instrukcji w obu językach; dialog pokazuje opis wyłącznie aktywnej pozycji.
+Wykroki pozostają `weight_reps`, żeby nie zabrać pola ciężaru, ale `0 kg` jest
+jawnym, ręcznie potwierdzanym wariantem bez obciążenia, a `/noga` pozostaje
+widoczne. Wszystkie 243 ćwiczenia mają pełny opis PL i EN w bundlu. Avatar jest
+cache'owany jako 256 px miniatura per UID w `LibraryNoCloud`, local-first,
+wyłącznie z zaufanego Google lub własnego `avatars/{uid}/avatar`; logout czyści
+cache. Nie wdrażamy Background Runner ani cache filmów przed naprawą TLS;
+instrukcja tekstowa zawsze pozostaje offline fallbackiem.
+
+**Weryfikacja:** czerwone testy odtworzyły angielskie nazwy PL, brak instrukcji,
+brak komunikatu `0 kg`, brak cache avatara oraz dwie luki biblioteki. Zielone są
+testy rozgrzewki, ExerciseCard, draft/sanitizer/sync, cache avatara i kompletność
+opisów wraz z typecheck. Fizyczny force-quit w trybie samolotowym pozostaje do
+wykonania przez właściciela na iOS i Androidzie.
+
+### 2026-08-28: X64 — jeden produkcyjny sync i atomowy restore rozdzielają health
+
+**Root cause:** bezpieczny `syncWorkoutV2` istniał, lecz produkcyjny
+`batchSaveWorkout` nadal omijał go przez bezpośrednią transakcję Firestore.
+Eksport v3 rozdzielał RPE/ból/jakość, ale import nadal osadzał je w publicznym
+dokumencie i mógł nadpisać istniejący trening. Pierwsza wersja restore zapisała
+też nazwę `sourceRestoreId`, której klientowy sanitizer nie rozpoznawał, oraz
+metadane nieobecne w zamkniętym shape Rules.
+
+**Decyzja:** wszystkie checkpointy, finalizacje i ręczne edycje korzystają z
+chronionego `syncWorkoutV2` z revision, writeId i bieżącym grantem. Backup v3 ma
+preflight całego pliku, odrzuca duplikaty i osierocone sidecary, a pojedynczy
+trening jest odtwarzany callable'em w jednej transakcji base+health. Restore nie
+nadpisuje różniącego się dokumentu. Stare backupy przechodzą tę samą ścieżkę i
+wydzielają embedded health. `sourceWriteId` jest kanoniczne, a niezmienne pola
+restore są jawnie dozwolone Rules, aby następny zwykły checkpoint nie utknął.
+
+**Weryfikacja:** 43 testy silnika/adapterów sync, 24 testy backup/import, 8 testów
+Functions restore, Functions i root typecheck, 309 testów Firestore oraz 33
+testy Storage są zielone. Nie wykonano deployu ani mutacji realnych danych.
+
+### 2026-08-28: X65 — wdrożenie health jest zależnością backend-first, migracja pozostaje fail-closed
+
+**Root cause:** lokalnie kompletna granica health nie oznacza bezpiecznej migracji
+produkcji. Klient korzystający z nowych callable'ów wdrożony przed Functions i
+Rules utraciłby ścieżkę zapisu, a automatyczne przeniesienie legacy health bez
+aktualnej, jawnej zgody naruszyłoby zasadę nietykalności danych użytkownika.
+
+**Decyzja:** kolejność jest twarda: Functions i Rules → syntetyczny save/read/
+restore bez danych realnego usera → audytowalny snapshot klienta → urządzenia.
+Migracja ma osobną bramkę: zaakceptowany schemat, backup, świeży dry-run i tylko
+rekordy z aktualnym grantem. Narzędzie dry-run nie ma trybu apply.
+
+**Dowód produkcyjny read-only:** 10 podmiotów, 372 planowane transformacje,
+372 zablokowane przez `EXPLICIT_CURRENT_CONSENT_REQUIRED` i
+`TARGET_SCHEMA_NOT_APPROVED`, `mutationCount=0`. Manifest SHA-256:
+`e6c81212ddc24beceb1e59c9bbdcb65097e98138b43f32ad91d1d12aa1aa4ef4`.
+
+**Weryfikacja końcowa lokalna:** Vitest 3791/3791 (435 plików), Functions
+504 PASS/12 SKIP, Firestore Rules 309/309, Storage Rules 33/33, typecheck, lint,
+build, dist/offline/no-emoji oraz `git diff --check` są zielone. Po świeżym Vite
+i cache Chromium ma 297/297, WebKit 297/297. `mobile:sync` poprzedził Android
+`assembleDebug` 642/642 oraz iOS Simulator App+Watch build/install/launch; hashe
+frontendu w `dist` i obu projektach natywnych są zgodne. Wersje pozostają 1.0.0,
+iOS build 130 i Android code 42. Bez deployu, pushu, migracji i uploadu.
+
+### 2026-08-28: X66 — paleta ma trzy role, a kandydat release musi być odtwarzalny
+
+**Root cause:** motywy Pulse, Forge i Glacier zapisywały trzy kolory, ale runtime
+wykorzystywał głównie `primary`; role pomocnicze były tylko próbkami w pickerze.
+Jednocześnie mały tekst pomocniczy 11 px bywał dodatkowo wygaszony do 60–70%, a
+dowolny bardzo ciemny HEX był kopiowany do `--ring`, przez co focus mógł zniknąć
+na ciemnej powierzchni. Poprzedni manifest release opierał listę plików wyłącznie
+na `git ls-files`, więc pomijał ignorowany `PLAN.md` i część wejść Gradle.
+
+**Decyzja:** `primary`, `supportA` i `supportB` zasilają trzy pierwsze serie
+wykresów. Kolory sukcesu, ostrzeżenia i błędu pozostają stałe, żeby personalizacja
+nie zmieniała znaczenia stanu. Tekst 11 px nie używa już obniżonego kontrastu.
+Własny HEX nadal określa wypełnienie, ale focus ring otrzymuje bezpieczną tonalnie
+wersję z kontrastem co najmniej 3:1 względem ciemnej powierzchni. Pełna paleta z
+avatara pozostaje świadomie po 1.0.0: wymaga jawnego CTA, lokalnego generatora
+trzech ról, walidatora, trwałego outboxa i osobnego QA; nie dokładamy tych stanów
+do prostego onboardingu przed wydaniem.
+
+Manifest kandydata zapisuje wyłącznie hashe plików, fingerprinty środowiska i
+artefaktów — nigdy wartości sekretów ani dane użytkowników. Obejmuje jawnie
+ignorowane dokumenty release oraz wszystkie wejścia buildów iOS/Android. Wersje
+marketingowe pozostają bezwzględnie `1.0.0`.
+
+**Weryfikacja:** testy najpierw odtworzyły brak konsumentów `supportA/B`, 13
+przypadków niskiego kontrastu, niewidoczny ring dla `#0e0e0e` oraz luki selektora
+manifestu. Aktualny kandydat przechodzi Vitest 3799/3799 (436 plików), Functions
+504 PASS/12 SKIP, emulator rejestracji 12/12, Firestore 309/309, Storage 33/33,
+typecheck, lint 0 błędów, build, budget, dist/offline/no-emoji i `git diff --check`.
+Po osobnym restarcie Vite/cache Chromium i WebKit przechodzą po 297/297. Świeży
+`mobile:sync` ma 18 pluginów; Android debug przechodzi 642 zadania, a iOS App+
+Watch+Widgets buduje się, instaluje i uruchamia na połączonej parze symulatorów.
+Pierwszy offline smoke zderzył się z równoległym emulatorem na tych samych portach;
+izolowany rerun przeszedł, więc root cause był w orkiestracji bramki, nie w produkcie.
+Manifest końcowy jest generowany jako ostatni krok po aktualizacji dowodów.
+
+### 2026-08-28: X67 — jedna rozgrzewka, opcjonalne obciążenie i lokalny fallback techniki
+
+**Root cause:** główny dialog startu treningu korzystał z rozgrzewki v3 z pełnym
+PL/EN i instrukcjami, ale osiągalny ekran `Dashboard → Szczegóły` (`/day`)
+renderował osobną listę legacy. Pokazywał między innymi pajacyki usunięte z v3 i
+samą nazwę z czasem, bez objaśnienia ruchu. Dodatkowo wykroki z wpisanymi
+powtórzeniami i `0 kg` można było odhaczyć ręcznie, lecz automatyczne domknięcie
+przy `Zakończ trening` nadal traktowało je jak niepełne `weight_reps`. Po ponownym
+włączeniu zewnętrznego CDN błąd MP4 mógł pozostawić czarny modal mimo lokalnego
+opisu techniki.
+
+**Decyzja:** `/day` używa tego samego `buildPreStartWarmup` co aktywny trening,
+z wariantem według pierwszego ćwiczenia i poziomu użytkownika. Każda pozycja ma
+nazwę, liczbę powtórzeń/czas i krótką instrukcję w języku interfejsu, dostępne z
+bundla offline. Wykroki pozostają `weight_reps`, aby zachować opcjonalne pole kg,
+ale przy ocenie kompletności serii są traktowane jak reps-only. Zwykłe ćwiczenia
+z ciężarem nadal wymagają dodatniej wagi. MP4 nie są automatycznie cache'owane;
+przy błędzie odtwarzania karta i szczegóły pokazują jawny stan oraz lokalną
+instrukcję. Avatar pozostaje małą miniaturą 256 px per UID w `LibraryNoCloud`,
+bo ten koszt jest mały i bezpośrednio usuwa znikanie zdjęcia w airplane mode.
+
+**Weryfikacja:** testy najpierw odtworzyły brak kanonicznego generatora na
+`/day`, czarny modal po `video.onerror` i brak rozróżnienia opcjonalnego
+obciążenia przy finalizacji. Po poprawce 86/86 testów rozgrzewki/karty oraz
+104/104 testów trackingu, 0 kg, widoku treningu i adaptera sync są zielone;
+route/i18n/avatar bootstrap ma 220/220. Pełna bramka: Vitest 3804/3804,
+Functions 504 PASS/12 SKIP i typecheck, Firestore Rules 309/309, Storage Rules
+33/33, root typecheck, lint 0 błędów (15 istniejących ostrzeżeń Fast Refresh),
+build, budget, dist/offline/no-emoji i `git diff --check`. Po świeżym Vite/cache
+Chromium oraz WebKit przechodzą po 297/297. `mobile:sync` znalazł 18 pluginów;
+Android debug, iOS Simulator build/install/launch i produkcyjny iOS release
+preflight dla wersji 1.0.0 są zielone. Fizyczne
+`online → force-kill → airplane → avatar`, zerwane odtwarzanie i trening z
+wykrokami `0 kg` pozostają w checkliście właściciela.

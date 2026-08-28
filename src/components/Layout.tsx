@@ -5,6 +5,7 @@ import { AppNavigation } from './AppNavigation';
 import { BackBar } from './BackBar';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
+import { APP_CHROME_ROOT_PATHS } from '@/lib/main-navigation';
 
 const pageTitleKeys: Record<string, TranslationKey> = {
   '/': 'layout.title.dashboard',
@@ -21,11 +22,8 @@ const pageTitleKeys: Record<string, TranslationKey> = {
   '/exercises': 'layout.title.exercises',
 };
 
-// Trasy najwyższego poziomu (bottom nav) — bez strzałki wstecz.
-// PRO-B: /profile wypada (wejście z avatara w headerze, dostaje strzałkę),
-// dochodzą /achievements i /analytics (są w bottom nav).
-const rootPaths = new Set(['/', '/plan', '/history', '/exercises', '/achievements', '/analytics']);
-
+// Chrome rootów pochodzi ze wspólnego kontraktu pięciu zakładek. /analytics
+// zachowuje dotychczasowy brak strzałki jako jawny wyjątek poza bottom navem.
 export const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -33,16 +31,14 @@ export const Layout = () => {
   const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
   // Replan (/new-plan) i paywall są pełnoekranowe (jak onboarding) — bez nawigacji i nagłówka appki.
   const isFullScreenFlow = location.pathname === '/new-plan' || location.pathname === '/paywall';
-  const isRootPage = rootPaths.has(location.pathname);
+  const isRootPage = APP_CHROME_ROOT_PATHS.has(location.pathname);
   const titleKey = pageTitleKeys[location.pathname];
   const title = titleKey ? t(titleKey) : 'Strength Save';
   // WP-C (X35b): pasek "Wstecz" nad dolnym navem na trasach spoza niego. W sesji
   // treningowej (/workout/*) NIE: ten sam slot 6rem zajmują RestBar i CTA startu,
   // a ekran ma własny przycisk wstecz w nagłówku sesji. /exercise/* dostaje pasek,
   // bo bez AppHeader po przewinięciu nie ma tam żadnego powrotu.
-  // X36 (głosówka po 124): Profil BEZ paska — wejście z avatara, strzałka w
-  // nagłówku wystarcza; pasek na dole właściciel uznał za zbędny.
-  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/') && location.pathname !== '/profile';
+  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/');
 
   const handleBack = () => {
     // React Router v6 trzyma indeks historii w window.history.state.idx.

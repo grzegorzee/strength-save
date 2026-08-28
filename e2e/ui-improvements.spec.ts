@@ -37,7 +37,7 @@ test.describe('Navigation', () => {
     expect(joinedLabels).not.toContain('AI Coach');
   });
 
-  test('mobile has no sidebar drawer and keeps sidebar-only links out of keyboard focus', async ({ page }) => {
+  test('mobile has five root links and keeps sidebar-only links out of keyboard focus', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
@@ -46,15 +46,18 @@ test.describe('Navigation', () => {
     // Od build 46 (938aadb) nie ma już mobilnego hamburgera/drawera — sidebar
     // 'Nawigacja główna' renderuje się wyłącznie na desktopie (md+).
     await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toHaveCount(0);
+    const mobileNavLinks = page.getByRole('navigation', { name: 'Nawigacja mobilna' }).getByRole('link');
+    await expect(mobileNavLinks).toHaveCount(5);
+    await expect(mobileNavLinks.filter({ hasText: 'Profil' })).toHaveAttribute('href', '#/profile');
 
     for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
-      // D-T1: linki tylko-sidebarowe (analytics/measurements/cycles/profile) nie
-      // istnieją na mobile; Historia weszła do dolnego paska.
+      // D-T1/X51: Profil jest piątym rootem i może dostać fokus. Tylko linki
+      // desktopowego sidebara nie istnieją na mobile.
       expect(focusedHref).not.toBe('#/analytics');
+      expect(focusedHref).not.toBe('#/exercises');
       expect(focusedHref).not.toBe('#/measurements');
-      expect(focusedHref).not.toBe('#/profile');
       expect(focusedHref).not.toBe('#/cycles');
     }
   });

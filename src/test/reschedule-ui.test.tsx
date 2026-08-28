@@ -137,7 +137,10 @@ describe('MissedWorkoutBanner', () => {
 
   it('krzyżyk zapamiętuje odrzucenie tej daty (baner znika i nie wraca)', () => {
     renderBanner();
-    fireEvent.click(screen.getByLabelText('Odrzuć'));
+    const dismiss = screen.getByLabelText('Odrzuć');
+    expect(dismiss.className).toContain('min-h-11');
+    expect(dismiss.className).toContain('min-w-11');
+    fireEvent.click(dismiss);
     // Baner przeskakuje na starszy pominięty dzień (pn), nie znika całkiem.
     expect(screen.queryByText(/Środa.*niezrobiony/)).toBeNull();
     expect(screen.getByText(/Poniedziałek.*niezrobiony/)).toBeTruthy();
@@ -158,19 +161,23 @@ describe('MissedWorkoutBanner', () => {
 });
 
 describe('TrainingDayCard: akcja przełożenia', () => {
-  it('ikona tylko z przekazanym onReschedule; klik nie odpala onClick karty', () => {
+  it('akcja tylko z przekazanym onReschedule; wybór z menu nie odpala onClick karty', () => {
     const onClick = vi.fn();
     const onReschedule = vi.fn();
     wrap(
       <TrainingDayCard day={planDays[0]} onClick={onClick} onReschedule={onReschedule} />,
     );
-    fireEvent.click(screen.getByLabelText('Przełóż trening'));
+    const trigger = screen.getByLabelText('Więcej akcji');
+    expect(trigger.className).toContain('min-h-11');
+    expect(trigger.className).toContain('min-w-11');
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Przełóż trening' }));
     expect(onReschedule).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it('bez onReschedule ikony nie ma (dzień ukończony/przeszły)', () => {
+  it('bez callbacków menu nie ma (dzień ukończony/przeszły)', () => {
     wrap(<TrainingDayCard day={planDays[0]} onClick={() => {}} />);
-    expect(screen.queryByLabelText('Przełóż trening')).toBeNull();
+    expect(screen.queryByLabelText('Więcej akcji')).toBeNull();
   });
 });

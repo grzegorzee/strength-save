@@ -2,22 +2,32 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const firestoreMocks = vi.hoisted(() => {
   const writes: Array<{ kind: "set" | "update"; path: string; data: Record<string, unknown> }> = [];
-  const batch = {
+  const transaction = {
+    get: vi.fn(async () => ({
+      exists: true,
+      data: () => ({
+        consents: {
+          healthGranted: false,
+          healthVersion: "1.1",
+          healthEpoch: 7,
+          healthGrantId: null,
+        },
+      }),
+    })),
     set: vi.fn((ref: { path: string }, data: Record<string, unknown>) => {
       writes.push({ kind: "set", path: ref.path, data });
     }),
     update: vi.fn((ref: { path: string }, data: Record<string, unknown>) => {
       writes.push({ kind: "update", path: ref.path, data });
     }),
-    commit: vi.fn(async () => undefined),
   };
   const db = {
-    batch: vi.fn(() => batch),
+    runTransaction: vi.fn(async (callback: (tx: typeof transaction) => unknown) => callback(transaction)),
     collection: vi.fn((collection: string) => ({
-      doc: vi.fn((id?: string) => ({ path: `${collection}/${id ?? "generated"}` })),
+      doc: vi.fn((id?: string) => ({ id: id ?? "generated", path: `${collection}/${id ?? "generated"}` })),
     })),
   };
-  return { writes, batch, db, serverTimestamp: { __serverTimestamp: true } };
+  return { writes, transaction, db, serverTimestamp: { __serverTimestamp: true } };
 });
 
 vi.mock("firebase-admin", () => ({
@@ -33,9 +43,10 @@ import { LEGAL_VERSIONS } from "./legal-versions";
 describe("recordConsent response mirror", () => {
   beforeEach(() => {
     firestoreMocks.writes.length = 0;
-    firestoreMocks.batch.set.mockClear();
-    firestoreMocks.batch.update.mockClear();
-    firestoreMocks.batch.commit.mockClear();
+    firestoreMocks.transaction.get.mockClear();
+    firestoreMocks.transaction.set.mockClear();
+    firestoreMocks.transaction.update.mockClear();
+    firestoreMocks.db.runTransaction.mockClear();
   });
 
   it("po commit zwraca nested mirror zgodny z atomowym update users/{uid}", async () => {
@@ -53,7 +64,7 @@ describe("recordConsent response mirror", () => {
       rawRequest: { headers: { "x-forwarded-for": "203.0.113.4" } },
     } as never);
 
-    expect(firestoreMocks.batch.commit).toHaveBeenCalledTimes(1);
+    expect(firestoreMocks.db.runTransaction).toHaveBeenCalledTimes(1);
     const userUpdate = firestoreMocks.writes.find((write) => write.kind === "update");
     expect(userUpdate).toMatchObject({
       path: "users/user-1",
@@ -62,6 +73,8 @@ describe("recordConsent response mirror", () => {
         "consents.privacyVersion": LEGAL_VERSIONS.privacy,
         "consents.healthGranted": true,
         "consents.healthVersion": LEGAL_VERSIONS.health,
+        "consents.healthEpoch": 8,
+        "consents.healthGrantId": "generated",
       },
     });
     expect(response).toEqual({
@@ -72,6 +85,8 @@ describe("recordConsent response mirror", () => {
         privacyVersion: LEGAL_VERSIONS.privacy,
         healthGranted: true,
         healthVersion: LEGAL_VERSIONS.health,
+        healthEpoch: 8,
+        healthGrantId: "generated",
       },
     });
   });

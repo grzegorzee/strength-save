@@ -10,6 +10,8 @@ import {
   getRestDuration,
   lookupExerciseType,
   isBodyweightExercise,
+  supportsZeroWeight,
+  isPerSideRepTarget,
   createPrefilledSets,
   previousWorkingSet,
 } from '@/lib/exercise-utils';
@@ -40,6 +42,24 @@ describe('previousWorkingSet (kolumna POPRZ.)', () => {
     expect(previousWorkingSet([W(8, 50)], 3)).toBeUndefined();
     expect(previousWorkingSet(undefined, 0)).toBeUndefined();
     expect(previousWorkingSet([], 0)).toBeUndefined();
+  });
+});
+
+describe('ćwiczenia jednostronne wykonywane bez obciążenia', () => {
+  it('rozpoznaje wykroki PL/EN jako ćwiczenia, w których świadome 0 kg jest poprawne', () => {
+    expect(supportsZeroWeight('Wykroki chodzone')).toBe(true);
+    expect(supportsZeroWeight('Przysiady wykroczne')).toBe(true);
+    expect(supportsZeroWeight('Wykrok bułgarski')).toBe(true);
+    expect(supportsZeroWeight('Walking lunges')).toBe(true);
+    expect(supportsZeroWeight('Reverse lunge')).toBe(true);
+    expect(supportsZeroWeight('Split squats')).toBe(true);
+    expect(supportsZeroWeight('Wyciskanie sztangi')).toBe(false);
+  });
+
+  it('zachowuje informację „na nogę / per leg” z celu planu', () => {
+    expect(isPerSideRepTarget('3 x 10/noga')).toBe(true);
+    expect(isPerSideRepTarget('3 x 8 per leg')).toBe(true);
+    expect(isPerSideRepTarget('3 x 10')).toBe(false);
   });
 });
 

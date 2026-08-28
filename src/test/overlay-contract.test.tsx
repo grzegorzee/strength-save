@@ -34,7 +34,8 @@ describe('kontrakt blokujących overlayów', () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole('button', { name: 'dialog' }));
     expect(document.querySelectorAll('[data-app-overlay]')).toHaveLength(1);
-    expect(screen.getByTestId('contract-dialog')).toBeTruthy();
+    expect(screen.getByTestId('contract-dialog')).toHaveClass('z-[51]');
+    expect(document.querySelector('[data-radix-overlay]')).toHaveClass('z-50');
 
     fireEvent.click(screen.getByRole('button', { name: 'sheet' }));
     await waitFor(() => expect(screen.queryByTestId('contract-dialog')).toBeNull());
@@ -78,6 +79,8 @@ describe('kontrakt blokujących overlayów', () => {
     // Rodzic ma zostać otwarty, a przycisk potwierdzenia klikalny.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Usuń' })).toBeTruthy());
     expect(screen.getByTestId('parent-dialog')).toBeTruthy();
+    expect(screen.getByRole('alertdialog')).toHaveClass('z-[53]');
+    expect(document.querySelectorAll('[data-radix-overlay]')[1]).toHaveClass('z-[52]');
     fireEvent.click(screen.getByRole('button', { name: 'Usuń' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('parent-dialog')).toBeTruthy();

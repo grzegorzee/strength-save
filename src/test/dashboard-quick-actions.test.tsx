@@ -5,10 +5,9 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { TrainingDay } from '@/data/trainingPlan';
 
-// Fala 2 (2026-08-20): grid 2x2 szybkich akcji. Niezmiennik: DOKŁADNIE 4 kafle
-// i każdy działa — kafel "Twoje liczby" przywraca wejście z Dashboardu do
-// AllTimeStatsSheet (X17D Z139.4), kafel Analityki przejmuje funkcję zdjętego
-// pełnowymiarowego przycisku "Zobacz analitykę".
+// Progressive disclosure (2026-08-27): Dashboard zostawia wyłącznie operacyjne
+// skróty potrzebne w danej chwili. Dane i analityka mają jeden dom w głównej
+// zakładce Postępy; szybki trening i ręczne cardio pozostają bezpośrednio dostępne.
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -136,41 +135,33 @@ beforeEach(() => {
   planFixture.plan = [dayToday()];
 });
 
-describe('grid szybkich akcji (fala 2)', () => {
-  it('niezmiennik: grid ma DOKŁADNIE 4 kafle', async () => {
+describe('proste akcje Dashboardu', () => {
+  it('pokazuje dokładnie dwa operacyjne skróty, bez duplikatów zakładki Postępy', async () => {
     renderDashboard();
     await waitFor(() => expect(screen.getByTestId('dash-actions')).toBeTruthy());
     const grid = screen.getByTestId('dash-actions');
-    expect(grid.querySelectorAll('button')).toHaveLength(4);
+    expect(grid.querySelectorAll('button')).toHaveLength(2);
     expect(screen.getByTestId('quick-workout-start')).toBeTruthy();
     expect(screen.getByTestId('add-cardio-open')).toBeTruthy();
-    expect(screen.getByTestId('dash-your-numbers')).toBeTruthy();
-    expect(screen.getByTestId('dash-analytics')).toBeTruthy();
+    expect(screen.queryByTestId('dash-your-numbers')).toBeNull();
+    expect(screen.queryByTestId('dash-analytics')).toBeNull();
   });
 
-  it('kafel "Twoje liczby" otwiera AllTimeStatsSheet', async () => {
+  it('ma jedno dominujące CTA treningowe', async () => {
     renderDashboard();
-    await waitFor(() => expect(screen.getByTestId('dash-your-numbers')).toBeTruthy());
-    expect(screen.queryByTestId('stats-empty')).toBeNull();
-    fireEvent.click(screen.getByTestId('dash-your-numbers'));
-    await waitFor(() => expect(screen.getByTestId('stats-empty')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dashboard-primary-action')).toBeTruthy());
+    expect(screen.getAllByTestId('dashboard-primary-action')).toHaveLength(1);
+    expect(screen.getByTestId('dashboard-primary-action')).toHaveTextContent('Rozpocznij trening');
   });
 
-  it('kafel Analityki nawiguje do podsumowania analityki', async () => {
-    renderDashboard();
-    await waitFor(() => expect(screen.getByTestId('dash-analytics')).toBeTruthy());
-    fireEvent.click(screen.getByTestId('dash-analytics'));
-    expect(navigateSpy).toHaveBeenLastCalledWith('/achievements?view=analytics&tab=summary');
-  });
-
-  it('kafel szybkiego treningu nawiguje do ad-hoc z autostartem', async () => {
+  it('NIEZMIENNIK starego przepływu: szybki trening nadal startuje ad-hoc', async () => {
     renderDashboard();
     await waitFor(() => expect(screen.getByTestId('quick-workout-start')).toBeTruthy());
     fireEvent.click(screen.getByTestId('quick-workout-start'));
     expect(navigateSpy).toHaveBeenLastCalledWith(expect.stringMatching(/^\/workout\/.+autostart=true$/));
   });
 
-  it('kafel cardio otwiera dialog dodawania', async () => {
+  it('NIEZMIENNIK starego przepływu: cardio nadal otwiera formularz dodawania', async () => {
     renderDashboard();
     await waitFor(() => expect(screen.getByTestId('add-cardio-open')).toBeTruthy());
     fireEvent.click(screen.getByTestId('add-cardio-open'));

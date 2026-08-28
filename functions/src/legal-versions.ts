@@ -5,7 +5,7 @@
 export const LEGAL_VERSIONS = {
   terms: "2.0",
   privacy: "2.1",
-  health: "1.0",
+  health: "1.1",
   marketing: "1.0",
 } as const;
 

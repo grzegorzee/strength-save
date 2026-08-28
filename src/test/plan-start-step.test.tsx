@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
@@ -23,7 +23,7 @@ vi.mock('@/components/PlanBuilder', () => ({
 }));
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
-import { MATCHING_INTERSTITIAL_MS, PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions } from '@/components/PlanWizard';
+import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions } from '@/components/PlanWizard';
 
 const withProviders = (node: React.ReactNode) => (
   <LanguageProvider>
@@ -287,15 +287,11 @@ describe('X34: ekran 6/6 "Start planu"', () => {
   });
 
   it('SEKWENCJA: 6/6 -> wstecz -> 5A (karta nadal zaznaczona, bez przerywnika) -> karta 2 -> 6/6 z defaultami karty 2; powrot bez zmiany karty zachowuje ustawienia', () => {
-    // Przerywnik po kroku 4 mija (fake timers), zeby powrot z 6/6 byl sprawdzany osobno.
-    vi.useFakeTimers();
     const onConfirm = vi.fn<Confirm>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5(4);
-    act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS); });
     expect(screen.queryByTestId('ob-matching')).toBeNull();
     fireEvent.click(screen.getByTestId('ob-match-next'));
-    vi.useRealTimers();
     fireEvent.change(nameInput(), { target: { value: 'Moja nazwa' } });
     fireEvent.click(tiles()[2]); // 16
     fireEvent.click(chips()[1]);

@@ -54,23 +54,26 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-1 max-w-lg w-full mx-auto px-6 pt-10 pb-6 flex flex-col">
-        <div className="flex items-center justify-between">
-          <button onClick={onBack} aria-label={t('common.back')} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="h-5 w-5" /></button>
+    <div
+      data-testid="plan-preview-screen"
+      className="flex h-[calc(100dvh-var(--keyboard-inset,0px))] min-h-0 flex-col overflow-hidden bg-background"
+    >
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-1 flex-col pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[calc(1rem+env(safe-area-inset-top))]">
+        <div className="flex shrink-0 items-center justify-between">
+          <button onClick={onBack} aria-label={t('common.back')} className="flex min-h-11 min-w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"><ChevronLeft className="h-5 w-5" /></button>
           <span className="font-heading font-bold uppercase tracking-widest text-xs text-primary">{t('ob.brand')}</span>
-          <span />
+          <span className="h-11 w-11" aria-hidden="true" />
         </div>
-        <div className="mt-8 mb-5">
+        <div className="mb-5 mt-6 shrink-0">
           <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight uppercase">{t('newplan.preview.title')}</h1>
           <p className="text-muted-foreground mt-2">{t('newplan.preview.desc')}</p>
         </div>
-        <div className="flex-1 space-y-3 overflow-y-auto">
+        <div data-testid="plan-preview-scroll" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
           {days.map((day) => (
             <div key={day.id} className="rounded-2xl bg-surface-low p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="font-heading font-bold">{localizeDayName(day.dayName, lang)}</p>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
               </div>
               {day.exercises.map((ex) => (
                 <div key={ex.id} className="flex items-center justify-between py-1.5">
@@ -78,7 +81,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
                     <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">{ex.sets}</p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-xs shrink-0 text-primary" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
+                  <Button variant="ghost" size="sm" className="min-h-11 shrink-0 text-xs text-primary" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
                     <RefreshCw className="h-3 w-3 mr-1" />{t('onboarding.swap')}
                   </Button>
                 </div>
@@ -86,8 +89,8 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
             </div>
           ))}
         </div>
-        <div className="pt-5 space-y-2">
-          <button data-testid="plan-preview-confirm" onClick={onConfirm} disabled={isSaving} className="w-full touch-manipulation select-none rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2">
+        <div data-testid="plan-preview-actions" className="shrink-0 space-y-2 bg-background pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <button data-testid="plan-preview-confirm" onClick={onConfirm} disabled={isSaving} className="flex min-h-12 w-full touch-manipulation select-none items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary-light to-primary py-3 font-heading font-bold uppercase tracking-wide text-primary-foreground disabled:opacity-50">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {confirmLabel}
           </button>
@@ -98,7 +101,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
               data-testid="plan-preview-choose-other"
               onClick={onChooseOther}
               disabled={isSaving}
-              className="w-full touch-manipulation select-none rounded-2xl bg-surface-high py-3 text-sm font-medium disabled:opacity-50"
+              className="min-h-12 w-full touch-manipulation select-none rounded-2xl bg-surface-high py-3 text-sm font-medium disabled:opacity-50"
             >
               {t('ob.preview.chooseOther')}
             </button>

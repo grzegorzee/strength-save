@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
 
 // X33 (plan docs/PLAN-X33-2026-08-25.md, sekcja 1): krok 5A "Dopasowane do Ciebie".
-// WP-1 przerywnik "Dobieram plany" (raz na przejscie kreatora),
+// WP-1 natychmiastowa rekomendacja bez sztucznego oczekiwania,
 // WP-2 dwie karty (Polecany / Alternatywa / Wybrany z biblioteki) + chipy celu,
 // WP-5 scroll na gore. X34: 5A = tylko wybor (bez podsumowania, "Zmien ustawienia",
 // "Pierwszy trening" i ustawien); zatwierdzanie idzie przez ekran 6/6
@@ -15,7 +15,7 @@ import { localizePlanName } from '@/lib/plan-i18n';
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
-import { MATCHING_INTERSTITIAL_MS, MATCHING_ROW_STEP_MS, PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
+import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 
 const withProviders = (node: React.ReactNode) => (
   <LanguageProvider>
@@ -189,39 +189,19 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
   });
 });
 
-describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4 (X34: 3,5 s, wiersze kolejno co 0,7 s)', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
-
-  it('3,5 s: pasek od razu, Poziom / Cel / Czestotliwosc pojawiaja sie kolejno co 0,7 s, potem znika; powrot strzalka do kroku 4 i Dalej go pomija', () => {
-    expect(MATCHING_INTERSTITIAL_MS).toBe(3500);
-    expect(MATCHING_ROW_STEP_MS).toBe(700);
+describe('WP-1: rekomendacja natychmiast po kroku 4', () => {
+  it('po kroku 4 rekomendacje są dostępne natychmiast, bez pełnoekranowej blokady zależnej od timera', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5(3, 'Redukcja');
+    goToStep5(4);
 
-    const overlay = () => screen.getByTestId('ob-matching');
-    const rows = () => within(overlay()).queryAllByTestId('ob-matching-row').map((r) => r.textContent ?? '');
-    expect(within(overlay()).getByText('Dobieram plany')).toBeInTheDocument();
-    expect(within(overlay()).getByTestId('ob-matching-bar')).toBeInTheDocument();
-    expect(rows()).toEqual([]);
-
-    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS - 1); });
-    expect(rows()).toEqual([]);
-    act(() => { vi.advanceTimersByTime(1); });
-    expect(rows()).toEqual(['PoziomPoczątkujący']);
-    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS); });
-    expect(rows()).toEqual(['PoziomPoczątkujący', 'CelRedukcja']);
-    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS); });
-    expect(rows()).toEqual(['PoziomPoczątkujący', 'CelRedukcja', 'Częstotliwość3 dni/tydz']);
-
-    act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS - 3 * MATCHING_ROW_STEP_MS - 1); });
-    expect(screen.getByTestId('ob-matching')).toBeInTheDocument();
-    expect(rows()).toHaveLength(3);
-    act(() => { vi.advanceTimersByTime(1); });
     expect(screen.queryByTestId('ob-matching')).toBeNull();
     expect(cards()).toHaveLength(2);
+    expect(screen.getByTestId('ob-match-next')).toBeEnabled();
+  });
 
-    // X34: bez "Zmien ustawienia"; powrot = strzalka wstecz (krok 4), zmiana dni i Dalej.
+  it('powrót do ustawień i ponowne Dalej także pokazuje od razu aktualne rekomendacje', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToStep5(3, 'Redukcja');
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
     fireEvent.click(screen.getByRole('button', { name: '4' }));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
@@ -243,14 +223,12 @@ describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4 (X34: 3,5 s, wier
   it('powrot z 6/6 na 5A nie odpala przerywnika ponownie (raz na przejscie kreatora)', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5(4);
-    act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS); });
     expect(screen.queryByTestId('ob-matching')).toBeNull();
     fireEvent.click(screen.getByTestId('ob-match-next'));
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
     expect(screen.getByText('05 / 06')).toBeInTheDocument();
     expect(screen.queryByTestId('ob-matching')).toBeNull();
-    act(() => { vi.advanceTimersByTime(MATCHING_ROW_STEP_MS); });
-    expect(screen.queryByTestId('ob-matching')).toBeNull();
+    expect(cards()).toHaveLength(2);
   });
 });
 

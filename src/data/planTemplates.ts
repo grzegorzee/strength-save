@@ -71,8 +71,8 @@ const imp = (
     opts?.rest ? `Przerwa ${opts.rest}` : null,
   ].filter(Boolean).join(' • ');
   const instructions: Exercise['instructions'] = [];
-  if (params) instructions.push({ title: '📋 Parametry', content: params });
-  if (opts?.note) instructions.push({ title: '💡 Wskazówka', content: opts.note });
+  if (params) instructions.push({ title: 'Parametry', content: params });
+  if (opts?.note) instructions.push({ title: 'Wskazówka', content: opts.note });
   return {
     id: `tpl-ex-${exerciseCounter}`,
     name,
@@ -99,8 +99,8 @@ const rza = (
     sets: cel,
     timer: opts.timer,
     instructions: [
-      { title: '📋 Parametry', content: `${opts.typ} • ${opts.timer} • RPE ${opts.rpe}` },
-      { title: '💡 Wskazówka', content: opts.uwaga },
+      { title: 'Parametry', content: `${opts.typ} • ${opts.timer} • RPE ${opts.rpe}` },
+      { title: 'Wskazówka', content: opts.uwaga },
     ],
     ...(lib?.videoUrl ? { videoUrl: lib.videoUrl } : {}),
   };
@@ -110,7 +110,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-fullbody-2',
     name: 'Iron Foundation',
-    description: 'Całe ciało na dwóch treningach. Idealny na start, powrót po przerwie albo tygodnie z mało czasu.',
+    description: 'Całe ciało na dwóch treningach. Dla początkujących, osób wracających po przerwie i tygodni z małą ilością czasu.',
     goal: 'health',
     objective: 'build_muscle',
     level: 'beginner',
@@ -136,7 +136,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-fullbody-3',
     name: 'Balanced Builder',
-    description: 'Full Body 3 razy w tygodniu (A/B/C), każdy trening na całe ciało, na zmianę z dniem przerwy. Świetny stosunek efektów do czasu.',
+    description: 'Full Body 3 razy w tygodniu (A/B/C), każdy trening na całe ciało, z dniem przerwy między sesjami.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
@@ -246,7 +246,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-upper-lower-4',
     name: 'Upper / Lower Forge',
-    description: 'Góra/dół dwa razy w tygodniu. Świetny balans siły i masy przy 4 treningach.',
+    description: 'Góra/dół dwa razy w tygodniu: dwa dni góry i dwa dni dołu przy 4 treningach.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
@@ -513,7 +513,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-lean-engine-4',
     name: 'Lean Engine',
-    description: 'Spalanie i rekompozycja: obwody całego ciała z krótkimi przerwami, wysokie powtórzenia i wstawki kondycyjne. Utrzymuje mięśnie przy redukcji.',
+    description: 'Plan pod redukcję: obwody całego ciała z krótkimi przerwami, wysokie powtórzenia i wstawki kondycyjne.',
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'intermediate',
@@ -622,7 +622,7 @@ export const planTemplates: PlanTemplate[] = [
         rza('Machine/cable lateral raise', '4 rundy 30/20/10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8-9', uwaga: 'Najważniejszy blok estetyczny.' }),
         rza('Cable curl / modlitewnik', '3 rundy 40s', { typ: 'Timed', timer: 'E2MOM x6 alt', rpe: '8', uwaga: 'Dodatek; nie kradnij czasu plecom.' }),
         rza('Reverse pec deck / rear delt fly', '3 rundy 40s', { typ: 'Timed', timer: 'E2MOM x6 alt', rpe: '8', uwaga: 'Tył barku. Łopatki stabilne, ruch z barku.' }),
-        rza('Ski erg / sled / farmer', '10 min', { typ: 'Finisher', timer: 'EMOM 10', rpe: '7-8', uwaga: 'Kondycja bez spalenia regeneracji.' }),
+        rza('Ski erg / sled / farmer', '10 min', { typ: 'Finisher', timer: 'EMOM 10', rpe: '7-8', uwaga: 'Finisher kondycyjny przy RPE 7-8; zakończ zgodnie z timerem.' }),
       ]),
     ],
   },
@@ -634,7 +634,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-minimalist-2',
     name: 'Minimalist Protocol',
-    description: 'Minimalna objętość, maksymalny efekt (styl Jeffa Nipparda): 2 krótkie treningi całego ciała, serie blisko upadku, drop sety na izolacjach. Pod 45 minut.',
+    description: 'Plan o małej objętości: 2 krótkie treningi całego ciała, serie blisko upadku i drop sety na izolacjach. Do 45 minut.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
@@ -703,7 +703,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-gzclp-3',
     name: 'Three Tier Strength',
-    description: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Idealny krok po programie 5×5.',
+    description: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Kontynuacja po programie 5×5.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'beginner',
@@ -1058,7 +1058,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-nsuns-5',
     name: 'Volume Max LP',
-    description: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Najcięższy plan w aplikacji. Wymaga nadwyżki kalorycznej i snu.',
+    description: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Plan o bardzo wysokiej objętości dla zaawansowanych.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'advanced',

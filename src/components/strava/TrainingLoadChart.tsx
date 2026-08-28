@@ -71,11 +71,11 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR, workouts }: Prop
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               className="fill-muted-foreground"
               interval={Math.max(0, Math.floor(chartData.length / 8) - 1)}
             />
-            <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+            <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
             <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />

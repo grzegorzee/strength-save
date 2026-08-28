@@ -58,6 +58,11 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     var hasProAccess: Bool { payload?.capability?.active != false }
 
+    /// Dwa zgodne źródła zapobiegają fail-open po starym/częściowym snapshocie.
+    var healthFeaturesEnabled: Bool {
+        payload?.healthFeaturesEnabled == true && WatchHealthFeatureGate.isEnabled
+    }
+
     /// Trial może wygasnąć w trakcie lokalnej sesji. Wtedy domykamy dokładnie
     /// tę sesję, lecz nie pozwalamy zacząć kolejnej. Revoke/logout fail-closed.
     var canContinueCurrentWorkout: Bool {
@@ -236,6 +241,7 @@ final class WorkoutStore: NSObject, ObservableObject {
     private func loadCached() {
         guard let data = defaults.data(forKey: storageKey) else { return }
         payload = try? JSONDecoder().decode(WatchWorkoutPayload.self, from: data)
+        WatchHealthFeatureGate.update(payload?.healthFeaturesEnabled)
         if let lang = payload?.lang { L10n.lang = lang }
     }
 
@@ -349,6 +355,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             merged.exercises = incomingExercises
         }
         payload = merged
+        WatchHealthFeatureGate.update(merged.healthFeaturesEnabled)
         defaults.set(Date().timeIntervalSince1970 * 1000, forKey: "watch.lastSyncAt.v1")
         if let lang = merged.lang { L10n.lang = lang }
         persist()
@@ -373,11 +380,17 @@ final class WorkoutStore: NSObject, ObservableObject {
             deviceId: watchDeviceId,
             sessionId: payload.sessionId
         ))
-        WorkoutSessionManager.shared.start()
+        syncHealthSession()
     }
 
     /// Sesja HealthKit podąża za stanem treningu (aktywny → start, koniec → stop).
     private func syncHealthSession() {
+        guard healthFeaturesEnabled else {
+            // Wycofanie zgody nie może domknąć buildera przez finishWorkout,
+            // ponieważ byłby to nowy zapis danych zdrowotnych.
+            WorkoutSessionManager.shared.discard()
+            return
+        }
         if isActive && !isFinishedLocally {
             WorkoutSessionManager.shared.start()
         } else {
@@ -480,6 +493,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             restBetweenSetsSeconds: previous?.restBetweenSetsSeconds,
             restBetweenExercisesSeconds: previous?.restBetweenExercisesSeconds,
             timersEnabled: previous?.timersEnabled,
+            healthFeaturesEnabled: previous?.healthFeaturesEnabled == true,
             unit: previous?.unit,
             lang: previous?.lang,
             capability: previous?.capability,
@@ -506,7 +520,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             uid: previous?.uid,
             deviceId: watchDeviceId
         ))
-        WorkoutSessionManager.shared.start()
+        syncHealthSession()
     }
 
     func finishWorkout() {
@@ -520,7 +534,11 @@ final class WorkoutStore: NSObject, ObservableObject {
             uid: payload.uid, deviceId: watchDeviceId, sessionId: payload.sessionId,
             hkSession: WorkoutSessionManager.shared.isSessionRunning
         ))
-        WorkoutSessionManager.shared.stop()
+        if healthFeaturesEnabled {
+            WorkoutSessionManager.shared.stop()
+        } else {
+            WorkoutSessionManager.shared.discard()
+        }
     }
 
     func discardWorkout() {

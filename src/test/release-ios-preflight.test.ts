@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — moduł .mjs bez typów (skrypt release), importowany dla testu czystej logiki.
-import { extractBuildNumbers, findBuildNumberMismatch } from '../../scripts/release-ios-preflight-checks.mjs';
+import { extractBuildNumbers, findBuildNumberMismatch, validateRevenueCatAppleApiKey } from '../../scripts/release-ios-preflight-checks.mjs';
 
 // #10/Z12: preflight nie sprawdzał spójności CURRENT_PROJECT_VERSION (build number).
 // Bump ręczny może rozjechać 6 wystąpień; bramka ma to wyłapać przed archiwizacją.
@@ -52,5 +52,26 @@ describe('release-ios-preflight — spójność CURRENT_PROJECT_VERSION (#10 Z12
 
   it('faila gdy brak CURRENT_PROJECT_VERSION', () => {
     expect(findBuildNumberMismatch('brak build numberów').ok).toBe(false);
+  });
+});
+
+describe('release-ios-preflight — produkcyjny publiczny klucz RevenueCat Apple', () => {
+  it('akceptuje wyłącznie app-specific public SDK key platformy Apple', () => {
+    expect(validateRevenueCatAppleApiKey('appl_1234567890abcdef')).toEqual({
+      ok: true,
+      reason: 'valid',
+    });
+  });
+
+  it.each([
+    [undefined, 'missing'],
+    ['', 'missing'],
+    ['goog_1234567890abcdef', 'wrong-platform'],
+    ['test_1234567890abcdef', 'test-store'],
+    ['sk_1234567890abcdef', 'secret-key'],
+    ['appl_placeholder', 'malformed'],
+    [' appl_1234567890abcdef', 'malformed'],
+  ])('odrzuca %s jako %s', (candidate, reason) => {
+    expect(validateRevenueCatAppleApiKey(candidate)).toEqual({ ok: false, reason });
   });
 });

@@ -147,8 +147,12 @@ beforeEach(() => {
 });
 
 describe('popup pomiarów po onboardingu (T4)', () => {
-  it('welcome=1 bez pomiarów: dialog widoczny, "Tak" nawiguje na /measurements', async () => {
+  it('welcome=1 bez pomiarów: najpierw handoff planu, pomiary dopiero po jego zamknięciu', async () => {
     renderDashboard('/?welcome=1');
+
+    expect(await screen.findByRole('heading', { name: 'Twój plan jest gotowy' })).toBeInTheDocument();
+    expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Później' }));
     expect(await screen.findByText('Dodać pomiary ciała?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tak, dodaj pomiary' }));
     expect(navigateSpy).toHaveBeenCalledWith('/measurements');
@@ -156,6 +160,7 @@ describe('popup pomiarów po onboardingu (T4)', () => {
 
   it('welcome=1 bez pomiarów: "Nie teraz" zamyka dialog i nic nie nawiguje', async () => {
     renderDashboard('/?welcome=1');
+    fireEvent.click(await screen.findByRole('button', { name: 'Później' }));
     expect(await screen.findByText('Dodać pomiary ciała?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Nie teraz' }));
     await waitFor(() => expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull());
@@ -172,6 +177,7 @@ describe('popup pomiarów po onboardingu (T4)', () => {
     expect(numericMeasurement).toBeTruthy();
     measurementFixture.latest = numericMeasurement;
     renderDashboard('/?welcome=1');
+    fireEvent.click(await screen.findByRole('button', { name: 'Później' }));
     await waitFor(() => expect(screen.getByTestId('dash-greeting')).toBeInTheDocument());
     expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
   });
@@ -180,6 +186,7 @@ describe('popup pomiarów po onboardingu (T4)', () => {
     expect(photoOnlyMeasurement).toBeTruthy();
     measurementFixture.latest = photoOnlyMeasurement;
     renderDashboard('/?welcome=1');
+    fireEvent.click(await screen.findByRole('button', { name: 'Później' }));
     await waitFor(() => expect(screen.getByTestId('dash-greeting')).toBeInTheDocument());
     expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
   });

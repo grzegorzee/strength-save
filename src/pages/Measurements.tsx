@@ -6,7 +6,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
-import { useHealthConsent } from '@/hooks/useHealthConsent';
+import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -58,12 +58,15 @@ const Measurements = () => {
   // WP-G: cel usera steruje tonem delty wagi (brak celu = neutralnie).
   const objective = profile?.trainingProfile?.objective;
   const navigate = useNavigate();
+  const activeHealthGrant = useActiveHealthGrant();
+  const healthConsent = activeHealthGrant !== null;
   // Tier pomiarów: domyślny 'full' (365) — lista "Pokaż wszystkie" czyta pełne okno.
-  const { measurements, measurementError, retryMeasurements, addMeasurement, updateMeasurement, deleteMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
+  const { measurements, measurementError, retryMeasurements, addMeasurement, updateMeasurement, deleteMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid, {
+    healthEpoch: activeHealthGrant?.healthEpoch,
+  });
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { fmt, fmtLength } = useUnit();
-  const healthConsent = useHealthConsent();
 
   const latestMeasurement = getLatestMeasurement();
   // T13a: pełny podgląd zdjęcia z historii (Dialog kontrolowany — zamykanie
@@ -85,10 +88,10 @@ const Measurements = () => {
     // T13a: NIEZMIENNIK — pomiar nigdy nie przepada przez zdjęcie. Upload jest
     // opcjonalnym krokiem PRZED zapisem; jego błąd degraduje do zapisu bez fotki.
     let photoFields: { photoUrl: string; photoPath: string } | null = null;
-    if (photoFile && canUseBodyPhotos) {
+    if (photoFile && canUseBodyPhotos && activeHealthGrant) {
       try {
         const blob = await compressImage(photoFile);
-        const photoPath = `body-photos/${uid}/${measurement.date}-${Date.now()}.jpg`;
+        const photoPath = `body-photos/${uid}/${activeHealthGrant.healthGrantId}/${measurement.date}-${Date.now()}.jpg`;
         const fileRef = storageRef(storage, photoPath);
         await uploadBytes(fileRef, blob);
         const photoUrl = await getDownloadURL(fileRef);
@@ -128,10 +131,10 @@ const Measurements = () => {
     let photoFields: { photoUrl?: string; photoPath?: string } = {};
     if (photo.kind === 'keep' && existing?.photoUrl) {
       photoFields = { photoUrl: existing.photoUrl, photoPath: existing.photoPath };
-    } else if (photo.kind === 'replace' && canUseBodyPhotos) {
+    } else if (photo.kind === 'replace' && canUseBodyPhotos && activeHealthGrant) {
       try {
         const blob = await compressImage(photo.file);
-        const photoPath = `body-photos/${uid}/${values.date}-${Date.now()}.jpg`;
+        const photoPath = `body-photos/${uid}/${activeHealthGrant.healthGrantId}/${values.date}-${Date.now()}.jpg`;
         const fileRef = storageRef(storage, photoPath);
         await uploadBytes(fileRef, blob);
         const photoUrl = await getDownloadURL(fileRef);

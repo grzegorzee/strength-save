@@ -1,68 +1,168 @@
 {
   "score": 9.5,
-  "mode": "web-e2e (Playwright, fresh Vite, VITE_E2E_MODE)",
-  "date": "2026-08-27",
-  "run_at": "2026-08-27T13:19:35+02:00",
+  "release_ready": false,
+  "score_scope": "jakość wspólnej warstwy produktu web/UI i lokalnej implementacji; operacyjne warunki wydania są raportowane osobno jako release_blockers, zgodnie z kontraktem product-audit",
+  "mode": "fresh web-e2e Chromium + WebKit, visual/code audit, mobile sync, Android debug build i iOS Simulator smoke",
+  "date": "2026-08-28",
+  "run_at": "2026-08-28T13:12:00+02:00",
   "seeded": true,
   "scenarios_audited": [
-    "active-user (plan + 5 completed workouts)",
-    "new-user (onboarding)",
-    "active-admin (panel)"
+    "active-user (plan + completed workouts)",
+    "new-user onboarding 320x568, 375x667 i 390x844",
+    "onboarding step 6 with simulated keyboard inset",
+    "active-admin panel",
+    "legacy #/settings redirect and grouped Profile deep links",
+    "keyboard-safe bug report, custom exercise and plate calculator",
+    "portrait and landscape",
+    "plan → wyjście → szybki trening → powrót → zakończenie → synchronizacja",
+    "popup exit without orphan overlay or body lock",
+    "offline draft, cold resume and final-sync-pending"
   ],
-  "summary": "Fresh-Vite rerun after TestFlight 128: 15 combinations of route/scenario/orientation passed in Chromium: 9 active-user portrait routes, new-user onboarding, admin panel and 4 active-user landscape routes. No blank screen, NaN, horizontal overflow, uncaught page error or unexpected console.error. Firebase transport errors caused solely by the harness blocking production services were explicitly filtered; the audit did not read or write real user data.",
+  "summary": "Produkt jest prostszy i bardziej przewidywalny: onboarding zachowuje krótki wybór trzech palet, jedno główne CTA i nie udaje pracy sztucznym ekranem. Rozgrzewka ma jeden generator na ekranie dnia i w treningu, pełne nazwy oraz instrukcje PL/EN; biblioteka 243 ćwiczeń ma opisy offline, a awaria filmu pokazuje lokalną instrukcję zamiast czarnego podglądu. Pustej serii nie można oznaczyć jako wykonanej; UI, lokalny finał, sync v2 i restore v3 wymagają powtórzeń, czasu albo dystansu, zachowując wykroki i bodyweight z 0 kg. Avatar ma lokalną miniaturę per UID, a Storage ogranicza kanoniczny plik do właściciela. Health działa fail-closed, a aktywna ścieżka klienta korzysta z syncWorkoutV2, read-joinu, kolejki oraz atomowego restore v3. W automatycznym audycie UI nie ma czerwonego defektu funkcjonalnego; publiczne wydanie pozostaje osobno zablokowane operacyjnie.",
   "blockers_red": [],
+  "release_blockers": [
+    {
+      "id": "health-boundary-deploy-and-migration",
+      "problem": "Granica health v2 jest kompletna i zielona lokalnie, ale nowe Functions/Rules oraz klient nie zostały jeszcze wdrożone w wymaganej kolejności. Read-only dry-run wykrył 372 planowane transformacje, wszystkie zablokowane przez brak jawnej aktualnej zgody i zatwierdzenia schematu; wykonał 0 mutacji.",
+      "release_risk": "wdrożenie klienta przed backendem zablokuje zapis, a pochopna migracja naruszy niezmiennik danych realnych użytkowników",
+      "required_exit": "wdrożyć Functions i Rules przed klientem; wykonać syntetyczny save/read/restore bez danych realnego usera; zatwierdzić schemat, wykonać backup i dopiero potem kontrolowaną migrację wyłącznie rekordów z aktualnym grantem"
+    },
+    {
+      "id": "candidate-distribution-builds",
+      "problem": "Bieżący kandydat ma generator pełnego manifestu, ale podpisane buildy dystrybucyjne 130/42 nie zawierają całego X63–X66.",
+      "release_risk": "brak odtwarzalnego źródła i możliwość przetestowania innego kodu niż publikowany",
+      "required_exit": "wygenerować końcowy manifest po ostatniej zmianie i dopiero potem build 131 oraz Android versionCode 43 przy niezmienionym versionName 1.0.0"
+    },
+    {
+      "id": "strava-secret-rotation",
+      "problem": "Read-only Secret Manager metadata potwierdza, że wcześniej ujawniony strava-client-secret nadal ma tylko jedną aktywną wersję v1 z 2026-03-09.",
+      "release_risk": "nieodwołane poświadczenie zewnętrznej integracji",
+      "required_exit": "wygenerować nowy sekret po stronie Stravy, dodać go jako wersję 2 bez odczytu wartości w logach, wdrożyć wyłącznie funkcje Strava, zweryfikować OAuth i dopiero potem wyłączyć v1"
+    },
+    {
+      "id": "physical-device-signoff",
+      "problem": "Automaty i symulatory nie potwierdzają prawdziwego suspendu WKWebView, systemowego share sheetu, force-kill recovery, VoiceOver/TalkBack ani 100/150/200% na realnym iOS i Androidzie.",
+      "release_risk": "wysoki dla publicznego wydania mobilnego",
+      "required_exit": "właściciel wykonuje i podpisuje scenariusze fizyczne na dokładnym buildzie z finalnego manifestu"
+    },
+    {
+      "id": "ses-alarm-email-pending",
+      "problem": "Subskrypcja e-mail SNS alarmów reputacji SES nadal ma PendingConfirmation, mimo że same alarmy i eventy działają.",
+      "release_risk": "operator może nie dostać e-maila o pogorszeniu reputacji",
+      "required_exit": "potwierdzić subskrypcję contact@strengthsave.app i wykonać kontrolowany test alarmu"
+    },
+    {
+      "id": "training-content-specialist-review",
+      "problem": "Automaty blokują absoluty medyczne i marketingowe, ale komplet treści treningowych nie ma podpisu merytorycznego specjalisty.",
+      "release_risk": "informacja może być technicznie spójna, ale nie mieć niezależnej walidacji eksperckiej",
+      "required_exit": "przegląd i podpis kompetentnego trenera/fizjoterapeuty dla treści publikowanych w 1.0"
+    }
+  ],
   "orange": [],
   "yellow": [
     {
-      "route": "#/plan, #/history",
-      "title": "Root routes repeat context in the top bar and page heading",
-      "evidence": "audit/shots/2026-08-27/active-user_plan.png and active-user_history.png",
-      "suggestion": "Resolve as a design decision after release blockers; it does not obstruct tasks.",
-      "owner": "product/design",
-      "weight": -0.5
+      "id": "semantic-typography-tail",
+      "problem": "Świeże widoki są czytelne, lecz część starszych ekranów nadal używa licznych lokalnych wariantów 11 px/uppercase/tracking zamiast małego zestawu semantycznych ról.",
+      "release_risk": "drobne różnice rytmu i hierarchii między rzadziej używanymi ekranami"
     }
   ],
-  "fixed_during_audit": [],
+  "fixed_during_audit": [
+    "CTA kroków 1–5 onboardingu jest w pełni widoczne na 320x568, 375x667 i 390x844; test sprawdza cały box, nie kilkupikselowe przecięcie.",
+    "Usunięto sztuczny ekran i timer dopasowywania planu; rekomendacja jest dostępna natychmiast.",
+    "Krok 6 utrzymuje nazwę planu i główne CTA nad klawiaturą; treść przewija się lokalnie, a drugorzędny podgląd wraca po blur.",
+    "Karta dnia Planu ma semantyczną główną akcję z focusem oraz jedno menu 44x44 dla Przełóż i Pomiń/Przywróć.",
+    "Profil ma osiem grup zamiast dwunastu; stare deep linki, lazy mount, report bug, eksporty, Strava i backup pozostają dostępne.",
+    "Pierwszy widok Historii pokazuje pięć ostatnich sesji, a komplet jest w Wszystkie sesje.",
+    "Dzisiaj nie dubluje dwóch komunikatów o tej samej zaległości, a Profil nie dubluje Historii i Postępów z dolnej nawigacji.",
+    "Plan, Dashboard i Historia pokazują prawdziwy błąd z akcją ponowienia zamiast danych przykładowych albo pustego stanu.",
+    "Długotrwałe bannery mają natychmiastowe zamknięcie 44x44, a blackout overlayów ma test wyjścia z treningu.",
+    "Kontrakty blokują dekoracyjne emoji, pseudotechniczne copy i nieudokumentowane obietnice bezpieczeństwa, rehabilitacji oraz trialu.",
+    "Terms + Privacy odblokowują tryb podstawowy; health 1.1 jest dobrowolne i fail-closed w kliencie oraz natywnym syncu, a stary flow opt-in pozostaje dostępny.",
+    "Picker Pulse/Forge/Glacier oraz Własny kolor pozostaje w pierwszym kroku onboardingu; 320/375/390 px, cold start i zmiana palety mają regresję automatyczną.",
+    "Domyślne Wyniki pokazują jeden insight i trzy liczby; analiza miesięczna i hybrydowa zachowuje pełną funkcję pod Więcej → Szczegóły.",
+    "Watch zawsze otrzymuje jawne healthFeaturesEnabled i bez aktywnego grantu nie uruchamia HealthKit, zachowując podstawowy trening.",
+    "syncWorkoutV2 jest aktywną ścieżką batchSaveWorkout i ma auth/AppCheck, idempotencję writeId/digest, fence grantu, pending queue, read-join oraz owner export/delete.",
+    "Backup v3 eksportuje pełne strony workoutów i oddzielny workoutHealth; restore v3 wykonuje preflight i atomowy create base+health bez overwrite danych usera.",
+    "Rozgrzewka ma nazwy i krótkie instrukcje PL/EN, wykroki przyjmują 0 kg i zachowują cel na nogę, a wszystkie 243 ćwiczenia mają pełne opisy PL/EN offline.",
+    "Avatar jest cachowany local-first per UID w LibraryNoCloud i czyszczony przy zmianie konta lub wylogowaniu.",
+    "Pulse, Forge i Glacier używają trzech ról w seriach wykresów bez zmiany semantycznych statusów.",
+    "Mały tekst 11 px zachowuje pełny muted-foreground, a focus ring dowolnego ciemnego HEX ma kontrast co najmniej 3:1.",
+    "Manifest kandydata obejmuje ignorowane dokumenty release, pełne wejścia Android/iOS i tryb wykonywalności, zapisując wyłącznie hashe.",
+    "Ekran dnia i start treningu korzystają z jednego generatora rozgrzewki v3; każda pozycja ma lokalną nazwę i instrukcję PL/EN, bez listy legacy i pajacyków.",
+    "Wykroki z powtórzeniami i 0 kg są kompletne również dla auto-domknięcia przy Zakończ trening; zwykłe serie ciężarowe nadal wymagają dodatniej wagi.",
+    "Błąd pobrania filmu ćwiczenia pokazuje jawny stan i instrukcję z lokalnego bundla zamiast pustego lub czarnego playera."
+    ,"Pusty checkmark oraz sama waga lub asysta nie tworzą treningu; UI, lokalny finał, sync v2 i restore v3 wymagają rzeczywistego wyniku, a bodyweight/wykroki nadal działają z powtórzeniami i 0 kg."
+    ,"Avatar ma jedną kanoniczną ścieżkę owner-only; obcy zalogowany użytkownik, anonim oraz dodatkowe nazwy plików nie mogą go odczytać ani zmienić."
+  ],
   "native_not_covered": [
-    "safe-area/notch",
-    "native Share sheet and FileProvider",
-    "push/local notification tap",
-    "haptics and sound",
-    "iOS keyboard",
-    "screen-off/background/resume",
-    "cold restart recovery"
+    "physical iOS and Android screen-off/background/resume",
+    "physical interrupted-workout sequence and notification cold-start tap",
+    "physical native Share sheet and Files/FileProvider for JSON, CSV, PDF and PNG",
+    "physical force-kill and restart recovery",
+    "VoiceOver and TalkBack",
+    "Dynamic Type / Android font scale 100/150/200%",
+    "real Google and Apple authentication",
+    "physical HealthKit / Health Connect and haptics/sound",
+    "real keyboard/IME over every custom-content form"
   ],
   "top_fixes": [
-    "Complete physical iOS and Android export/background/recovery smoke before release.",
-    "Resolve the repeated root-route heading as a non-blocking design decision."
+    "Wdrożyć Functions i Rules granicy health przed klientem, wykonać syntetyczny save/read/restore, a migrację dopiero po backupie i jawnej kwalifikacji zgód.",
+    "Wykonać fizyczne iOS/Android background/resume, przerwany trening, eksport/share i recovery po restarcie.",
+    "Wykonać fizyczne VoiceOver/TalkBack oraz font scale 100/150/200%.",
+    "Po zielonych urządzeniach utworzyć audytowalny snapshot release bez mieszania cudzych lub niedokończonych zmian.",
+    "Zlecić ekspercki przegląd merytoryczny treści treningowych."
   ],
   "checks": {
+    "vitest": "3822/3822 (438 files)",
+    "functions": "511 passed, 12 skipped (48 files passed, 1 skipped); typecheck passed",
+    "functions_emulator": "12/12 registration integration (JDK 21)",
+    "firestore_rules": "310/310 (JDK 21)",
+    "storage_rules": "42/42 (JDK 21)",
+    "health_migration_dry_run": "read-only; 10 subjects, 372 planned and 372 blocked transformations, 0 mutations; manifest e6c81212ddc24beceb1e59c9bbdcb65097e98138b43f32ad91d1d12aa1aa4ef4",
+    "typecheck": "passed",
+    "ios_release_preflight": "passed for 1.0.0; required production RevenueCat Apple key present without exposing its value",
+    "lint": "0 errors, 15 existing Fast Refresh warnings",
+    "build": "passed",
+    "mobile_build": "mobile:sync passed with 18 Capacitor plugins; Android assembleDebug passed and iOS Simulator App+Watch build/install/launch passed",
+    "bundle_budget": "passed; web initial JS 1441252 bytes, mobile initial JS 1440395 bytes / 1536000",
+    "dist_smoke": "passed",
+    "offline_contract": "passed",
+    "no_emoji": "274 files passed",
+    "content_reliability_contract": "passed for rendered PL/EN exercise and plan content",
     "console_errors_unexpected": 0,
     "page_errors": 0,
     "blank_screens": 0,
     "nan_in_ui": 0,
     "horizontal_overflow_routes": 0,
-    "routes_audited": 15,
-    "viewports": ["390x844", "844x390"],
-    "chromium_tests": 15,
-    "chromium_passed": 15,
-    "fresh_vite": true
+    "full_candidate_e2e": "594/594: Chromium 297/297 + WebKit 297/297 after fresh Vite cache; includes palette onboarding, basic mode, popup recovery and interrupted workout sequence",
+    "ios_simulator": "fresh Xcode build passed without filtered warnings/errors; app installed and launched on iPhone 17 Pro, iOS Simulator 26.5; 1.0.0 (130); physical sign-off pending",
+    "android_debug": "fresh synced assembleDebug passed; APK 36030583 bytes, SHA-256 8ef397e80bd7925c5e4f9a980d3ca3b4a7bc708e6d198305280c4a077632e2d7; metadata 1.0.0/42; physical install/launch pending",
+    "viewports": ["320x568", "375x667", "390x844", "844x390"],
+    "fresh_vite": true,
+    "versions": "package 1.0.0; Android versionName 1.0.0 (versionCode 42); iOS MARKETING_VERSION 1.0.0; CURRENT_PROJECT_VERSION 130"
   },
   "screenshots": [
-    "audit/shots/2026-08-27/active-user_dashboard.png",
-    "audit/shots/2026-08-27/active-user_plan.png",
-    "audit/shots/2026-08-27/active-user_history.png",
-    "audit/shots/2026-08-27/active-user_progress.png",
-    "audit/shots/2026-08-27/active-user_measurements.png",
-    "audit/shots/2026-08-27/active-user_exercises.png",
-    "audit/shots/2026-08-27/active-user_cycles.png",
-    "audit/shots/2026-08-27/active-user_settings.png",
-    "audit/shots/2026-08-27/active-user_workout.png",
-    "audit/shots/2026-08-27/new-user_onboarding.png",
-    "audit/shots/2026-08-27/active-admin_admin.png",
-    "audit/shots/2026-08-27/landscape_dashboard.png",
-    "audit/shots/2026-08-27/landscape_workout.png",
-    "audit/shots/2026-08-27/landscape_history.png",
-    "audit/shots/2026-08-27/landscape_settings.png"
+    "audit/shots/2026-08-28/active-user_dashboard.png",
+    "audit/shots/2026-08-28/active-user_day.png",
+    "audit/shots/2026-08-28/active-user_plan.png",
+    "audit/shots/2026-08-28/active-user_plan-edit.png",
+    "audit/shots/2026-08-28/active-user_history.png",
+    "audit/shots/2026-08-28/active-user_progress.png",
+    "audit/shots/2026-08-28/active-user_measurements.png",
+    "audit/shots/2026-08-28/active-user_exercises.png",
+    "audit/shots/2026-08-28/active-user_exercise-detail.png",
+    "audit/shots/2026-08-28/active-user_cycles.png",
+    "audit/shots/2026-08-28/active-user_profile.png",
+    "audit/shots/2026-08-28/active-user_new-plan.png",
+    "audit/shots/2026-08-28/active-user_workout.png",
+    "audit/shots/2026-08-28/new-user_onboarding.png",
+    "audit/shots/2026-08-28/active-admin_admin.png",
+    "audit/shots/2026-08-28/landscape_dashboard.png",
+    "audit/shots/2026-08-28/landscape_workout.png",
+    "audit/shots/2026-08-28/landscape_history.png",
+    "audit/shots/2026-08-28/landscape_profile.png",
+    "audit/shots/2026-08-27/keyboard-report-bug.png",
+    "audit/shots/2026-08-27/keyboard-custom-exercise.png",
+    "audit/shots/2026-08-27/keyboard-plate-calculator.png"
   ]
 }

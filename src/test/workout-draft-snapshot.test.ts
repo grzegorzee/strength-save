@@ -171,6 +171,44 @@ describe('buildWorkoutDraftSnapshot', () => {
     expect(buildWorkoutDraftSnapshot(makeContext({ exerciseMetrics: { 'ex-1': { rpe: 8 } } }))?.version).toBe(7);
     expect(buildWorkoutDraftSnapshot(makeContext({ exerciseNotes: { 'ex-1': 'ciężko' } }))?.version).toBe(7);
   });
+
+  it('techniczny snapshot zachowuje health fence i nie podbija version', () => {
+    const healthGrant = { healthEpoch: 7, healthGrantId: 'grant-7' };
+    const previousDraft = makePreviousDraft({
+      exerciseMetrics: { 'ex-1': { rpe: 8 } },
+      exerciseMetricGrants: { 'ex-1': { rpe: healthGrant } },
+      pendingHealthGrant: healthGrant,
+    });
+    const snapshot = buildWorkoutDraftSnapshot(makeContext({
+      previousDraft,
+      exerciseMetrics: previousDraft.exerciseMetrics,
+      exerciseMetricGrants: previousDraft.exerciseMetricGrants,
+      pendingHealthGrant: previousDraft.pendingHealthGrant,
+    }));
+
+    expect(snapshot?.exerciseMetricGrants).toEqual(previousDraft.exerciseMetricGrants);
+    expect(snapshot?.pendingHealthGrant).toEqual(healthGrant);
+    expect(snapshot?.version).toBe(6);
+  });
+
+  it('zmiana fence jest zmianą wersjonowanej treści draftu', () => {
+    const previousGrant = { healthEpoch: 7, healthGrantId: 'grant-7' };
+    const currentGrant = { healthEpoch: 8, healthGrantId: 'grant-8' };
+    const previousDraft = makePreviousDraft({
+      exerciseMetrics: { 'ex-1': { rpe: 8 } },
+      exerciseMetricGrants: { 'ex-1': { rpe: previousGrant } },
+      pendingHealthGrant: previousGrant,
+    });
+    const snapshot = buildWorkoutDraftSnapshot(makeContext({
+      previousDraft,
+      exerciseMetrics: previousDraft.exerciseMetrics,
+      exerciseMetricGrants: { 'ex-1': { rpe: currentGrant } },
+      pendingHealthGrant: currentGrant,
+    }));
+
+    expect(snapshot?.version).toBe(7);
+    expect(snapshot?.pendingHealthGrant).toEqual(currentGrant);
+  });
 });
 
 describe('warmupChecked w snapshocie draftu (Z162)', () => {

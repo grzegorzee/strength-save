@@ -78,6 +78,9 @@ describe('PlanNextStepCard (C-T4: jedna karta decyzyjna)', () => {
     renderCard();
     expect(screen.queryByLabelText('dash.dismissHint')).toBeNull();
     renderCard({ onDismiss: () => {} });
-    expect(screen.getByLabelText('dash.dismissHint')).toBeTruthy();
+    const dismiss = screen.getByLabelText('dash.dismissHint');
+    expect(dismiss).toBeTruthy();
+    expect(dismiss.className).toContain('min-h-11');
+    expect(dismiss.className).toContain('min-w-11');
   });
 });

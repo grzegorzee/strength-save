@@ -31,6 +31,48 @@ export const getTrackingType = (exercise: TrackingSource): TrackingType => {
   return exercise.isBodyweight ? 'bodyweight_reps' : 'weight_reps';
 };
 
+/**
+ * Przy finalizacji sama liczba powtórzeń jest pełnym wynikiem dla ćwiczenia
+ * wykonywanego masą ciała albo z opcjonalnym obciążeniem (np. wykroki).
+ * UI nadal może pokazywać pole kg, więc użytkownik nie traci możliwości
+ * dopisania hantli; zmienia się wyłącznie ocena kompletności serii.
+ */
+export const resolveCompletionTracking = (
+  tracking: TrackingType,
+  isBodyweight: boolean,
+  allowsZeroWeight: boolean,
+): TrackingType => (
+  tracking === 'weight_reps' && (isBodyweight || allowsZeroWeight)
+    ? 'bodyweight_reps'
+    : tracking
+);
+
+export interface SetCompletionData {
+  reps: number;
+  weight: number;
+  durationSec?: number;
+  distanceM?: number;
+  assistWeight?: number;
+}
+
+/** Jeden kontrakt kompletności dla ręcznego checkmarka i finalizacji treningu. */
+export const hasCompleteSetData = (
+  set: SetCompletionData,
+  tracking: TrackingType,
+): boolean => {
+  switch (tracking) {
+    case 'weight_reps':
+      return set.reps > 0 && set.weight > 0;
+    case 'bodyweight_reps':
+    case 'assisted_bodyweight':
+      return set.reps > 0;
+    case 'duration':
+      return (set.durationSec ?? 0) > 0;
+    case 'weight_distance_duration':
+      return (set.distanceM ?? 0) > 0 || (set.durationSec ?? 0) > 0;
+  }
+};
+
 const FIELDS_BY_TRACKING: Record<TrackingType, SetField[]> = {
   weight_reps: ['weight', 'reps'],
   bodyweight_reps: ['reps'],

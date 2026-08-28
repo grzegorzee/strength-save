@@ -146,12 +146,12 @@ const PLAN_NAME: Record<string, PlanText> = {
 
 const PLAN_DESC: Record<string, PlanText> = {
   'tpl-fullbody-2': {
-    pl: 'Całe ciało na dwóch treningach. Idealny na start, powrót po przerwie albo tygodnie z mało czasu.',
-    en: 'Full body across two sessions. Perfect for starting out, returning after a break, or busy weeks.',
+    pl: 'Całe ciało na dwóch treningach. Dla początkujących, osób wracających po przerwie i tygodni z małą ilością czasu.',
+    en: 'Full body across two sessions for beginners, people returning after a break, or busy weeks.',
   },
   'tpl-fullbody-3': {
-    pl: 'Full Body 3 razy w tygodniu (A/B/C), każdy trening na całe ciało, na zmianę z dniem przerwy. Świetny stosunek efektów do czasu.',
-    en: 'Full body 3× a week (A/B/C), each session full body, alternating with a rest day. Great results-to-time ratio.',
+    pl: 'Full Body 3 razy w tygodniu (A/B/C), każdy trening na całe ciało, z dniem przerwy między sesjami.',
+    en: 'Full body 3× a week (A/B/C), with a rest day between sessions.',
   },
   'tpl-fbw-3': {
     pl: 'Klasyczny FBW A/B/C: przysiad, wyciskanie i wiosłowanie na każdym treningu w innych wariantach. Całe ciało 3 razy w tygodniu, proste ciężkie boje plus akcesoria.',
@@ -162,8 +162,8 @@ const PLAN_DESC: Record<string, PlanText> = {
     en: 'Classic push, pull, legs split. The most popular plan for building mass on 3 sessions.',
   },
   'tpl-upper-lower-4': {
-    pl: 'Góra/dół dwa razy w tygodniu. Świetny balans siły i masy przy 4 treningach.',
-    en: 'Upper/lower twice a week. A great balance of strength and size on 4 sessions.',
+    pl: 'Góra/dół dwa razy w tygodniu: dwa dni góry i dwa dni dołu przy 4 treningach.',
+    en: 'Upper/lower twice a week: two upper-body and two lower-body sessions.',
   },
   'tpl-ppl-6': {
     pl: 'Pełny cykl PPL dwa razy w tygodniu: 6 treningów pon-sob, każda partia trenowana 2×. Maksymalna objętość dla budowy masy przy wysokiej dyspozycyjności.',
@@ -186,8 +186,8 @@ const PLAN_DESC: Record<string, PlanText> = {
     en: 'Strength plus size: each day starts with a heavy lift (squat / bench / deadlift / OHP), then hypertrophy accessories. For advanced lifters.',
   },
   'tpl-lean-engine-4': {
-    pl: 'Spalanie i rekompozycja: obwody całego ciała z krótkimi przerwami, wysokie powtórzenia i wstawki kondycyjne. Utrzymuje mięśnie przy redukcji.',
-    en: 'Fat loss and recomposition: full-body circuits with short rests, high reps and conditioning finishers. Keeps muscle during a cut.',
+    pl: 'Plan pod redukcję: obwody całego ciała z krótkimi przerwami, wysokie powtórzenia i wstawki kondycyjne.',
+    en: 'A fat-loss plan with full-body circuits, short rests, high reps and conditioning finishers.',
   },
   'tpl-athletic-4': {
     pl: 'Moc i wydolność: ciężkie boje dla siły bazowej + wstawki eksplozywne i kondycyjne. Pod sport i funkcjonalną sprawność.',
@@ -199,16 +199,16 @@ const PLAN_DESC: Record<string, PlanText> = {
   },
   // X26/Z246
   'tpl-minimalist-2': {
-    pl: 'Minimalna objętość, maksymalny efekt (styl Jeffa Nipparda): 2 krótkie treningi całego ciała, serie blisko upadku, drop sety na izolacjach. Pod 45 minut.',
-    en: 'Minimum volume, maximum effect (Jeff Nippard style): 2 short full-body sessions, sets close to failure, drop sets on isolations. Under 45 minutes.',
+    pl: 'Plan o małej objętości (styl Jeffa Nipparda): 2 krótkie treningi całego ciała, serie blisko upadku i drop sety na izolacjach. Pod 45 minut.',
+    en: 'A low-volume plan (Jeff Nippard style): 2 short full-body sessions, sets close to failure and drop sets on isolations. Under 45 minutes.',
   },
   'tpl-six-lifts-3': {
     pl: 'Sześć tych samych ruchów na każdym treningu (styl Built With Science): pełne ciało 3× w tygodniu, prosty start i szybka nauka techniki. Progres przez dokładanie powtórzeń.',
     en: 'The same six lifts every session (Built With Science style): full body 3× a week, a simple start and fast technique learning. Progress by adding reps.',
   },
   'tpl-gzclp-3': {
-    pl: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Idealny krok po programie 5×5.',
-    en: 'GZCLP: three tiers of work. A heavy main lift (T1: 5×3, last set MAX), a medium secondary lift (T2: 3×10) and light isolation (T3: 3×15). The perfect step after a 5×5 program.',
+    pl: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Kontynuacja po programie 5×5.',
+    en: 'GZCLP: three tiers of work. A heavy main lift (T1: 5×3, last set MAX), a medium secondary lift (T2: 3×10) and light isolation (T3: 3×15). A continuation after a 5×5 program.',
   },
   'tpl-calisthenics-3': {
     pl: 'Kalistenika w duchu Recommended Routine (r/bodyweightfitness): pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
@@ -239,8 +239,8 @@ const PLAN_DESC: Record<string, PlanText> = {
     en: 'An Upper/Lower + Push/Pull/Legs hybrid: two heavier strength days (4-8 reps) and three volume days (8-20). Every muscle 2× a week, with isolation where it matters.',
   },
   'tpl-nsuns-5': {
-    pl: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Najcięższy plan w aplikacji. Wymaga nadwyżki kalorycznej i snu.',
-    en: 'nSuns 531LP: 9 sets of the main lift with waving Training Max percentages (65-95%, MAX sets drive progression) + 8 sets of a related lift. The heaviest plan in the app. It requires a calorie surplus and sleep.',
+    pl: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Plan o bardzo wysokiej objętości dla zaawansowanych.',
+    en: 'nSuns 531LP: 9 sets of the main lift with waving Training Max percentages (65-95%, MAX sets drive progression) + 8 sets of a related lift. A very high-volume plan for advanced lifters.',
   },
   'tpl-arnold-6': {
     pl: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',

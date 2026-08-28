@@ -114,8 +114,31 @@ describe('useWatchWorkoutSync (R2-26)', () => {
       restSeconds: 90,
       restBetweenSetsSeconds: 90,
       restBetweenExercisesSeconds: 150,
+      healthFeaturesEnabled: false,
     });
     expect(payload.deviceId).toMatch(/^phone-/);
+    vi.useRealTimers();
+  });
+
+  it('aktywna sesja przekazuje zgodę zdrowotną jawnie, bez wpływu na bazowy payload', async () => {
+    vi.useFakeTimers();
+    renderHook(() => useWatchWorkoutSync({
+      enabled: true,
+      healthFeaturesEnabled: true,
+      date: '2026-08-10',
+      dayId: 'day-health',
+      exercises: [{ id: 'ex-1', name: 'Przysiad', sets: '3 x 5', instructions: [] }],
+      exerciseSets: { 'ex-1': [{ reps: 5, weight: 100, completed: false }] },
+      onSetLogged: async () => undefined,
+      onWorkoutFinished: async () => undefined,
+      onWorkoutDiscarded: async () => undefined,
+    }));
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(sendWorkoutToWatch.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: 'todayWorkout',
+      healthFeaturesEnabled: true,
+    });
     vi.useRealTimers();
   });
 

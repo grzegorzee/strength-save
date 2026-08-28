@@ -137,8 +137,8 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={trackedChart}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-                <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Line type="monotone" dataKey={trackedLabel} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
@@ -195,8 +195,8 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" unit={isBodyweight ? ` ${t('comp.progression.repsShort')}` : ` ${unit}`} />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+              <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={isBodyweight ? ` ${t('comp.progression.repsShort')}` : ` ${unit}`} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: '11px' }} />
               {isBodyweight ? (
@@ -228,7 +228,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
               return (
                 <div key={s.key} className="rounded-lg bg-muted/30 p-2">
                   <div className="flex items-baseline justify-between">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t(s.labelKey)}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t(s.labelKey)}</p>
                     <p className="text-sm font-bold tabular-nums">{last}</p>
                   </div>
                   <ResponsiveContainer width="100%" height={36}>
@@ -246,17 +246,17 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">{dispVal(summary.startValue)}</p>
-            <p className="text-[10px] text-muted-foreground">{t('comp.progression.start')} ({isBodyweight ? t('comp.progression.repsShort') : unit})</p>
+            <p className="text-[11px] text-muted-foreground">{t('comp.progression.start')} ({isBodyweight ? t('comp.progression.repsShort') : unit})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">{dispVal(summary.currentValue)}</p>
-            <p className="text-[10px] text-muted-foreground">{t('comp.progression.now')} ({isBodyweight ? t('comp.progression.repsShort') : unit})</p>
+            <p className="text-[11px] text-muted-foreground">{t('comp.progression.now')} ({isBodyweight ? t('comp.progression.repsShort') : unit})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">
               {summary.change >= 0 ? '+' : ''}{dispVal(summary.change)} {isBodyweight ? t('comp.progression.repsShort') : unit}
             </p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {summary.changePercent >= 0 ? '+' : ''}{summary.changePercent}% / {t('comp.progression.sessionsCount', { count: summary.totalSessions })}
             </p>
           </div>

@@ -48,7 +48,7 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
                 <span className="text-xs text-muted-foreground">{pr.label}</span>
               </div>
               <p className="text-lg font-bold">{pr.value}</p>
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-[11px] text-muted-foreground truncate">
                 {formatLocalDateLabel(pr.date, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                 {' · '}
                 {pr.activityName}

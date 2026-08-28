@@ -33,7 +33,7 @@ export interface ModeEndingTexts {
 }
 
 const REDUCED_MODE_TEXTS: ModeEndingTexts = {
-  title: { pl: "Tryb lżejszy kończy się dziś 🔄", en: "Easy mode ends today 🔄" },
+  title: { pl: "Tryb lżejszy kończy się dziś", en: "Easy mode ends today" },
   body: {
     pl: "Od jutra wracamy stopniowo: najpierw ~85%, potem ~92%, potem pełna moc.",
     en: "From tomorrow we ramp back up: ~85%, then ~92%, then full power.",
@@ -41,7 +41,7 @@ const REDUCED_MODE_TEXTS: ModeEndingTexts = {
 };
 
 export const VACATION_TEXTS: ModeEndingTexts = {
-  title: { pl: "Urlop kończy się dziś 🏋️", en: "Vacation ends today 🏋️" },
+  title: { pl: "Urlop kończy się dziś", en: "Vacation ends today" },
   body: {
     pl: "Witaj z powrotem! Wracamy stopniowo: ~85%, potem ~92%, potem pełna moc.",
     en: "Welcome back! We ramp up gradually: ~85%, then ~92%, then full power.",

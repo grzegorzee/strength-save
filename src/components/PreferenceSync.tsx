@@ -7,8 +7,19 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { normalizeRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { buildMigratedRestSettings, toRestPreference } from '@/lib/rest-preferences';
 import { setWarmupPromptEnabled } from '@/lib/warmup-prompt';
+import { applyAccent, claimStoredThemeOwner, storeAccentId } from '@/lib/accent-theme';
+import {
+  applyPaletteTheme,
+  clearStoredPaletteTheme,
+  normalizePaletteThemeV2,
+  storePaletteTheme,
+} from '@/lib/palette-theme';
+import {
+  flushPalettePreferenceOutbox,
+  readPalettePreferenceOutbox,
+} from '@/lib/palette-preference-outbox';
 
-// Synchronizacja preferencji (jednostki, język, przerwy, dźwięk) z users/{uid}.preferences.
+// Synchronizacja preferencji (jednostki, język, akcent, przerwy, dźwięk) z users/{uid}.preferences.
 // localStorage zostaje cache per urządzenie; chmura jest źródłem prawdy między web i iOS.
 // Cloud → local: raz po załadowaniu profilu. Local → cloud: przy każdej zmianie unit/lang.
 // X35b: przerwy = preferences.rest (obiekt RestSettings); zapis local → cloud robi
@@ -17,15 +28,38 @@ export const PreferenceSync = () => {
   const { uid, profile } = useCurrentUser();
   const { unit, setUnit } = useUnit();
   const { lang, setLang } = useTranslation();
-  const appliedRef = useRef(false);
+  const appliedUidRef = useRef<string | null>(null);
   const writeEnabledRef = useRef(false);
 
   useEffect(() => {
-    if (!profile || appliedRef.current) return;
-    appliedRef.current = true;
+    if (!profile || !uid || appliedUidRef.current === uid) return;
+    writeEnabledRef.current = false;
+    claimStoredThemeOwner(uid);
+    appliedUidRef.current = uid;
     const prefs = profile.preferences;
     if (prefs?.unit && prefs.unit !== unit) setUnit(prefs.unit);
     if (prefs?.language && prefs.language !== lang) setLang(prefs.language);
+    // Kolor musi działać od pierwszego ekranu na świeżym urządzeniu, nie dopiero
+    // po wejściu w Profil. Chmura jest źródłem prawdy; zapisujemy też cache,
+    // żeby następny cold start/offline wyrenderował ten sam theme przed Reactem.
+    const pendingPalette = readPalettePreferenceOutbox(uid)?.palette;
+    const paletteTheme = normalizePaletteThemeV2(prefs?.paletteTheme);
+    const cloudAccent = typeof prefs?.accentColor === 'string' ? prefs.accentColor.trim() : '';
+    // Stary klient zapisuje wyłącznie accentColor. Jeżeli po wyborze palety user
+    // zmienił kolor w starszej wersji, rozbieżność oznacza świadomy nowszy wybór
+    // legacy — nie wolno go nadpisać pozostawionym obiektem PaletteThemeV2.
+    const paletteMatchesFallback = !cloudAccent || cloudAccent.toLowerCase() === paletteTheme?.primary;
+    if (pendingPalette) {
+      applyPaletteTheme(pendingPalette);
+      storePaletteTheme(pendingPalette);
+    } else if (paletteTheme && paletteMatchesFallback) {
+      applyPaletteTheme(paletteTheme);
+      storePaletteTheme(paletteTheme);
+    } else if (cloudAccent) {
+      clearStoredPaletteTheme();
+      applyAccent(cloudAccent);
+      storeAccentId(cloudAccent);
+    }
     try {
       if (typeof prefs?.timerSound === 'boolean') localStorage.setItem('timer-sound-enabled', String(prefs.timerSound));
     } catch {
@@ -51,6 +85,16 @@ export const PreferenceSync = () => {
     // Zapisy do chmury dopiero PO zastosowaniu wartości z chmury (bez pętli i nadpisania defaultami).
     queueMicrotask(() => { writeEnabledRef.current = true; });
   }, [profile, uid, unit, lang, setUnit, setLang]);
+
+  useEffect(() => {
+    if (!uid) return;
+    const retryPalettePreference = () => {
+      void flushPalettePreferenceOutbox(uid, (patch) => updateDoc(doc(db, 'users', uid), patch));
+    };
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) retryPalettePreference();
+    window.addEventListener('online', retryPalettePreference);
+    return () => window.removeEventListener('online', retryPalettePreference);
+  }, [uid]);
 
   useEffect(() => {
     if (!uid || !writeEnabledRef.current) return;

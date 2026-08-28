@@ -158,6 +158,24 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(emitted.some(s => s.isWarmup)).toBe(false);
     });
 
+    it('wykroki: 0 kg można jawnie odhaczyć, a cel pozostaje opisany jako „na nogę”', () => {
+      const spy = vi.fn();
+      const { card } = renderCard({
+        exercise: exercise({ name: 'Wykroki chodzone', sets: '3 x 10/noga' }),
+        savedSets: [workingSet({ weight: 0, reps: 10 })],
+        onSetsChange: spy,
+      });
+
+      expect(within(card).getByTestId('zero-weight-rep-hint').textContent)
+        .toBe('0 kg = bez obciążenia · 10 na nogę');
+      fireEvent.click(within(card).getByRole('button', { name: /Zaznacz serię jako zrobioną/ }));
+      expect(spy.mock.calls.at(-1)?.[1]?.[0]).toMatchObject({
+        weight: 0,
+        reps: 10,
+        completed: true,
+      });
+    });
+
     it('nagłówek karty jest pierwszy w karcie', () => {
       const { card } = renderCard({ savedSets: [workingSet({ weight: 60, reps: 8 })] });
       const header = card.querySelector('.exercise-card-header') as HTMLElement;
@@ -320,6 +338,27 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(poster).toBeTruthy();
       expect(poster.src).toContain('.jpg');
       expect(header.querySelector('video')).toBeNull();
+    });
+
+    it('awaria animacji pokazuje lokalną instrukcję zamiast pustego/czarnego modala', () => {
+      const localInstruction = 'Stań stabilnie i wykonuj ruch bez szarpania.';
+      const { card } = renderCard({
+        savedSets: [workingSet()],
+        exercise: exercise({
+          name: 'Ćwiczenie z animacją',
+          instructions: [{ title: 'Technika', content: localInstruction }],
+        }),
+      });
+
+      fireEvent.click(within(card.querySelector('.exercise-card-header') as HTMLElement)
+        .getByRole('button', { name: /animacj/i }));
+      const video = screen.getByRole('dialog').querySelector('video') as HTMLVideoElement;
+      expect(video).toBeTruthy();
+
+      fireEvent.error(video);
+
+      expect(screen.getByText('Animacja jest teraz niedostępna.')).toBeTruthy();
+      expect(screen.getByText(localInstruction)).toBeTruthy();
     });
 
     it('instrukcje nie renderują się w karcie (idą do menu ⋯)', () => {

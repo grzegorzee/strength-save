@@ -1,4 +1,6 @@
 import type { SetData, ExerciseMetrics } from '@/types';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import type { ExerciseMetricGrants } from '@/lib/workout-health-fence';
 
 export const LOCAL_STORAGE_WORKOUT_DRAFT_KEY = 'fittracker_workout_draft';
 export const getScopedWorkoutDraftKey = (userId?: string) => (
@@ -19,6 +21,8 @@ export interface WorkoutDraft {
   // Metryki autoregulacji RPE/ból/jakość (bug 13, X30) — pole additive; bez niego
   // wpisy dokonane po awarii IDB (sesja żyjąca na fallbacku) cicho przepadały.
   exerciseMetrics?: Record<string, ExerciseMetrics>;
+  exerciseMetricGrants?: ExerciseMetricGrants;
+  pendingHealthGrant?: ActiveHealthGrant | null;
   // Snapshoty nazw ćwiczeń (bug 13, X30) — historia odporna na zmiany planu także,
   // gdy sesja żyje na fallbacku (dodane w locie / swapowane ćwiczenia).
   exerciseNames?: Record<string, string>;
@@ -54,6 +58,7 @@ export interface WorkoutDraft {
   dirty?: boolean;
   completedLocally?: boolean;
   finalSyncPending?: boolean;
+  healthSyncPending?: boolean;
 }
 
 export const workoutDraft = {

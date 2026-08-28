@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -8,15 +9,17 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
-import { OnboardingMarketingStep } from '@/components/OnboardingMarketingStep';
+import { BootScreen } from '@/components/BootScreen';
 import {
   buildConsentSubmissions,
-  buildMarketingStepSubmission,
+  getConsentMirror,
   shouldShowMarketingStep,
   type ConsentSelection,
 } from '@/lib/consent-selection';
+import { hasCurrentRequiredConsents } from '@/lib/legal-versions';
 import { recordConsents } from '@/lib/consents-api';
 import { readStoredAccentId } from '@/lib/accent-theme';
+import { readStoredPaletteTheme } from '@/lib/palette-theme';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { restDefaultsDeps } from '@/lib/rest-preferences';
 import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
@@ -24,13 +27,22 @@ import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import type { TrainingDay } from '@/data/trainingPlan';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import {
+  clearOnboardingDraft,
+  readOnboardingDraft,
+  readOnboardingDraftFromWebStorage,
+  writeOnboardingDraft,
+  type OnboardingDraftInput,
+  type OnboardingDraftV1,
+} from '@/lib/onboarding-draft';
 
 // Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + podgląd planu
 // (ten sam ekran co NewPlan, Z73) + zapis planu.
-const Onboarding = () => {
+const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
-  const { uid, profile } = useCurrentUser();
+  const { uid, profile, avatarSrc } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
   const { createActiveCycle } = usePlanCycles(uid);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,57 +51,69 @@ const Onboarding = () => {
   const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const requiresPaywall = useRequiresPaywall();
-  // Dedykowany krok marketingowy (spec 2026-08-11): po konfiguracji planu,
-  // przed podglądem. Pokazywany raz — odpowiedź (też odmowa) ląduje w mirrorze
-  // zgód, więc user nigdy nie zobaczy go ponownie. E2E omija jak resztę zgód.
-  const [marketingPrompt, setMarketingPrompt] = useState(false);
-  const [marketingSaving, setMarketingSaving] = useState(false);
-  const [marketingError, setMarketingError] = useState(false);
-  const [marketingAnswered, setMarketingAnswered] = useState(false);
-  // X33 WP-4: "Zaczynam ten plan" = zapis bez ekranu PlanPreview (krok
-  // marketingowy bez zmian, wchodzi PRZED zapisem); "Podgląd planu" = jak dotąd.
-  const [skipPreview, setSkipPreview] = useState(false);
-  // X34: krok, na który wraca kreator po remoncie: 6 = ekran 6/6 (wstecz z podglądu /
-  // kroku marketingowego), 5 = 5A po "Wybierz inny plan" (stan kreatora z `choice`).
+  // X34: krok, na który wraca kreator po remoncie: 6 = ekran 6/6 (wstecz z podglądu),
+  // 5 = 5A po "Wybierz inny plan" (stan kreatora z `choice`).
   const [wizardResumeStep, setWizardResumeStep] = useState<5 | 6>(6);
+  const nativePlatform = Capacitor.isNativePlatform();
+  const [draft, setDraft] = useState<OnboardingDraftV1 | null>(() => (
+    nativePlatform ? null : readOnboardingDraftFromWebStorage(uid)
+  ));
+  const [draftLoaded, setDraftLoaded] = useState(!nativePlatform);
+  const latestDraftRef = useRef<OnboardingDraftInput>({ phase: 'wizard', wizardStep: 1 });
+  const draftWriteQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const onboardingTelemetryStartedRef = useRef(false);
+  const draftSaveFailureTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (!nativePlatform) return;
+    let cancelled = false;
+    void readOnboardingDraft(uid).then((stored) => {
+      if (!cancelled) {
+        setDraft(stored);
+        setDraftLoaded(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [nativePlatform, uid]);
+
+  useEffect(() => {
+    if (!draftLoaded || onboardingTelemetryStartedRef.current) return;
+    onboardingTelemetryStartedRef.current = true;
+    trackTelemetryEvent(uid, draft ? 'onboarding_resumed' : 'onboarding_started');
+  }, [draft, draftLoaded, uid]);
+
+  const persistDraft = useCallback((next: OnboardingDraftInput) => {
+    latestDraftRef.current = next;
+    draftWriteQueueRef.current = draftWriteQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const saved = await writeOnboardingDraft(uid, next);
+        if (!saved && !draftSaveFailureTrackedRef.current) {
+          draftSaveFailureTrackedRef.current = true;
+          trackTelemetryEvent(uid, 'onboarding_save_failed');
+        }
+        return saved;
+      });
+  }, [uid]);
+
+  // Lokalny szkic zachowuje odpowiedzi, ale nie może ominąć prawa. Tylko
+  // aktualny mirror serwerowy pozwala wznowić krok 2–6.
+  const legalConsentRecorded = hasCurrentRequiredConsents(getConsentMirror(profile));
+  const restorableDraft = draft
+    ? { ...draft, wizardStep: legalConsentRecorded ? draft.wizardStep : 1 }
+    : null;
 
   const handleWizardConfirm = (c: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => {
     const skip = opts?.skipPreview === true;
     setChoice(c);
     setReviewDays(c.days);
-    setSkipPreview(skip);
     setError(null);
-    if (!marketingAnswered && shouldShowMarketingStep(profile)) {
-      setMarketingPrompt(true);
-      return;
-    }
+    persistDraft({ ...latestDraftRef.current, phase: 'wizard', wizardStep: 6 });
     if (skip) {
       void finishOnboarding(c);
       return;
     }
     setShowPreview(true);
-  };
-
-  // Zapis wyboru przez ISTNIEJĄCY recordConsent (odmowa też do logu, kanał
-  // onboarding-marketing-step). Awaria zapisu = komunikat + retry tym samym
-  // przyciskiem (jak zgody na Welcome); onboarding się nie wywraca.
-  const handleMarketingAnswer = async (granted: boolean) => {
-    setMarketingSaving(true);
-    setMarketingError(false);
-    try {
-      await recordConsents([buildMarketingStepSubmission(t, granted)], lang, 'onboarding-marketing-step');
-      setMarketingAnswered(true);
-      setMarketingPrompt(false);
-      if (skipPreview && choice) {
-        void finishOnboarding({ ...choice, days: reviewDays });
-        return;
-      }
-      setShowPreview(true);
-    } catch {
-      setMarketingError(true);
-    } finally {
-      setMarketingSaving(false);
-    }
   };
 
   // Zapis zgód z kroku Welcome do logu (Cloud Function recordConsent: IP,
@@ -117,6 +141,7 @@ const Onboarding = () => {
         // Plan I: kolor wybrany na Welcome (albo domyślna limonka) do mirroru
         // cross-device — zawsze jedno pole, czytane w momencie zapisu.
         const accentColor = readStoredAccentId();
+        const paletteTheme = readStoredPaletteTheme();
         return updateDoc(doc(db, 'users', uid), {
           onboardingCompleted: true,
           // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).
@@ -126,6 +151,7 @@ const Onboarding = () => {
           'onboarding.termsAcceptedAt': new Date().toISOString(),
           trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
           'preferences.accentColor': accentColor,
+          ...(paletteTheme ? { 'preferences.paletteTheme': paletteTheme } : {}),
           // WP-O (X30): trwały snapshot odpowiedzi (v2), pisany RAZ; replan go nie rusza.
           onboardingAnswers: buildOnboardingAnswers(confirmed, { accentColor, startDate: planStartDate }),
           ...(confirmed.name && confirmed.name !== profile?.displayName ? { displayName: confirmed.name } : {}),
@@ -133,11 +159,20 @@ const Onboarding = () => {
       },
     });
     if (!result.success) {
+      trackTelemetryEvent(uid, 'onboarding_save_failed');
       setError(result.error || t('onboarding.error.saveFailed'));
       setIsSaving(false);
       return;
     }
     try {
+      await draftWriteQueueRef.current.catch(() => undefined);
+      await clearOnboardingDraft(uid);
+      // PlanBuilder submit przenosi tylko na krok 6/6. Szkic ćwiczeń wolno
+      // usunąć dopiero po trwałym sukcesie całej operacji onboardingu.
+      try {
+        localStorage.removeItem(`ss-plan-builder-draft_${uid}`);
+      } catch { /* cache best-effort; zapis planu jest już trwały */ }
+      trackTelemetryEvent(uid, 'onboarding_completed');
       // Jawne przejście po onboardingu. Router i tak przełączy drzewo tras po aktualizacji
       // profilu, ale to gwarantuje natychmiastowy redirect bez 404. Na iOS bez PRO nowy user
       // trafia prosto na paywall (start trialu); na web na dashboard z confetti.
@@ -148,17 +183,7 @@ const Onboarding = () => {
     }
   };
 
-  if (choice && marketingPrompt) {
-    return (
-      <OnboardingMarketingStep
-        onAccept={() => handleMarketingAnswer(true)}
-        onDecline={() => handleMarketingAnswer(false)}
-        onBack={() => { setWizardResumeStep(6); setMarketingPrompt(false); setMarketingError(false); }}
-        isSaving={marketingSaving}
-        error={marketingError}
-      />
-    );
-  }
+  if (!draftLoaded) return <BootScreen />;
 
   if (choice && showPreview) {
     return (
@@ -182,18 +207,23 @@ const Onboarding = () => {
       trialNotice={requiresPaywall}
       legalConsent
       onLegalConsent={handleLegalConsent}
+      showMarketingConsent={shouldShowMarketingStep(profile)}
       askName
       initialName={(profile?.displayName ?? '').split(' ')[0] || ''}
-      avatarPhotoURL={profile?.photoURL || undefined}
+      avatarPhotoURL={avatarSrc || undefined}
       accountEmail={profile?.email || undefined}
+      initialDraft={restorableDraft}
+      legalConsentAlreadyRecorded={legalConsentRecorded}
+      onDraftChange={persistDraft}
       resume={choice ?? undefined}
-      // X34: powrót z podglądu / kroku marketingowego = ekran 6/6; "Wybierz inny plan" = 5A.
+      // X34: powrót z podglądu = ekran 6/6; "Wybierz inny plan" = 5A.
       resumeStep={choice ? wizardResumeStep : undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="newplan.toReview"
       onConfirm={handleWizardConfirm}
       isSaving={isSaving}
       error={error}
+      onExitBack={onExitBack}
     />
   );
 };

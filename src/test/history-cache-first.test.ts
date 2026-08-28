@@ -2,7 +2,7 @@
 // historii maluje się z lokalnego cache Firestore natychmiast, serwer nadpisuje
 // po dojściu; błąd serwera po udanym cache nie zamazuje widoku.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 interface FakeDoc { id: string; data: () => Record<string, unknown> }
 
@@ -103,5 +103,20 @@ describe('useWorkoutHistoryPage cache-first (E-T5)', () => {
 
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
     expect(result.current.error).toBeTruthy();
+  });
+
+  it('po błędzie bez cache udostępnia retry, które ponownie pobiera pierwszą stronę', async () => {
+    getDocsFromCacheMock.mockResolvedValue({ docs: [] });
+    getDocsMock
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ docs: [doc('fresh', '2026-08-19')] });
+
+    const { result } = renderHook(() => useWorkoutHistoryPage('u1', {}));
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+
+    act(() => result.current.retry());
+
+    await waitFor(() => expect(result.current.error).toBeNull());
+    await waitFor(() => expect(result.current.workouts.map((workout) => workout.id)).toEqual(['fresh']));
   });
 });

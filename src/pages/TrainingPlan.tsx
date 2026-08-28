@@ -10,7 +10,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Plane } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Plane, Library, Settings2 } from 'lucide-react';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
 import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, planWeekNumberForDate, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -27,6 +27,7 @@ import { PlanNextStepCard } from '@/components/PlanNextStepCard';
 import { PreStartCard } from '@/components/PreStartCard';
 import { buildPreStartInfo } from '@/lib/plan-prestart';
 import { EmptyStateIllustration } from '@/components/EmptyState';
+import { Button } from '@/components/ui/button';
 import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { DeloadBanner } from '@/components/DeloadBanner';
@@ -38,6 +39,12 @@ import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import type { LanguageCode } from '@/i18n';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // ── Custom grid calendar matching mockup ──
 const JS_DAY_TO_WEEKDAY: Record<number, Weekday> = {
@@ -60,6 +67,7 @@ interface PlanCalendarProps {
 }
 
 const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDates, stravaDates, lang }: PlanCalendarProps) => {
+  const { t } = useTranslation();
   const [viewMonth, setViewMonth] = useState(() => selectedDate || new Date());
 
   const year = viewMonth.getFullYear();
@@ -111,15 +119,25 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-bold capitalize">{viewMonth.toLocaleDateString(dateLocale(lang), { month: 'long' })} {year}</span>
         <div className="flex gap-1">
-          <button onClick={prevMonth} className="w-7 h-7 rounded-md bg-surface-low text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">‹</button>
-          <button onClick={nextMonth} className="w-7 h-7 rounded-md bg-surface-low text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">›</button>
+          <button
+            type="button"
+            onClick={prevMonth}
+            aria-label={t('range.prevMonth')}
+            className="w-7 h-7 min-w-11 min-h-11 rounded-md bg-surface-low text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >‹</button>
+          <button
+            type="button"
+            onClick={nextMonth}
+            aria-label={t('range.nextMonth')}
+            className="w-7 h-7 min-w-11 min-h-11 rounded-md bg-surface-low text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >›</button>
         </div>
       </div>
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-2">
         {weekdayLabels.map((label, i) => (
-          <span key={i} className="text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 py-1">{label}</span>
+          <span key={i} className="text-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground py-1">{label}</span>
         ))}
       </div>
 
@@ -161,7 +179,7 @@ const TrainingPlan = () => {
   const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isCustom, planError, hasServerSnapshot: planFromServer, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
   const { toast } = useToast();
   // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
   // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
@@ -456,12 +474,22 @@ const TrainingPlan = () => {
     );
   }
 
+  if (planError && !isCustom && !planFromServer) {
+    return (
+      <div role="alert" className="mx-auto flex min-h-64 max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-destructive">{t('trainingplan.loadError')}</p>
+        <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+          {t('gate.retry')}
+        </Button>
+      </div>
+    );
+  }
+
   // WP-PLANS-1 (X27): plan zakończony — pusty stan z CTA zamiast timeline
   // z martwego planu (dashboard/plan/day nie planują po 'ended').
   if (planStatus === 'ended') {
     return (
       <div className="space-y-5" data-testid="plan-ended-empty">
-        <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
         {/* WP-F (X28): ilustracja pustego stanu "brak aktywnego planu" (pro-look);
             dekoracyjna — błąd pliku = ekran jak dotąd (karta decyzji zostaje). */}
         <EmptyStateIllustration src={getEmptyStateImageUrl('no-plan')} />
@@ -489,37 +517,42 @@ const TrainingPlan = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2.5 min-w-0">
-              <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
-              <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
+              <h2 className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
                 {/* WP-F (X35a): tydzień przed startem planu = "Przed startem", nie "Historia". */}
                 {isHistoricalWeek
                   ? t(planStarted ? 'trainingplan.history' : 'trainingplan.preStart')
                   : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
-              </span>
+              </h2>
             </div>
             {/* WP-PLANS-2 (X27): nazwa planu usera pod tytułem (jeśli nadana). */}
             {planName && <p className="mt-0.5 truncate text-sm text-muted-foreground">{planName}</p>}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {/* FIX-B T5: stałe wejście do Cykli (na mobile żyło tylko na
-                usuniętej karcie planu Dashboardu). T16: ikona RefreshCw jak w
-                Cyklach (History myliła się z Historią). */}
-            <button
-              onClick={() => navigate('/cycles')}
-              data-testid="plan-cycles-link"
-              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-surface-high text-[13px] font-medium text-foreground/80 hover:bg-surface-highest transition-colors"
-            >
-              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-              {t('dash.cycles')}
-            </button>
-            <button
-              onClick={() => navigate('/plan/edit')}
-              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-surface-high text-[13px] font-medium text-foreground/80 hover:bg-surface-highest transition-colors"
-            >
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-              {t('trainingplan.edit')}
-            </button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-testid="plan-manage-trigger"
+                className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-surface-high px-3.5 text-[13px] font-medium text-foreground/80 transition-colors hover:bg-surface-highest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden />
+                {t('trainingplan.manage')}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-52">
+              <DropdownMenuItem data-testid="plan-cycles-link" onSelect={() => navigate('/cycles')}>
+                <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                {t('dash.cycles')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/plan/edit')}>
+                <Pencil className="mr-2 h-4 w-4" aria-hidden />
+                {t('trainingplan.edit')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/exercises')}>
+                <Library className="mr-2 h-4 w-4" aria-hidden />
+                {t('nav.exercises')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Pasek postępu planu (pełna szerokość, T17: procent z treningów) */}
@@ -606,24 +639,26 @@ const TrainingPlan = () => {
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => {
               const prev = new Date(selectedWeekStart);
               prev.setDate(prev.getDate() - 7);
               setSelectedDate(prev);
             }}
             aria-label={t('trainingplan.prevWeek')}
-            className="w-8 h-8 rounded-full bg-surface-high text-foreground/80 flex items-center justify-center hover:bg-surface-highest hover:text-primary transition-colors"
+            className="w-8 h-8 min-w-11 min-h-11 rounded-full bg-surface-high text-foreground/80 flex items-center justify-center hover:bg-surface-highest hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={() => {
               const next = new Date(selectedWeekStart);
               next.setDate(next.getDate() + 7);
               setSelectedDate(next);
             }}
             aria-label={t('trainingplan.nextWeek')}
-            className="w-8 h-8 rounded-full bg-surface-high text-foreground/80 flex items-center justify-center hover:bg-surface-highest hover:text-primary transition-colors"
+            className="w-8 h-8 min-w-11 min-h-11 rounded-full bg-surface-high text-foreground/80 flex items-center justify-center hover:bg-surface-highest hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -715,21 +750,12 @@ const TrainingPlan = () => {
                         {/* Z112: wpis cardio na wybranym dniu (także wstecz) */}
                         <button
                           onClick={(e) => { e.stopPropagation(); setCardioDialog({ open: true, edit: null, defaultDate: dateStr }); }}
-                          className="flex min-h-11 items-center gap-1 px-1.5 text-[11px] text-muted-foreground/70 hover:text-primary transition-colors"
+                          className="flex min-h-11 items-center gap-1 px-1.5 text-[11px] text-muted-foreground hover:text-primary transition-colors"
                           data-testid={`add-cardio-day-${dateStr}`}
                         >
                           <HeartPulse className="h-3.5 w-3.5" />
                           {t('cardio.addShort')}
                         </button>
-                        {trainingItem && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate('/plan/edit'); }}
-                            className="flex min-h-11 items-center gap-1 px-1.5 text-[11px] text-muted-foreground/70 hover:text-primary transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            {t('trainingplan.edit')}
-                          </button>
-                        )}
                       </div>
                     </div>
 
@@ -807,7 +833,7 @@ const TrainingPlan = () => {
               />
 
               {/* Legend */}
-              <div className="flex items-center justify-center gap-4 mt-4 text-[10px] font-semibold">
+              <div className="flex items-center justify-center gap-4 mt-4 text-[11px] font-semibold">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full bg-fitness-success" />
                   <span className="text-muted-foreground/70">{t('trainingplan.legendCompleted')}</span>
@@ -851,11 +877,11 @@ const TrainingPlan = () => {
                       <p className="text-sm text-muted-foreground">{displayDayNameForDate(displayDay.dayName, displayDay.weekday, selectedDate, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-0 bg-fitness-success/15 text-fitness-success">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-0 bg-fitness-success/15 text-fitness-success">
                             <CheckCircle className="h-3 w-3" /> {t('trainingplan.statusCompleted')}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border-0 bg-surface-high text-muted-foreground">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border-0 bg-surface-high text-muted-foreground">
                             <Dumbbell className="h-3 w-3" /> {t('trainingplan.statusPlanned')}
                           </span>
                         )}
@@ -912,11 +938,12 @@ const TrainingPlan = () => {
           type="button"
           data-testid="plan-reduced-open"
           onClick={() => setReducedOpen(true)}
+          aria-pressed={Boolean(reducedMode && isReducedModeActive(reducedMode, todayISOForVacation))}
           className={cn(
-            'flex h-12 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors',
+            'flex h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
             reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
               ? 'border border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
-              : 'bg-surface-low text-foreground/80 hover:bg-surface-high',
+              : 'border-border/60 bg-surface-low text-foreground/80 hover:bg-surface-high',
           )}
         >
           <HeartPulse className={cn('h-4 w-4 shrink-0', !(reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
@@ -930,11 +957,12 @@ const TrainingPlan = () => {
           type="button"
           data-testid="plan-vacation-open"
           onClick={() => setVacationOpen(true)}
+          aria-pressed={Boolean(vacation && isVacationActive(vacation, todayISOForVacation))}
           className={cn(
-            'flex h-12 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors',
+            'flex h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
             vacation && isVacationActive(vacation, todayISOForVacation)
               ? 'border border-primary/40 bg-primary/10 text-primary'
-              : 'bg-surface-low text-foreground/80 hover:bg-surface-high',
+              : 'border-border/60 bg-surface-low text-foreground/80 hover:bg-surface-high',
           )}
         >
           <Plane className={cn('h-4 w-4 shrink-0', !(vacation && isVacationActive(vacation, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />

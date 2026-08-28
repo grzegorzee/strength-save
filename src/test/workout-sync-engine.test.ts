@@ -45,7 +45,7 @@ const makeCloudWorkout = (over: Partial<WorkoutSession> = {}): WorkoutSession =>
 interface FakeDepsOptions {
   draft?: ActiveWorkoutDraft | null;
   serverWorkout?: WorkoutSession | null;
-  saveResult?: { success: boolean; error?: string; updatedAt?: number; revision?: number; alreadyApplied?: boolean };
+  saveResult?: { success: boolean; error?: string; updatedAt?: number; revision?: number; alreadyApplied?: boolean; health?: 'none' | 'stripped' | 'written' | 'pending' };
   saveDelayMs?: number;
 }
 
@@ -61,6 +61,7 @@ const makeDeps = (options: FakeDepsOptions = {}) => {
       _sessionId: string,
       _exercises: unknown[],
       _options: { expectedRevision: number | null; writeId: string; completed?: boolean },
+      _health?: { healthGrant: { healthEpoch: number; healthGrantId: string } | null; healthMode?: 'replace' },
     ) => {
       if (options.saveDelayMs) {
         await new Promise(resolve => setTimeout(resolve, options.saveDelayMs));
@@ -73,9 +74,11 @@ const makeDeps = (options: FakeDepsOptions = {}) => {
     markSynced: vi.fn(async () => undefined),
     setCloudBaseline: vi.fn(async () => undefined),
     setPendingWrite: vi.fn(async () => undefined),
+    markHealthPending: vi.fn(async () => undefined),
     clearDraftIfVersion: vi.fn(async () => true),
     queue: {
       remove: vi.fn(),
+      upsertFromDraft: vi.fn(),
     },
     isOnline: () => true,
     now: () => 5000,
@@ -164,6 +167,52 @@ describe('syncWorkoutSession', () => {
     expect(deps.markSynced).toHaveBeenCalledWith('u1', 5000, 3, 's1', { updatedAt: 999, revision: 7 });
     expect(deps.queue.remove).toHaveBeenCalledWith('u1', 's1');
     expect(deps.clearDraftIfVersion).not.toHaveBeenCalled();
+  });
+
+  it('health pending zachowuje draft, kolejkę i ten sam writeId po sukcesie bazy', async () => {
+    const draft = makeDraft({
+      exerciseSets: {
+        'ex-1': [{ reps: 8, weight: 100, completed: true }],
+        'ex-2': [{ reps: 10, weight: 50, completed: true }],
+      },
+      exerciseMetrics: { 'ex-1': { rpe: 8, pain: 2 }, 'ex-2': { quality: 4 } },
+      exerciseMetricGrants: {
+        'ex-1': {
+          rpe: { healthEpoch: 7, healthGrantId: 'grant-7' },
+          pain: { healthEpoch: 6, healthGrantId: 'grant-6' },
+        },
+        'ex-2': { quality: { healthEpoch: 7, healthGrantId: 'grant-7' } },
+      },
+      pendingHealthGrant: { healthEpoch: 7, healthGrantId: 'grant-7' },
+      pendingWriteId: 'same-write-id',
+      pendingWriteVersion: 3,
+    });
+    const deps = makeDeps({
+      draft,
+      saveResult: { success: true, updatedAt: 999, revision: 2, health: 'pending' },
+    });
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'checkpoint', deps);
+
+    expect(outcome).toMatchObject({ success: true, healthWritePending: true, draftRetained: true });
+    expect(deps.saveWorkout.mock.calls[0][1]).toEqual([
+      expect.objectContaining({ exerciseId: 'ex-1', rpe: 8 }),
+      expect.objectContaining({ exerciseId: 'ex-2', quality: 4 }),
+    ]);
+    expect(deps.saveWorkout.mock.calls[0][1]).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ pain: 2 }),
+    ]));
+    expect(deps.saveWorkout.mock.calls[0][2]).toMatchObject({ writeId: 'same-write-id' });
+    expect(deps.saveWorkout.mock.calls[0][3]).toEqual({
+      healthGrant: { healthEpoch: 7, healthGrantId: 'grant-7' },
+      healthMode: 'replace',
+    });
+    expect(deps.markHealthPending).toHaveBeenCalledWith(
+      'u1', 's1', 3, { updatedAt: 999, revision: 2 },
+    );
+    expect(deps.markSynced).not.toHaveBeenCalled();
+    expect(deps.clearDraftIfVersion).not.toHaveBeenCalled();
+    expect(deps.queue.remove).not.toHaveBeenCalledWith('u1', 's1');
   });
 
   // Z155: backend rozpoznaje aktywny trening po startedAt — checkpoint (nie tylko

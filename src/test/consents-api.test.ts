@@ -28,6 +28,8 @@ describe('recordConsents', () => {
       mirror: {
         healthGranted: false,
         healthVersion: CONSENT_DOC_VERSION.health,
+        healthEpoch: 4,
+        healthGrantId: null,
       },
     });
   });
@@ -56,7 +58,38 @@ describe('recordConsents', () => {
     expect(mirror).toEqual({
       healthGranted: false,
       healthVersion: CONSENT_DOC_VERSION.health,
+      healthEpoch: 4,
+      healthGrantId: null,
     });
+  });
+
+  it('odrzuca health mirror bez monotonicznej epoki i fence grantu', async () => {
+    mocks.callProtectedFunction.mockResolvedValueOnce({
+      ok: true,
+      recorded: 1,
+      mirror: { healthGranted: true, healthVersion: CONSENT_DOC_VERSION.health },
+    });
+
+    await expect(recordConsents([
+      { type: 'health', action: 'granted', statementText: 'Wyrażam zgodę.' },
+    ], 'pl')).rejects.toThrow(/mirror/i);
+  });
+
+  it('odrzuca health mirror z epoką poza bezpiecznym zakresem liczb', async () => {
+    mocks.callProtectedFunction.mockResolvedValueOnce({
+      ok: true,
+      recorded: 1,
+      mirror: {
+        healthGranted: true,
+        healthVersion: CONSENT_DOC_VERSION.health,
+        healthEpoch: Number.MAX_SAFE_INTEGER + 1,
+        healthGrantId: 'grant-too-large',
+      },
+    });
+
+    await expect(recordConsents([
+      { type: 'health', action: 'granted', statementText: 'Wyrażam zgodę.' },
+    ], 'pl')).rejects.toThrow(/mirror/i);
   });
 
   it('odrzuca odpowiedź bez mirrora zamiast uznać niepotwierdzony zapis za sukces', async () => {
@@ -74,6 +107,8 @@ describe('recordConsents', () => {
       mirror: {
         healthGranted: false,
         healthVersion: CONSENT_DOC_VERSION.health,
+        healthEpoch: 4,
+        healthGrantId: null,
       },
     });
 

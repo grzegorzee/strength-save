@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Search, Dumbbell, ArrowRightLeft, Play, Plus, ChevronRight } from 'lucide-react';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { getExerciseAnimationUrl, getGroupImageUrl, slugifyExercise } from '@/lib/exercise-media';
@@ -98,10 +99,10 @@ const ExerciseRow = ({ ex, onOpen, previewActive, onTogglePreview }: {
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-heading text-base font-bold uppercase leading-tight tracking-tight">{localizeExerciseName(ex.name, lang)}</h3>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary">
+          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-primary">
             {localizeCategory(ex.category, lang)}
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{typeLabel}</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{typeLabel}</span>
         </div>
       </div>
       <ArrowRightLeft className="h-4 w-4 shrink-0 text-primary" />
@@ -222,7 +223,11 @@ const ExerciseLibrary = () => {
               type="button"
               aria-pressed={typeFilter === chip.id}
               onClick={() => setTypeFilter(chip.id)}
-              className={cn('chip-mono touch-manipulation select-none', typeFilter === chip.id && 'bg-primary text-primary-foreground')}
+              className={cn(
+                'chip-mono touch-manipulation select-none',
+                toggleButtonClasses(typeFilter === chip.id),
+                typeFilter === chip.id && 'bg-primary text-primary-foreground',
+              )}
             >
               {chip.label}{' '}
               <span className={cn('tabular-nums', typeFilter === chip.id ? 'opacity-80' : 'text-foreground/70')}>{chip.count}</span>

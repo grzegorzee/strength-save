@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -164,7 +165,7 @@ export const AdminSubscriptionCard = ({ uid, name, subscription, onChanged }: Ad
           )}
         </div>
         {active && (
-          <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary shrink-0">
+          <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary shrink-0">
             PRO
           </span>
         )}
@@ -200,6 +201,8 @@ export const AdminSubscriptionCard = ({ uid, name, subscription, onChanged }: Ad
                   key={days}
                   type="button"
                   variant={choice === days ? 'default' : 'outline'}
+                  aria-pressed={choice === days}
+                  className={toggleButtonClasses(choice === days)}
                   onClick={() => setChoice(days)}
                 >
                   {t('admin.sub.grantPreset', { days })}
@@ -208,6 +211,8 @@ export const AdminSubscriptionCard = ({ uid, name, subscription, onChanged }: Ad
               <Button
                 type="button"
                 variant={choice === 'infinite' ? 'default' : 'outline'}
+                aria-pressed={choice === 'infinite'}
+                className={toggleButtonClasses(choice === 'infinite')}
                 onClick={() => setChoice('infinite')}
               >
                 {t('admin.sub.grantInfinite')}

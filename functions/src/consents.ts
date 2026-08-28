@@ -54,8 +54,62 @@ export interface ConsentResponseMirror {
   privacyVersion?: string;
   healthGranted?: boolean;
   healthVersion?: string;
+  healthEpoch?: number;
+  healthGrantId?: string | null;
   marketingGranted?: boolean;
   marketingVersion?: string;
+}
+
+export interface StoredHealthConsentState {
+  healthGranted?: boolean;
+  healthVersion?: string;
+  healthEpoch?: number;
+  healthGrantId?: string | null;
+}
+
+export interface NextHealthConsentState {
+  healthGranted: boolean;
+  healthVersion: string;
+  healthEpoch: number;
+  healthGrantId: string | null;
+  changed: true;
+}
+
+/**
+ * Monotoniczna bariera dla zapisów zdrowotnych. Ten sam stan jest idempotentny,
+ * ale withdraw, regrant oraz przejście z wersji legacy zawsze zmieniają epoch.
+ */
+export function nextHealthConsentState(
+  current: StoredHealthConsentState | undefined,
+  entries: ConsentEntry[],
+  newGrantId = "pending-grant",
+): NextHealthConsentState | null {
+  const health = entries.find((entry) => entry.type === "health");
+  if (!health) return null;
+
+  const granted = health.action === "granted";
+  const epoch = Number.isSafeInteger(current?.healthEpoch) && (current?.healthEpoch ?? 0) > 0
+    ? current!.healthEpoch!
+    : 0;
+  const hasCurrentFence = granted
+    ? typeof current?.healthGrantId === "string" && current.healthGrantId.length > 0
+    : current?.healthGrantId == null;
+  if (
+    current?.healthGranted === granted
+    && current.healthVersion === health.docVersion
+    && epoch > 0
+    && hasCurrentFence
+  ) {
+    return null;
+  }
+
+  return {
+    healthGranted: granted,
+    healthVersion: health.docVersion,
+    healthEpoch: epoch + 1,
+    healthGrantId: granted ? newGrantId : null,
+    changed: true,
+  };
 }
 
 const isIn = <T extends string>(list: readonly T[], value: unknown): value is T =>
@@ -113,6 +167,9 @@ export function parseConsentPayload(data: unknown): ConsentPayload {
       statementText: entry.statementText,
     };
   });
+  if (new Set(entries.map((entry) => entry.type)).size !== entries.length) {
+    throw new HttpsError("invalid-argument", "duplicate consent type");
+  }
 
   // Oświadczenia obowiązkowe (terms, privacy_ack) nie mają wariantu "withdrawn".
   for (const entry of entries) {
@@ -139,7 +196,10 @@ export function extractClientIp(rawRequest: {
 }
 
 /** Aktualizacja mirrora users/{uid}.consents na podstawie zapisanych wpisów. */
-export function buildConsentMirror(entries: ConsentEntry[]): Record<string, unknown> {
+export function buildConsentMirror(
+  entries: ConsentEntry[],
+  healthState?: StoredHealthConsentState | null,
+): Record<string, unknown> {
   const mirror: Record<string, unknown> = {};
   for (const entry of entries) {
     switch (entry.type) {
@@ -159,6 +219,12 @@ export function buildConsentMirror(entries: ConsentEntry[]): Record<string, unkn
         break;
     }
   }
+  if (healthState) {
+    mirror["consents.healthGranted"] = healthState.healthGranted === true;
+    mirror["consents.healthVersion"] = healthState.healthVersion;
+    mirror["consents.healthEpoch"] = healthState.healthEpoch;
+    mirror["consents.healthGrantId"] = healthState.healthGrantId ?? null;
+  }
   return mirror;
 }
 
@@ -167,7 +233,10 @@ export function buildConsentMirror(entries: ConsentEntry[]): Record<string, unkn
  * tekstu oświadczeń; pozwala klientowi zakończyć bramkę bez czekania na drugi
  * kanał onSnapshot po potwierdzonym, atomowym batch.commit().
  */
-export function buildConsentResponseMirror(entries: ConsentEntry[]): ConsentResponseMirror {
+export function buildConsentResponseMirror(
+  entries: ConsentEntry[],
+  healthState?: StoredHealthConsentState | null,
+): ConsentResponseMirror {
   const mirror: ConsentResponseMirror = {};
   for (const entry of entries) {
     switch (entry.type) {
@@ -187,6 +256,12 @@ export function buildConsentResponseMirror(entries: ConsentEntry[]): ConsentResp
         break;
     }
   }
+  if (healthState) {
+    mirror.healthGranted = healthState.healthGranted === true;
+    mirror.healthVersion = healthState.healthVersion;
+    mirror.healthEpoch = healthState.healthEpoch;
+    mirror.healthGrantId = healthState.healthGrantId ?? null;
+  }
   return mirror;
 }
 
@@ -199,33 +274,62 @@ export const recordConsent = onCall(async (request) => {
   const ip = extractClientIp(request.rawRequest ?? {});
 
   const db = admin.firestore();
-  const batch = db.batch();
   const createdAt = admin.firestore.FieldValue.serverTimestamp();
+  const userRef = db.collection(USERS_COLLECTION).doc(uid);
+  const consentWrites = payload.entries.map((entry) => ({
+    entry,
+    ref: db.collection(CONSENTS_COLLECTION).doc(),
+  }));
+  const healthWrite = consentWrites.find(({ entry }) => entry.type === "health");
+  let responseMirror: ConsentResponseMirror | null = null;
 
-  for (const entry of payload.entries) {
-    const ref = db.collection(CONSENTS_COLLECTION).doc();
-    batch.set(ref, {
-      uid,
-      type: entry.type,
-      action: entry.action,
-      docVersion: entry.docVersion,
-      lang: entry.lang,
-      statementText: entry.statementText,
-      channel: payload.channel,
-      appVersion: payload.appVersion ?? null,
-      ip,
-      createdAt,
-    });
-  }
+  await db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists) {
+      throw new HttpsError("failed-precondition", "User profile not found");
+    }
+    const userData = userSnapshot.data() ?? {};
+    const currentHealth = (
+      userData.consents && typeof userData.consents === "object"
+        ? userData.consents
+        : {}
+    ) as StoredHealthConsentState;
+    const changedHealth = nextHealthConsentState(
+      currentHealth,
+      payload.entries,
+      healthWrite?.ref.id ?? "",
+    );
+    const authoritativeHealth = changedHealth ?? (
+      healthWrite ? currentHealth : null
+    );
 
-  const mirror = buildConsentMirror(payload.entries);
-  mirror["consents.updatedAt"] = createdAt;
-  batch.update(db.collection(USERS_COLLECTION).doc(uid), mirror);
+    for (const { entry, ref } of consentWrites) {
+      transaction.set(ref, {
+        uid,
+        type: entry.type,
+        action: entry.action,
+        docVersion: entry.docVersion,
+        lang: entry.lang,
+        statementText: entry.statementText,
+        channel: payload.channel,
+        appVersion: payload.appVersion ?? null,
+        ip,
+        createdAt,
+        ...(entry.type === "health" && authoritativeHealth
+          ? { healthEpoch: authoritativeHealth.healthEpoch ?? null }
+          : {}),
+      });
+    }
 
-  await batch.commit();
+    const mirror = buildConsentMirror(payload.entries, authoritativeHealth);
+    mirror["consents.updatedAt"] = createdAt;
+    transaction.update(userRef, mirror);
+    responseMirror = buildConsentResponseMirror(payload.entries, authoritativeHealth);
+  });
+
   return {
     ok: true,
     recorded: payload.entries.length,
-    mirror: buildConsentResponseMirror(payload.entries),
+    mirror: responseMirror ?? buildConsentResponseMirror(payload.entries),
   };
 });

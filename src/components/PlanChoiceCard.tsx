@@ -5,6 +5,7 @@ import type { TranslationKey } from '@/i18n';
 import { localizePlanName } from '@/lib/plan-i18n';
 import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 import type { PlanTemplate } from '@/data/planTemplates';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { cn } from '@/lib/utils';
 
 /** WP-F (X28): hero szablonu (pro-look dark-gym-v1). Obraz dekoracyjny: alt=""
@@ -64,6 +65,7 @@ export const PlanChoiceCard = ({ template, badge, why, selected, onSelect, testI
       data-testid={testId}
       className={cn(
         'w-full select-none touch-manipulation overflow-hidden rounded-2xl text-left transition-all',
+        toggleButtonClasses(selected),
         selected ? 'bg-surface-high ring-2 ring-primary' : 'bg-surface-low hover:bg-surface-container',
       )}
     >
@@ -73,7 +75,7 @@ export const PlanChoiceCard = ({ template, badge, why, selected, onSelect, testI
           <span
             data-testid="plan-choice-badge"
             className={cn(
-              'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+              'rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide',
               badge === 'recommended' ? 'bg-primary/15 text-primary' : 'bg-surface-highest text-muted-foreground',
             )}
           >

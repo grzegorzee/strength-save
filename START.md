@@ -1,6 +1,17 @@
-# Strength Save (FitTracker)
+# Strength Save
 
 > Quick reference - wszystko w jednym miejscu
+
+> **Stan kanoniczny 2026-08-28:** wersja produktu pozostaje `1.0.0`; frontend
+> produkcyjny działa pod `https://app.strengthsave.app/`. Onboarding korzysta z
+> lokalnych, deterministycznych planów i trzech presetów kolorystycznych, nie z
+> generowania planu przez AI. Biblioteka zawiera 243 ćwiczenia z opisami PL/EN
+> dostępnymi offline. Trening zapisuje draft w IndexedDB z fallbackiem
+> localStorage i synchronizuje przez wersjonowany `syncWorkoutV2`; pola health są
+> osobnym, fail-closed sidecarem. Niższe sekcje opisujące v6.x, GitHub Pages,
+> bibliotekę 84 ćwiczeń, klientowy OpenAI lub prostą `offline-queue.ts` są
+> historyczne i nie mogą być używane jako instrukcja release. Aktualne bramki i
+> blockery: `docs/RELEASE-READINESS-2026-08-27.md`.
 
 ---
 
@@ -8,9 +19,9 @@
 
 | Pole | Wartość |
 |------|---------|
-| **Nazwa** | Strength Save / FitTracker |
+| **Nazwa** | Strength Save |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.11.4) |
+| **Status** | kandydat 1.0.0; public release zablokowany do końcowych bramek |
 | **Data utworzenia** | Styczeń 2026 |
 | **Data aktualizacji** | 2026-08-27 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
@@ -19,7 +30,7 @@
 
 ## LINKI
 
-- **Live:** https://grzegorzee.github.io/strength-save/
+- **Live:** https://app.strengthsave.app/
 - **Repo:** https://github.com/grzegorzee/strength-save
 - **Firebase Console:** https://console.firebase.google.com/project/fittracker-workouts
 
@@ -57,7 +68,7 @@
 | src/pages/WorkoutDay.tsx | Aktywny trening / widok ukończonego / edycja |
 | src/pages/TrainingPlan.tsx | Kalendarz + plan tygodniowy + Strava |
 | src/pages/Analytics.tsx | Analityka: podsumowanie, **per-exercise progresja**, pomiary, rekordy |
-| src/pages/Onboarding.tsx | Wizard 5 kroków → AI generuje plan → review + swap |
+| src/pages/Onboarding.tsx | Lekki wizard → lokalna rekomendacja planu → preview → start |
 | src/pages/NewPlan.tsx | Nowy plan: gotowe szablony lub własny kreator (bez AI od v6.10.0) |
 | src/components/PlanBuilder.tsx | **Ręczny kreator planu od zera** (dni, ćwiczenia z biblioteki, serie, czas trwania) |
 | src/pages/DayPlan.tsx | Plan na dzisiaj (co dziś?) — ukryty z nawigacji, dostępny przez URL |
@@ -70,10 +81,10 @@
 | Plik | Opis |
 |------|------|
 | src/data/trainingPlan.ts | Domyślny plan + typy + getTrainingSchedule() |
-| src/data/exerciseLibrary.ts | Biblioteka 84 ćwiczeń z kategoriami **(+ isBodyweight flag)** |
-| src/lib/ai-onboarding.ts | Generowanie planu AI (OpenAI) |
+| src/data/exerciseLibrary.ts | Biblioteka 243 ćwiczeń; pełne opisy PL/EN offline |
+| src/lib/plan-i18n.ts | Lokalizacja nazw i treści planu PL/EN |
 | src/lib/ai-coach.ts | callOpenAI(), getSwapSuggestions(), callOpenAIStream() (gpt-5-mini) |
-| src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
+| src/lib/workout-sync-queue.ts | Referencyjna kolejka synchronizacji treningu |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
 | src/lib/next-set-advice.ts | **Coach następnej serii** — konkretny cel (ciężar×powt.) z trendu historii + deload przy plateau (`getNextSetAdvice`) |
 | src/lib/exercise-name-resolver.ts | **Resolver nazw ćwiczeń/dni dla historii (snapshot → cykl → plan → id)** — odporność na zmianę planu |
@@ -140,10 +151,10 @@
 | Firebase | 12.x | Firestore, Auth, Cloud Functions |
 | Tailwind CSS | 3.x | Styling (utility-first) |
 | shadcn/ui | - | Komponenty UI (Radix primitives) |
-| React Router | 6.x | Routing (HashRouter) |
+| React Router | 7.x | Routing (HashRouter) |
 | Recharts | 2.x | Wykresy (progresja, pomiary) |
 | React Query | 5.x | Query cache |
-| OpenAI API | - | AI Coach + generowanie planów |
+| OpenAI API | - | Funkcje dodatkowe poza krytycznym onboardingiem i treningiem |
 | Strava API | - | Import aktywności sportowych |
 | Lucide React | 0.462 | Ikony |
 | date-fns | 3.x | Formatowanie dat |
@@ -152,9 +163,9 @@
 | vite-plugin-pwa | 1.x | Progressive Web App |
 | html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
 | Amazon SES API v2 | AWS SDK JS v3 | E-maile serwisowe, digest, zaproszenia i powiadomienia o zgłoszeniach błędów |
-| Vitest | 3.x | Testy jednostkowe (202 testy) |
-| Playwright | 1.x | Testy E2E (99 testów, VITE_E2E_MODE) |
-| gh-pages | 6.x | Deploy na GitHub Pages |
+| Vitest | 3.x | Testy jednostkowe i kontraktowe; aktualny wynik w release readiness |
+| Playwright | 1.x | Chromium + WebKit; aktualny wynik w release readiness |
+| GitHub Pages + custom domain | - | Kanoniczny web `app.strengthsave.app`; `npm run deploy` |
 
 ---
 
@@ -501,7 +512,11 @@ npm run deploy    # gh-pages -d dist
 
 ---
 
-## NOTATKI
+## NOTATKI HISTORYCZNE (nie używać do release)
+
+Poniższa sekcja zachowuje kontekst dawnych wersji. Aktualne sekrety są wyłącznie
+po stronie Functions/Secret Managera; onboarding nie zależy od OpenAI, a deploy
+webu wymaga pełnych bramek i manifestu zgodnie z `AGENTS.md`.
 
 - Auth: Google + email/password + kod mailowy przez Functions + Amazon SES
 - HashRouter zamiast BrowserRouter (GitHub Pages)
@@ -517,7 +532,7 @@ npm run deploy    # gh-pages -d dist
 
 ---
 
-## 🆕 STAN 2026-06-06 (najnowsza sesja)
+## STAN HISTORYCZNY 2026-06-06
 
 **Zrobione i na produkcji (web live + build iOS):**
 - Pełne i18n PL/EN (zero polskiego w trybie EN: strony, lib, dane, daty, dni, focus, admin, hooki; coach AI odpowiada w języku UI).

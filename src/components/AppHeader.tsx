@@ -11,28 +11,24 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkoutReads } from '@/hooks/useFirebaseWorkouts';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { APP_CHROME_ROOT_PATHS } from '@/lib/main-navigation';
 
 interface AppHeaderProps {
   title: string;
   onBack?: () => void;
 }
 
-// X35c (WP-E, pkt 3): zakładki główne (bottom nav + /analytics) dostają dzwonek
-// z licznikiem nieprzeczytanych. Zestaw = rootPaths Layoutu (trasy bez strzałki
-// wstecz); trzymany osobno, bo Layout nie eksportuje swojej listy.
-const BELL_PATHS = new Set(['/', '/plan', '/history', '/exercises', '/achievements', '/analytics']);
-
 export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
-  const { uid, profile } = useCurrentUser();
+  const { uid, profile, avatarSrc } = useCurrentUser();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // Licznik i dzwonek tworzą jeden kontrakt nagłówka głównych zakładek. Dzięki
   // temu przejście Dzisiaj -> Plan -> Historia nie zmienia znaczenia prawego
   // klastra ani nie zastępuje liczby dopiskiem zależnym od ekranu.
   const isDashboard = pathname === '/';
-  const showBell = BELL_PATHS.has(pathname);
-  const showWorkoutCount = BELL_PATHS.has(pathname);
+  const showBell = APP_CHROME_ROOT_PATHS.has(pathname);
+  const showWorkoutCount = APP_CHROME_ROOT_PATHS.has(pathname);
   const displayName = profile?.displayName || '';
   const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
   // Z216: nagłówek jest na każdym ekranie — nie może trzymać szerokiego
@@ -85,17 +81,19 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
               onClick={() => navigate('/profile')}
               aria-label={t('nav.profile')}
               data-testid="header-avatar"
-              className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-border transition-transform active:scale-95"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {/* Naprawa r2 (2026-08-21): inicjał na tincie akcentu 20% + litera
                   w akcencie (artboardy; ten sam wariant co avatar na Profilu). */}
-              {profile?.photoURL ? (
-                <img src={profile.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center bg-primary/20 text-xs font-bold text-primary">
-                  {initials}
-                </span>
-              )}
+              <span className="flex h-9 w-9 overflow-hidden rounded-full ring-1 ring-border">
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center bg-primary/20 text-xs font-bold text-primary">
+                    {initials}
+                  </span>
+                )}
+              </span>
             </button>
           )}
           {/* Naprawa r1 (2026-08-21, sędzia struktury): tytuł zawijał się do dwóch

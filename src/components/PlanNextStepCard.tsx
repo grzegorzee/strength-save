@@ -88,7 +88,7 @@ export const PlanNextStepCard = ({
   const badges = step.badges.length > 0 ? (
     <div className="flex flex-wrap gap-2">
       {step.badges.map((badge) => (
-        <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
+        <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[11px] font-semibold">
           {badge}
         </Badge>
       ))}
@@ -121,7 +121,7 @@ export const PlanNextStepCard = ({
             <button
               onClick={onDismiss}
               aria-label={t('dash.dismissHint')}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -155,7 +155,7 @@ export const PlanNextStepCard = ({
               <button
                 onClick={onDismiss}
                 aria-label={t('dash.dismissHint')}
-                className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>

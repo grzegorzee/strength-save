@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import { getInvalidFcmTokens, type ReminderUser } from "./daily-reminder";
+import { hasActiveHealthConsent } from "./security";
 
 // WP-D D4: po miesiącu od PIERWSZEGO ukończonego treningu jednorazowe
 // przypomnienie "dodaj fotkę sylwetki i zrób before/after". Kanały:
@@ -23,6 +24,8 @@ type DeliveryResponse = { success: boolean; error?: { code?: string } };
 export interface PhotoReminderUser extends ReminderUser {
   /** ISO data wysłanego przypomnienia — obecność = nigdy więcej. */
   photoReminderSentAt?: string;
+  /** Snapshot autorytatywnej zgody; brak/legacy = proces health pominięty. */
+  consents?: unknown;
 }
 
 export interface PhotoReminderTexts {
@@ -110,6 +113,9 @@ export async function runPhotoReminder(
     if (user.photoReminderSentAt) return;
     if (user.status !== "active") return;
     if (user.access?.enabled === false) return;
+    // Zdjęcia sylwetki są danymi health. Bez aktywnego grantu nie wolno nawet
+    // sprawdzać, czy zdjęcie istnieje; bazowe przypomnienia pozostają niezależne.
+    if (!hasActiveHealthConsent(user)) return;
     // X35c (WP-E): własny przełącznik gate'uje oba kanały i NIE zapisuje
     // znacznika — po włączeniu przypomnienie dojdzie następnego dnia.
     if (user.notificationPrefs?.photoReminder === false) return;

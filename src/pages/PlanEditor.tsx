@@ -173,6 +173,7 @@ const PlanEditor = () => {
                 ...(progression ?? DEFAULT_PROGRESSION),
                 enabled: next,
               })}
+              aria-label={t('progression.enable')}
               data-testid="progression-toggle"
             />
           </div>

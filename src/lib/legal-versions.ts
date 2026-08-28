@@ -5,7 +5,7 @@
 export const LEGAL_VERSIONS = {
   terms: '2.0',
   privacy: '2.1',
-  health: '1.0',
+  health: '1.1',
   marketing: '1.0',
 } as const;
 
@@ -30,29 +30,51 @@ export interface ConsentMirror {
   privacyVersion?: string;
   healthGranted?: boolean;
   healthVersion?: string;
+  /** Monotoniczna bariera starej kolejki po withdraw/regrant. Brak = legacy, fail-closed. */
+  healthEpoch?: number;
+  /** Losowy identyfikator aktywnego grantu, używany jako fence dla Storage. */
+  healthGrantId?: string | null;
   marketingGranted?: boolean;
   marketingVersion?: string;
 }
 
 /**
- * Czy komplet obowiązkowych zgód jest aktualny (terms, privacy_ack, health).
- *
- * Zgoda zdrowotna: bramka wymaga aktualnej DECYZJI, nie zgody. Świadome
- * wycofanie (healthGranted === false przy aktualnej healthVersion — mirror
- * pisany przez recordConsent ustawia oba pola także przy withdrawn) jest
- * pełnoprawną decyzją: ConsentGate NIE wstaje, a ograniczenia realizuje
- * useHealthConsent w WorkoutDay/Measurements (DECYZJE.md 2026-08-11:
- * "wycofanie zdrowotnej blokuje pomiary + metryki, konto zostaje").
- * Inaczej wycofanie zgody w Ustawieniach zapętlało usera na bramce
- * wymuszającej ponowne udzielenie zgody, którą przed chwilą wycofał (bug 1).
+ * Czy dokumenty wymagane do wejścia w tryb podstawowy są aktualne.
+ * Zgoda zdrowotna jest niezależnym, dobrowolnym odblokowaniem funkcji i nigdy
+ * nie może uruchamiać pełnoekranowej bramki aplikacji.
  */
 export function hasCurrentRequiredConsents(mirror: ConsentMirror | undefined | null): boolean {
   if (!mirror) return false;
-  const healthDecisionCurrent = typeof mirror.healthGranted === 'boolean'
-    && mirror.healthVersion === LEGAL_VERSIONS.health;
   return (
     mirror.termsVersion === LEGAL_VERSIONS.terms
     && mirror.privacyVersion === LEGAL_VERSIONS.privacy
-    && healthDecisionCurrent
   );
+}
+
+/** Brak, odmowa lub nieaktualna wersja zawsze wyłączają funkcje zdrowotne. */
+export function hasActiveHealthConsent(mirror: ConsentMirror | undefined | null): boolean {
+  return (
+    mirror?.healthGranted === true
+    && mirror.healthVersion === LEGAL_VERSIONS.health
+    && Number.isSafeInteger(mirror.healthEpoch)
+    && (mirror.healthEpoch ?? 0) > 0
+    && typeof mirror.healthGrantId === 'string'
+    && mirror.healthGrantId.length > 0
+  );
+}
+
+export interface ActiveHealthGrant {
+  healthEpoch: number;
+  healthGrantId: string;
+}
+
+/** Zwraca wyłącznie aktywną generację; nieaktualne dane nigdy nie przeciekają do write path. */
+export function getActiveHealthGrant(
+  mirror: ConsentMirror | undefined | null,
+): ActiveHealthGrant | null {
+  if (!hasActiveHealthConsent(mirror)) return null;
+  return {
+    healthEpoch: mirror!.healthEpoch!,
+    healthGrantId: mirror!.healthGrantId!,
+  };
 }

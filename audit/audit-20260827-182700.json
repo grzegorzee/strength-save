@@ -1,0 +1,93 @@
+{
+  "score": 7.5,
+  "mode": "web-e2e (Playwright Chromium, fresh Vite, VITE_E2E_MODE) + visual/code audit",
+  "date": "2026-08-27",
+  "run_at": "2026-08-27T18:27:00+02:00",
+  "seeded": true,
+  "scenarios_audited": [
+    "active-user (plan + 5 completed workouts)",
+    "new-user (onboarding)",
+    "active-admin (panel)",
+    "legacy #/settings redirect to #/profile"
+  ],
+  "summary": "Fresh-Vite product audit passed 16/16 Chromium checks: 9 active-user portrait routes, legacy settings redirect, onboarding, admin and 4 landscape routes. There was no blank screen, NaN, horizontal overflow, uncaught page error or unexpected console.error. The stale blank settings screenshots were a harness timing error: #/settings redirects to #/profile; the audit now waits for the destination and captures Profile. Visual/code review found no release-blocking web defect, but typography still has 112 labels at 8-10.5 px and personalization is 11 single accents rather than the requested three coherent three-role palettes.",
+  "blockers_red": [],
+  "orange": [
+    {
+      "route": "workout, history, cycles, profile, plan, analytics, Strava",
+      "title": "Functional microcopy is below the planned readable floor",
+      "evidence": "112 occurrences of 8-10.5 px across 53 files; key examples: WorkoutDay session stats 9 px, CycleTile 8 px, ExerciseCard record label 9 px",
+      "suggestion": "Introduce semantic type tokens and migrate screen-by-screen with 320 px, 100/150/200% text-scale, keyboard and landscape regression checks.",
+      "owner": "product/design/frontend",
+      "weight": -1.0
+    },
+    {
+      "route": "onboarding and Profile theme settings",
+      "title": "Avatar personalization is an accent picker, not a three-color palette system",
+      "evidence": "accent-theme.ts defines 11 independent accents and applies one hue to primary/ring/accent; avatar-accent.ts only ranks up to three existing accent IDs",
+      "suggestion": "Ship a versioned primary/secondary/tertiary PaletteTheme with three named defaults, privacy-safe avatar proposal and lossless migration of all existing accents.",
+      "owner": "product/design/frontend",
+      "weight": -1.0
+    }
+  ],
+  "yellow": [
+    {
+      "route": "#/plan, #/history, #/progress",
+      "title": "Root routes repeat context in the top bar and page heading",
+      "evidence": "audit/shots/2026-08-27/active-user_plan.png, active-user_history.png and active-user_progress.png",
+      "suggestion": "Keep one screen title and use the second line for context or an action.",
+      "owner": "product/design",
+      "weight": -0.5
+    }
+  ],
+  "fixed_during_audit": [
+    "Release-audit harness now tests #/settings as a redirect and captures the rendered #/profile destination instead of a transient blank frame.",
+    "Added a real workout-route popup exit regression test in Chromium and WebKit."
+  ],
+  "native_not_covered": [
+    "safe-area/notch",
+    "native Share sheet and FileProvider",
+    "push/local notification tap",
+    "haptics and sound",
+    "iOS keyboard",
+    "screen-off/background/resume",
+    "cold restart recovery",
+    "Dynamic Type / Android font scale 100/150/200%",
+    "real Google and Apple authentication"
+  ],
+  "top_fixes": [
+    "Complete physical iOS and Android background/resume, interrupted workout, export/share and restart recovery.",
+    "Raise critical 8-10.5 px labels through a semantic typography migration with text-scale QA.",
+    "Replace the accent list with three coherent three-role palettes while preserving every existing user choice.",
+    "Resolve repeated root-route headings."
+  ],
+  "checks": {
+    "console_errors_unexpected": 0,
+    "page_errors": 0,
+    "blank_screens": 0,
+    "nan_in_ui": 0,
+    "horizontal_overflow_routes": 0,
+    "routes_audited": 16,
+    "viewports": ["390x844", "844x390"],
+    "chromium_tests": 16,
+    "chromium_passed": 16,
+    "fresh_vite": true
+  },
+  "screenshots": [
+    "audit/shots/2026-08-27/active-user_dashboard.png",
+    "audit/shots/2026-08-27/active-user_plan.png",
+    "audit/shots/2026-08-27/active-user_history.png",
+    "audit/shots/2026-08-27/active-user_progress.png",
+    "audit/shots/2026-08-27/active-user_measurements.png",
+    "audit/shots/2026-08-27/active-user_exercises.png",
+    "audit/shots/2026-08-27/active-user_cycles.png",
+    "audit/shots/2026-08-27/active-user_profile.png",
+    "audit/shots/2026-08-27/active-user_workout.png",
+    "audit/shots/2026-08-27/new-user_onboarding.png",
+    "audit/shots/2026-08-27/active-admin_admin.png",
+    "audit/shots/2026-08-27/landscape_dashboard.png",
+    "audit/shots/2026-08-27/landscape_workout.png",
+    "audit/shots/2026-08-27/landscape_history.png",
+    "audit/shots/2026-08-27/landscape_profile.png"
+  ]
+}

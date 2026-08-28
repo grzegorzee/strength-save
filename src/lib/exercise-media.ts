@@ -12,10 +12,16 @@
  * animacji, funkcja zwraca null i UI pokazuje placeholder + opis.
  */
 
-// store.gjasionowicz.pl ma WŁĄCZONY Token Auth, więc niepodpisany URL zwraca 403,
-// a klucz do podpisywania nie ma prawa trafić do klienta. Animacje ćwiczeń są
-// zasobem publicznym, więc leżą na strefie bez Token Auth.
-const CDN_BASE = 'https://media.gjasionowicz.pl/exercises';
+// Media są dodatkiem, nie warunkiem treningu. Produkcja failuje zamknięta: URL-e
+// powstają tylko po jawnej konfiguracji sprawdzonego endpointu. Dzięki temu
+// wygasły certyfikat albo zawieszona strefa CDN nie zalewa WebView błędami i nie
+// pokazuje niedziałających kontrolek. E2E zachowuje stabilny URL przechwytywany
+// lokalnymi fixtures; nie łączy się z siecią.
+const E2E_CDN_BASE = 'https://media.gjasionowicz.pl/exercises';
+const configuredCdnBase = String(import.meta.env.VITE_EXERCISE_MEDIA_BASE_URL ?? '')
+  .trim()
+  .replace(/\/+$/, '');
+const CDN_BASE = configuredCdnBase || (import.meta.env.VITE_E2E_MODE === 'true' ? E2E_CDN_BASE : '');
 
 const POLISH_CHARS: Record<string, string> = {
   ą: 'a', ć: 'c', ę: 'e', ł: 'l', ń: 'n', ó: 'o', ś: 's', ź: 'z', ż: 'z',
@@ -139,10 +145,11 @@ export const slugifyExercise = (name?: string): string => {
 };
 
 /** Zwraca URL animacji ćwiczenia z CDN albo null, jeśli pliku jeszcze nie ma. */
-export const getExerciseAnimationUrl = (name?: string): string | null => {
+export const getExerciseAnimationUrl = (name?: string, baseUrl = CDN_BASE): string | null => {
   const slug = slugifyExercise(name);
   const file = slug ? ANIMATION_FILES[slug] : undefined;
-  return file ? `${CDN_BASE}/${file}` : null;
+  const normalizedBase = baseUrl.trim().replace(/\/+$/, '');
+  return file && normalizedBase ? `${normalizedBase}/${file}` : null;
 };
 
 /** X27 WP-E: zdjęcie grupy mięśniowej dla kafla/hero zakładki Ćwiczenia.
@@ -174,8 +181,9 @@ export const getPaywallHeroUrl = (): string =>
 
 /** Z195: poster JPEG miniatury (ta sama nazwa co mp4). WebKit przy
  *  preload=metadata nie maluje żadnej klatki wideo — kafelek renderuje <img>. */
-export const getExercisePosterUrl = (name?: string): string | null => {
+export const getExercisePosterUrl = (name?: string, baseUrl = CDN_BASE): string | null => {
   const slug = slugifyExercise(name);
   const file = slug ? ANIMATION_FILES[slug] : undefined;
-  return file ? `${CDN_BASE}/${file.replace(/\.mp4$/, '.jpg')}` : null;
+  const normalizedBase = baseUrl.trim().replace(/\/+$/, '');
+  return file && normalizedBase ? `${normalizedBase}/${file.replace(/\.mp4$/, '.jpg')}` : null;
 };

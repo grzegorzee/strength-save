@@ -207,14 +207,14 @@ describe('WP-PLANS-1: /plan przy planStatus=ended', () => {
     expect(screen.getByTestId('plan-ended-empty')).toBeTruthy();
     expect(screen.getByTestId('plan-next-step')).toBeTruthy();
     // Timeline/kalendarz martwego planu nie renderują się.
-    expect(screen.queryByTestId('plan-cycles-link')).toBeNull();
+    expect(screen.queryByTestId('plan-manage-trigger')).toBeNull();
     expect(screen.queryAllByText(/Mój dzień A/)).toHaveLength(0);
   });
 
   it('kontrola: przy planStatus=active timeline planu renderuje się normalnie', () => {
     renderPage(<TrainingPlan />);
 
-    expect(screen.getByTestId('plan-cycles-link')).toBeTruthy();
+    expect(screen.getByTestId('plan-manage-trigger')).toBeTruthy();
     expect(screen.queryByTestId('plan-ended-empty')).toBeNull();
   });
 });

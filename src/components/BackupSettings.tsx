@@ -8,6 +8,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { DataManagement } from '@/components/DataManagement';
 import { WorkoutImportWizard } from '@/components/WorkoutImportWizard';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
+import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
 
 /**
  * X35b (WP-B): "Backup i przywracanie" wyjęte 1:1 z dawnej strony /settings do
@@ -16,7 +17,10 @@ import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
  */
 export const BackupSettings = () => {
   const { uid } = useCurrentUser();
-  const { workouts, isLoaded: workoutsLoaded, exportData, importData } = useFirebaseWorkouts(uid);
+  const activeHealthGrant = useActiveHealthGrant();
+  const { workouts, isLoaded: workoutsLoaded, exportData, importData } = useFirebaseWorkouts(uid, {
+    healthEpoch: activeHealthGrant?.healthEpoch,
+  });
   const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const { t } = useTranslation();

@@ -147,7 +147,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
                 {HR_ZONES.map((z) => (
                   <div
                     key={z.zone}
-                    className={`flex-1 flex items-center justify-center text-[10px] font-bold transition-opacity ${z.color} ${
+                    className={`flex-1 flex items-center justify-center text-[11px] font-bold transition-opacity ${z.color} ${
                       z.zone === zone ? 'opacity-100 text-white' : 'opacity-25'
                     }`}
                   >

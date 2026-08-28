@@ -18,7 +18,7 @@ test.describe('Nawigacja Postępów', () => {
     await expectHashRoute(page, '/achievements');
     const progressTabs = page.getByRole('tablist', { name: 'Postępy' });
     await expect(progressTabs.getByRole('tab')).toHaveCount(3);
-    await expect(progressTabs.getByRole('tab', { name: 'Podsumowanie', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(progressTabs.getByRole('tab', { name: 'Wyniki', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(progressTabs.getByRole('tab', { name: 'Wykresy', exact: true })).toBeVisible();
     await expect(progressTabs.getByRole('tab', { name: 'Rekordy', exact: true })).toBeVisible();
   });

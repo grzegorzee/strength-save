@@ -21,7 +21,7 @@ import { calculateTonnage } from '@/lib/summary-utils';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
-import { sanitizePlanCycleDoc, sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
+import { sanitizeMeasurementDoc, sanitizePlanCycleDoc, sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { resolvePlanDaysForSave } from '@/lib/training-plan-save';
 import type { TrainingDay } from '@/data/trainingPlan';
 import {
@@ -30,10 +30,28 @@ import {
   isProvisionalWorkoutSessionId,
 } from '@/lib/workout-session';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { e2eCloudMock, isE2ECloudMockEnabled } from '@/lib/e2e-cloud-mock';
 import { clampSet } from '@/lib/workout-sanitizers';
-import { getWorkoutReadSnapshot, retryMeasurementReads, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
+import {
+  fetchWorkoutHistoryPage,
+  getWorkoutReadSnapshot,
+  retryMeasurementReads,
+  subscribeWorkoutReads,
+  selectLatestMeasurement,
+  type MeasurementTier,
+  type WorkoutTier,
+} from '@/lib/workout-read-store';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
+import { deleteWorkoutCloudDocuments } from '@/lib/workout-delete';
+import {
+  buildWorkoutBackupV3,
+  collectAllWorkoutBackupPages,
+  planWorkoutBackupV3Restore,
+  type WorkoutBackupV3RestoreItem,
+} from '@/lib/workout-backup-v3';
+import { createWorkoutV2SaveAdapter } from '@/lib/workout-sync-v2';
+import { restoreWorkoutBackupV3Item } from '@/lib/workout-restore-v3';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -90,10 +108,19 @@ export const useFirebaseWorkoutReads = (
   userId: string,
   measurementTier: MeasurementTier = 'full',
   workoutTier: WorkoutTier = 'full',
+  activeHealthGrant: ActiveHealthGrant | null = null,
 ) => {
+  const healthEpoch = activeHealthGrant?.healthEpoch;
+  const healthGrantId = activeHealthGrant?.healthGrantId;
   const subscribe = useCallback(
-    (listener: () => void) => subscribeWorkoutReads(userId, listener, measurementTier, workoutTier),
-    [userId, measurementTier, workoutTier],
+    (listener: () => void) => subscribeWorkoutReads(
+      userId,
+      listener,
+      measurementTier,
+      workoutTier,
+      healthEpoch && healthGrantId ? { healthEpoch, healthGrantId } : null,
+    ),
+    [userId, measurementTier, workoutTier, healthEpoch, healthGrantId],
   );
   const getSnapshot = useCallback(() => getWorkoutReadSnapshot(userId), [userId]);
   const getServerSnapshot = useCallback(() => getWorkoutReadSnapshot(''), []);
@@ -110,6 +137,8 @@ type FirebaseWorkoutReads = ReturnType<typeof useFirebaseWorkoutReads>;
 export const useFirebaseWorkoutActions = (
   userId: string,
   { workouts, measurements }: Pick<FirebaseWorkoutReads, 'workouts' | 'measurements'>,
+  healthEpoch?: number,
+  activeHealthGrant: ActiveHealthGrant | null = null,
 ) => {
   const { t } = useTranslation();
 
@@ -229,12 +258,16 @@ export const useFirebaseWorkoutActions = (
   }, [getWorkoutsByDay]);
 
   const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id' | 'userId'>): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
+    if (!Number.isSafeInteger(healthEpoch) || (healthEpoch ?? 0) <= 0) {
+      return { measurement: null, error: 'HEALTH_CONSENT_REQUIRED' };
+    }
     const id = `measurement-${Date.now()}`;
     if (!validateMeasurement(measurement).valid) return { measurement: null, error: 'INVALID_MEASUREMENT' };
 
     // FIX-B T7: recordedAt = godzina wykonania pomiaru (rules dopuszczają number).
     const sanitized = sanitizeMeasurementWrite(userId, id, {
       ...measurement,
+      healthEpoch,
       recordedAt: measurement.recordedAt ?? Date.now(),
     });
 
@@ -246,7 +279,7 @@ export const useFirebaseWorkoutActions = (
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { measurement: null, error: errorMessage };
     }
-  }, [userId, t]);
+  }, [userId, healthEpoch, t]);
 
   // WP-M: edycja istniejącego wpisu — PEŁNY setDoc (bez merge), więc pole
   // wyczyszczone w formularzu znika z dokumentu (rules: zamknięta lista pól,
@@ -257,11 +290,14 @@ export const useFirebaseWorkoutActions = (
     id: string,
     measurement: Omit<BodyMeasurement, 'id' | 'userId'>,
   ): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
+    if (!Number.isSafeInteger(healthEpoch) || (healthEpoch ?? 0) <= 0) {
+      return { measurement: null, error: 'HEALTH_CONSENT_REQUIRED' };
+    }
     const existing = measurements.find((m) => m.id === id);
     if (!existing) return { measurement: null, error: 'MEASUREMENT_NOT_FOUND' };
     if (!validateMeasurement(measurement).valid) return { measurement: null, error: 'INVALID_MEASUREMENT' };
 
-    const sanitized = sanitizeMeasurementWrite(userId, id, measurement);
+    const sanitized = sanitizeMeasurementWrite(userId, id, { ...measurement, healthEpoch });
     try {
       await setDoc(doc(db, MEASUREMENTS_COLLECTION, id), sanitized);
     } catch (err) {
@@ -273,7 +309,7 @@ export const useFirebaseWorkoutActions = (
       await deleteBodyPhotoBestEffort(existing.photoPath);
     }
     return { measurement: { ...sanitized } as unknown as BodyMeasurement };
-  }, [userId, measurements, t]);
+  }, [userId, measurements, healthEpoch, t]);
 
   // WP-M: usunięcie wpisu + best-effort sprzątnięcie jego zdjęcia ze Storage.
   const deleteMeasurement = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
@@ -306,26 +342,43 @@ export const useFirebaseWorkoutActions = (
     return workouts.filter(w => w.completed).length;
   }, [workouts]);
 
-  // Export data to JSON (pełna kopia: treningi + pomiary + opcjonalnie plan i cykle)
-  const exportData = useCallback((extras?: { trainingPlan?: unknown; planCycles?: unknown[] }) => {
-    const data = {
-      schemaVersion: 2,
-      workouts,
-      measurements,
-      ...(extras?.trainingPlan ? { trainingPlan: extras.trainingPlan } : {}),
-      ...(extras?.planCycles && extras.planCycles.length > 0 ? { planCycles: extras.planCycles } : {}),
-      exportedAt: new Date().toISOString()
-    };
-    return JSON.stringify(data, null, 2);
-  }, [workouts, measurements]);
+  // Eksport nie może opierać się na oknie listenera (500 treningów / 365
+  // pomiarów). Każde kliknięcie czyta wszystkie strony z serwera, a marker
+  // brakującego sidecara przerywa operację zamiast tworzyć cicho niepełny plik.
+  const exportData = useCallback(async (extras?: { trainingPlan?: unknown; planCycles?: unknown[] }) => {
+    const allWorkouts = isE2ECloudMockEnabled()
+      ? workouts
+      : await collectAllWorkoutBackupPages((cursor) => fetchWorkoutHistoryPage(userId, {
+        pageSize: 250,
+        cursor,
+      }));
+    const allMeasurements = isE2ECloudMockEnabled()
+      ? measurements
+      : (await getDocs(query(
+        collection(db, MEASUREMENTS_COLLECTION),
+        where('userId', '==', userId),
+      ))).docs
+        .map((measurementDoc) => sanitizeMeasurementDoc(measurementDoc.id, measurementDoc.data()))
+        .filter((measurement): measurement is BodyMeasurement => measurement !== null);
+
+    return JSON.stringify(buildWorkoutBackupV3({
+      workouts: allWorkouts,
+      measurements: allMeasurements,
+      ...(extras?.trainingPlan !== undefined ? { trainingPlan: extras.trainingPlan } : {}),
+      ...(extras?.planCycles ? { planCycles: extras.planCycles } : {}),
+    }), null, 2);
+  }, [userId, workouts, measurements]);
 
   // Import data from JSON (with schema validation)
   const importData = useCallback(async (jsonString: string) => {
     let data: {
+      schemaVersion?: unknown;
       workouts?: unknown[];
+      workoutHealth?: unknown[];
       measurements?: unknown[];
       trainingPlan?: { days?: unknown; durationWeeks?: unknown; startDate?: unknown };
       planCycles?: unknown[];
+      exportedAt?: unknown;
     };
     try {
       data = JSON.parse(jsonString);
@@ -334,11 +387,58 @@ export const useFirebaseWorkoutActions = (
       return { success: false, message: t('data.importError') };
     }
 
+    let v3RestoreItems: WorkoutBackupV3RestoreItem[] | null = null;
+    if (data.schemaVersion === 3) {
+      try {
+        v3RestoreItems = planWorkoutBackupV3Restore(data, activeHealthGrant).items;
+      } catch (error) {
+        if (error instanceof Error && error.message === 'WORKOUT_BACKUP_HEALTH_CONSENT_REQUIRED') {
+          return { success: false, message: t('data.healthConsentRequired') };
+        }
+        return { success: false, message: t('data.importError') };
+      }
+    }
+
+    // Import pomiarów jest nowym zapisem danych zdrowotnych. Brak aktywnej
+    // generacji kończy operację przed pierwszym batchem, żeby nie powstał
+    // trudny do zrozumienia częściowy import.
+    if (
+      Array.isArray(data.measurements)
+      && data.measurements.length > 0
+      && (!Number.isSafeInteger(healthEpoch) || (healthEpoch ?? 0) <= 0)
+    ) {
+      return { success: false, message: t('data.healthConsentRequired') };
+    }
+    const legacyHasEmbeddedHealth = data.schemaVersion !== 3
+      && Array.isArray(data.workouts)
+      && data.workouts.some((workout) => (
+        workout !== null
+        && typeof workout === 'object'
+        && Array.isArray((workout as { exercises?: unknown }).exercises)
+        && ((workout as { exercises: unknown[] }).exercises).some((exercise) => (
+          exercise !== null
+          && typeof exercise === 'object'
+          && ['rpe', 'pain', 'quality'].some((field) => field in exercise)
+        ))
+      ));
+    if (legacyHasEmbeddedHealth && !activeHealthGrant) {
+      return { success: false, message: t('data.healthConsentRequired') };
+    }
+
     let imported = 0;
     try {
       const ops: Array<{ collection: string; id: string; data: Record<string, unknown> }> = [];
 
-      if (data.workouts && Array.isArray(data.workouts)) {
+      if (v3RestoreItems) {
+        for (const item of v3RestoreItems) {
+          await restoreWorkoutBackupV3Item(
+            item,
+            activeHealthGrant,
+            crypto.randomUUID(),
+          );
+          imported += 1;
+        }
+      } else if (data.workouts && Array.isArray(data.workouts)) {
         for (const workout of data.workouts as Array<Record<string, unknown>>) {
           if (!workout.id || typeof workout.id !== 'string') continue;
           if (!workout.date || typeof workout.date !== 'string') continue;
@@ -361,18 +461,30 @@ export const useFirebaseWorkoutActions = (
             ...(typeof workout.revision === 'number' && workout.revision > 0 && { revision: Math.floor(workout.revision) }),
             ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
           };
+          const healthMetrics: Array<{ exerciseId: string; rpe?: number; pain?: number; quality?: number }> = [];
           if (Array.isArray(workout.exercises)) {
-            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }) => ({
-              exerciseId: String(ex.exerciseId || '').slice(0, 100),
-              sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map((s) => clampSet(s as Partial<SetData>)) : [],
-              ...(ex.notes && { notes: String(ex.notes).slice(0, 2000) }),
-              ...(ex.name && { name: String(ex.name).slice(0, 200) }),
-              ...cleanMetrics(ex),
-            }));
+            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }) => {
+              const exerciseId = String(ex.exerciseId || '').slice(0, 100);
+              const metrics = cleanMetrics(ex);
+              if (Object.keys(metrics).length > 0) healthMetrics.push({ exerciseId, ...metrics });
+              return {
+                exerciseId,
+                sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map((s) => clampSet(s as Partial<SetData>)) : [],
+                ...(ex.notes && { notes: String(ex.notes).slice(0, 2000) }),
+                ...(ex.name && { name: String(ex.name).slice(0, 200) }),
+              };
+            });
           } else {
             safe.exercises = [];
           }
-          ops.push({ collection: WORKOUTS_COLLECTION, id: safe.id as string, data: safe });
+          const workoutId = safe.id as string;
+          await restoreWorkoutBackupV3Item({
+            workout: safe as unknown as WorkoutSession,
+            ...(healthMetrics.length > 0 ? {
+              health: { workoutId, metrics: healthMetrics },
+            } : {}),
+          }, activeHealthGrant, crypto.randomUUID());
+          imported += 1;
         }
       }
 
@@ -384,6 +496,7 @@ export const useFirebaseWorkoutActions = (
             id: String(m.id).slice(0, 100),
             userId,
             date: String(m.date).slice(0, 10),
+            healthEpoch: healthEpoch!,
           };
           for (const field of Object.keys(MEASUREMENT_LIMITS)) {
             if (m[field] !== undefined) safe[field] = m[field] as number;
@@ -453,7 +566,7 @@ export const useFirebaseWorkoutActions = (
       console.error('Error importing data:', err);
       return { success: false, message: t('data.importWriteError', { n: imported }) };
     }
-  }, [userId, t]);
+  }, [userId, healthEpoch, activeHealthGrant, t]);
 
   // === Import CSV Strong/Hevy (Z110) — dane usera święte: zapis wyłącznie NOWYCH
   // dokumentów imported-*, idempotentny (te same id), cofnięcie po importBatchId. ===
@@ -513,11 +626,14 @@ export const useFirebaseWorkoutActions = (
       ));
       let deleted = 0;
       const docs = snapshot.docs;
-      for (let i = 0; i < docs.length; i += 400) {
+      for (let i = 0; i < docs.length; i += 200) {
         const batch = writeBatch(db);
-        docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        docs.slice(i, i + 200).forEach((d) => {
+          batch.delete(d.ref);
+          batch.delete(doc(db, 'workout_health_v2', d.id));
+        });
         await batch.commit();
-        deleted += Math.min(400, docs.length - i);
+        deleted += Math.min(200, docs.length - i);
       }
       return { success: true, deleted };
     } catch (err) {
@@ -529,7 +645,7 @@ export const useFirebaseWorkoutActions = (
   // Delete a specific workout (for cleanup)
   const deleteWorkout = useCallback(async (workoutId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      await deleteDoc(doc(db, WORKOUTS_COLLECTION, workoutId));
+      await deleteWorkoutCloudDocuments(workoutId);
       return { success: true };
     } catch (err) {
       console.error('Error deleting workout:', err);
@@ -566,7 +682,7 @@ export const useFirebaseWorkoutActions = (
 
         const toDelete = sorted.slice(1);
         for (const workout of toDelete) {
-          await deleteDoc(doc(db, WORKOUTS_COLLECTION, workout.id));
+          await deleteWorkoutCloudDocuments(workout.id);
           deleted++;
         }
       }
@@ -688,14 +804,15 @@ export const useFirebaseWorkoutActions = (
       if (isE2ECloudMockEnabled()) {
         return { success: true, ...e2eCloudMock.save(sessionId, exercises, options) };
       }
-      const syncState = await saveWorkoutBatchWithRevision(db, sessionId, exercises, options);
-      return { success: true, ...syncState };
+      const syncState = await createWorkoutV2SaveAdapter(activeHealthGrant)(sessionId, exercises, options);
+      if (!syncState.success) return syncState;
+      return syncState;
     } catch (err) {
       console.error('Error batch saving workout:', err);
       const errorMessage = err instanceof Error ? err.message : t('common.unknownSaveError');
       return { success: false, error: errorMessage };
     }
-  }, [t]);
+  }, [activeHealthGrant, t]);
 
   const getWorkoutSessionFromServer = useCallback(async (sessionId: string): Promise<WorkoutSession | null> => {
     if (!sessionId) return null;
@@ -745,10 +862,21 @@ export const useFirebaseWorkoutActions = (
 // sync); liczby all-time dostarcza agregat Z217.
 export const useFirebaseWorkouts = (
   userId: string,
-  opts?: { measurements?: MeasurementTier; workouts?: WorkoutTier },
+  opts?: { measurements?: MeasurementTier; workouts?: WorkoutTier; healthEpoch?: number },
 ) => {
-  const reads = useFirebaseWorkoutReads(userId, opts?.measurements ?? 'full', opts?.workouts ?? 'full');
-  const actions = useFirebaseWorkoutActions(userId, reads);
+  const activeHealthGrant = useActiveHealthGrant();
+  const reads = useFirebaseWorkoutReads(
+    userId,
+    opts?.measurements ?? 'full',
+    opts?.workouts ?? 'full',
+    activeHealthGrant,
+  );
+  const actions = useFirebaseWorkoutActions(
+    userId,
+    reads,
+    opts?.healthEpoch ?? activeHealthGrant?.healthEpoch,
+    activeHealthGrant,
+  );
   const retryMeasurements = useCallback(() => retryMeasurementReads(userId), [userId]);
 
   return {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, skipPreStartWarmupIfShown } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, setE2EAuthScenario, skipPreStartWarmupIfShown } from './helpers';
 
 test.describe('ExerciseCard — Kinetic Precision', () => {
   test.beforeEach(async ({ page }) => {
@@ -189,6 +189,18 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
 
   // X17A Z129.2: rzadkie akcje ćwiczenia zebrane w jednym menu.
   test('menu ⋯ zbiera rzadkie akcje, chipy mają etykiety', async ({ page }) => {
+    // RPE/ból/jakość są funkcjami zdrowotnymi. Ten test weryfikuje stary,
+    // świadomie włączony przepływ; tryb podstawowy bez zgody ma osobny test.
+    await setE2EAuthScenario(page, 'active-user', {
+      consents: {
+        termsVersion: '2.0',
+        privacyVersion: '2.1',
+        healthGranted: true,
+        healthVersion: '1.1',
+        healthEpoch: 1,
+        healthGrantId: 'e2e-exercise-card-health-grant',
+      },
+    });
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
@@ -276,6 +288,8 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(dialog).toHaveCount(0);
 
     // Wszystkie kontrolki karty klikalne: odhaczenie serii działa od razu.
+    await firstCard.getByLabel(/Set 1, (kg|lbs)/).fill('20');
+    await firstCard.getByLabel(/Set 1, Powt\./).fill('5');
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
     await expect(firstCard.getByRole('button', { name: 'Odznacz serię' }).first()).toBeVisible();
 
@@ -375,6 +389,9 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
       await expectPageRendered(page);
 
       const cards = page.locator('.exercise-card');
+      // WebKit can still be resolving the lazy workout route after the app shell
+      // is ready. Wait for user-visible content instead of sampling the DOM once.
+      await expect(cards.first()).toBeVisible({ timeout: 10_000 });
       const count = await cards.count();
       expect(count).toBeGreaterThanOrEqual(1);
 
@@ -498,6 +515,8 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
 
     // X38: bez domyślnej W pierwszy checkmark = seria robocza 1.
+    await firstCard.getByLabel(/Set 1, (kg|lbs)/).fill('20');
+    await firstCard.getByLabel(/Set 1, Powt\./).fill('5');
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     // Fala 2 (2026-08-20): pasek jest STICKY na dole ekranu (render w WorkoutDay,
@@ -524,6 +543,8 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    await firstCard.getByLabel(/Set 1, (kg|lbs)/).fill('20');
+    await firstCard.getByLabel(/Set 1, Powt\./).fill('5');
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     await expect(page.getByTestId('rest-bar')).toBeVisible();
@@ -539,6 +560,8 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    await firstCard.getByLabel(/Set 1, (kg|lbs)/).fill('20');
+    await firstCard.getByLabel(/Set 1, Powt\./).fill('5');
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
 
     // Fala 2: pasek sticky poza kartą — expand z page, nie z firstCard.

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { CustomExercise, CustomExerciseInput } from '@/hooks/useCustomExercises';
 import { Search, Dumbbell, Plus, UserPlus, Loader2 } from 'lucide-react';
@@ -220,7 +221,8 @@ export const ExercisePicker = ({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setCategory(key)}
-                  className={cn('flex min-h-[38px] touch-manipulation select-none items-center justify-center rounded-xl px-1.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                  className={cn('flex min-h-[38px] touch-manipulation select-none items-center justify-center rounded-xl px-1.5 py-1.5 text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                    toggleButtonClasses(on),
                     on ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                 >
                   {key === 'all' ? t('exercises.all') : localizeCategory(key, lang)}
@@ -263,9 +265,12 @@ export const ExercisePicker = ({
                 {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
                   <button
                     key={key}
+                    type="button"
                     disabled={hasPendingCustomSave}
                     onClick={() => setCustomForm({ ...customForm, category: key })}
+                    aria-pressed={customForm.category === key}
                     className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                      toggleButtonClasses(customForm.category === key),
                       customForm.category === key ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                   >
                     {localizeCategory(key, lang)}
@@ -274,26 +279,34 @@ export const ExercisePicker = ({
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 <button
+                  type="button"
                   disabled={hasPendingCustomSave}
                   onClick={() => setCustomForm({ ...customForm, type: 'compound' })}
+                  aria-pressed={customForm.type === 'compound'}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                    toggleButtonClasses(customForm.type === 'compound'),
                     customForm.type === 'compound' ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
                 >
                   {t('planbuilder.compound')}
                 </button>
                 <button
+                  type="button"
                   disabled={hasPendingCustomSave}
                   onClick={() => setCustomForm({ ...customForm, type: 'isolation' })}
+                  aria-pressed={customForm.type === 'isolation'}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                    toggleButtonClasses(customForm.type === 'isolation'),
                     customForm.type === 'isolation' ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
                 >
                   {t('planbuilder.isolation')}
                 </button>
                 <button
+                  type="button"
                   disabled={hasPendingCustomSave}
                   onClick={() => setCustomForm({ ...customForm, isBodyweight: !customForm.isBodyweight })}
                   aria-pressed={customForm.isBodyweight}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                    toggleButtonClasses(customForm.isBodyweight),
                     customForm.isBodyweight ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                 >
                   {t('picker.bodyweight')}
@@ -311,9 +324,12 @@ export const ExercisePicker = ({
                   ] as Array<[CustomExerciseInput['tracking'], string]>).map(([value, label]) => (
                     <button
                       key={label}
+                      type="button"
                       disabled={hasPendingCustomSave}
                       onClick={() => setCustomForm({ ...customForm, tracking: value })}
+                      aria-pressed={customForm.tracking === value}
                       className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                        toggleButtonClasses(customForm.tracking === value),
                         customForm.tracking === value ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                     >
                       {label}

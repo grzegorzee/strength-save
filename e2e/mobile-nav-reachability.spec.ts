@@ -20,7 +20,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await blockFirebase(page);
   });
 
-  test('D-T1 bottom nav: Dzisiaj, Plan, Historia, Postępy, Ćwiczenia; Profil przez avatar', async ({ page }) => {
+  test('bottom nav: Dzisiaj, Plan, Historia, Postępy, Profil; Ćwiczenia z zarządzania planem', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     const bottomNav = page.locator('nav[aria-label="Nawigacja mobilna"]');
@@ -30,35 +30,28 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/plan');
     await bottomNav.getByRole('link', { name: 'Historia' }).click();
     await expectHashRoute(page, '/history');
-    await bottomNav.getByRole('link', { name: 'Ćwiczenia' }).click();
-    await expectHashRoute(page, '/exercises');
     await bottomNav.getByRole('link', { name: 'Postępy' }).click();
     await expectHashRoute(page, '/achievements');
+    await bottomNav.getByRole('link', { name: 'Profil' }).click();
+    await expectHashRoute(page, '/profile');
     await bottomNav.getByRole('link', { name: 'Dzisiaj' }).click();
     await expectHashRoute(page, '/');
 
-    // PRO-B: Profil wypadł z bottom nav — jedyna trasa mobile to avatar w headerze.
-    await page.getByTestId('header-avatar').click();
-    await expectHashRoute(page, '/profile');
+    await bottomNav.getByRole('link', { name: 'Plan' }).click();
+    await page.getByTestId('plan-manage-trigger').click();
+    await page.getByRole('menuitem', { name: 'Ćwiczenia' }).click();
+    await expectHashRoute(page, '/exercises');
   });
 
-  test('z Profilu: Historia, Pomiary, Postępy, Admin (X35b: bez osobnych Ustawień; X36: sekcja Twoje dane zwijana)', async ({ page }) => {
+  test('z Profilu: Pomiary i Admin; Historia/Postępy bez duplikacji dolnej nawigacji', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
     await openProfileSection(page, 'data');
-    await page.getByRole('button', { name: 'Historia', exact: true }).click();
-    await expectHashRoute(page, '/history');
-
-    await navigateAndWait(page, '/profile');
-    await openProfileSection(page, 'data');
+    await expect(page.getByRole('button', { name: 'Historia', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Postępy', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Pomiary ciała', exact: true }).click();
     await expectHashRoute(page, '/measurements');
-
-    await navigateAndWait(page, '/profile');
-    await openProfileSection(page, 'data');
-    await page.getByRole('button', { name: 'Postępy', exact: true }).click();
-    await expectHashRoute(page, '/achievements');
 
     // Admin widoczny, bo scenariusz e2e to active-admin.
     await navigateAndWait(page, '/profile');
@@ -70,6 +63,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
   test('z Planu: Cykle', async ({ page }) => {
     // FIX-B T5: karta planu zniknęła z Dashboardu — Cykle mają stałe wejście na /plan.
     await navigateAndWait(page, '/plan');
+    await page.getByTestId('plan-manage-trigger').click();
     await page.getByTestId('plan-cycles-link').click();
     await expectHashRoute(page, '/cycles');
   });

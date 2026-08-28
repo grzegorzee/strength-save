@@ -142,10 +142,11 @@ const renderApp = () =>
 
 // Krok 1 (zgody) -> 2 -> 3 -> 4 -> 5A -> 6/6 -> "Zacznij..." (bez podglądu).
 const finishOnboardingWithoutPreview = async () => {
+  fireEvent.click(screen.getByTestId('ob-personalization-next'));
   fireEvent.click(screen.getByTestId('consent-terms'));
   fireEvent.click(screen.getByTestId('consent-privacy'));
   fireEvent.click(screen.getByTestId('consent-health'));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByTestId('ob-legal-submit'));
   await screen.findByRole('button', { name: /Następny krok/ });
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
@@ -154,6 +155,14 @@ const finishOnboardingWithoutPreview = async () => {
   await screen.findByTestId('ob-start-cta');
   fireEvent.click(screen.getByTestId('ob-start-cta'));
   await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
+};
+
+const dismissPostPlanGuide = async () => {
+  await screen.findByTestId('post-plan-guide');
+  // Pomiary nie mogą konkurować z handoffem po utworzeniu planu.
+  expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Później' }));
+  await waitFor(() => expect(screen.queryByTestId('post-plan-guide')).toBeNull());
 };
 
 beforeEach(() => {
@@ -165,12 +174,15 @@ beforeEach(() => {
 
 describe('SEKWENCJA: onboarding -> /?welcome=1 -> popup pomiarów -> /measurements (WP-G p.4)', () => {
   it('"Zacznij..." bez podglądu -> Dashboard z popupem -> "Tak, dodaj pomiary" -> strona Pomiarów', async () => {
+    localStorage.setItem('ss-plan-builder-draft_u1', JSON.stringify({ days: [{ id: 'day-1' }] }));
     renderApp();
     await finishOnboardingWithoutPreview();
+    expect(localStorage.getItem('ss-plan-builder-draft_u1')).toBeNull();
 
     // Redirect na Dashboard (bez podglądu planu) i popup pomiarów.
     expect(screen.queryByTestId('plan-preview')).toBeNull();
     await screen.findByTestId('dash-greeting');
+    await dismissPostPlanGuide();
     expect(await screen.findByText('Dodać pomiary ciała?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tak, dodaj pomiary' }));
@@ -181,6 +193,7 @@ describe('SEKWENCJA: onboarding -> /?welcome=1 -> popup pomiarów -> /measuremen
   it('"Nie teraz" zamyka popup, user zostaje na Dashboardzie', async () => {
     renderApp();
     await finishOnboardingWithoutPreview();
+    await dismissPostPlanGuide();
     expect(await screen.findByText('Dodać pomiary ciała?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Nie teraz' }));

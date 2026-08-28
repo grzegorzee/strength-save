@@ -176,6 +176,19 @@ export const setE2EAuthScenario = async (
     hasWorkouts?: boolean;
     /** WP-G (X35a): profil treningowy (cel steruje tonem delty wagi w Pomiarach). */
     trainingProfile?: { level?: string; objective?: string; daysPerWeek?: number };
+    /** Mirror zgód serwera do testów restartu i re-consent. */
+    consents?: {
+      termsVersion?: string;
+      privacyVersion?: string;
+      healthGranted?: boolean;
+      healthVersion?: string;
+      /** Monotoniczna generacja aktywnej zgody zdrowotnej (legacy/brak = fail-closed). */
+      healthEpoch?: number;
+      /** Identyfikator aktywnego grantu wymagany przez ścieżki zdjęć i zapisów zdrowotnych. */
+      healthGrantId?: string | null;
+      marketingGranted?: boolean;
+      marketingVersion?: string;
+    };
   },
 ) => {
   await page.addInitScript(({ storageKey, authState }) => {
@@ -219,11 +232,24 @@ export const setE2ECustomExercises = async (page: Page, exercises: unknown[]) =>
 // X36: sekcje Profilu są zwijane — treść (karty, wiersze) montuje się dopiero
 // po rozwinięciu wiersza sekcji. Idempotentne: otwarta sekcja zostaje otwarta.
 export const openProfileSection = async (page: Page, id: string) => {
-  const section = page.getByTestId(`profile-section-${id}`);
-  const toggle = page.getByTestId(`profile-toggle-${id}`);
+  const parent = ({
+    connections: 'devices', strava: 'devices', trainer: 'devices',
+    rest: 'timer', preferences: 'training', plates: 'training',
+    backup: 'data', consents: 'data',
+  } as Record<string, string>)[id] ?? id;
+  const target = ({
+    connections: 'devices', strava: 'devices', rest: 'timer', preferences: 'training',
+  } as Record<string, string>)[id] ?? id;
+  const section = page.getByTestId(`profile-section-${parent}`);
+  const toggle = page.getByTestId(`profile-toggle-${parent}`);
   await toggle.scrollIntoViewIfNeeded();
   if ((await section.getAttribute('data-state')) !== 'open') await toggle.click();
   await expect(section).toHaveAttribute('data-state', 'open');
+  if (target !== parent) {
+    const targetElement = page.locator(`#profile-${target}`);
+    await expect(targetElement).toBeVisible();
+    await targetElement.scrollIntoViewIfNeeded();
+  }
 };
 
 export const localToday = (): string => {
@@ -247,20 +273,13 @@ export const plWeekdayName = (dateISO: string): string => {
   return PL_WEEKDAY_NAMES[new Date(y, m - 1, d).getDay()];
 };
 
-// X34: przerywnik "Dobieram plany" po kroku 4 trwa 3,5 s (nakładka fixed nad
-// 5A). Kliki i tak czekają na zdjęcie nakładki (Playwright auto-wait), ale
-// jawna asercja daje czytelny błąd zamiast timeoutu akcji.
-export const waitForMatchingToFinish = async (page: Page) => {
-  await expect(page.getByTestId('ob-matching')).toBeHidden({ timeout: 6000 });
-};
-
 // X32: /new-plan z profilem startuje od kroku 2 (poziom); krok 5A "Dopasowane
 // do Ciebie" (X33) jest po trzech przejściach (poziom -> cel -> dni -> 5A).
 export const advanceWizardToStep5 = async (page: Page) => {
   await page.getByRole('button', { name: 'Następny krok' }).click();
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-  await waitForMatchingToFinish(page);
+  await expect(page.getByTestId('ob-matching')).toHaveCount(0);
   await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
 };
 
@@ -272,12 +291,13 @@ export const advanceWizardToStep6 = async (page: Page) => {
   await expect(page.getByTestId('ob-start-step')).toBeVisible();
 };
 
-// Onboarding (scenariusz new-user): krok 1 = 3 obowiązkowe zgody + Dalej.
+// Onboarding helper świadomie pokrywa stary flow z dobrowolnym health opt-in.
 export const passOnboardingWelcome = async (page: Page) => {
+  await page.getByTestId('ob-personalization-next').click();
   await page.getByTestId('consent-terms').click();
   await page.getByTestId('consent-privacy').click();
   await page.getByTestId('consent-health').click();
-  await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+  await page.getByTestId('ob-legal-submit').click();
   await expect(page.getByRole('button', { name: 'Następny krok' })).toBeVisible();
 };
 

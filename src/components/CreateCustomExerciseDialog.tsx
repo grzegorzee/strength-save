@@ -148,7 +148,11 @@ export const CreateCustomExerciseDialog = ({
 
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{t('picker.bodyweight')}</p>
-            <Switch checked={isBodyweight} onCheckedChange={setIsBodyweight} />
+            <Switch
+              checked={isBodyweight}
+              onCheckedChange={setIsBodyweight}
+              aria-label={t('picker.bodyweight')}
+            />
           </div>
 
           <div className="space-y-1.5">

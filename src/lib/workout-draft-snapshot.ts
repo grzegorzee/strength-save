@@ -1,6 +1,8 @@
 import type { SetData, ExerciseMetrics } from '@/types';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import type { ExerciseMetricGrants } from '@/lib/workout-health-fence';
 
 // Czysta funkcja budująca snapshot draftu (ekstrakcja z WorkoutDay, wzorzec Z17/Z26).
 // Kontrakt R2-01: pendingWriteId/pendingWriteVersion PRZEŻYWAJĄ flush (kasuje je dopiero
@@ -19,6 +21,8 @@ export interface DraftSnapshotContext {
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
   exerciseMetrics: Record<string, ExerciseMetrics>;
+  exerciseMetricGrants?: ExerciseMetricGrants;
+  pendingHealthGrant?: ActiveHealthGrant | null;
   dayNotes: string;
   skippedExercises: string[];
   // Odhaczenia rozgrzewki (Z162): część treści draftu — zmiana bumpuje version.
@@ -74,17 +78,40 @@ const sameMetrics = (
   });
 };
 
+const sameGrant = (a: ActiveHealthGrant | null | undefined, b: ActiveHealthGrant | null | undefined): boolean => (
+  a === b || (!!a && !!b && a.healthEpoch === b.healthEpoch && a.healthGrantId === b.healthGrantId)
+);
+
+const sameMetricGrants = (a: ExerciseMetricGrants, b: ExerciseMetricGrants): boolean => {
+  const aExerciseIds = Object.keys(a);
+  const bExerciseIds = Object.keys(b);
+  if (aExerciseIds.length !== bExerciseIds.length) return false;
+  return aExerciseIds.every((exerciseId) => {
+    const aFields = a[exerciseId] ?? {};
+    const bFields = b[exerciseId] ?? {};
+    const aKeys = Object.keys(aFields);
+    const bKeys = Object.keys(bFields);
+    return aKeys.length === bKeys.length
+      && aKeys.every((key) => sameGrant(
+        aFields[key as keyof typeof aFields],
+        bFields[key as keyof typeof bFields],
+      ));
+  });
+};
+
 const sameStringArray = (a: string[], b: string[]): boolean => (
   a.length === b.length && a.every((item, i) => item === b[i])
 );
 
 const sameDraftContent = (
   previous: ActiveWorkoutDraft,
-  next: Pick<ActiveWorkoutDraft, 'exerciseSets' | 'exerciseNotes' | 'exerciseMetrics' | 'dayNotes' | 'skippedExercises' | 'warmupChecked'>,
+  next: Pick<ActiveWorkoutDraft, 'exerciseSets' | 'exerciseNotes' | 'exerciseMetrics' | 'exerciseMetricGrants' | 'pendingHealthGrant' | 'dayNotes' | 'skippedExercises' | 'warmupChecked'>,
 ): boolean => (
   sameSets(previous.exerciseSets, next.exerciseSets)
   && sameStringMap(previous.exerciseNotes, next.exerciseNotes)
   && sameMetrics(previous.exerciseMetrics, next.exerciseMetrics)
+  && sameMetricGrants(previous.exerciseMetricGrants ?? {}, next.exerciseMetricGrants ?? {})
+  && sameGrant(previous.pendingHealthGrant, next.pendingHealthGrant)
   && previous.dayNotes === next.dayNotes
   && sameStringArray(previous.skippedExercises, next.skippedExercises)
   && sameStringArray(previous.warmupChecked ?? [], next.warmupChecked ?? [])
@@ -109,11 +136,21 @@ export const buildWorkoutDraftSnapshot = (
 
   // Z162: pole opcjonalne — legacy draft bez odhaczeń zostaje bez pola (brak fałszywego bumpu version).
   const nextWarmupChecked = overrides.warmupChecked ?? context.warmupChecked ?? previousDraft?.warmupChecked;
+  const nextExerciseMetricGrants = overrides.exerciseMetricGrants
+    ?? context.exerciseMetricGrants
+    ?? previousDraft?.exerciseMetricGrants;
+  const nextPendingHealthGrant = overrides.pendingHealthGrant !== undefined
+    ? overrides.pendingHealthGrant
+    : context.pendingHealthGrant !== undefined
+      ? context.pendingHealthGrant
+      : previousDraft?.pendingHealthGrant;
 
   const content = {
     exerciseSets: overrides.exerciseSets ?? context.exerciseSets,
     exerciseNotes: overrides.exerciseNotes ?? context.exerciseNotes,
     exerciseMetrics: overrides.exerciseMetrics ?? context.exerciseMetrics,
+    ...(nextExerciseMetricGrants !== undefined && { exerciseMetricGrants: nextExerciseMetricGrants }),
+    ...(nextPendingHealthGrant !== undefined && { pendingHealthGrant: nextPendingHealthGrant }),
     dayNotes: overrides.dayNotes ?? context.dayNotes,
     skippedExercises: overrides.skippedExercises ?? context.skippedExercises,
     ...(nextWarmupChecked !== undefined && { warmupChecked: nextWarmupChecked }),

@@ -33,7 +33,10 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
     getLatestMeasurement: () => undefined,
   }),
 }));
-vi.mock('@/hooks/useHealthConsent', () => ({ useHealthConsent: () => true }));
+vi.mock('@/hooks/useHealthConsent', () => ({
+  useHealthConsent: () => true,
+  useActiveHealthGrant: () => ({ healthEpoch: 3, healthGrantId: 'grant-3' }),
+}));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/firebase', () => ({ storage: {}, db: {} }));
 vi.mock('firebase/storage', () => ({ ref: vi.fn(), uploadBytes: vi.fn(), getDownloadURL: vi.fn() }));

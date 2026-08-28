@@ -3,7 +3,7 @@
 // Niezmiennik (zasada 5): przestawiamy, niczego nie usuwamy — wszystkie
 // dotychczasowe elementy (Cykle, tryby, strip, stats) nadal w DOM.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -156,15 +156,19 @@ describe('kolejność sekcji zakładki Plan (T9)', () => {
     const todayKey = formatLocalDate(new Date());
     await waitFor(() => expect(screen.getByTestId(`add-cardio-day-${todayKey}`)).toBeTruthy());
 
-    // Nagłówek: wejścia do Cykli i edycji planu.
+    // Nagłówek: jedno wejście grupujące Cykle, edycję i bibliotekę.
+    const manageTrigger = screen.getByTestId('plan-manage-trigger');
+    fireEvent.pointerDown(manageTrigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(manageTrigger);
     expect(screen.getByTestId('plan-cycles-link')).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Ćwiczenia' })).toBeTruthy();
     // Tryby: urlop + "nie na 100%".
     expect(screen.getByTestId('plan-reduced-open')).toBeTruthy();
     expect(screen.getByTestId('plan-vacation-open')).toBeTruthy();
     // Pasek hybrydowy tygodnia.
     expect(screen.getByTestId('hybrid-week-strip')).toBeTruthy();
-    // Karta dnia (skip toggle na dzisiejszym treningu).
-    expect(screen.getByTestId('day-skip-toggle')).toBeTruthy();
+    // Karta dnia: akcje wtórne są zgrupowane pod jednym dużym celem.
+    expect(screen.getByTestId('day-actions-trigger')).toBeTruthy();
   });
 
   it('dzień dzisiejszy renderuje się przed minionym dniem tygodnia', async () => {

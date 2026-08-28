@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 
 interface ChipProps {
   active?: boolean;
@@ -19,7 +20,12 @@ export const Chip = ({ active, onClick, children, className }: ChipProps) => {
   );
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={classes}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={Boolean(active)}
+        className={cn(classes, toggleButtonClasses(Boolean(active)))}
+      >
         {children}
       </button>
     );

@@ -110,7 +110,7 @@ export const NotificationBell = ({ uid }: { uid: string }) => {
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{title}</p>
                       {body && <p className="text-xs text-muted-foreground">{body}</p>}
-                      <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
                         {new Date(event.createdAt).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}
                       </p>
                     </div>

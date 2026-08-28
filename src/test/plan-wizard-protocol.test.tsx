@@ -4,12 +4,13 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 
 // PlanBuilder ciągnie firebase (custom exercises); tryb "own" nie jest tu testowany.
-vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
+vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => <div data-testid="plan-builder" /> }));
 // WP-PLANS-1 dodał do PlanWizard PlanDurationPicker (PlanDaysEditor → ExercisePicker
 // → lib/firebase) — realny init Auth wywala jsdom (pułapka transitive importu).
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
 import { PlanWizard } from '@/components/PlanWizard';
+import type { OnboardingDraftV1 } from '@/lib/onboarding-draft';
 
 // T1 (feedback 2026-08-20): krok "Zatwierdź protokół" pyta o dni TRENINGOWE,
 // notatka uspokaja, że plan można później dostosować. WP-PLANS-2 (X27): data
@@ -56,12 +57,78 @@ const mondayOf = (iso: string) => {
 const chips = () => within(screen.getByTestId('ob-first-workout-chips')).getAllByRole('button');
 
 describe('krok 4 bez daty startu (WP-PLANS-2)', () => {
+  it('przywraca krok i odpowiedzi z bezpiecznego szkicu po restarcie WKWebView', () => {
+    const draft: OnboardingDraftV1 = {
+      version: 1,
+      updatedAt: Date.now(),
+      phase: 'wizard',
+      wizardStep: 4,
+      level: 'advanced',
+      objective: 'peak_strength',
+      daysPerWeek: 3,
+      trainingDays: ['tuesday', 'thursday', 'saturday'],
+    };
+
+    render(withProviders(
+      <PlanWizard
+        showWelcome
+        legalConsent
+        legalConsentAlreadyRecorded
+        initialDraft={draft}
+        confirmLabelKey="newplan.toReview"
+        onConfirm={noop}
+      />,
+    ));
+
+    expect(screen.getByText('Ile dni treningowych w tygodniu?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Wtorek' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Poniedziałek' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByTestId('consent-terms')).toBeNull();
+  });
+
+  it('nie zamienia szkicu własnego planu na rekomendowany po restarcie', () => {
+    const draft: OnboardingDraftV1 = {
+      version: 1,
+      updatedAt: Date.now(),
+      phase: 'wizard',
+      wizardStep: 6,
+      level: 'intermediate',
+      objective: 'build_muscle',
+      daysPerWeek: 3,
+      trainingDays: ['monday', 'wednesday', 'friday'],
+      planSource: 'custom',
+    };
+
+    render(withProviders(
+      <PlanWizard
+        showWelcome
+        legalConsent
+        legalConsentAlreadyRecorded
+        initialDraft={draft}
+        confirmLabelKey="newplan.toReview"
+        onConfirm={noop}
+      />,
+    ));
+
+    expect(screen.getByTestId('plan-builder')).toBeInTheDocument();
+    expect(screen.queryByTestId('ob-start-preview')).toBeNull();
+  });
+
   it('sekcja "Data startu" zniknęła z kroku protokołu, dni treningowe zostały', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToProtocolStep();
     expect(screen.getByText('Ile dni treningowych w tygodniu?')).toBeInTheDocument();
     expect(screen.queryByText('Data startu')).toBeNull();
     expect(screen.queryByText('Wybierz konkretną datę')).toBeNull();
+  });
+
+  it('siedem dni mieści się w siatce na telefonie 320 px bez poziomego ucięcia', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToProtocolStep();
+    const monday = screen.getByRole('button', { name: 'Poniedziałek' });
+    expect(monday.parentElement).toHaveClass('grid', 'grid-cols-4');
+    expect(monday).toHaveClass('w-full', 'min-w-0');
   });
 });
 
@@ -165,6 +232,22 @@ describe('krok 5A i ekran 6/6: kolejność bloków (X32 + X33 + X34 + X34b)', ()
 });
 
 describe('krok protokołu: nagłówek dni treningowych + notatka o elastyczności (T1)', () => {
+  it('VoiceOver/TalkBack dostaje pełne nazwy i stan wyboru częstotliwości oraz dni', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToProtocolStep();
+
+    const frequency = screen.getByRole('button', { name: '4' });
+    expect(frequency).toHaveAttribute('aria-pressed', 'true');
+
+    const monday = screen.getByRole('button', { name: 'Poniedziałek' });
+    const tuesday = screen.getByRole('button', { name: 'Wtorek' });
+    expect(monday).toHaveAttribute('aria-pressed', 'true');
+    expect(tuesday).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(tuesday);
+    expect(tuesday).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('nagłówek pyta o dni TRENINGOWE, a notatka o późniejszej zmianie planu jest widoczna', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToProtocolStep();

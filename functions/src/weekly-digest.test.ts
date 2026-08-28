@@ -4,6 +4,7 @@ import {
   buildStravaSummary,
   buildWeeklyDigestDeps,
   runWeeklyDigest,
+  STRAVA_DIGEST_BASE_FIELDS,
   type DigestUser,
   type WeeklyDigestDeps,
 } from "./weekly-digest";
@@ -12,6 +13,14 @@ import {
 // spójnie z src/lib/strava-utils.isRunLike — TrailRun/VirtualRun nie ginie,
 // a spacer nie wchodzi do kilometrów biegowych.
 describe("buildStravaSummary (X27/WP-C: run-like)", () => {
+  it("adapter pobiera wyłącznie bazowe pola Stravy, bez HR i kalorii", () => {
+    expect(STRAVA_DIGEST_BASE_FIELDS).toContain("distance");
+    expect(STRAVA_DIGEST_BASE_FIELDS).toContain("averageSpeed");
+    expect(STRAVA_DIGEST_BASE_FIELDS).not.toContain("averageHeartrate");
+    expect(STRAVA_DIGEST_BASE_FIELDS).not.toContain("maxHeartrate");
+    expect(STRAVA_DIGEST_BASE_FIELDS).not.toContain("calories");
+  });
+
   it("TrailRun po sportType liczy się do biegów, spacer nie", () => {
     const summary = buildStravaSummary([
       { date: "2026-06-23", type: "TrailRun", sportType: "TrailRun", name: "Trail", distance: 8000, averageSpeed: 3.0 },

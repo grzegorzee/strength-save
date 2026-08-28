@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Ruler } from 'lucide-react';
 import type { BodyMeasurement } from '@/types';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
@@ -56,6 +57,7 @@ const MeasurementTrendChart = ({ measurements }: { measurements: BodyMeasurement
               aria-pressed={activeField === f}
               onClick={() => setField(f)}
               className={cn('touch-manipulation select-none rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                toggleButtonClasses(activeField === f),
                 activeField === f ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
             >
               {t(MEASUREMENT_FIELD_LABEL_KEYS[f])}
@@ -67,7 +69,7 @@ const MeasurementTrendChart = ({ measurements }: { measurements: BodyMeasurement
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" {...axisProps} />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" {...axisProps} />
               <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${fieldUnit}`} width={52} domain={['auto', 'auto']} {...axisProps} />
               <Tooltip contentStyle={tooltipStyle} />
               <Line type="monotone" dataKey="value" name={t(MEASUREMENT_FIELD_LABEL_KEYS[activeField])} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />

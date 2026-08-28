@@ -60,7 +60,12 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
     getLatestMeasurement: () => undefined,
   }),
 }));
-vi.mock('@/hooks/useHealthConsent', () => ({ useHealthConsent: () => pageMocks.healthConsent }));
+vi.mock('@/hooks/useHealthConsent', () => ({
+  useHealthConsent: () => pageMocks.healthConsent,
+  useActiveHealthGrant: () => pageMocks.healthConsent
+    ? { healthEpoch: 3, healthGrantId: 'grant-3' }
+    : null,
+}));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: pageMocks.toast }) }));
 vi.mock('@/lib/firebase', () => ({ storage: {}, db: {} }));
 vi.mock('firebase/storage', () => ({
@@ -322,7 +327,7 @@ describe('EditMeasurementDialog — zdjęcie (WP-M)', () => {
     await waitFor(() => expect(pageMocks.updateMeasurement).toHaveBeenCalledTimes(1));
     const payload = lastUpdatePayload();
     expect(payload.photoUrl).toBe('https://example.test/new-photo.jpg?token=n');
-    expect(String(payload.photoPath)).toContain('body-photos/u1/2026-08-12-');
+    expect(String(payload.photoPath)).toContain('body-photos/u1/grant-3/2026-08-12-');
     expect(payload.photoPath).not.toBe(photoEntry.photoPath);
   });
 

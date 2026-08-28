@@ -11,28 +11,46 @@ service firebase.storage {
              && report.data.uploadPath == 'bug-reports/' + userId + '/' + reportId + '/screenshot.jpg';
     }
 
-    // Zdjęcia profilowe: avatars/{uid}/{plik}
-    // Odczyt: każdy zalogowany (user widzi swój avatar, admin widzi userów).
-    // Zapis: tylko właściciel ścieżki, wyłącznie obrazy do 5 MB.
-    match /avatars/{userId}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.uid == userId
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+    function hasActiveHealthGrant(userId, healthGrantId) {
+      let userPath = /databases/(default)/documents/users/$(userId);
+      let user = firestore.get(userPath);
+      return firestore.exists(userPath)
+             && user.data.keys().hasAll(['consents'])
+             && user.data.consents is map
+             && user.data.consents.keys().hasAll(['healthGranted', 'healthVersion', 'healthGrantId'])
+             && user.data.consents.healthGranted == true
+             && user.data.consents.healthVersion == '1.1'
+             && healthGrantId.size() > 0
+             && user.data.consents.healthGrantId == healthGrantId;
+    }
+
+    // Zdjęcie profilowe: dokładnie jeden prywatny plik avatars/{uid}/avatar.
+    // Odczyt i zapis: wyłącznie właściciel ścieżki; obraz poniżej 5 MiB.
+    match /avatars/{userId}/avatar {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId
+                            && request.resource.size < 5 * 1024 * 1024
+                            && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Zdjęcia sylwetki (T13a): body-photos/{uid}/{plik}
-    // Prywatne: odczyt/zapis/kasowanie WYŁĄCZNIE właściciel (inaczej niż avatary,
-    // które czyta każdy zalogowany). Wyłącznie obrazy do 5 MB.
+    // Legacy zdjęć sylwetki: właściciel może odzyskać lub usunąć stare dane,
+    // ale nowe zapisy trafiają wyłącznie do ścieżki wersjonowanej grantem.
     match /body-photos/{userId}/{fileName} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null
-                   && request.auth.uid == userId
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Zdjęcia sylwetki v2: zapis wymaga aktywnej zgody zdrowotnej i grantu
+    // zgodnego ze ścieżką. Read/delete pozostają dostępne po wycofaniu zgody.
+    match /body-photos/{userId}/{healthGrantId}/{fileName} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId
+                            && hasActiveHealthGrant(userId, healthGrantId)
+                            && request.resource.size < 5 * 1024 * 1024
+                            && request.resource.contentType.matches('image/.*');
     }
 
     // Zgłoszenia błędów: dokładnie jeden prywatny JPEG tworzony po createBugReport.

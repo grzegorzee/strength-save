@@ -6,6 +6,25 @@ import { localizeExerciseInstruction } from '@/data/exercise-i18n';
 import { trainingPlan } from '@/data/trainingPlan';
 
 describe('exercise i18n and static data', () => {
+  it('provides complete beginner details in both supported languages for every library exercise', () => {
+    const isIncomplete = (details: typeof exerciseDetails[string] | undefined) =>
+      !details
+      || details.steps.length < 3
+      || details.steps.some(step => !step.trim())
+      || !details.proTip?.trim()
+      || details.targetMuscles.length === 0
+      || !details.equipment?.trim();
+    const missingPolish = exerciseLibrary
+      .map(exercise => exercise.name)
+      .filter(name => isIncomplete(exerciseDetails[name]));
+    const missingEnglish = exerciseLibrary
+      .map(exercise => exercise.name)
+      .filter(name => isIncomplete(exerciseDetailsEn[name]));
+
+    expect(missingPolish).toEqual([]);
+    expect(missingEnglish).toEqual([]);
+  });
+
   it('does not duplicate a canonical EN instruction for custom tips', () => {
     const first = 'Custom setup cue: keep two fingers of space.';
     const second = 'Custom tempo cue: lower for three seconds.';

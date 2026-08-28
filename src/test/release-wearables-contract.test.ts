@@ -27,6 +27,18 @@ describe('Z229 — release contract Apple Watch and Garmin', () => {
     expect(project.match(/= \{isa = PBXBuildFile; fileRef = [^;]+ \/\* PrivacyInfo\.xcprivacy \*\//g)).toHaveLength(2);
   });
 
+  it('declares user-linked photos without tracking in the iOS app privacy manifest', () => {
+    const app = read('ios/App/App/PrivacyInfo.xcprivacy');
+    const photoEntry = app.match(
+      /<dict>\s*<key>NSPrivacyCollectedDataType<\/key>\s*<string>NSPrivacyCollectedDataTypePhotosorVideos<\/string>[\s\S]*?<\/dict>/,
+    )?.[0];
+
+    expect(photoEntry).toBeDefined();
+    expect(photoEntry).toContain('<key>NSPrivacyCollectedDataTypeLinked</key>\n\t\t\t<true/>');
+    expect(photoEntry).toContain('<key>NSPrivacyCollectedDataTypeTracking</key>\n\t\t\t<false/>');
+    expect(photoEntry).toContain('NSPrivacyCollectedDataTypePurposeAppFunctionality');
+  });
+
   it('keeps one explicit Garmin device matrix with round/rectangle and touch/button coverage', () => {
     const matrix = JSON.parse(read('garmin/release/device-matrix.json')) as {
       devices: Array<{ id: string; shape: 'round' | 'rectangle'; input: 'buttons' | 'touch-buttons' }>;

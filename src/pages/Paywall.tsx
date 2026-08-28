@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Purchases, type PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import { ArrowLeft, Check, Crown, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -185,7 +186,8 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
         aria-pressed={isSelected}
         className={cn(
           'w-full rounded-2xl border-2 p-4 text-left transition-colors',
-          isSelected ? 'border-primary bg-primary/[0.06]' : 'border-border bg-card'
+          toggleButtonClasses(isSelected),
+          isSelected ? 'bg-primary/[0.06]' : 'bg-card'
         )}
       >
         <div className="flex items-center justify-between gap-2">
@@ -195,7 +197,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
                 {t(plan === 'yearly' ? 'paywall.yearly' : 'paywall.monthly')}
               </span>
               {plan === 'yearly' && yearlyValue.savingsPercent != null && (
-                <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
                   {t('paywall.badgeSavings', { percent: yearlyValue.savingsPercent })}
                 </span>
               )}
@@ -247,14 +249,14 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-surface-low p-4">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
+              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
               <p className="mt-1 font-heading text-2xl font-bold">
                 <span className="text-primary">{planDurationWeeks}</span>{' '}
                 <span className="font-sans text-sm font-medium text-muted-foreground">{t('ob.precision.weeks')}</span>
               </p>
             </div>
             <div className="rounded-2xl bg-surface-low p-4">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
+              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
               <p className="mt-1 font-heading text-2xl font-bold">
                 <span className="text-primary">{plan.length}</span>{' '}
                 <span className="font-sans text-sm font-medium text-muted-foreground">{t('ob.precision.daysWk')}</span>

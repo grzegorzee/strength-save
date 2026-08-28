@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { db } from '@/lib/firebase';
@@ -137,10 +138,11 @@ export const EmailWorkoutDialog = ({
                     data-testid={option.testId}
                     onClick={() => setRange(option.value)}
                     className={cn(
-                      'flex-1 rounded-lg border px-3 py-2 text-sm transition-colors',
+                      'flex-1 rounded-lg px-3 py-2 text-sm transition-colors',
+                      toggleButtonClasses(range === option.value),
                       range === option.value
-                        ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                        : 'border-border text-muted-foreground',
+                        ? 'bg-primary/10 font-semibold text-foreground'
+                        : 'text-muted-foreground',
                     )}
                   >
                     {option.label}

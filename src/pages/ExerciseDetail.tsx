@@ -22,6 +22,7 @@ const ExerciseDetail = () => {
   const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
   // Z176: fallback hero — odmowa autoplay pokazuje natywne controls (reguła 6).
   const [heroControls, setHeroControls] = useState(false);
+  const [heroFailed, setHeroFailed] = useState(false);
   // X37 WP-G: obraz partii miesniowej; blad ladowania = fallback do MuscleMap.
   const [muscleImageFailed, setMuscleImageFailed] = useState(false);
 
@@ -69,7 +70,7 @@ const ExerciseDetail = () => {
     <div className="-mx-5 -mt-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       {/* Hero */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-highest">
-        {animationUrl ? (
+        {animationUrl && !heroFailed ? (
           <video
             src={animationUrl}
             className="absolute inset-0 h-full w-full object-cover"
@@ -77,6 +78,7 @@ const ExerciseDetail = () => {
             muted
             playsInline
             controls={heroControls}
+            onError={() => setHeroFailed(true)}
             // Z176: twardy start jak w dialogu karty — odmowa autoplay (Low Power
             // Mode) daje natywne controls zamiast martwej pierwszej klatki.
             onLoadedMetadata={(e) => {
@@ -86,8 +88,11 @@ const ExerciseDetail = () => {
             }}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
             <Dumbbell className="h-16 w-16 text-muted-foreground/30" />
+            {animationUrl && heroFailed && (
+              <p className="text-sm text-muted-foreground">{t('card.animationUnavailable')} {t('card.animationFallbackHint')}</p>
+            )}
           </div>
         )}
         <button

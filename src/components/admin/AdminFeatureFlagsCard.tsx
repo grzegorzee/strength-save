@@ -69,7 +69,11 @@ export const AdminFeatureFlagsCard = () => {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {saving === f.key && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-                  <Switch checked={value} onCheckedChange={(v) => toggle(f.key, v)} />
+                  <Switch
+                    checked={value}
+                    onCheckedChange={(v) => toggle(f.key, v)}
+                    aria-label={t(f.labelKey)}
+                  />
                 </div>
               </div>
             );

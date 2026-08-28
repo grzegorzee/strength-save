@@ -25,6 +25,7 @@ import { mapAuthErrorMessage } from '@/lib/auth-errors';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { markStartup } from '@/lib/startup-performance';
+import { claimStoredThemeOwner } from '@/lib/accent-theme';
 
 // Z222: flaga sesyjna łączy register_started z profile_created (backend nie
 // sygnalizuje "utworzono" — najbliższy udany sync profilu po rejestracji = created).
@@ -43,6 +44,7 @@ export const useAuth = () => {
       if (e2eState.scenario === 'unauthenticated') {
         setUser(null);
       } else {
+        claimStoredThemeOwner('e2e-test-user');
         setUser({
           uid: 'e2e-test-user',
           email: e2eState.email || 'e2e@test.com',
@@ -56,6 +58,10 @@ export const useAuth = () => {
     }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // Motyw jest cache'em per konto. Roszczenie właściciela musi zakończyć się
+      // synchronicznie przed setUser, aby pierwszy render konta B nigdy nie
+      // zobaczył palety ani zaznaczenia pozostawionego przez konto A.
+      if (user) claimStoredThemeOwner(user.uid);
       setUser(user);
       setError(null);
       setLoading(false);

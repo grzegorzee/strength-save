@@ -139,8 +139,8 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     const focusRaw = todayDay.focus || todayDay.dayName || (lang === "en" ? "training" : "trening");
     const focus = lang === "en" ? localizeFocusEn(focusRaw) : focusRaw;
     const title = lang === "en"
-      ? (firstName ? `Hey ${firstName}! Time to train 💪` : "Time to train 💪")
-      : (firstName ? `Cześć ${firstName}! Czas na trening 💪` : "Czas na trening 💪");
+      ? (firstName ? `Hey ${firstName}! Time to train` : "Time to train")
+      : (firstName ? `Cześć ${firstName}! Czas na trening` : "Czas na trening");
     const body = lang === "en"
       ? `Today's plan: ${focus}. Open the app and log your first set.`
       : `Dziś w planie: ${focus}. Wejdź i odhacz pierwszą serię.`;

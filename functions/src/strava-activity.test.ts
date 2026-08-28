@@ -5,6 +5,7 @@ import {
   loadExistingActivities,
   manualSyncRetryAfterSeconds,
   mapStravaActivityToDoc,
+  nextEstimatedMaxHr,
   type ExistingActivitiesSource,
   type StravaApiActivityInput,
   type StravaActivityDoc,
@@ -43,7 +44,7 @@ describe("activityDateStr", () => {
 
 describe("mapStravaActivityToDoc", () => {
   it("maps API fields to the stored doc shape", () => {
-    const doc = mapStravaActivityToDoc("user-1", baseActivity, "2026-06-02T00:00:00.000Z");
+    const doc = mapStravaActivityToDoc("user-1", baseActivity, "2026-06-02T00:00:00.000Z", true);
     expect(doc).toMatchObject({
       userId: "user-1",
       stravaId: 123,
@@ -57,34 +58,64 @@ describe("mapStravaActivityToDoc", () => {
   });
 
   it("normalizes falsy numeric fields to null", () => {
-    const doc = mapStravaActivityToDoc("u", { ...baseActivity, calories: 0, distance: undefined }, "t");
+    const doc = mapStravaActivityToDoc("u", { ...baseActivity, calories: 0, distance: undefined }, "t", true);
     expect(doc.calories).toBeNull();
     expect(doc.distance).toBeNull();
   });
 
   // T6: Strava deprecuje `type` — brak pola nie może zgubić typu aktywności.
   it("falls back to sport_type when type is missing", () => {
-    const doc = mapStravaActivityToDoc("u", { ...baseActivity, type: undefined, sport_type: "Walk" }, "t");
+    const doc = mapStravaActivityToDoc("u", { ...baseActivity, type: undefined, sport_type: "Walk" }, "t", true);
     expect(doc.type).toBe("Walk");
     expect(doc.sportType).toBe("Walk");
   });
 
   it("stores null type when both type and sport_type are missing", () => {
-    const doc = mapStravaActivityToDoc("u", { ...baseActivity, type: undefined, sport_type: undefined }, "t");
+    const doc = mapStravaActivityToDoc("u", { ...baseActivity, type: undefined, sport_type: undefined }, "t", true);
     expect(doc.type).toBeNull();
+  });
+
+  it("omits health fields while retaining the base activity without active consent", () => {
+    const doc = mapStravaActivityToDoc("u", baseActivity, "t", false);
+
+    expect(doc).toMatchObject({
+      userId: "u",
+      stravaId: 123,
+      distance: 10000,
+      movingTime: 3000,
+      stravaUrl: "https://www.strava.com/activities/123",
+    });
+    expect(doc).not.toHaveProperty("averageHeartrate");
+    expect(doc).not.toHaveProperty("maxHeartrate");
+    expect(doc).not.toHaveProperty("calories");
+  });
+});
+
+describe("nextEstimatedMaxHr", () => {
+  it("does not derive or update estimatedMaxHR without active health consent", () => {
+    expect(nextEstimatedMaxHr([baseActivity], 160, false, false)).toBeNull();
+  });
+
+  it("preserves the previous consented flow for a higher Strava max HR", () => {
+    expect(nextEstimatedMaxHr([baseActivity], 160, false, true)).toBe(175);
+  });
+
+  it("does not overwrite a manual value or lower the existing estimate", () => {
+    expect(nextEstimatedMaxHr([baseActivity], 160, true, true)).toBeNull();
+    expect(nextEstimatedMaxHr([baseActivity], 180, false, true)).toBeNull();
   });
 });
 
 describe("diffRefreshableFields", () => {
-  const incoming = mapStravaActivityToDoc("u", baseActivity, "2026-06-02T00:00:00.000Z");
+  const incoming = mapStravaActivityToDoc("u", baseActivity, "2026-06-02T00:00:00.000Z", true);
 
   it("returns null for a brand-new activity (no existing data)", () => {
-    expect(diffRefreshableFields(undefined, incoming)).toBeNull();
+    expect(diffRefreshableFields(undefined, incoming, true)).toBeNull();
   });
 
   it("returns null when refreshable fields are unchanged", () => {
     const existing: Partial<StravaActivityDoc> = { ...incoming, syncedAt: "older" };
-    expect(diffRefreshableFields(existing, incoming)).toBeNull();
+    expect(diffRefreshableFields(existing, incoming, true)).toBeNull();
   });
 
   it("returns only changed fields plus a fresh syncedAt when Strava backfills data", () => {
@@ -95,7 +126,7 @@ describe("diffRefreshableFields", () => {
       kudosCount: 4,
       syncedAt: "older",
     };
-    const changes = diffRefreshableFields(existing, incoming);
+    const changes = diffRefreshableFields(existing, incoming, true);
     expect(changes).toEqual({
       description: "easy",
       calories: 600,
@@ -105,17 +136,45 @@ describe("diffRefreshableFields", () => {
 
   it("detects accumulating kudos as a change", () => {
     const existing: Partial<StravaActivityDoc> = { ...incoming, kudosCount: 1, syncedAt: "older" };
-    const changes = diffRefreshableFields(existing, incoming);
+    const changes = diffRefreshableFields(existing, incoming, true);
     expect(changes).toMatchObject({ kudosCount: 4 });
   });
 
   it("treats missing existing field as null (no false positive)", () => {
     // existing doc predates a field but incoming is also null -> no change
-    const incomingNullCalories = mapStravaActivityToDoc("u", { ...baseActivity, calories: 0 }, "now");
+    const incomingNullCalories = mapStravaActivityToDoc("u", { ...baseActivity, calories: 0 }, "now", true);
     const existing: Partial<StravaActivityDoc> = { ...incomingNullCalories };
     delete existing.calories;
     existing.syncedAt = "older";
-    expect(diffRefreshableFields(existing, incomingNullCalories)).toBeNull();
+    expect(diffRefreshableFields(existing, incomingNullCalories, true)).toBeNull();
+  });
+
+  it("does not refresh health fields without active consent", () => {
+    const existing: Partial<StravaActivityDoc> = {
+      ...incoming,
+      averageHeartrate: null,
+      maxHeartrate: null,
+      calories: null,
+      syncedAt: "older",
+    };
+
+    expect(diffRefreshableFields(existing, incoming, false)).toBeNull();
+  });
+
+  it("still refreshes base fields without active health consent", () => {
+    const existing: Partial<StravaActivityDoc> = {
+      ...incoming,
+      name: "Old title",
+      averageHeartrate: null,
+      maxHeartrate: null,
+      calories: null,
+      syncedAt: "older",
+    };
+
+    expect(diffRefreshableFields(existing, incoming, false)).toEqual({
+      name: "Morning Run",
+      syncedAt: "2026-06-02T00:00:00.000Z",
+    });
   });
 });
 

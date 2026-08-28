@@ -78,6 +78,16 @@ export function parseConfirmedConsentMirror(
       case 'health':
         mirror.healthGranted = readGranted('healthGranted');
         mirror.healthVersion = readVersion('healthVersion');
+        if (!Number.isSafeInteger(raw.healthEpoch) || (raw.healthEpoch as number) <= 0) {
+          throw new Error('Invalid consent confirmation mirror');
+        }
+        mirror.healthEpoch = raw.healthEpoch as number;
+        if (mirror.healthGranted) {
+          mirror.healthGrantId = readVersion('healthGrantId');
+        } else {
+          if (raw.healthGrantId !== null) throw new Error('Invalid consent confirmation mirror');
+          mirror.healthGrantId = null;
+        }
         if (mirror.healthVersion !== expectedVersion || mirror.healthGranted !== (entry.action === 'granted')) {
           throw new Error('Mismatched consent confirmation mirror');
         }

@@ -55,13 +55,13 @@ export const AchievementBadge = ({
       </div>
       <p className={cn(
         'mt-2 font-bold leading-tight',
-        size === 'md' ? 'text-xs' : 'text-[10px]',
+        size === 'md' ? 'text-xs' : 'text-[11px]',
         earned ? 'text-foreground' : 'text-muted-foreground',
       )}>
         {label}
       </p>
       {sublabel && (
-        <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/70">{sublabel}</p>
+        <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">{sublabel}</p>
       )}
       {!earned && typeof progress === 'number' && (
         <div className="mt-1.5 h-1 w-12 overflow-hidden rounded-full bg-surface-highest">

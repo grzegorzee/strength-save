@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
+import { MAIN_DESTINATIONS } from '@/lib/main-navigation';
 
 // WP-D (X29): dolna nawigacja ma być widoczna na WSZYSTKICH trasach w Layout,
 // także w focused flow (/workout/*, /exercise/*). Header w focused flow pozostaje
@@ -18,7 +19,9 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ logout: vi.fn() }) }));
 // AppHeader ciągnie hooki Firestore (workouts, agregaty, dzwonek) — testujemy
 // DECYZJĘ Layoutu o jego renderowaniu, nie wnętrze headera.
 vi.mock('@/components/AppHeader', () => ({
-  AppHeader: () => <header data-testid="app-header" />,
+  AppHeader: ({ onBack }: { onBack?: () => void }) => (
+    <header data-testid="app-header" data-has-back={onBack ? 'true' : 'false'} />
+  ),
 }));
 
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
@@ -30,6 +33,10 @@ const renderAt = (path: string) =>
         <Route element={<Layout />}>
           <Route path="/" element={<div>dashboard</div>} />
           <Route path="/plan" element={<div>plan</div>} />
+          <Route path="/history" element={<div>history</div>} />
+          <Route path="/achievements" element={<div>progress</div>} />
+          <Route path="/exercises" element={<div>exercises</div>} />
+          <Route path="/profile" element={<div>profile</div>} />
           <Route path="/workout/:dayId" element={<div>workout content</div>} />
           <Route path="/exercise/:exerciseId" element={<div>exercise content</div>} />
           <Route path="/new-plan" element={<div>new plan</div>} />
@@ -58,6 +65,11 @@ describe('Layout: widoczność bottom nav i headera (WP-D)', () => {
     const { container, queryByTestId } = renderAt('/plan');
     expect(mobileNav(container)).not.toBeNull();
     expect(queryByTestId('app-header')).not.toBeNull();
+  });
+
+  it.each(MAIN_DESTINATIONS.map((item) => item.path))('%s: główna destynacja ma root header bez strzałki', (path) => {
+    const { getByTestId } = renderAt(path);
+    expect(getByTestId('app-header').getAttribute('data-has-back')).toBe('false');
   });
 
   it('pełny ekran (/new-plan): bez nav i bez headera', () => {

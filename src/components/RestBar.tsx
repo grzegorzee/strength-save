@@ -172,8 +172,11 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
       <div
         // WP-D (X29): na mobile pasek pływa NAD bottom navem (nav widoczny też
         // w sesji): inset-x-3 + pełne zaokrąglenie jak nav, safe-area zbędna
-        // (nie dotyka krawędzi). Na md wraca do krawędzi ekranu jak dotąd.
-        className="fixed inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-50 rounded-2xl bg-surface-low px-4 pt-3 pb-3 md:inset-x-0 md:bottom-0 md:rounded-b-none md:rounded-t-2xl md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+        // (nie dotyka krawędzi). Rezerwę wyznacza zmierzona wysokość paska
+        // nawigacji (--mobile-nav-clearance), bo etykiety przy skali 200%
+        // przerastają stałą wartość; 6rem zostaje jako fallback. Na md wraca
+        // do krawędzi ekranu jak dotąd.
+        className="fixed inset-x-3 bottom-[var(--mobile-nav-clearance,calc(6rem+env(safe-area-inset-bottom)))] z-50 rounded-2xl bg-surface-low px-4 pt-3 pb-3 md:inset-x-0 md:bottom-0 md:rounded-b-none md:rounded-t-2xl md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         data-testid="rest-bar"
       >
         <div className="flex items-center gap-3">
@@ -185,7 +188,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
             data-testid="rest-bar-settings"
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
           >
-            <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
               {t('rest.bar.title')}
             </span>
             <span className="shrink-0" data-testid="rest-bar-hero">
@@ -195,7 +198,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
               {/* Runna p.1 (B3): "Następne: X kg × N" — pierwsza nieodhaczona
                   seria robocza ćwiczenia przerwy (liczy WorkoutDay). */}
               {!done && nextSetLabel && (
-                <span className="mt-1 block max-w-[140px] truncate text-[10px] leading-none text-muted-foreground">
+                <span className="mt-1 block max-w-[140px] truncate text-[11px] leading-none text-muted-foreground">
                   {t('rest.bar.next', { value: nextSetLabel })}
                 </span>
               )}

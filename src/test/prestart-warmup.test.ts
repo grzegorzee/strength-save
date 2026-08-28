@@ -57,6 +57,7 @@ describe('X37: treść rozgrzewki wg szablonu (tętno -> mobilność -> aktywacj
         const timed = typeof item.durationSec === 'number';
         const repped = typeof item.reps === 'number';
         expect(timed !== repped, item.key).toBe(true);
+        expect(item.instructionKey, item.key).toBe(`${item.key}.instruction`);
       }
       // Klucze unikalne: klucz = odhaczenie w drafcie (warmupChecked).
       expect(new Set(plan.items.map((i) => i.key)).size).toBe(plan.items.length);

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal, BarChart3, CalendarRange, type LucideIcon } from 'lucide-react';
+import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal, MoreHorizontal } from 'lucide-react';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -13,6 +13,12 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { getExerciseBest1RM } from '@/lib/pr-utils';
 import {
   buildExerciseRecords,
@@ -79,76 +85,93 @@ const medalLabelKey: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
   bronze: 'achievements.seasons.bronze',
 };
 
-// D-T4: jeden ekran Postępy — segment widoku (analityka | rekordy/odznaki).
-// X36 (głosówka po 124): Analityka PIERWSZA i domyślna; rekordy przez ?view=records.
+// X50: jeden główny poziom Postępów. Tygodnie, Strava i odznaki zostają
+// osiągalne z menu wtórnego, bez dublowania ich w głównym segmencie.
 const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { canUseStrava } = useCurrentUser();
+  const analyticsTab = searchParams.get('tab');
+  const activeTab = view === 'records'
+    ? 'records'
+    : analyticsTab === 'charts' ? 'charts' : analyticsTab === 'weekly' || analyticsTab === 'strava' ? null : 'summary';
+  const tabClass = (selected: boolean) => selected
+    ? 'min-h-11 rounded-lg bg-primary px-2 py-2 text-xs font-bold uppercase tracking-wide text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+    : 'min-h-11 rounded-lg px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-xl font-heading font-bold uppercase tracking-tight">{t('progress.title')}</h2>
         <p className="text-sm text-muted-foreground">{t('progress.subtitle')}</p>
       </div>
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-low p-1" role="tablist" aria-label={t('progress.title')}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'analytics'}
-          data-testid="progress-view-analytics"
-          onClick={() => navigate('/achievements?view=analytics', { replace: true })}
-          className={view === 'analytics'
-            ? 'rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-background'
-            : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
-        >
-          {t('progress.viewAnalytics')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'records'}
-          data-testid="progress-view-records"
-          onClick={() => navigate('/achievements?view=records', { replace: true })}
-          className={view === 'records'
-            ? 'rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-background'
-            : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
-        >
-          {t('progress.viewRecords')}
-        </button>
+      <div className="flex items-stretch gap-2">
+        <div className="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-xl border border-muted-foreground bg-surface-low p-1" role="tablist" aria-label={t('progress.title')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'summary'}
+            data-testid="progress-view-summary"
+            onClick={() => navigate('/achievements?view=analytics', { replace: true })}
+            className={tabClass(activeTab === 'summary')}
+          >
+            <span className="block min-w-0 truncate">{t('progress.viewSummary')}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'charts'}
+            data-testid="progress-view-charts"
+            onClick={() => navigate('/achievements?view=analytics&tab=charts', { replace: true })}
+            className={tabClass(activeTab === 'charts')}
+          >
+            <span className="block min-w-0 truncate">{t('progress.viewCharts')}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'records'}
+            data-testid="progress-view-records"
+            onClick={() => navigate('/achievements?view=records', { replace: true })}
+            className={tabClass(activeTab === 'records')}
+          >
+            <span className="block min-w-0 truncate">{t('progress.viewRecords')}</span>
+          </button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-auto min-h-11 w-11 shrink-0 rounded-xl"
+              data-testid="progress-more-trigger"
+              aria-label={t('progress.more')}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-44">
+            <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=details', { replace: true })}>
+              {t('progress.details')}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=weekly', { replace: true })}>
+              {t('analytics.tab.weekly')}
+            </DropdownMenuItem>
+            {canUseStrava && (
+              <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=strava', { replace: true })}>
+                Strava
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=records&section=badges', { replace: true })}>
+              {t('progress.tile.badges')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
 };
-
-// Fix 2026-08-21 (zgłoszenie TestFlight): kafel sekcji poziomu 1 z ikoną lucide
-// w akcencie zamiast medalionu webp (czarne kwadraty 512x512 odcinały się od tła
-// kafla). Kontener i strefa nagłówka jak w GroupTile (rounded-[20px], surface,
-// strefa 78 px); medaliony webp zostają w hero sekcji poziomu 2 (GroupHeader).
-const SectionTile = ({ label, count, icon: Icon, onClick }: {
-  label: string;
-  count: number | string;
-  icon: LucideIcon;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    data-testid="progress-section-tile"
-    onClick={onClick}
-    className="overflow-hidden rounded-[20px] bg-surface-low text-left transition-colors hover:bg-surface-high"
-  >
-    <span aria-hidden="true" className="flex h-[78px] w-full items-center justify-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-        <Icon className="h-7 w-7 text-primary" />
-      </span>
-    </span>
-    <span className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-2">
-      <span className="truncate font-heading text-[15px] font-bold uppercase leading-tight tracking-tight">
-        {label}
-      </span>
-      <span className="eyebrow-mono shrink-0 font-bold text-primary">{count}</span>
-    </span>
-  </button>
-);
 
 // X28 WP-D: sekcje poziomu 2 (?section=records|badges); ?view=analytics ma
 // pierwszeństwo (edge case 1), nieznany param = poziom 1.
@@ -337,10 +360,10 @@ const Achievements = () => {
 
   return (
     <div className="space-y-6">
-      {/* X28 WP-D: poziom 1 — rzut oka (staty, Life PRs, heatmapa) + kafle sekcji. */}
-      {activeSection === null && <>
       <ProgressHeader view="records" />
 
+      {/* X50: Rekordy są treścią głównej zakładki, bez kafla pośredniego. */}
+      {activeSection !== 'badges' && <>
       {/* Main Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard
@@ -403,33 +426,6 @@ const Achievements = () => {
           na telefonie i wymagała przewijania w bok; konsekwencję pokazuje siatka
           12 tygodni w Analityce + streak. X28 WP-D: trend 6-mies. tonażu w wykresach. */}
 
-      {/* Fix 2026-08-21: kafle sekcji — standardowe ikony lucide zamiast webp */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <SectionTile
-          label={t('progress.tile.records')}
-          count={exerciseRecords.length}
-          icon={Trophy}
-          onClick={() => setAchSearchParams({ view: 'records', section: 'records' })}
-        />
-        <SectionTile
-          label={t('progress.tile.badges')}
-          count={`${earnedBadges}/${totalBadges}`}
-          icon={Medal}
-          onClick={() => setAchSearchParams({ view: 'records', section: 'badges' })}
-        />
-        <SectionTile
-          label={t('progress.tile.analytics')}
-          count=""
-          icon={BarChart3}
-          onClick={() => setAchSearchParams({ view: 'analytics' })}
-        />
-        <SectionTile
-          label={t('progress.tile.weeks')}
-          count=""
-          icon={CalendarRange}
-          onClick={() => setAchSearchParams({ view: 'analytics', tab: 'weekly' })}
-        />
-      </div>
       </>}
 
       {/* X28 WP-D: poziom 2 — Odznaki i sezony (sekcje przeniesione żywcem) */}
@@ -543,16 +539,8 @@ const Achievements = () => {
       )}
       </>}
 
-      {/* X28 WP-D: poziom 2 — Rekordy (plateau + wszystkie rekordy + 1RM) */}
-      {activeSection === 'records' && <>
-      <GroupHeader
-        title={t('progress.tile.records')}
-        countLabel={t('progress.records.count', { n: exerciseRecords.length })}
-        imageUrl={getProgressTileImageUrl('records')}
-        imageFit="contain"
-        onBack={() => setAchSearchParams({ view: 'records' })}
-        backLabel={t('common.back')}
-      />
+      {/* X50: komplet rekordów bezpośrednio pod główną zakładką. */}
+      {activeSection !== 'badges' && <>
 
       {/* Plateau alert */}
       {plateaus.length > 0 && (

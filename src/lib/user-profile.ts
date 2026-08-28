@@ -4,6 +4,7 @@ import type { ConsentMirror } from '@/lib/legal-versions';
 import type { OnboardingAnswers, TrainingProfileSnapshot } from '@/lib/onboarding-answers';
 import type { LanguageCode } from '@/i18n';
 import type { RestSettings } from '@/lib/rest-timer';
+import type { PaletteThemeV2 } from '@/lib/palette-theme';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
@@ -103,6 +104,8 @@ export interface UserProfile {
     warmupPrompt?: boolean;
     /** F-T2: id koloru przewodniego (accent-theme); brak = limonka. */
     accentColor?: string;
+    /** PaletteThemeV2: addytywnie obok accentColor dla nowych klientów. */
+    paletteTheme?: PaletteThemeV2;
     /** F-T3: zapamiętany adres odbiorcy maili z podsumowaniem (np. trener). */
     trainerEmail?: string;
     /** WP-I (X29): imię trenera/odbiorcy — do powitania w mailu i podglądu w Profilu. */

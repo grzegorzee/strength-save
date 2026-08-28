@@ -24,6 +24,7 @@ export const useWorkoutHistoryPage = (
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const key = useMemo(
     () => JSON.stringify({
@@ -78,7 +79,11 @@ export const useWorkoutHistoryPage = (
     return () => {
       cancelled = true;
     };
-  }, [completed, fromDate, key, pageSize, toDate, userId]);
+  }, [attempt, completed, fromDate, key, pageSize, toDate, userId]);
+
+  const retry = useCallback(() => {
+    setAttempt((current) => current + 1);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || isLoadingMore) return;
@@ -101,6 +106,7 @@ export const useWorkoutHistoryPage = (
     hasMore: nextCursor !== null,
     loadMore,
     error,
+    retry,
   };
 };
 

@@ -2,20 +2,31 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, User } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
-import { localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
+import { localizeDayName, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
 import { PlanChoiceCard, PlanTemplateHero, type PlanChoiceBadge } from '@/components/PlanChoiceCard';
 import { PlanStartStep } from '@/components/PlanStartStep';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { buildFirstWorkoutSchedule, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
-import { ACCENTS, applyAccent, getAccentById, readStoredAccentId, storeAccentId, type AccentTheme } from '@/lib/accent-theme';
-import { deriveAccentCandidatesFromAvatar } from '@/lib/avatar-accent';
+import { ACCENTS, getAccentById, hasStoredAccent, readStoredAccentId, type AccentTheme } from '@/lib/accent-theme';
+import { PaletteThemePicker } from '@/components/PaletteThemePicker';
+import {
+  PALETTE_THEMES,
+  applyPaletteTheme,
+  readStoredPaletteTheme,
+  selectLegacyAccent,
+  storePaletteTheme,
+  type PaletteThemeV2,
+} from '@/lib/palette-theme';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, hasExactWeekdaySelection, planDaysMismatch, uniqueSortedWeekdays, WEEKDAYS } from '@/lib/plan-cycle-utils';
+import type { OnboardingDraftInput, OnboardingDraftV1 } from '@/lib/onboarding-draft';
+import { ANDROID_BACK_EVENT } from '@/components/AndroidBackHandler';
 
 // 'elite' usunięte (Z72): mapowało się na advanced — iluzoryczny wybór. Legacy wartości
 // zapisane w trainingProfile sanityzuje sanitizeWizardLevel.
@@ -89,20 +100,19 @@ const BROWSE_CHIPS: { value: PlanObjective | 'all'; labelKey: TranslationKey }[]
   { value: 'athletic', labelKey: 'ob.browse.chipAthletic' },
 ];
 
-// X33 WP-1 / X34: przerywnik "Dobieram plany" po Dalej w kroku 4 trwa 3,5 s
-// (ma wyglądać na realne dobieranie); trzy wiersze Poziom / Cel / Częstotliwość
-// pojawiają się kolejno co 0,7 s, pasek wypełnia się przez cały czas.
-export const MATCHING_INTERSTITIAL_MS = 3500;
-export const MATCHING_ROW_STEP_MS = 700;
-const MATCHING_ROWS = 3;
-
-const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBack?: () => void }) => {
+const StepHeader = ({ step, total, onBack, backDisabled = false }: { step: number; total: number; onBack?: () => void; backDisabled?: boolean }) => {
   const { t } = useTranslation();
   return (
-    <div className="space-y-5">
+    <div className="shrink-0 space-y-5">
       <div className="flex items-center justify-between">
         {onBack ? (
-          <button onClick={onBack} aria-label={t('common.back')} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={backDisabled}
+            aria-label={t('common.back')}
+            className="-ml-3 inline-flex min-h-12 min-w-12 touch-manipulation items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-low hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50"
+          >
             <ArrowLeft className="h-5 w-5" />
           </button>
         ) : <span />}
@@ -115,7 +125,12 @@ const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBa
             <span key={i} className={cn('h-1 flex-1 rounded-full transition-colors', i < step ? 'bg-primary' : 'bg-surface-highest')} />
           ))}
         </div>
-        <span className="text-[11px] font-medium tracking-widest text-muted-foreground tabular-nums">
+        <span
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="text-[11px] font-medium tracking-widest text-muted-foreground tabular-nums"
+        >
           {String(step).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -129,6 +144,7 @@ const OptionCard = ({ icon: Icon, title, desc, selected, onClick }: { icon: type
     aria-pressed={selected}
     className={cn(
       'w-full text-left rounded-2xl p-4 transition-all flex items-start gap-3',
+      toggleButtonClasses(selected),
       selected ? 'bg-surface-high ring-2 ring-primary' : 'bg-surface-low hover:bg-surface-container',
     )}
   >
@@ -145,11 +161,13 @@ const OptionCard = ({ icon: Icon, title, desc, selected, onClick }: { icon: type
   </button>
 );
 
-const PrimaryButton = ({ onClick, disabled, testId, children }: { onClick: () => void; disabled?: boolean; testId?: string; children: React.ReactNode }) => (
+const PrimaryButton = ({ onClick, disabled, testId, ariaLabel, busy, children }: { onClick: () => void; disabled?: boolean; testId?: string; ariaLabel?: string; busy?: boolean; children: React.ReactNode }) => (
   <button
     onClick={onClick}
     disabled={disabled}
     data-testid={testId}
+    aria-label={ariaLabel}
+    aria-busy={busy || undefined}
     className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
   >
     {children}
@@ -163,6 +181,8 @@ interface PlanWizardProps {
   trialNotice?: boolean;
   /** Rozdzielone checkboxy zgód na Welcome (pakiet prawny v2); obowiązkowe blokują Dalej (tylko onboarding). */
   legalConsent?: boolean;
+  /** Opcjonalna zgoda marketingowa w tym samym widoku; brak zaznaczenia nigdy nie blokuje przejścia. */
+  showMarketingConsent?: boolean;
   /**
    * Zapis zgód przy przejściu z kroku 1 (wywoływane raz, przed setStep(2)).
    * Odrzucenie promisa zatrzymuje przejście — zgody muszą trafić do logu.
@@ -179,6 +199,12 @@ interface PlanWizardProps {
   /** X33 WP-8: e-mail konta — litera w kółku avatara, gdy nie ma ani zdjęcia, ani imienia. */
   accountEmail?: string;
   initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
+  /** Zweryfikowany, nieprzeterminowany szkic UX. Nie jest dowodem zgód. */
+  initialDraft?: OnboardingDraftV1 | null;
+  /** Prawda wyłącznie z aktualnego serwerowego mirrora zgód. */
+  legalConsentAlreadyRecorded?: boolean;
+  /** Best-effort checkpoint po jawnych zmianach; awaria nie blokuje kreatora. */
+  onDraftChange?: (draft: OnboardingDraftInput) => void;
   /** Poprzedni wybór (powrót z preview) — przywraca selekcje, datę startu i własny plan zamiast zaczynać od zera. */
   resume?: PlanWizardChoice | null;
   /** Krok startowy przy powrocie z podglądu (Z232) — bez tego remount wizarda cofa na krok 1. */
@@ -198,86 +224,83 @@ export interface PlanWizardConfirmOptions {
   skipPreview?: boolean;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, avatarPhotoURL, accountEmail, initial, resume, resumeStep, builderDraftKey, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, showMarketingConsent = false, onLegalConsent, askName, initialName, avatarPhotoURL, accountEmail, initial, initialDraft, legalConsentAlreadyRecorded = false, onDraftChange, resume, resumeStep, builderDraftKey, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
+  const wizardRootRef = useRef<HTMLDivElement>(null);
+  const previousViewRef = useRef<string | null>(null);
 
-  const initialDays = resume?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
+  const initialDays = resume?.daysPerWeek ?? initialDraft?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
   const resumedCustomPlan = resume && !resume.templateId ? resume : null;
+  // Szkic głównego wizarda nie zawiera ćwiczeń własnego planu (te zapisuje
+  // osobno PlanBuilder). Po restarcie wracamy więc do buildera, zamiast
+  // przedstawiać rekomendowany szablon jako wcześniejszy wybór użytkownika.
+  const resumedCustomDraft = !resume && initialDraft?.planSource === 'custom';
   // X32: bez Welcome kreator ZAWSZE startuje od kroku 2 (poziom) z wartosciami
   // z `initial` wstepnie zaznaczonymi; replan nie skacze juz na krok 5
   // (startAtPrecision usuniete), user potwierdza poziom/cel/dni klikajac Dalej.
-  const [step, setStep] = useState(resumeStep ?? (showWelcome ? 1 : 2));
-  const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initial?.level) ?? 'beginner');
-  const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initial?.objective ?? 'build_muscle');
+  const [step, setStep] = useState(resumeStep ?? (resumedCustomDraft ? 5 : initialDraft?.wizardStep) ?? (showWelcome ? 1 : 2));
+  const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initialDraft?.level ?? initial?.level) ?? 'beginner');
+  const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initialDraft?.objective ?? initial?.objective ?? 'build_muscle');
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
   const [trainingDays, setTrainingDays] = useState<Weekday[]>(() => {
     const fromResume = resume?.days.map((d) => d.weekday).filter(Boolean);
-    return fromResume && fromResume.length ? fromResume : (DEFAULT_DAYS[initialDays] ?? DEFAULT_DAYS[4]);
+    if (fromResume && fromResume.length) return fromResume;
+    return initialDraft?.trainingDays?.length ? initialDraft.trainingDays : (DEFAULT_DAYS[initialDays] ?? DEFAULT_DAYS[4]);
   });
   // X34b: konkretny dzień pierwszego treningu (ISO) z 6/6; null = pierwszy
   // dostępny chip. Stary szkic bez firstWorkoutDate (tylko poniedziałek) spada
   // na pierwszy dzień treningowy >= jego startDate (defaultFirstWorkout niżej).
-  const [firstWorkoutInput, setFirstWorkoutInput] = useState<string | null>(() => resume?.firstWorkoutDate ?? null);
+  const [firstWorkoutInput, setFirstWorkoutInput] = useState<string | null>(() => resume?.firstWorkoutDate ?? initialDraft?.firstWorkoutDate ?? null);
   // X34: wznowienie na konkretnym kroku (6/6 albo 5A po "Wybierz inny plan")
   // ląduje w trybie wyboru; bez resumeStep własny plan otwiera się w builderze jak dotąd.
-  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(resumedCustomPlan && resumeStep === undefined ? 'own' : 'recommend');
+  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>((resumedCustomPlan && resumeStep === undefined) || resumedCustomDraft ? 'own' : 'recommend');
   // X34: własny plan z PlanBuildera czeka na ekran 6/6 (nazwa / długość / start)
   // zamiast trafiać od razu do hosta; null = ścieżka szablonu (karty 5A).
   const [customPlan, setCustomPlan] = useState<{ days: TrainingDay[]; durationWeeks: number } | null>(
     resumedCustomPlan ? { days: resumedCustomPlan.days, durationWeeks: resumedCustomPlan.durationWeeks } : null,
   );
-  const [picked, setPicked] = useState<PlanTemplate | null>(() =>
-    resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
+  const [picked, setPicked] = useState<PlanTemplate | null>(() => {
+    const templateId = resume?.templateId ?? initialDraft?.templateId;
+    return templateId ? planTemplates.find((p) => p.id === templateId) ?? null : null;
+  });
   // WP-O (X30): rekomendacja vs wybór z Browse plans (do planSource w snapshocie
   // odpowiedzi). Resume zachowuje oryginał; stary szkic bez planSource, ale
   // z templateId = traktuj jak wybór z przeglądarki (nie da się odtworzyć).
   const [pickedViaBrowse, setPickedViaBrowse] = useState(() =>
-    resume?.planSource ? resume.planSource === 'browsed' : Boolean(resume?.templateId));
-  const [userName, setUserName] = useState(resume?.name ?? initialName ?? '');
+    resume?.planSource ? resume.planSource === 'browsed'
+      : initialDraft?.planSource ? initialDraft.planSource === 'browsed'
+        : Boolean(resume?.templateId ?? initialDraft?.templateId));
+  const [userName, setUserName] = useState(resume?.name ?? initialDraft?.name ?? initialName ?? '');
   // Plan I: wybór koloru aplikacji na Welcome (tylko askName = onboarding).
   // getAccentById normalizuje stare aliasy; live preview = applyAccent od razu.
-  const [accentId, setAccentId] = useState(() => getAccentById(readStoredAccentId()).id);
+  const [initialTheme] = useState(() => {
+    const storedPalette = readStoredPaletteTheme();
+    if (storedPalette) return { palette: storedPalette, persistDefault: false };
+    if (askName && !hasStoredAccent()) {
+      return { palette: PALETTE_THEMES[0] as PaletteThemeV2, persistDefault: true };
+    }
+    return { palette: null, persistDefault: false };
+  });
+  const [accentId, setAccentId] = useState(() => (
+    initialTheme.palette?.primary ?? getAccentById(initialDraft?.accentId ?? readStoredAccentId()).id
+  ));
+  const [paletteTheme, setPaletteTheme] = useState<PaletteThemeV2 | null>(initialTheme.palette);
+  useEffect(() => {
+    if (!initialTheme.persistDefault || !initialTheme.palette) return;
+    const stored = storePaletteTheme(initialTheme.palette);
+    if (stored) applyPaletteTheme(stored);
+  }, [initialTheme]);
   const pickAccent = (id: string) => {
-    applyAccent(id);
-    storeAccentId(id);
+    selectLegacyAccent(id);
+    setPaletteTheme(null);
     setAccentId(id);
   };
-  // X33 WP-8: do 3 kolorów ze zdjęcia jako pierwsze kropki ("Z Twojego zdjęcia");
-  // pusta lista = dokładnie dotychczasowa paleta. Zdjęcie po błędzie ładowania
-  // ustępuje inicjałom (Apple Sign-In nie daje zdjęcia, więc to wariant równorzędny).
-  const [photoAccentIds, setPhotoAccentIds] = useState<string[]>([]);
-  const [photoAccentLoading, setPhotoAccentLoading] = useState(false);
-  const photoAccentRequestRef = useRef(0);
-  const [avatarBroken, setAvatarBroken] = useState(false);
-  const orderedAccents = useMemo(() => [
-    ...photoAccentIds.map((id) => getAccentById(id)),
-    ...ACCENTS.filter((a) => !photoAccentIds.includes(a.id)),
-  ], [photoAccentIds]);
-  // Avatar jest danymi osobowymi. Samo wyświetlenie zdjęcia dostawcy logowania nie
-  // uruchamia jego analizy; dopiero jawne CTA pozwala lokalnie wyznaczyć propozycje.
-  // Propozycja nigdy nie zapisuje koloru automatycznie, więc stary przepływ i
-  // wcześniejszy wybór pozostają bez zmian.
-  useEffect(() => {
-    photoAccentRequestRef.current += 1;
-    setPhotoAccentIds([]);
-    setPhotoAccentLoading(false);
-  }, [askName, avatarPhotoURL]);
-  const derivePhotoAccents = async () => {
-    if (!askName || !avatarPhotoURL || photoAccentLoading) return;
-    const requestId = photoAccentRequestRef.current + 1;
-    photoAccentRequestRef.current = requestId;
-    setPhotoAccentLoading(true);
-    try {
-      const candidates = await deriveAccentCandidatesFromAvatar(avatarPhotoURL);
-      if (photoAccentRequestRef.current !== requestId) return;
-      setPhotoAccentIds(candidates);
-    } catch {
-      // Przycisk pozostaje dostępny do retry, a gotowa paleta jest ścieżką wyjścia.
-      if (photoAccentRequestRef.current === requestId) setPhotoAccentIds([]);
-    } finally {
-      if (photoAccentRequestRef.current === requestId) setPhotoAccentLoading(false);
-    }
+  const pickPalette = (palette: PaletteThemeV2) => {
+    setPaletteTheme(palette);
+    setAccentId(palette.primary);
   };
+  const [showCustomColors, setShowCustomColors] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const greetingName = userName.trim();
   const avatarInitial = (greetingName || accountEmail?.trim() || '').charAt(0).toUpperCase();
   const renderAccentSwatch = (a: AccentTheme) => (
@@ -286,20 +309,40 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       type="button"
       role="radio"
       aria-checked={accentId === a.id}
+      tabIndex={accentId === a.id || (!ACCENTS.some((accent) => accent.id === accentId) && ACCENTS[0]?.id === a.id) ? 0 : -1}
       aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
       data-testid={`ob-accent-${a.id}`}
       onClick={() => pickAccent(a.id)}
+      onKeyDown={(event) => {
+        if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const group = event.currentTarget.closest('[role="radiogroup"]');
+        const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+        if (!radios.length) return;
+        const current = radios.indexOf(event.currentTarget);
+        const next = event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? radios.length - 1
+            : (current + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + radios.length) % radios.length;
+        radios[next]?.focus();
+        radios[next]?.click();
+      }}
       className={`h-11 w-11 rounded-full transition-transform active:scale-95 ${accentId === a.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
       style={{ backgroundColor: a.hex }}
     />
   );
   // Powrót z podglądu (resume) = zgody były już zaznaczone (i zapisane) przy pierwszym przejściu kroku 1.
   const [consents, setConsents] = useState<ConsentSelection>(
-    resume ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,
+    resume || legalConsentAlreadyRecorded ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,
   );
-  const [consentsRecorded, setConsentsRecorded] = useState(Boolean(resume));
+  const [consentsRecorded, setConsentsRecorded] = useState(Boolean(resume) || legalConsentAlreadyRecorded);
   const [consentSaving, setConsentSaving] = useState(false);
   const [consentError, setConsentError] = useState(false);
+  // Krok 01/06 ma dwa lekkie podwidoki, ale pozostaje jednym krokiem danych.
+  // Nie zapisujemy tego stanu ani checkboxów w szkicu: po restarcie formalności
+  // można ominąć wyłącznie na podstawie aktualnego mirrora serwerowego.
+  const [welcomeView, setWelcomeView] = useState<'personalization' | 'legal'>('personalization');
 
   const advanceFromWelcome = async () => {
     if (legalConsent && onLegalConsent && !consentsRecorded) {
@@ -315,7 +358,17 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
         setConsentSaving(false);
       }
     }
+    setWelcomeView('personalization');
     setStep(2);
+  };
+
+  const advanceFromPersonalization = () => {
+    if (legalConsent && !consentsRecorded) {
+      setConsentError(false);
+      setWelcomeView('legal');
+      return;
+    }
+    void advanceFromWelcome();
   };
 
   // X32: krok 5 i Browse plans widzą WYŁĄCZNIE szablony o liczbie dni z kroku 4
@@ -339,25 +392,58 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     picked && picked.id !== recommended.id && picked.id !== alternative?.id
       ? { template: picked, badge: 'chosen' }
       : alternative ? { template: alternative, badge: 'alternative' } : null;
-  // X33 WP-1: przerywnik po Dalej w kroku 4, raz na przejście kreatora (powrót
-  // przez "Zmień ustawienia"/strzałkę i wznowienie szkicu go pomijają).
-  const [matching, setMatching] = useState(false);
-  const [matchingShown, setMatchingShown] = useState(Boolean(resume));
-  // X34: liczba widocznych wierszy przerywnika (0..3), kolejne co MATCHING_ROW_STEP_MS.
-  const [matchingRows, setMatchingRows] = useState(0);
-  useEffect(() => {
-    if (!matching) return;
-    setMatchingRows(0);
-    const rowIds = Array.from({ length: MATCHING_ROWS }, (_, i) =>
-      window.setTimeout(() => setMatchingRows(i + 1), (i + 1) * MATCHING_ROW_STEP_MS));
-    const endId = window.setTimeout(() => setMatching(false), MATCHING_INTERSTITIAL_MS);
-    return () => { rowIds.forEach((id) => window.clearTimeout(id)); window.clearTimeout(endId); };
-  }, [matching]);
   // X33 WP-5: zmiana kroku/trybu = scroll na górę (zgłoszenie właściciela:
   // krok 5 otwierał się przewinięty w dół po długim kroku 4).
   useEffect(() => {
     if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') window.scrollTo(0, 0);
-  }, [step, mode]);
+
+    // Zmiana kroku jest zmianą ekranu, ale SPA nie przenosi fokusu automatycznie.
+    // Programowy fokus na h1 daje VoiceOver/TalkBack kontekst bez włączania
+    // nagłówka do zwykłej kolejności Tab.
+    const view = `${step}:${mode}:${step === 1 ? welcomeView : ''}`;
+    const heading = wizardRootRef.current?.querySelector<HTMLHeadingElement>('h1');
+    if (heading) {
+      heading.tabIndex = -1;
+      if (previousViewRef.current !== null && previousViewRef.current !== view) {
+        heading.focus({ preventScroll: true });
+      }
+    }
+    previousViewRef.current = view;
+  }, [step, mode, welcomeView]);
+
+  // Centralny AndroidBackHandler najpierw zamyka overlay, a potem wysyła ten
+  // anulowalny event. Wizard przejmuje go, żeby cofać lokalny krok zamiast trasy.
+  // Ref eliminuje przeinstalowywanie listenera przy każdym kroku.
+  const backStateRef = useRef({ step, mode, showWelcome, welcomeView, consentSaving, onExitBack });
+  backStateRef.current = { step, mode, showWelcome, welcomeView, consentSaving, onExitBack };
+  useEffect(() => {
+    const onAndroidBack = (event: Event) => {
+      event.preventDefault();
+      const state = backStateRef.current;
+      if (state.consentSaving) return;
+      if (state.mode === 'browse' || state.mode === 'own') {
+        setMode('recommend');
+        return;
+      }
+
+      if (state.step === 1 && state.welcomeView === 'legal') {
+        setWelcomeView('personalization');
+        return;
+      }
+
+      const firstLocalStep = state.showWelcome ? 1 : 2;
+      if (state.step > firstLocalStep) {
+        setStep(state.step - 1);
+        return;
+      }
+      state.onExitBack?.();
+    };
+    window.addEventListener(ANDROID_BACK_EVENT, onAndroidBack);
+
+    return () => {
+      window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack);
+    };
+  }, []);
   const [browseObjective, setBrowseObjective] = useState<PlanObjective | 'all'>('all');
   const browseTemplates = browseObjective === 'all'
     ? scoredTemplates
@@ -365,13 +451,15 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // WP-PLANS-1 (X27, Task P5): kontrola długości na ekranie 6/6; null = default
   // z szablonu / buildera (zmiana szablonu resetuje wybór). X34: wznowienie
   // szablonu wraca 1:1 z zapisaną długością (nie z domyślną szablonu).
-  const [templateWeeks, setTemplateWeeks] = useState<number | null>(resume?.templateId ? resume.durationWeeks : null);
+  const [templateWeeks, setTemplateWeeks] = useState<number | null>(
+    resume?.templateId ? resume.durationWeeks : initialDraft?.durationWeeks ?? null,
+  );
   const effectiveWeeks = templateWeeks ?? customPlan?.durationWeeks ?? chosen.durationWeeks;
   const weekdaySelectionValid = hasExactWeekdaySelection(trainingDays, daysPerWeek);
 
   // WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna na ekranie 6/6; null = default
   // z aktualnego szablonu / "Własny plan" (zmiana szablonu wraca do defaultu).
-  const [planNameInput, setPlanNameInput] = useState<string | null>(resume?.planName ?? null);
+  const [planNameInput, setPlanNameInput] = useState<string | null>(resume?.planName ?? initialDraft?.planName ?? null);
   const defaultPlanName = customPlan ? t('newplan.customPlan') : localizePlanName(chosen.id, chosen.name, lang);
   // X34b: chipy 6/6 = kolejne dni treningowe od dziś (do 8) wg dni ZAPISYWANEGO
   // planu (szablon po applyWeekdaysToPlanDays = dni z kroku 4 przycięte do liczby
@@ -386,6 +474,26 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const firstWorkoutOptions = useMemo(() => listFirstWorkoutOptions(scheduleWeekdays, todayISO), [scheduleWeekdays, todayISO]);
   const defaultFirstWorkout = firstWorkoutOptions.find((iso) => iso >= (resume?.startDate ?? '')) ?? firstWorkoutOptions[0];
   const firstWorkoutDate = firstWorkoutInput && firstWorkoutOptions.includes(firstWorkoutInput) ? firstWorkoutInput : defaultFirstWorkout;
+
+  useEffect(() => {
+    if (!onDraftChange) return;
+    onDraftChange({
+      phase: 'wizard',
+      wizardStep: step,
+      name: userName,
+      accentId,
+      level,
+      objective,
+      daysPerWeek,
+      trainingDays,
+      ...(mode !== 'own' && !customPlan ? { templateId: chosen.id } : {}),
+      recommendedTemplateId: recommended.id,
+      planSource: customPlan || mode === 'own' ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
+      durationWeeks: effectiveWeeks,
+      firstWorkoutDate,
+      planName: planNameInput ?? undefined,
+    });
+  }, [accentId, chosen.id, customPlan, daysPerWeek, effectiveWeeks, firstWorkoutDate, level, mode, objective, onDraftChange, pickedViaBrowse, planNameInput, recommended.id, step, trainingDays, userName]);
 
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
@@ -442,7 +550,11 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // ── Tryb: ułóż własny plan ──
   if (mode === 'own') {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div
+        ref={wizardRootRef}
+        data-testid="plan-wizard-root"
+        className="min-h-[calc(100dvh-var(--keyboard-inset,0px))] bg-background pt-[calc(2.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))]"
+      >
         <div className="max-w-lg mx-auto">
           {/* X34: submit buildera nie zapisuje; własny plan idzie na ekran 6/6
               (nazwa / długość / start) jak szablon. Powrót do buildera z 6/6
@@ -467,12 +579,26 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-1 max-w-lg w-full mx-auto px-6 pt-10 pb-6 flex flex-col">
+    <div
+      ref={wizardRootRef}
+      data-testid="plan-wizard-root"
+      className={cn(
+        'min-h-[calc(100dvh-var(--keyboard-inset,0px))] bg-background flex flex-col pt-[calc(2.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))]',
+        step <= 5 && 'h-[calc(100dvh-var(--keyboard-inset,0px))] overflow-hidden',
+      )}
+    >
+      <div className="min-h-0 flex-1 max-w-lg w-full mx-auto flex flex-col">
         {step === 1 && (
           <>
-            <StepHeader step={1} total={6} onBack={onExitBack} />
-            <div className="flex-1 flex flex-col justify-center py-6">
+            <StepHeader
+              step={1}
+              total={6}
+              onBack={welcomeView === 'legal' ? () => setWelcomeView('personalization') : onExitBack}
+              backDisabled={welcomeView === 'legal' && consentSaving}
+            />
+            {welcomeView === 'personalization' ? (
+              <>
+                <div data-testid="ob-step-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 pr-1">
               {/* X33 WP-8: kółko avatara (zdjęcie / inicjał / ikona na tle akcentu)
                   obok "Cześć, {imię}"; bez imienia zostaje dotychczasowy tytuł.
                   Tylko onboarding (askName). Zasada 7: nic tu nie jest zaznaczalne
@@ -500,18 +626,18 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     )}
                   </div>
                   {greetingName ? (
-                    <h1 className="min-w-0 break-words font-heading font-bold text-4xl leading-[1.05] tracking-tight">
+                    <h1 tabIndex={-1} className="min-w-0 break-words font-heading font-bold text-4xl leading-[1.05] tracking-tight">
                       {t('ob.welcome.hello', { name: greetingName })}
                     </h1>
                   ) : (
-                    <h1 className="font-heading font-bold text-5xl leading-[1.05] tracking-tight">
+                    <h1 tabIndex={-1} className="font-heading font-bold text-5xl leading-[1.05] tracking-tight">
                       {t('ob.welcome.title1')}<br />
                       <span className="text-primary">{t('ob.welcome.title2')}</span>
                     </h1>
                   )}
                 </div>
               ) : (
-                <h1 className="font-heading font-bold text-5xl leading-[1.05] tracking-tight">
+                <h1 tabIndex={-1} className="font-heading font-bold text-5xl leading-[1.05] tracking-tight">
                   {t('ob.welcome.title1')}<br />
                   <span className="text-primary">{t('ob.welcome.title2')}</span>
                 </h1>
@@ -527,117 +653,145 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     id="ob-name"
                     data-testid="ob-name-input"
                     type="text"
+                    autoComplete="given-name"
+                    enterKeyHint="done"
                     value={userName}
                     maxLength={60}
                     onChange={e => setUserName(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.currentTarget.blur();
+                    }}
                     placeholder={t('ob.welcome.namePlaceholder')}
                     className="w-full rounded-2xl bg-surface-low px-4 py-3.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary"
                   />
                   {/* Plan I: kolor aplikacji przy pytaniu o imię — tylko paleta
                       (custom hex zostaje w Profilu), klik = live preview. */}
                   <p className="mt-5 mb-2 block text-xs font-medium uppercase tracking-widest text-muted-foreground">{t('ob.welcome.colorQ')}</p>
-                  {avatarPhotoURL && (
-                    <div className="mb-3 rounded-xl bg-surface-low p-3">
-                      <p className="text-[11px] leading-snug text-muted-foreground">{t('ob.welcome.photoAccentPrivacy')}</p>
-                      <button
-                        type="button"
-                        className="mt-2 inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-60"
-                        disabled={photoAccentLoading}
-                        onClick={() => void derivePhotoAccents()}
-                      >
-                        {photoAccentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {t('ob.welcome.photoAccentCta')}
-                      </button>
+                  <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{t('palette.compactDescription')}</p>
+                  <PaletteThemePicker
+                    currentAccentId={accentId}
+                    currentPalette={paletteTheme}
+                    onConfirm={pickPalette}
+                    compact
+                  />
+                  <button
+                    type="button"
+                    data-testid="ob-custom-colors-toggle"
+                    aria-expanded={showCustomColors}
+                    aria-controls="ob-custom-colors"
+                    className="mt-3 min-h-11 w-full rounded-xl border border-muted-foreground px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => setShowCustomColors((visible) => !visible)}
+                  >
+                    {showCustomColors ? t('ob.welcome.customColorsHide') : t('ob.welcome.customColorsShow')}
+                  </button>
+                  {showCustomColors && (
+                    <div id="ob-custom-colors" className="mt-4">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                        {t('palette.legacyTitle')}
+                      </p>
+                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('ob.welcome.colorQ')} data-testid="ob-accent-swatches">
+                        {ACCENTS.map(renderAccentSwatch)}
+                      </div>
                     </div>
                   )}
-                  {/* X33 WP-8: kandydaci ze zdjęcia jako pierwsze kropki (własny
-                      wiersz z etykietą), reszta palety po nich; bez kandydatów
-                      DOM jest dokładnie dotychczasowy. */}
-                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('ob.welcome.colorQ')} data-testid="ob-accent-swatches">
-                    {photoAccentIds.length > 0 && (
-                      <div className="flex w-full items-center gap-2">
-                        {orderedAccents.slice(0, photoAccentIds.length).map(renderAccentSwatch)}
-                        <span data-testid="ob-accent-from-photo" className="ml-1 text-[11px] text-muted-foreground">{t('ob.welcome.fromPhoto')}</span>
-                      </div>
+                </div>
+              )}
+                </div>
+                <div className="shrink-0 bg-background pt-3">
+                  <PrimaryButton onClick={advanceFromPersonalization} testId="ob-personalization-next">
+                    {t('ob.next')} <ArrowRight className="h-4 w-4" />
+                  </PrimaryButton>
+                  {socialProof && <p className="text-center text-[11px] font-medium tracking-widest uppercase text-muted-foreground mt-3">{t('ob.social')}</p>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div data-testid="ob-step-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 pr-1">
+                  <h1 tabIndex={-1} className="font-heading text-4xl font-bold leading-tight tracking-tight">
+                    {t('ob.legal.title')}
+                  </h1>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t('ob.legal.desc')}</p>
+                  <div className="mt-6">
+                    <ConsentCheckboxes value={consents} onChange={setConsents} showMarketing={showMarketingConsent} disabled={consentSaving} />
+                    {consentError && (
+                      <p role="alert" aria-live="assertive" className="mt-3 text-[13px] text-destructive" data-testid="consent-error">{t('consent.saveError')}</p>
                     )}
-                    {orderedAccents.slice(photoAccentIds.length).map(renderAccentSwatch)}
                   </div>
                 </div>
-              )}
-              {legalConsent && (
-                <div className="mt-5">
-                  <p className="text-[13px] text-muted-foreground mb-2">{t('ob.welcome.legalIntro')}</p>
-                  {/* Krok 9 (spec 2026-08-11): marketing zszedł z Welcome na dedykowany
-                      krok onboardingu — tu zostają 3 obowiązkowe oświadczenia. */}
-                  <ConsentCheckboxes value={consents} onChange={setConsents} showMarketing={false} />
-                  {consentError && (
-                    <p className="mt-2 text-[13px] text-destructive" data-testid="consent-error">{t('consent.saveError')}</p>
-                  )}
+                <div className="shrink-0 bg-background pt-3">
+                  <PrimaryButton
+                    onClick={() => void advanceFromWelcome()}
+                    testId="ob-legal-submit"
+                    disabled={!hasRequiredConsents(consents) || consentSaving}
+                    busy={consentSaving}
+                    ariaLabel={consentSaving ? t('ob.legal.saving') : undefined}
+                  >
+                    {consentSaving
+                      ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                      : <>{t('ob.legal.submit')} <ArrowRight className="h-4 w-4" /></>}
+                  </PrimaryButton>
                 </div>
-              )}
-            </div>
-            <PrimaryButton
-              onClick={advanceFromWelcome}
-              disabled={(legalConsent && !hasRequiredConsents(consents)) || consentSaving}
-            >
-              {consentSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{t('ob.next')} <ArrowRight className="h-4 w-4" /></>}
-            </PrimaryButton>
-            {socialProof && <p className="text-center text-[11px] font-medium tracking-widest uppercase text-muted-foreground mt-4">{t('ob.social')}</p>}
+              </>
+            )}
           </>
         )}
 
         {step === 2 && (
           <>
             <StepHeader step={2} total={6} onBack={() => (showWelcome ? setStep(1) : onExitBack?.())} />
-            <div className="mt-7 mb-5">
-              <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
-                {t('ob.baseline.title1')} <span className="text-primary">{t('ob.baseline.title2')}</span>
-              </h1>
-              <p className="text-muted-foreground mt-2">{t('ob.baseline.desc')}</p>
+            <div data-testid="ob-step-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 pr-1">
+              <div className="mt-7 mb-5">
+                <h1 tabIndex={-1} className="font-heading font-bold text-4xl leading-tight tracking-tight">
+                  {t('ob.baseline.title1')} <span className="text-primary">{t('ob.baseline.title2')}</span>
+                </h1>
+                <p className="text-muted-foreground mt-2">{t('ob.baseline.desc')}</p>
+              </div>
+              <div className="space-y-3">
+                {LEVELS.map(l => (
+                  <OptionCard key={l.value} icon={l.icon} title={t(l.labelKey)} desc={t(l.descKey)} selected={level === l.value} onClick={() => setLevel(l.value)} />
+                ))}
+              </div>
             </div>
-            <div className="flex-1 space-y-3">
-              {LEVELS.map(l => (
-                <OptionCard key={l.value} icon={l.icon} title={t(l.labelKey)} desc={t(l.descKey)} selected={level === l.value} onClick={() => setLevel(l.value)} />
-              ))}
-            </div>
-            <div className="pt-5"><PrimaryButton onClick={() => setStep(3)}>{t('ob.nextStep')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="shrink-0 bg-background pt-3"><PrimaryButton onClick={() => setStep(3)}>{t('ob.nextStep')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
         {step === 3 && (
           <>
             <StepHeader step={3} total={6} onBack={() => setStep(2)} />
-            <div className="mt-7 mb-5">
-              <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
-                {t('ob.obj.title1')} <span className="text-primary">{t('ob.obj.title2')}</span>
-              </h1>
-              <p className="text-muted-foreground mt-2">{t('ob.obj.desc')}</p>
+            <div data-testid="ob-step-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 pr-1">
+              <div className="mt-7 mb-5">
+                <h1 tabIndex={-1} className="font-heading font-bold text-4xl leading-tight tracking-tight">
+                  {t('ob.obj.title1')} <span className="text-primary">{t('ob.obj.title2')}</span>
+                </h1>
+                <p className="text-muted-foreground mt-2">{t('ob.obj.desc')}</p>
+              </div>
+              <div className="space-y-3">
+                {OBJECTIVES.map(o => (
+                  <OptionCard key={o.value} icon={o.icon} title={t(o.labelKey)} desc={t(o.descKey)} selected={objective === o.value} onClick={() => setObjective(o.value)} />
+                ))}
+              </div>
             </div>
-            <div className="flex-1 space-y-3">
-              {OBJECTIVES.map(o => (
-                <OptionCard key={o.value} icon={o.icon} title={t(o.labelKey)} desc={t(o.descKey)} selected={objective === o.value} onClick={() => setObjective(o.value)} />
-              ))}
-            </div>
-            <div className="pt-5"><PrimaryButton onClick={() => setStep(4)}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="shrink-0 bg-background pt-3"><PrimaryButton onClick={() => setStep(4)}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
         {step === 4 && (
           <>
             <StepHeader step={4} total={6} onBack={() => setStep(3)} />
-            <div className="mt-7 mb-5">
-              <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
-                {t('ob.protocol.title1')} <span className="text-primary">{t('ob.protocol.title2')}</span>
-              </h1>
-              <p className="text-muted-foreground mt-2">{t('ob.protocol.desc')}</p>
-            </div>
-            <div className="flex-1 space-y-4">
+            <div data-testid="ob-step-scroll" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4 pr-1">
+              <div className="mt-7 mb-5">
+                <h1 tabIndex={-1} className="font-heading font-bold text-4xl leading-tight tracking-tight">
+                  {t('ob.protocol.title1')} <span className="text-primary">{t('ob.protocol.title2')}</span>
+                </h1>
+                <p className="text-muted-foreground mt-2">{t('ob.protocol.desc')}</p>
+              </div>
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.protocol.daysQ')}</p>
                 {/* Z233: te same kółka co wybór dni tygodnia niżej — jedna geometria kontrolek. */}
-                <div className="flex justify-between gap-1.5">
+                <div className="grid grid-cols-5 gap-1">
                   {[2, 3, 4, 5, 6].map(n => (
-                    <button key={n} onClick={() => setDays(n)} className={cn('h-11 w-11 rounded-full font-heading font-bold transition-colors', daysPerWeek === n ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}>{n}</button>
+                    <button type="button" key={n} aria-pressed={daysPerWeek === n} onClick={() => setDays(n)} className={cn('h-11 min-w-0 w-full rounded-full font-heading font-bold transition-colors', daysPerWeek === n ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}>{n}</button>
                   ))}
                 </div>
                 {/* T1 (feedback 2026-08-20): user bał się, że wybór dni jest wiążący. */}
@@ -645,11 +799,18 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               </div>
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.protocol.daysSelect')}</p>
-                <div className="flex justify-between gap-1.5">
+                <div className="grid grid-cols-4 gap-2">
                   {WEEKDAYS.map(w => {
                     const on = trainingDays.includes(w.value);
                     return (
-                      <button key={w.value} onClick={() => toggleDay(w.value)} className={cn('h-10 w-10 rounded-full font-bold text-sm transition-colors', on ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}>
+                      <button
+                        type="button"
+                        key={w.value}
+                        aria-label={localizeDayName(w.long, lang)}
+                        aria-pressed={on}
+                        onClick={() => toggleDay(w.value)}
+                        className={cn('h-11 min-w-0 w-full rounded-xl font-bold text-sm transition-colors', on ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
+                      >
                         {localizeWeekdayShort(w.short, lang).slice(0, 1)}
                       </button>
                     );
@@ -660,52 +821,25 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             {/* WP-PLANS-2 (X27, Edge 7): data startu przeniesiona do kroku 5 —
                 krok protokołu zostaje z dniami treningowymi. */}
-            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); if (!matchingShown) { setMatchingShown(true); setMatching(true); } setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="shrink-0 bg-background pt-3"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
         {step === 5 && mode === 'recommend' && (
           <>
             <StepHeader step={5} total={6} onBack={() => setStep(4)} />
-            {/* X33 WP-1 / X34: przerywnik "Dobieram plany" (3,5 s) jako nakładka nad
-                gotowym ekranem 5A; wiersze wchodzą kolejno, pasek wypełnia się
-                przez cały czas (ss-match-fill w index.css). Zasada 7: nic tu nie
-                jest zaznaczalne. */}
-            {matching && (
-              <div data-testid="ob-matching" role="status" aria-live="polite" className="fixed inset-0 z-50 flex select-none items-center justify-center bg-background px-6">
-                <div className="w-full max-w-sm rounded-2xl bg-surface-low p-6">
-                  <p className="font-heading text-2xl font-bold">{t('ob.matching.title')}</p>
-                  <dl className="mt-4 min-h-[5.5rem] space-y-2 text-[14px]">
-                    {([
-                      [t('ob.matching.level'), t(LEVEL_LABEL_KEY[level])],
-                      [t('ob.matching.objective'), t(OBJECTIVE_LABEL_KEY[objective])],
-                      [t('ob.precision.frequency'), `${daysPerWeek} ${t('ob.precision.daysWk')}`],
-                    ] as const).slice(0, matchingRows).map(([label, value]) => (
-                      <div key={label} data-testid="ob-matching-row" className="flex justify-between gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
-                        <dt className="text-muted-foreground">{label}</dt>
-                        <dd className="font-medium">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <div className="mt-5 h-1 overflow-hidden rounded-full bg-surface-highest">
-                    <span
-                      data-testid="ob-matching-bar"
-                      className="ss-match-fill block h-full rounded-full bg-primary"
-                      style={{ animationDuration: `${MATCHING_INTERSTITIAL_MS}ms` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Rekomendacja jest wyliczona synchronicznie przed renderem. Karty są
+                dostępne natychmiast — bez sztucznego timera zależnego od pracy JS
+                w foregroundzie. Nagłówek „Dopasowane do Ciebie” potwierdza wynik. */}
             {/* X34: 5A to wyłącznie WYBÓR (nagłówek + dwie karty + Ułóż własny +
                 biblioteka). Podsumowanie odpowiedzi, "Zmień ustawienia" (wstecz =
                 strzałka) i ustawienia planu zniknęły; nazwa / długość / start żyją
                 na ekranie 6/6. */}
-            <div className="mt-5 mb-4">
-              <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
-              <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.match.title', { days: daysPerWeek })}</h1>
-            </div>
-            <div className="flex-1 space-y-2.5">
+            <div data-testid="ob-step-scroll" className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain pb-4 pr-1">
+              <div className="mt-5 mb-4">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
+                <h1 tabIndex={-1} className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.match.title', { days: daysPerWeek })}</h1>
+              </div>
               {/* X33 WP-2: dwie karty (Polecany / Alternatywa albo Wybrany z biblioteki);
                   tap = zaznaczenie, domyślnie karta 1. */}
               <div className="space-y-3" data-testid="ob-plan-choices">
@@ -728,8 +862,8 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   />
                 )}
               </div>
-              <button onClick={() => setMode('own')} className="w-full touch-manipulation rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
-              <button onClick={() => setMode('browse')} className="w-full touch-manipulation py-1 text-[13px] text-primary font-medium inline-flex items-center justify-center gap-1.5"><ListChecks className="h-4 w-4" />{t('ob.match.library', { n: scoredTemplates.length, days: daysPerWeek })}</button>
+              <button onClick={() => setMode('own')} className="w-full min-h-12 touch-manipulation rounded-2xl bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
+              <button onClick={() => setMode('browse')} className="w-full min-h-12 touch-manipulation rounded-xl text-[13px] text-primary font-medium inline-flex items-center justify-center gap-1.5"><ListChecks className="h-4 w-4" />{t('ob.match.library', { n: scoredTemplates.length, days: daysPerWeek })}</button>
               {(() => {
                 // Z72: user widzi prawdę zamiast cichej degradacji (slice w applyWeekdaysToPlanDays).
                 const mismatch = planDaysMismatch(chosen, daysPerWeek);
@@ -741,7 +875,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               })()}
             </div>
             {/* X34: jedno CTA prowadzi do ekranu 6/6 "Start planu". */}
-            <div className="pt-4">
+            <div className="shrink-0 bg-background pt-3">
               <PrimaryButton testId="ob-match-next" onClick={goToStartStep}>
                 {t('ob.match.next')} <ArrowRight className="h-4 w-4" />
               </PrimaryButton>
@@ -781,7 +915,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             <div className="mt-7 mb-4">
               {/* X32: nagłówek z liczbą dni z kroku 4 + licznik puli; pula zastępcza
                   (+-1 dnia) jest jawnie oznaczona zamiast cichej podmiany. */}
-              <h1 className="font-heading font-bold text-3xl tracking-tight uppercase">
+              <h1 tabIndex={-1} className="font-heading font-bold text-3xl tracking-tight uppercase">
                 {dayPool.exactDays
                   ? t('ob.browse.titleDays', { days: daysPerWeek, count: scoredTemplates.length })
                   : t('ob.browse.nearestTitle', { count: scoredTemplates.length })}
@@ -801,7 +935,11 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                       type="button"
                       aria-pressed={on}
                       onClick={() => setBrowseObjective(chip.value)}
-                      className={cn('touch-manipulation select-none rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
+                      className={cn(
+                        'touch-manipulation select-none rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors',
+                        toggleButtonClasses(on),
+                        on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
+                      )}
                     >
                       {t(chip.labelKey)}
                     </button>
@@ -827,7 +965,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                       <span className="flex min-w-0 items-center gap-2">
                         <h3 className="truncate font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
                         {tpl.id === recommended.id && (
-                          <span data-testid="browse-recommended-badge" className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                          <span data-testid="browse-recommended-badge" className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
                             {t('ob.browse.recommendedBadge')}
                           </span>
                         )}

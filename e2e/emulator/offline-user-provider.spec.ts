@@ -89,13 +89,13 @@ test.describe('UserProvider offline cache bez bypassu E2E', () => {
     const uid = await createAuthUser(email);
     await seedProfile(uid, email, 'active');
     await login(page, email);
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15_000 });
     expect(await page.evaluate(() => localStorage.getItem('fittracker_e2e_auth_state'))).toBeNull();
 
     await blockAllBackend(page);
     await page.reload();
 
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15_000 });
   });
 
   test('cached suspended pozostaje fail-closed po odcięciu backendu', async ({ page }) => {
@@ -109,7 +109,7 @@ test.describe('UserProvider offline cache bez bypassu E2E', () => {
     await page.reload();
 
     await expect(page.getByRole('heading', { name: /Konto jest zawieszone|Account suspended/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toHaveCount(0);
   });
 
   test('auth bez cached profilu nie dostaje dostępu, gdy sync callable jest offline', async ({ page }) => {
@@ -120,6 +120,6 @@ test.describe('UserProvider offline cache bez bypassu E2E', () => {
     await login(page, email);
 
     await expect(page.getByRole('heading', { name: /Nie udało się wczytać profilu|Profile could not load/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toHaveCount(0);
   });
 });

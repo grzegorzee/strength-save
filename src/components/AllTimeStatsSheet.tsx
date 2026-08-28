@@ -109,11 +109,11 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts, uid }: AllTime
                 { label: t('stats.tonnage'), value: fmt(stats.totalTonnageKg), testid: 'stat-tonnage' },
               ].map(({ label, value, testid }) => (
                 <div key={label} data-testid={testid}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">{label}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
                   <p className="font-heading text-5xl font-bold leading-none tracking-tight tabular-nums">{value}</p>
                 </div>
               ))}
-              <p className="text-[11px] text-muted-foreground/70">
+              <p className="text-[11px] text-muted-foreground">
                 {t('stats.timeNote', { measured: String(stats.workoutsWithDuration), total: String(stats.workoutCount) })}
               </p>
             </div>
@@ -122,7 +122,7 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts, uid }: AllTime
             <div className="grid grid-cols-2 gap-2">
               {tiles.map(({ label, value, wide, text }) => (
                 <div key={label} className={cn('rounded-xl bg-muted/40 px-3 py-2.5', wide && 'col-span-2')}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">{label}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
                   <p className={cn('text-lg font-bold', text ? 'break-words leading-tight' : 'truncate tabular-nums')}>{value}</p>
                 </div>
               ))}
@@ -130,13 +130,13 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts, uid }: AllTime
 
             {fun.length > 0 && (
               <div className="rounded-xl bg-primary/10 px-3 py-3" data-testid="stats-fun">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">{t('stats.funTitle')}</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">{t('stats.funTitle')}</p>
                 <ul className="mt-1.5 space-y-1">
                   {fun.map(({ key, n }) => (
                     <li key={key} className="text-sm">{t(key, { n: String(n) })}</li>
                   ))}
                 </ul>
-                <p className="mt-2 text-[11px] text-muted-foreground/70">{t('stats.funNote')}</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">{t('stats.funNote')}</p>
               </div>
             )}
           </div>

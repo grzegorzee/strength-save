@@ -47,7 +47,10 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
     getLatestMeasurement: () => undefined,
   }),
 }));
-vi.mock('@/hooks/useHealthConsent', () => ({ useHealthConsent: () => true }));
+vi.mock('@/hooks/useHealthConsent', () => ({
+  useHealthConsent: () => true,
+  useActiveHealthGrant: () => ({ healthEpoch: 3, healthGrantId: 'grant-3' }),
+}));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: pageMocks.toast }) }));
 vi.mock('@/lib/firebase', () => ({ storage: {}, db: {} }));
 vi.mock('firebase/storage', () => ({
@@ -183,7 +186,7 @@ describe('Measurements — sekcja zdjęć i porównania (WP-D D5)', () => {
     const saved = pageMocks.addMeasurement.mock.calls[0][0] as Record<string, unknown>;
     expect(saved.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(saved.photoUrl).toBe('https://example.test/photo.jpg?token=x');
-    expect(String(saved.photoPath)).toContain('body-photos/u1/');
+    expect(String(saved.photoPath)).toContain('body-photos/u1/grant-3/');
     // Zero fabrykowanych pól liczbowych.
     for (const [key, value] of Object.entries(saved)) {
       if (key === 'date' || key === 'photoUrl' || key === 'photoPath') continue;

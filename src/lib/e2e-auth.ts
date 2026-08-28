@@ -1,3 +1,5 @@
+import type { ConsentMirror } from '@/lib/legal-versions';
+
 export const E2E_AUTH_STATE_KEY = 'fittracker_e2e_auth_state';
 
 export type E2EAuthScenario =
@@ -21,6 +23,8 @@ export interface E2EAuthState {
   hasWorkouts?: boolean;
   /** WP-G (X35a): profil treningowy w profilu E2E (cel steruje tonem delty wagi). */
   trainingProfile?: { level?: string; objective?: string; daysPerWeek?: number };
+  /** Mirror serwera wyłącznie do testów wznowienia/re-consent. */
+  consents?: ConsentMirror;
 }
 
 export const readE2EAuthState = (): E2EAuthState => {
@@ -47,6 +51,7 @@ export const readE2EAuthState = (): E2EAuthState => {
       subscription: parsed.subscription && typeof parsed.subscription === 'object' ? parsed.subscription : null,
       hasWorkouts: parsed.hasWorkouts === true,
       trainingProfile: parsed.trainingProfile && typeof parsed.trainingProfile === 'object' ? parsed.trainingProfile : undefined,
+      consents: parsed.consents && typeof parsed.consents === 'object' ? parsed.consents : undefined,
     };
   } catch {
     return { scenario: 'active-admin' };

@@ -63,7 +63,7 @@ export const RangeCalendar = ({
           aria-label={t('range.prevMonth')}
           data-testid={`${testId}-prev`}
           onClick={() => shiftMonth(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -79,7 +79,7 @@ export const RangeCalendar = ({
           aria-label={t('range.nextMonth')}
           data-testid={`${testId}-next`}
           onClick={() => shiftMonth(1)}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -127,7 +127,7 @@ export const RangeCalendar = ({
                 disabled={disabled}
                 onClick={() => onChange(nextRangeSelection(value, iso))}
                 className={cn(
-                  'flex h-10 w-full items-center justify-center rounded-full text-sm tabular-nums transition-colors',
+                  'flex h-11 w-full items-center justify-center rounded-full text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   selected
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : inRange

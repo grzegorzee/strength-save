@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { RangeCalendar } from '@/components/ui/range-calendar';
 import type { DateRangeValue } from '@/lib/date-range-select';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -114,10 +115,11 @@ export const VacationDialog = ({
                       })}
                       aria-pressed={active}
                       className={cn(
-                        'flex-1 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                        'flex-1 rounded-full px-3 py-1.5 text-sm transition-colors',
+                        toggleButtonClasses(active),
                         active
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:bg-muted',
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted',
                       )}
                     >
                       {t('rmode.days', { n: option })}
@@ -161,10 +163,11 @@ export const VacationDialog = ({
                     onClick={() => setActivity(option)}
                     aria-pressed={activity === option}
                     className={cn(
-                      'rounded-xl border px-4 py-2.5 text-left text-sm transition-colors',
+                      'rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
+                      toggleButtonClasses(activity === option),
                       activity === option
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted',
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted',
                     )}
                   >
                     {t(ACTIVITY_KEYS[option])}

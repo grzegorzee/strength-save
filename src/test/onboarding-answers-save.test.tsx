@@ -62,10 +62,11 @@ const withProviders = (node: React.ReactNode) => (
 );
 
 const walkWizardToConfirm = async () => {
+  fireEvent.click(screen.getByTestId('ob-personalization-next'));
   fireEvent.click(screen.getByTestId('consent-terms'));
   fireEvent.click(screen.getByTestId('consent-privacy'));
   fireEvent.click(screen.getByTestId('consent-health'));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByTestId('ob-legal-submit'));
   await screen.findByRole('button', { name: /Następny krok/ });
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
@@ -89,6 +90,7 @@ beforeEach(() => {
 describe('Onboarding: zapis onboardingAnswers przy markOnboardingComplete (WP-O)', () => {
   it('snapshot v2 z kompletem odpowiedzi (rekomendacja, domyślne wartości kreatora)', async () => {
     render(withProviders(<Onboarding />));
+    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
     fireEvent.click(screen.getByTestId('ob-accent-indigo'));
     await walkWizardToConfirm();
 
@@ -152,7 +154,7 @@ describe('Onboarding: zapis onboardingAnswers przy markOnboardingComplete (WP-O)
     expect(lastUpdatePayload()).toMatchObject({
       onboardingCompleted: true,
       trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 4 },
-      'preferences.accentColor': 'lime',
+      'preferences.accentColor': '#c6ff00',
     });
     // Bez undefined w payloadzie (Firestore odrzuca updateDoc z undefined).
     expect(Object.values(lastUpdatePayload()).some((v) => v === undefined)).toBe(false);

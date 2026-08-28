@@ -102,8 +102,8 @@ export class ErrorBoundary extends Component<Props, State> {
       const isFirestoreCrash = isFirestoreInternalAssertion(this.state.error);
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-          <Card className="w-full max-w-md">
+        <div className="flex min-h-[100dvh] justify-center overflow-y-auto bg-background pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Card className="my-auto w-full max-w-md">
             <CardHeader className="text-center">
               <div className="mx-auto h-16 w-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
                 <AlertTriangle className="h-8 w-8 text-destructive" />

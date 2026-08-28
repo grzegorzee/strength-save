@@ -162,6 +162,55 @@ afterEach(() => {
 });
 
 describe('WP-6 (X33): sekwencja onboarding -> koniec planu -> replan (realne hooki, fake Firestore)', () => {
+  it('błąd planu → restart → inny wybór tej samej daty kończy z jednym spójnym cyklem', async () => {
+    fake.store.set(`users/${UID}`, { uid: UID, onboardingCompleted: false });
+    const { plan, cycles } = renderHooks();
+    syncSnapshots();
+    let failPlanWrite = true;
+    const savePlan = vi.fn(async (...args: Parameters<typeof plan.result.current.savePlan>) => {
+      if (failPlanWrite) return { success: false, error: 'offline' };
+      return plan.result.current.savePlan(...args);
+    });
+    const markOnboardingComplete = vi.fn(async () => undefined);
+
+    const first = await completeOnboardingPlan(wizardFirst, {
+      savePlan,
+      createActiveCycle: cycles.result.current.createActiveCycle,
+      choice: buildPlanCycleChoice(wizardFirst, 'onboarding'),
+      markOnboardingComplete,
+    });
+    expect(first.success).toBe(false);
+    expect(markOnboardingComplete).not.toHaveBeenCalled();
+    expect(storeCycles().filter((cycle) => cycle.status === 'active')).toHaveLength(1);
+    expect(fake.store.has(`training_plans/${UID}`)).toBe(false);
+
+    // Symulacja wznowienia procesu z trwałego szkicu po restarcie WebView:
+    // użytkownik cofa się i świadomie wybiera inny plan z tą samą datą startu.
+    failPlanWrite = false;
+    const changedChoice = { ...wizardSecond, startDate: FIRST_START };
+    const retried = await completeOnboardingPlan(changedChoice, {
+      savePlan,
+      createActiveCycle: cycles.result.current.createActiveCycle,
+      choice: buildPlanCycleChoice(changedChoice, 'onboarding'),
+      markOnboardingComplete,
+    });
+
+    expect(retried.success).toBe(true);
+    const active = storeCycles().filter((cycle) => cycle.status === 'active');
+    expect(active).toHaveLength(1);
+    expect(active[0].id).toBe(`cycle-${UID}-${FIRST_START}`);
+    expect((active[0].days as TrainingDay[]).map((day) => day.focus)).toEqual([
+      'Góra/dół redukcja',
+      'Góra/dół redukcja',
+    ]);
+    const savedPlan = fake.store.get(`training_plans/${UID}`)!;
+    expect((savedPlan.days as TrainingDay[]).map((day) => day.focus)).toEqual([
+      'Góra/dół redukcja',
+      'Góra/dół redukcja',
+    ]);
+    expect(markOnboardingComplete).toHaveBeenCalledTimes(1);
+  });
+
   it('dwa cykle, kazdy z WLASNYM choice; onboardingAnswers nietkniete; training_plans = drugi plan', async () => {
     fake.store.set(`users/${UID}`, { uid: UID, onboardingCompleted: false });
     const { plan, cycles } = renderHooks();

@@ -4,6 +4,7 @@ import { adminGetUserLogs, type AdminLogEntry } from '@/lib/registration-api';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 
 // Logi per-użytkownik: maile (notification_logs) + zdarzenia auth (auth_audit_logs).
 export const AdminUserLogs = ({ uid }: { uid: string }) => {
@@ -28,10 +29,10 @@ export const AdminUserLogs = ({ uid }: { uid: string }) => {
   return (
     <div className="rounded-lg bg-surface-lowest p-3 space-y-2">
       <div className="flex gap-1.5">
-        <button onClick={() => setTab('mail')} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', tab === 'mail' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
+        <button type="button" aria-pressed={tab === 'mail'} onClick={() => setTab('mail')} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', toggleButtonClasses(tab === 'mail'), tab === 'mail' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
           <Mail className="h-3 w-3" /> {t('admin.logsMailsTab', { n: notifications.length })}
         </button>
-        <button onClick={() => setTab('auth')} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', tab === 'auth' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
+        <button type="button" aria-pressed={tab === 'auth'} onClick={() => setTab('auth')} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', toggleButtonClasses(tab === 'auth'), tab === 'auth' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
           <ShieldCheck className="h-3 w-3" /> {t('admin.logsAuthTab', { n: authLogs.length })}
         </button>
       </div>

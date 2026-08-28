@@ -33,6 +33,8 @@ import { applyLastKnownWatchLink, type WatchCapabilitySnapshot } from '@/lib/dev
 interface UseWatchWorkoutSyncOptions {
   /** Wysyłka i aplikowanie eventów tylko przy aktywnym treningu. */
   enabled: boolean;
+  /** Brak/false zachowuje logowanie serii, ale wyłącza HealthKit na Watch. */
+  healthFeaturesEnabled?: boolean;
   uid?: string;
   sessionId?: string;
   date: string;
@@ -57,7 +59,7 @@ interface UseWatchWorkoutSyncOptions {
 const SEND_DEBOUNCE_MS = 800;
 
 export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
-  const { enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, capability, onSetLogged, onWorkoutFinished, onWorkoutDiscarded } = options;
+  const { enabled, healthFeaturesEnabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, capability, onSetLogged, onWorkoutFinished, onWorkoutDiscarded } = options;
 
   // Najnowsze callbacki bez restartu listenera.
   const handlersRef = useRef({ onSetLogged, onWorkoutFinished, onWorkoutDiscarded });
@@ -89,6 +91,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         focus,
         sentAt: Date.now(),
         active: true,
+        healthFeaturesEnabled: healthFeaturesEnabled === true,
         timersEnabled: FEATURE_FLAGS.workoutTimers,
         ...(FEATURE_FLAGS.workoutTimers && {
           // `restSeconds` is the old-Watch alias. New clients use both explicit values.
@@ -109,7 +112,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, capability]);
+  }, [enabled, healthFeaturesEnabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, capability]);
 
   // Odbiór eventów: listener live + drain kolejki przy starcie i powrocie do foreground.
   useEffect(() => {

@@ -19,6 +19,7 @@ const SCREEN_BY_PATH: Array<{ test: (path: string) => boolean; key: TelemetryEve
   { test: (p) => p === '/cycles' || p.startsWith('/cycles/'), key: 'screen_cycles' },
   { test: (p) => p === '/settings', key: 'screen_settings' },
   { test: (p) => p.startsWith('/workout/'), key: 'screen_workout' },
+  { test: (p) => p === '/onboarding', key: 'screen_onboarding' },
 ];
 
 export const screenKeyForPath = (path: string): TelemetryEventName | null => {

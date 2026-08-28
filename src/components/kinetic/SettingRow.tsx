@@ -35,7 +35,7 @@ export const SettingRow = ({
       {right ?? (value != null && (
         <span
           className={cn(
-            compact ? 'shrink-0 font-mono text-[10.5px]' : 'text-sm font-semibold',
+            compact ? 'shrink-0 font-mono text-[11px]' : 'text-sm font-semibold',
             valueAccent ? 'text-primary' : 'text-muted-foreground',
           )}
         >
@@ -51,7 +51,10 @@ export const SettingRow = ({
       <button
         type="button"
         onClick={onClick}
-        className={cn('flex w-full items-center gap-3 text-left transition-colors hover:opacity-80', compact ? 'min-h-[46px] py-2' : 'py-3')}
+        className={cn(
+          'flex w-full touch-manipulation items-center gap-3 text-left transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          compact ? 'min-h-[46px] py-2' : 'py-3',
+        )}
       >
         {content}
       </button>

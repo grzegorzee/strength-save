@@ -1,17 +1,32 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { deleteField, doc, updateDoc } from 'firebase/firestore';
+import { deleteField, doc, updateDoc, type DocumentData, type UpdateData } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
-import { ACCENTS, applyAccent, isCustomAccentHex, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
+import { ACCENTS, isCustomAccentHex, readStoredAccentId } from '@/lib/accent-theme';
+import { PaletteThemePicker } from '@/components/PaletteThemePicker';
+import {
+  applyPaletteTheme,
+  normalizePaletteThemeV2,
+  readStoredPaletteTheme,
+  selectLegacyAccent,
+  storePaletteTheme,
+  type PaletteThemeV2,
+} from '@/lib/palette-theme';
+import {
+  discardPalettePreferenceOutbox,
+  enqueuePresetPalettePreference,
+  flushPalettePreferenceOutbox,
+  readPalettePreferenceOutbox,
+} from '@/lib/palette-preference-outbox';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { cacheAvatarBlob } from '@/lib/avatar-cache';
 import { useUnit } from '@/contexts/UnitContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES, type LanguageCode } from '@/i18n';
-import { computeTier } from '@/lib/tier';
 import { deleteOwnAccount } from '@/lib/registration-api';
 import { useSubscription, isPaywallPlatform } from '@/hooks/useSubscription';
 import { summarizeSubscription, hasProPlan } from '@/lib/subscription-summary';
@@ -21,6 +36,7 @@ import { ProfileHeaderChips } from '@/components/kinetic/ProfileHeaderChips';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -36,13 +52,12 @@ import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   Lock, Globe, HelpCircle, Mail, Bug, Info, LogOut, Plus, Loader2,
-  ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
-  Dumbbell, ChevronRight, Watch, Eye, EyeOff, Timer, Weight,
-  UserRound, Bell, Database, DatabaseBackup, ShieldCheck, UserCog,
+  Ruler, Shield, Gem, CreditCard, Medal,
+  Dumbbell, Watch, Eye, EyeOff, Timer,
+  Bell, Database, UserCog,
+  Palette,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
-import { calculateTonnage, calculateStreakDetails, countWorkoutCompletedWorkingSets, streakDetailsFromDates } from '@/lib/summary-utils';
-import { formatTonnage } from '@/lib/units';
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
@@ -66,24 +81,35 @@ import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
 import { isWarmupPromptEnabled, setWarmupPromptEnabled } from '@/lib/warmup-prompt';
 
 import { SOUND_KEY } from '@/lib/workout-preferences';
+import { POST_PLAN_GUIDE_REPLAY_PATH } from '@/lib/post-plan-guide';
 
-// X36 (głosówka właściciela po buildzie 124): Profil = tożsamość + kafle dumy
-// (zawsze otwarte) i lista ZWIJANYCH sekcji (ProfileAccordionSection), każda
+// Profil = tożsamość i lista ZWIJANYCH sekcji (ProfileAccordionSection), każda
 // z kotwicą id="profile-<sekcja>" dla deep linków ?section=. Stare kotwice
 // (Połączenia, Przerwy) mapowane na nowe sekcje.
-const SECTION_ALIASES: Record<string, string> = {
+const SECTION_PARENTS: Record<string, string> = {
+  connections: 'devices',
+  strava: 'devices',
+  rest: 'timer',
+  preferences: 'training',
+  plates: 'training',
+  trainer: 'devices',
+  backup: 'data',
+  consents: 'data',
+};
+const SECTION_TARGETS: Record<string, string> = {
   connections: 'devices',
   strava: 'devices',
   rest: 'timer',
   preferences: 'training',
 };
-const resolveSection = (section: string): string => SECTION_ALIASES[section] ?? section;
+const resolveSection = (section: string): string => SECTION_PARENTS[section] ?? section;
+const resolveSectionTarget = (section: string): string => SECTION_TARGETS[section] ?? section;
 
 const TRAINER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
+  const { uid, profile, avatarSrc, isAdmin, canUseStrava } = useCurrentUser();
   const { unit, setUnit, toDisplay, fromInput } = useUnit();
   const { logout, logoutAfterAccountDeletion, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
@@ -110,9 +136,10 @@ const Profile = () => {
     const raw = searchParams.get('section');
     if (!raw) return;
     const section = resolveSection(raw);
+    const target = resolveSectionTarget(raw);
     setOpenSections((prev) => (prev.has(section) ? prev : new Set(prev).add(section)));
     const scroll = () => {
-      document.getElementById(`profile-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById(`profile-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
     scroll();
     const timers = [300, 900].map((ms) => window.setTimeout(scroll, ms));
@@ -122,26 +149,7 @@ const Profile = () => {
   // Z216/Z217: licznik all-time z agregatu; okno recent tylko fallbackiem.
   const aggregate = useWorkoutAggregate(uid);
   const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
-  const tier = computeTier(completedCount, 0, lang);
 
-  const totalTonnage = aggregate?.totals.totalTonnageKg
-    ?? calculateTonnage(workouts.filter((w) => w.completed));
-
-  // Fala 2: kafle TWOJA DUMA — same realne dane i realne cele nawigacji.
-  // Streak z pełnej historii
-  // agregatu (okno recent przycinałoby długie serie), serie z totals;
-  // fallback okna = dotychczasowa semantyka completedCount.
-  const streak = (aggregate
-    ? streakDetailsFromDates(aggregate.completedDates)
-    : calculateStreakDetails(workouts)).streak;
-  const totalSets = aggregate?.totals.totalSets
-    ?? workouts.filter((w) => w.completed).reduce((sum, w) => sum + countWorkoutCompletedWorkingSets(w), 0);
-  const prideTiles = [
-    { key: 'workouts', value: String(completedCount), label: t('profile.pride.tile.workouts'), accent: false, target: '/history' },
-    { key: 'streak', value: t('profile.pride.tile.streakValue', { n: streak }), label: t('profile.pride.tile.streak'), accent: true, target: '/achievements?view=analytics&tab=charts&chart=streak' },
-    { key: 'tonnage', value: formatTonnage(totalTonnage, unit), label: t('profile.pride.tile.tonnage'), accent: false, target: '/achievements?view=analytics&tab=charts&chart=tonnage' },
-    { key: 'sets', value: String(totalSets), label: t('profile.pride.tile.sets'), accent: false, target: '/history?list=all' },
-  ];
   const subscriptionInfo = useSubscription();
   const subSummary = summarizeSubscription({
     isAdmin,
@@ -261,6 +269,7 @@ const Profile = () => {
       await uploadBytes(r, file);
       const url = await getDownloadURL(r);
       await updateDoc(doc(db, 'users', uid), { photoURL: url });
+      await cacheAvatarBlob(uid, url, file).catch(() => undefined);
       toast({ title: t('profile.toast.avatarUpdated') });
     } catch {
       toast({ title: t('profile.toast.error'), description: t('profile.toast.avatarFailed'), variant: 'destructive' });
@@ -274,25 +283,60 @@ const Profile = () => {
   };
 
   // Dźwięk leci też do users/{uid}.preferences — spójne między web i iOS.
-  const persistPreference = (patch: Record<string, number | boolean | string>) => {
+  const persistPreference = (patch: UpdateData<DocumentData>) => {
     updateDoc(doc(db, 'users', uid), patch).catch(() => { /* offline — localStorage wystarczy do następnej sesji */ });
   };
   // F-T2: kolor przewodni — lokalnie od splashu, mirror w profilu (cross-device).
   const [accentId, setAccentId] = useState(readStoredAccentId());
+  const [paletteTheme, setPaletteTheme] = useState<PaletteThemeV2 | null>(readStoredPaletteTheme());
   const [hexInput, setHexInput] = useState('');
   const profileAccent = profile?.preferences?.accentColor;
+  const profilePalette = profile?.preferences?.paletteTheme;
   useEffect(() => {
-    if (profileAccent && profileAccent !== readStoredAccentId()) {
-      applyAccent(profileAccent);
-      storeAccentId(profileAccent);
-      setAccentId(profileAccent);
+    const pendingPalette = readPalettePreferenceOutbox(uid)?.palette;
+    if (pendingPalette) {
+      applyPaletteTheme(pendingPalette);
+      storePaletteTheme(pendingPalette);
+      setPaletteTheme(pendingPalette);
+      setAccentId(pendingPalette.primary);
+      return;
     }
-  }, [profileAccent]);
+    const palette = normalizePaletteThemeV2(profilePalette);
+    const normalizedAccent = profileAccent?.trim() ?? '';
+    const paletteMatchesFallback = !normalizedAccent || normalizedAccent.toLowerCase() === palette?.primary;
+    if (palette && paletteMatchesFallback) {
+      applyPaletteTheme(palette);
+      storePaletteTheme(palette);
+      setPaletteTheme(palette);
+      setAccentId(palette.primary);
+    } else if (normalizedAccent && (normalizedAccent !== readStoredAccentId() || readStoredPaletteTheme())) {
+      selectLegacyAccent(normalizedAccent);
+      setPaletteTheme(null);
+      setAccentId(normalizedAccent);
+    }
+  }, [profileAccent, profilePalette, uid]);
   const handleAccent = (id: string) => {
-    applyAccent(id);
-    storeAccentId(id);
+    discardPalettePreferenceOutbox(uid);
+    selectLegacyAccent(id);
+    setPaletteTheme(null);
     setAccentId(id);
-    persistPreference({ 'preferences.accentColor': id });
+    persistPreference({
+      'preferences.accentColor': id,
+      'preferences.paletteTheme': deleteField(),
+    });
+  };
+  const handlePalette = (palette: PaletteThemeV2) => {
+    setPaletteTheme(palette);
+    setAccentId(palette.primary);
+    const queued = enqueuePresetPalettePreference(uid, palette);
+    if (!queued) {
+      persistPreference({
+        'preferences.accentColor': palette.primary,
+        'preferences.paletteTheme': palette,
+      });
+      return;
+    }
+    void flushPalettePreferenceOutbox(uid, (patch) => updateDoc(doc(db, 'users', uid), patch));
   };
   const handleSound = (v: boolean) => {
     setSound(v);
@@ -470,6 +514,11 @@ const Profile = () => {
   };
 
   const initials = (profile?.displayName || profile?.email || '?').slice(0, 2).toUpperCase();
+  const accentPreviewColors = paletteTheme
+    ? [paletteTheme.primary, paletteTheme.supportA, paletteTheme.supportB]
+    : [isCustomAccentHex(accentId)
+        ? accentId
+        : (ACCENTS.find((accent) => accent.id === accentId)?.hex ?? ACCENTS[0].hex)];
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
@@ -480,7 +529,7 @@ const Profile = () => {
         <div className="flex items-center gap-3.5 pt-1">
           <div className="relative shrink-0">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={profile?.photoURL || undefined} alt={profile?.displayName || ''} />
+              <AvatarImage src={avatarSrc || undefined} alt={profile?.displayName || ''} />
               <AvatarFallback className="bg-primary/20 font-heading text-xl font-bold text-primary">{initials}</AvatarFallback>
             </Avatar>
             <button
@@ -522,60 +571,14 @@ const Profile = () => {
               </div>
             )}
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
-              <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} className="justify-start" />
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] text-muted-foreground">
+              <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} className="justify-start" />
+              <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t('profile.identity.workouts', { count: completedCount })}
-                {tier.next && tier.remaining != null ? ` · ${t('profile.identity.toNext', { n: tier.remaining, next: tier.next })}` : ''}
               </span>
             </div>
           </div>
         </div>
 
-        {/* PRO-D T3: postęp do następnego poziomu; elite (next=null) bez paska. */}
-        {tier.next && (
-          <div data-testid="tier-progress" className="h-1.5 w-full overflow-hidden rounded-full bg-surface-highest">
-            <div
-              className="h-full rounded-full bg-primary transition-[width]"
-              style={{ width: `${Math.round(tier.progress * 100)}%` }}
-            />
-          </div>
-        )}
-      </section>
-
-      {/* Fala 2: klikalne kafle statystyk all-time (zera są prawdziwe, więc
-          renderują się zawsze). Odznaki pozostają na osobnym ekranie „Wszystkie”. */}
-      <section id="profile-pride" className="scroll-mt-20 space-y-2.5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="eyebrow-mono text-muted-foreground">{t('profile.pride.label')}</h2>
-          <button
-            type="button"
-            onClick={() => navigate('/achievements?view=records')}
-            className="flex items-center gap-0.5 text-xs font-semibold text-primary"
-          >
-            {t('profile.pride.all')} <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div className="flex gap-2">
-          {prideTiles.map((tile) => (
-            <button
-              type="button"
-              key={tile.key}
-              data-testid={`profile-pride-${tile.key}`}
-              onClick={() => navigate(tile.target)}
-              className={cn(
-                'flex min-h-11 min-w-0 flex-1 touch-manipulation flex-col items-center gap-1 rounded-2xl px-1.5 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
-                tile.accent ? 'bg-primary/15' : 'bg-surface-container',
-              )}
-            >
-              <span className={cn('font-heading text-lg font-bold leading-none', tile.accent && 'text-primary')}>
-                {tile.value}
-              </span>
-              <span className="text-center font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                {tile.label}
-              </span>
-            </button>
-          ))}
-        </div>
       </section>
 
       {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej
@@ -589,74 +592,114 @@ const Profile = () => {
         </div>
       )}
 
-      {/* 3. KOLOR PRZEWODNI (F-T2 + fala 2): grid 12 swatchy + hex. X37 (uwaga
-          właściciela po 125): ZAWSZE rozwinięty, jak przed X36 — wybór koloru
-          ma być widoczny od razu, nie za ptaszkiem. */}
-      <section id="profile-accent" className="scroll-mt-20 rounded-xl bg-surface-container px-4 py-4">
-        <h2 className="eyebrow-mono pb-3 text-muted-foreground">{t('profile.appearance.accent')}</h2>
-        <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
-          {ACCENTS.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              role="radio"
-              aria-checked={accentId === a.id}
-              aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
-              data-testid={`accent-${a.id}`}
-              onClick={() => handleAccent(a.id)}
-              className={cn(
-                'aspect-square w-full rounded-lg transition-transform active:scale-95',
-                accentId === a.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
-              )}
-              style={{ backgroundColor: a.hex }}
-            />
-          ))}
-          {/* Dowolny kolor: systemowy picker (na iOS ma też wpis po #). */}
-          <label
-            aria-label={t('accent.custom')}
-            data-testid="accent-custom"
-            className={cn(
-              'relative aspect-square w-full cursor-pointer rounded-lg transition-transform active:scale-95',
-              isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
-            )}
-            style={{
-              background: isCustomAccentHex(accentId)
-                ? accentId
-                : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
-            }}
-          >
-            <input
-              type="color"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
-              onChange={(e) => handleAccent(e.target.value.toLowerCase())}
-              data-testid="accent-custom-input"
-            />
-          </label>
-        </div>
-        {/* Wpis po # dla tych, którzy znają swój kolor. */}
-        <div className="mt-3 flex items-center gap-2">
-          <Input
-            value={hexInput}
-            onChange={(e) => setHexInput(e.target.value.trim())}
-            placeholder="#1e90ff"
-            inputMode="text"
-            autoCapitalize="none"
-            className="h-10 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
-            aria-label={t('profile.appearance.hexLabel')}
-            data-testid="accent-hex-input"
+      {/* 3. KOLOR PRZEWODNI: Profil pokazuje tylko bieżący zestaw kolorów.
+          Pełny edytor montuje się po jawnej akcji i zachowuje dotychczasowy
+          preview/cancel/confirm oraz legacy/custom hex. */}
+      <ProfileAccordionSection
+        id="accent"
+        icon={Palette}
+        label={t('profile.appearance.accent')}
+        value={(
+          <span data-testid="profile-accent-preview" className="flex items-center -space-x-1" aria-hidden="true">
+            {accentPreviewColors.map((hex, index) => (
+              <span
+                key={`${hex}-${index}`}
+                className="h-4 w-4 rounded-full border border-background"
+                style={{ backgroundColor: hex }}
+              />
+            ))}
+          </span>
+        )}
+        open={isSectionOpen('accent')}
+        onOpenChange={(open) => setSectionOpen('accent', open)}
+      >
+        <div className="rounded-2xl bg-surface-container px-4 py-4">
+          <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{t('palette.description')}</p>
+          <PaletteThemePicker
+            currentAccentId={accentId}
+            currentPalette={paletteTheme}
+            onConfirm={handlePalette}
           />
-          <Button
-            variant="outline"
-            disabled={!isCustomAccentHex(hexInput)}
-            onClick={() => handleAccent(hexInput.toLowerCase())}
-            data-testid="accent-hex-apply"
-            className="h-10 rounded-lg border-0 bg-surface-highest px-4"
-          >
-            {t('profile.appearance.hexApply')}
-          </Button>
+          <h3 className="mb-2 mt-5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            {t('palette.legacyTitle')}
+          </h3>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
+            {ACCENTS.map((a, index) => (
+              <button
+                key={a.id}
+                type="button"
+                role="radio"
+                aria-checked={accentId === a.id}
+                tabIndex={accentId === a.id || (!ACCENTS.some((accent) => accent.id === accentId) && index === 0) ? 0 : -1}
+                aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
+                data-testid={`accent-${a.id}`}
+                onClick={() => handleAccent(a.id)}
+                onKeyDown={(event) => {
+                  if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+                  event.preventDefault();
+                  const radios = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+                  if (!radios.length) return;
+                  const current = radios.indexOf(event.currentTarget);
+                  const next = event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? radios.length - 1
+                      : (current + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + radios.length) % radios.length;
+                  radios[next]?.focus();
+                  radios[next]?.click();
+                }}
+                className={cn(
+                  'aspect-square min-h-11 min-w-11 w-full rounded-lg transition-transform active:scale-95',
+                  accentId === a.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+                )}
+                style={{ backgroundColor: a.hex }}
+              />
+            ))}
+            <label
+              aria-label={t('accent.custom')}
+              data-testid="accent-custom"
+              className={cn(
+                'relative aspect-square min-h-11 min-w-11 w-full cursor-pointer rounded-lg transition-transform active:scale-95',
+                isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+              )}
+              style={{
+                background: isCustomAccentHex(accentId)
+                  ? accentId
+                  : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
+              }}
+            >
+              <input
+                type="color"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
+                onChange={(e) => handleAccent(e.target.value.toLowerCase())}
+                data-testid="accent-custom-input"
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Input
+              value={hexInput}
+              onChange={(e) => setHexInput(e.target.value.trim())}
+              placeholder="#1e90ff"
+              inputMode="text"
+              autoCapitalize="none"
+              className="h-11 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
+              aria-label={t('profile.appearance.hexLabel')}
+              data-testid="accent-hex-input"
+            />
+            <Button
+              variant="outline"
+              disabled={!isCustomAccentHex(hexInput)}
+              onClick={() => handleAccent(hexInput.toLowerCase())}
+              data-testid="accent-hex-apply"
+              className="h-11 rounded-lg border-0 bg-surface-highest px-4"
+            >
+              {t('profile.appearance.hexApply')}
+            </Button>
+          </div>
         </div>
-      </section>
+      </ProfileAccordionSection>
 
       {/* 4. TRENING (fala 2 → X36): to, co user rusza poza timerem — jednostki,
           blokada wygaszania ekranu (z karty przerw), tryby. */}
@@ -682,7 +725,8 @@ const Profile = () => {
                   aria-pressed={unit === u}
                   aria-label={`${t('profile.pref.units')}: ${u}`}
                   className={cn(
-                    'rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.06em] transition-colors',
+                    'rounded-md px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.06em] transition-colors',
+                    toggleButtonClasses(unit === u),
                     unit === u ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
                   )}
                 >
@@ -723,6 +767,12 @@ const Profile = () => {
             : undefined}
           onClick={() => setVacOpen(true)}
         />
+        <section id="profile-plates" data-testid="profile-subsection-plates" className="scroll-mt-20 border-t border-border/60 pt-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {t('plates.settingsTitle')}
+          </h3>
+          <PlateInventorySettings />
+        </section>
       </ProfileAccordionSection>
 
       {/* 5. TIMER I PRZERWY (X36): przełączniki timera i dźwięku (dawniej w
@@ -751,30 +801,21 @@ const Profile = () => {
         <RestSettingsCard hideTitle />
       </ProfileAccordionSection>
 
-      {/* 6. KALKULATOR TALERZY (Z107): inwentarz per urządzenie. */}
+      {/* 6. TRENER + URZĄDZENIA: jedna grupa połączeń zamiast dwóch
+          równorzędnych decyzji. Stara kotwica profile-trainer zostaje. */}
       <ProfileAccordionSection
-        id="plates"
-        icon={Weight}
-        label={t('plates.settingsTitle')}
-        open={isSectionOpen('plates')}
-        onOpenChange={(open) => setSectionOpen('plates', open)}
-      >
-        <PlateInventorySettings />
-      </ProfileAccordionSection>
-
-      {/* 7. TRENER (WP-I + X35b + X36): wiersz pokazuje imię / zamaskowany adres /
-          "Nie ustawiono"; w środku zapisany adres albo formularz "Dodaj trenera".
-          Popup "Zapisać jako trenera?" po pierwszej wysyłce żyje w EmailWorkoutDialog. */}
-      <ProfileAccordionSection
-        id="trainer"
-        icon={UserRound}
-        label={t('profile.trainer.title')}
-        value={trainerEmail ? (trainerName || maskEmail(trainerEmail)) : t('profile.trainer.notSet')}
+        id="devices"
+        icon={Watch}
+        label={t('profile.section.devicesConnections')}
+        value={trainerEmail ? (trainerName || maskEmail(trainerEmail)) : undefined}
         valueAccent={!!trainerEmail}
-        open={isSectionOpen('trainer')}
-        onOpenChange={(open) => setSectionOpen('trainer', open)}
-        rows
+        open={isSectionOpen('devices')}
+        onOpenChange={(open) => setSectionOpen('devices', open)}
       >
+        <section id="profile-trainer" data-testid="profile-subsection-trainer" className="scroll-mt-20 rounded-2xl bg-surface-container px-3.5 py-1">
+          <h3 className="py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {t('profile.trainer.title')}
+          </h3>
         {trainerEmail ? (
           <>
             <SettingRow
@@ -846,20 +887,12 @@ const Profile = () => {
             <SettingRow compact icon={Mail} label={t('profile.trainer.add')} onClick={openTrainerForm} />
           </>
         )}
-      </ProfileAccordionSection>
-
-      {/* 8. URZĄDZENIA I POŁĄCZENIA (X36: Z118 Zdrowie + Z227 Garmin/Apple Watch
-          + Strava w JEDNEJ sekcji — user nie zgaduje, gdzie szukać zegarka). */}
-      <ProfileAccordionSection
-        id="devices"
-        icon={Watch}
-        label={t('profile.section.devicesConnections')}
-        open={isSectionOpen('devices')}
-        onOpenChange={(open) => setSectionOpen('devices', open)}
-      >
+        </section>
+        <section data-testid="profile-subsection-devices" className="space-y-3">
         <HealthSettings />
         <GarminSettings hideTitle />
         {canUseStrava && <StravaConnectionCard />}
+        </section>
       </ProfileAccordionSection>
 
       {/* 9. POWIADOMIENIA (X35b/X35c → X36 niżej: nie są najważniejsze). */}
@@ -898,18 +931,18 @@ const Profile = () => {
         )}
       </ProfileAccordionSection>
 
-      {/* 11. TWOJE DANE (Z90 + fala 2 + X35b): dojścia do danych + Sync Center przy zaległościach. */}
+      {/* 9. TWOJE DANE: pomiary, backup i zgody w jednej grupie danych.
+          Stare kotwice profile-backup/profile-consents zostają dla deep linków. */}
       <ProfileAccordionSection
         id="data"
         icon={Database}
         label={t('profile.section.data')}
+        value={t('settings.backup.title')}
         open={isSectionOpen('data')}
         onOpenChange={(open) => setSectionOpen('data', open)}
       >
         <div className="rounded-2xl bg-surface-container px-3.5 py-1">
-          <SettingRow compact icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
           <SettingRow compact icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
-          <SettingRow compact icon={Trophy} label={t('nav.progress')} onClick={() => navigate('/achievements')} />
           <SettingRow
             compact
             icon={Medal}
@@ -919,31 +952,21 @@ const Profile = () => {
           />
           {isAdmin && <SettingRow compact icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
         </div>
+        <section id="profile-backup" data-testid="profile-subsection-backup" className="scroll-mt-20 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {t('settings.backup.title')}
+          </h3>
+          <BackupSettings />
+        </section>
+        <section id="profile-consents" data-testid="profile-subsection-consents" className="scroll-mt-20 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {t('consent.settingsTitle')}
+          </h3>
+          <ConsentSettings hideTitle />
+        </section>
       </ProfileAccordionSection>
 
-      {/* 12. BACKUP I PRZYWRACANIE (X35b → X36 własna sekcja). */}
-      <ProfileAccordionSection
-        id="backup"
-        icon={DatabaseBackup}
-        label={t('settings.backup.title')}
-        open={isSectionOpen('backup')}
-        onOpenChange={(open) => setSectionOpen('backup', open)}
-      >
-        <BackupSettings />
-      </ProfileAccordionSection>
-
-      {/* 13. ZGODY I PRYWATNOŚĆ (pakiet prawny v2): marketing + dane zdrowotne, art. 7 ust. 3 RODO */}
-      <ProfileAccordionSection
-        id="consents"
-        icon={ShieldCheck}
-        label={t('consent.settingsTitle')}
-        open={isSectionOpen('consents')}
-        onOpenChange={(open) => setSectionOpen('consents', open)}
-      >
-        <ConsentSettings hideTitle />
-      </ProfileAccordionSection>
-
-      {/* 14. KONTO I POMOC (X35b: język przeszedł tu z dawnej sekcji Aplikacja). */}
+      {/* 10. KONTO I POMOC (X35b: język przeszedł tu z dawnej sekcji Aplikacja). */}
       <ProfileAccordionSection
         id="account"
         icon={UserCog}
@@ -970,6 +993,13 @@ const Profile = () => {
         <SettingRow compact icon={Lock} label={t('profile.account.password')} onClick={() => { if (profile?.email) setResetConfirmOpen(true); }} />
         {/* Z241: help prowadził do samej apki (app.strengthsave.app) — teraz landing z FAQ. */}
         <SettingRow compact icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://strengthsave.app/', '_blank')} />
+        <SettingRow
+          compact
+          icon={Dumbbell}
+          label={t('profile.support.appGuide')}
+          description={t('profile.support.appGuideDesc')}
+          onClick={() => navigate(POST_PLAN_GUIDE_REPLAY_PATH)}
+        />
         <SettingRow compact icon={Bug} label={t('profile.support.reportBug')} onClick={() => setBugReportOpen(true)} />
         <SettingRow compact icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:contact@strengthsave.app'; }} />
         <SettingRow compact icon={Info} label={t('profile.support.about')} value={__APP_VERSION__} onClick={() => setAboutOpen(true)} />
@@ -981,7 +1011,7 @@ const Profile = () => {
         <button
           type="button"
           onClick={() => setLogoutConfirmOpen(true)}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-surface-container text-sm font-medium text-foreground/80 transition-colors hover:opacity-80"
+          className="flex h-12 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-surface-container text-sm font-medium text-foreground/80 transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogOut className="h-4 w-4" /> {t('profile.logout')}
         </button>
@@ -992,7 +1022,7 @@ const Profile = () => {
         >
           {t('profile.deleteAccount')}
         </button>
-        <p className="pb-1 text-center font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground/60">
+        <p className="pb-1 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
           {t('profile.footer.version', { version: __APP_VERSION__ })}
         </p>
       </div>

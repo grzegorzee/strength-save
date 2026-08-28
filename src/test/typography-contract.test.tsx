@@ -55,16 +55,30 @@ describe('kontrakt typografii i języka dokumentu', () => {
     }
   });
 
+  it('krytyczne etykiety sesji i historii nie schodzą poniżej 11 px', () => {
+    const criticalSurfaces = [
+      'src/pages/WorkoutDay.tsx',
+      'src/components/ExerciseCard.tsx',
+      'src/components/history/CycleTile.tsx',
+      'src/components/history/HistorySessionRow.tsx',
+    ];
+
+    for (const path of criticalSurfaces) {
+      const source = readFileSync(path, 'utf8');
+      expect(source, path).not.toMatch(/text-\[(?:8|8\.5|9|9\.5|10|10\.5)px\]/);
+    }
+  });
+
   it('telefon landscape zachowuje mobilną powłokę i input 16 px', () => {
     expect(readFileSync('src/components/AppNavigation.tsx', 'utf8')).not.toContain('md:');
     expect(readFileSync('src/components/Layout.tsx', 'utf8')).not.toContain('md:');
     expect(readFileSync('src/components/ui/input.tsx', 'utf8')).not.toContain('md:text-sm');
   });
 
-  it('Postępy mają jeden h1 z AppHeader, bez faux italic w nagłówku treści', () => {
+  it('Postępy mają tylko tytuł AppHeader i bez faux headingu w treści', () => {
     const source = readFileSync('src/pages/Achievements.tsx', 'utf8');
     expect(source).not.toContain('<h1 className="text-2xl font-heading font-bold uppercase italic');
-    expect(source).toContain('<h2 className="text-xl font-heading font-bold uppercase tracking-tight">');
+    expect(source).not.toContain('<h2 className="text-xl font-heading font-bold uppercase tracking-tight">');
   });
 
   it('Space Grotesk nie używa syntetycznych italic ani wag ponad 700', () => {

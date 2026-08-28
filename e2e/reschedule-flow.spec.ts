@@ -54,8 +54,11 @@ test.describe('Przełożenie treningu przez UI (repro builda 92)', () => {
     await navigateAndWait(page, '/plan');
     await expectPageRendered(page);
 
-    // Karta jutrzejszego dnia z akcją przełożenia.
-    const rescheduleBtn = page.getByRole('button', { name: 'Przełóż trening' }).first();
+    // Karta jutrzejszego dnia grupuje akcje wtórne w jednym menu.
+    const actions = page.getByRole('button', { name: 'Więcej akcji' }).first();
+    await expect(actions).toBeVisible();
+    await actions.click();
+    const rescheduleBtn = page.getByRole('menuitem', { name: 'Przełóż trening' });
     await expect(rescheduleBtn).toBeVisible();
     await rescheduleBtn.click();
 

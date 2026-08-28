@@ -14,6 +14,8 @@ import { db } from '@/lib/firebase';
 import type { StravaActivity, StravaConnection } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { computeNextSyncAvailableAt, formatNextSyncTime } from '@/lib/strava-utils';
+import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
+import { buildMaxHRWrite } from '@/lib/strava-health-write';
 
 const STRAVA_ACTIVITIES_COLLECTION = 'strava_activities';
 const STRAVA_ACTIVITY_LISTENER_LIMIT = 500;
@@ -28,6 +30,7 @@ const noop = async () => ({ ok: false as const, message: 'Strava disabled' });
 // zawsze ostrzejsze lub równe oknu.
 export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: string) => {
   const { t, lang } = useTranslation();
+  const activeHealthGrant = useActiveHealthGrant();
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [connection, setConnection] = useState<StravaConnection>({ connected: false });
@@ -168,34 +171,32 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
     }
   }, [t, lang]);
 
-  // Z59: zapis bezpośredni przez rules (whitelist users z widełkami 100-230)
-  // zamiast callable saveMaxHR — o jeden kontener serverless mniej.
+  // Z59: zapis bezpośredni przez rules, powiązany z bieżącą generacją zgody.
   const saveMaxHR = useCallback(async (value: number): Promise<
     | { ok: true; estimatedMaxHR: number }
     | { ok: false; message: string }
   > => {
     setError(null);
-    const maxHR = Math.round(value);
-    if (!Number.isFinite(maxHR) || maxHR < 100 || maxHR > 230) {
-      const message = t('strava.err.sync');
+    const payload = buildMaxHRWrite(value, activeHealthGrant);
+    if (!payload) {
+      const message = activeHealthGrant
+        ? t('strava.err.sync')
+        : t('strava.err.healthConsentRequired');
       setError(message);
       return { ok: false, message };
     }
-    console.log(`[Strava] Saving max HR override: ${maxHR}...`);
+    console.log(`[Strava] Saving max HR override: ${payload.estimatedMaxHR}...`);
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        estimatedMaxHR: maxHR,
-        maxHRManualOverride: true,
-      });
-      console.log(`[Strava] Max HR saved: ${maxHR}`);
-      return { ok: true, estimatedMaxHR: maxHR };
+      await updateDoc(doc(db, 'users', userId), payload);
+      console.log(`[Strava] Max HR saved: ${payload.estimatedMaxHR}`);
+      return { ok: true, estimatedMaxHR: payload.estimatedMaxHR };
     } catch (err) {
       const message = err instanceof Error ? err.message : t('strava.err.sync');
       console.error('[Strava] Max HR save failed:', message);
       setError(message);
       return { ok: false, message };
     }
-  }, [t, userId]);
+  }, [activeHealthGrant, t, userId]);
 
   const disconnectStrava = useCallback(async () => {
     setError(null);

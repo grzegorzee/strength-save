@@ -1,6 +1,6 @@
 // X33 WP-4 (sekcja 2 planu) + X34: glowny CTA ekranu 6/6 ("Zacznij budowac mase"
-// dla build_muscle) zapisuje plan BEZ ekranu PlanPreview: kreator -> (krok
-// marketingowy bez zmian) -> ten sam completeOnboardingPlan co po "Podglad planu
+// dla build_muscle) zapisuje plan BEZ ekranu PlanPreview: kreator -> ten sam
+// completeOnboardingPlan co po "Podglad planu
 // -> Zatwierdz". Test SEKWENCJI od kroku 1: oba przebiegi daja IDENTYCZNY payload
 // (wybor kreatora, deps.choice cyklu, updateDoc z onboardingAnswers), a sciezka
 // z podgladem dziala 1:1. Harness wg onboarding-answers-save.test.tsx.
@@ -23,7 +23,7 @@ vi.mock('@/components/PlanPreview', () => ({
 const updateDoc = vi.hoisted(() => vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(async () => {}));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
 vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
-// Profil mutowalny per test: z odpowiedzia marketingowa (bez kroku) albo bez (krok wchodzi).
+// Profil mutowalny per test: z zapisana odpowiedzia marketingowa albo bez niej.
 const profileFixture = vi.hoisted(() => ({
   current: { displayName: 'Grzegorz', photoURL: '', consents: { marketingGranted: false, marketingVersion: '1.0' } } as Record<string, unknown>,
 }));
@@ -65,10 +65,11 @@ const withProviders = (node: React.ReactNode) => (
 
 // Krok 1 (zgody) -> 2 -> 3 -> 4 -> 5A -> 6/6.
 const walkToStep6 = async () => {
+  fireEvent.click(screen.getByTestId('ob-personalization-next'));
   fireEvent.click(screen.getByTestId('consent-terms'));
   fireEvent.click(screen.getByTestId('consent-privacy'));
   fireEvent.click(screen.getByTestId('consent-health'));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByTestId('ob-legal-submit'));
   await screen.findByRole('button', { name: /Następny krok/ });
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
@@ -143,16 +144,15 @@ describe('Onboarding: "Zaczynam ten plan" bez podgladu (X33 WP-4)', () => {
     expect(direct.update).toEqual(viaPreview.update);
   });
 
-  it('krok marketingowy nadal wchodzi PRZED zapisem; po odpowiedzi zapis bez podgladu', async () => {
+  it('brak odpowiedzi marketingowej nie dodaje przerywnika i nie blokuje zapisu bez podgladu', async () => {
     profileFixture.current = { displayName: 'Grzegorz', photoURL: '' };
     render(withProviders(<Onboarding />));
     await walkToStep6();
     fireEvent.click(startCta());
 
-    await screen.findByTestId('marketing-accept');
-    expect(completeOnboardingPlan).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId('marketing-decline'));
     await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('marketing-accept')).toBeNull();
+    expect(screen.queryByTestId('marketing-decline')).toBeNull();
     expect(previewRenders.count).toBe(0);
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/?welcome=1', { replace: true }));
   });

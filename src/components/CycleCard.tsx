@@ -35,10 +35,17 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
   return (
     <Card
       className={cn(
-        'cursor-pointer hover:border-primary/30 transition-all duration-200',
+        'cursor-pointer transition-all duration-200 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         isActive && 'border-primary/40 bg-primary/5',
       )}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onClick();
+      }}
     >
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
@@ -65,28 +72,28 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
               <Dumbbell className="h-3.5 w-3.5 text-primary" />
             </div>
             <p className="text-sm font-bold">{cycle.stats.totalWorkouts}</p>
-            <p className="text-[10px] text-muted-foreground">{t('cycles.workouts')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('cycles.workouts')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
               <TrendingUp className="h-3.5 w-3.5 text-fitness-success" />
             </div>
             <p className="text-sm font-bold">{tonnageT}t</p>
-            <p className="text-[10px] text-muted-foreground">{t('cycles.tonnage')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('cycles.tonnage')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
               <Trophy className="h-3.5 w-3.5 text-primary" />
             </div>
             <p className="text-sm font-bold">{cycle.stats.prs.length}</p>
-            <p className="text-[10px] text-muted-foreground">{t('cycles.prs')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('cycles.prs')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
               <span className="text-xs">%</span>
             </div>
             <p className="text-sm font-bold">{cycle.stats.completionRate}%</p>
-            <p className="text-[10px] text-muted-foreground">{t('cycles.attendance')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('cycles.attendance')}</p>
           </div>
         </div>
       </CardContent>

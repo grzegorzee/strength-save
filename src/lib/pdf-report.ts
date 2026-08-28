@@ -64,7 +64,7 @@ export const buildReportHtml = (
       <tr>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;">${escapeHtml(monthLabel(month.monthKey, lang))}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${month.workoutCount}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${formatDurationHM(month.totalDurationSec)}${missing > 0 ? `<div style="font-size:9px;color:#777;">${escapeHtml(tr('analytics.months.noTime', { n: missing }))}</div>` : ''}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${formatDurationHM(month.totalDurationSec)}${missing > 0 ? `<div style="font-size:11px;color:#777;">${escapeHtml(tr('analytics.months.noTime', { n: missing }))}</div>` : ''}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${escapeHtml(formatTonnage(month.totalTonnageKg, unit))}</td>
       </tr>`;
   }).join('');

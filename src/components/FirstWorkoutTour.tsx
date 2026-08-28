@@ -49,6 +49,9 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<TourRect | null>(null);
+  const [viewportHeight, setViewportHeight] = useState(
+    () => window.visualViewport?.height ?? window.innerHeight,
+  );
   const bubbleRef = useRef<HTMLDivElement>(null);
   const closedRef = useRef(false);
   const onCloseRef = useRef(onClose);
@@ -72,6 +75,26 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
   // Pełnoekranowy overlay (celebracja PR, dialog) prosi o zamknięcie: tour
   // nie ogłasza własnego otwarcia (nie eksmituje niczego), tylko słucha.
   useExclusiveOverlay(true, finish, { announce: false });
+
+  // Landscape, obrót oraz klawiatura zmieniają visual viewport niezależnie od
+  // prostokąta celu. Osobny stan gwarantuje przeliczenie strony i wysokości
+  // dymka nawet wtedy, gdy sam spotlight nie przesunął się ani o piksel.
+  useEffect(() => {
+    const visualViewport = window.visualViewport;
+    const updateViewport = () => {
+      setViewportHeight(visualViewport?.height ?? window.innerHeight);
+    };
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+    visualViewport?.addEventListener('resize', updateViewport);
+    visualViewport?.addEventListener('scroll', updateViewport);
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+      visualViewport?.removeEventListener('resize', updateViewport);
+      visualViewport?.removeEventListener('scroll', updateViewport);
+    };
+  }, []);
 
   // Pomiar celu w pętli rAF przez cały czas trwania kroku: scroll, resize,
   // orientationchange, klawiatura I przesunięcia layoutu bez zdarzenia (karta
@@ -158,7 +181,6 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
 
   if (!rect) return null;
 
-  const viewportHeight = window.innerHeight;
   const cut = {
     top: Math.max(0, rect.top - CUTOUT_PADDING),
     left: Math.max(0, rect.left - CUTOUT_PADDING),
@@ -166,10 +188,20 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
     height: rect.height + CUTOUT_PADDING * 2,
   };
   const cutBottom = cut.top + cut.height;
-  const bubbleBelow = cutBottom + BUBBLE_GAP + BUBBLE_ESTIMATE <= viewportHeight;
+  const availableBelow = viewportHeight - cutBottom - BUBBLE_GAP;
+  const availableAbove = cut.top - BUBBLE_GAP;
+  // Jeśli pełny dymek nie mieści się po żadnej stronie (landscape / 200% tekst),
+  // wybieramy większą przestrzeń i pozwalamy przewinąć jego treść.
+  const bubbleBelow = availableBelow >= BUBBLE_ESTIMATE || availableBelow >= availableAbove;
   const bubbleStyle = bubbleBelow
-    ? { top: cutBottom + BUBBLE_GAP }
-    : { bottom: Math.max(BUBBLE_GAP, viewportHeight - cut.top + BUBBLE_GAP) };
+    ? {
+        top: cutBottom + BUBBLE_GAP,
+        maxHeight: `calc(${Math.max(96, availableBelow)}px - max(1rem, env(safe-area-inset-bottom)))`,
+      }
+    : {
+        bottom: Math.max(BUBBLE_GAP, viewportHeight - cut.top + BUBBLE_GAP),
+        maxHeight: `calc(${Math.max(96, availableAbove)}px - max(1rem, env(safe-area-inset-top)))`,
+      };
 
   // Bez przejść CSS na pozycji: podczas smooth scrollu do Zakończ (krok 3)
   // transition opóźniała wycięcie o kilkadziesiąt px względem celu. Pozycja
@@ -200,23 +232,28 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
       <div
         ref={bubbleRef}
         role="dialog"
-        aria-modal="true"
+        // Coachmark celowo zostawia podświetlony cel interaktywny poza dymkiem.
+        // aria-modal=true ukrywałoby ten input/przycisk przed VoiceOver.
+        aria-modal="false"
         aria-label={t('tour.first.aria')}
         tabIndex={-1}
         data-testid={`tour-step-${stepIndex + 1}`}
-        className="pointer-events-auto absolute left-4 right-4 rounded-2xl bg-surface-container p-4 shadow-[0_20px_40px_rgba(0,0,0,0.45)] outline-none"
+        className="pointer-events-auto absolute left-[max(1rem,env(safe-area-inset-left))] right-[max(1rem,env(safe-area-inset-right))] overflow-y-auto overscroll-contain rounded-2xl bg-surface-container p-4 shadow-[0_20px_40px_rgba(0,0,0,0.45)] outline-none"
         style={bubbleStyle}
       >
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
           {stepIndex + 1}/{FIRST_WORKOUT_TOUR_STEPS.length}
         </p>
         <p className="mt-1 text-[15px] font-semibold leading-snug text-foreground">{t(step.textKey)}</p>
-        <div className="mt-3 flex items-center justify-between gap-2">
+        <div
+          data-testid="tour-actions"
+          className="sticky bottom-0 z-10 mt-3 flex items-center justify-between gap-2 bg-surface-container pt-2"
+        >
           <button
             type="button"
             data-testid="tour-skip"
             onClick={finish}
-            className="h-11 min-w-11 touch-manipulation px-3 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            className="h-12 min-w-12 touch-manipulation px-3 text-sm font-semibold text-muted-foreground hover:text-foreground"
           >
             {t('tour.first.skip')}
           </button>
@@ -224,7 +261,7 @@ export const FirstWorkoutTour = ({ onClose }: { onClose: () => void }) => {
             type="button"
             data-testid="tour-next"
             onClick={next}
-            className="kinetic-primary-button h-11 touch-manipulation px-5"
+            className="kinetic-primary-button h-12 min-w-12 touch-manipulation px-5"
           >
             {isLast ? t('tour.first.done') : t('tour.first.next')}
           </Button>

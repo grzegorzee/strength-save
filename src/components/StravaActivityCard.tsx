@@ -91,16 +91,16 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
                 <p className="font-medium text-sm truncate">{activity.name || t(`cardio.type.${activity.type}` as Parameters<typeof t>[0])}</p>
                 <span className="text-xs text-muted-foreground shrink-0">{shortDate}</span>
                 {isManual ? (
-                  <Badge variant="outline" className="text-[10px] shrink-0 border-fitness-cyan/30 text-fitness-cyan gap-0.5">
+                  <Badge variant="outline" className="text-[11px] shrink-0 border-fitness-cyan/30 text-fitness-cyan gap-0.5">
                     <Pencil className="h-2.5 w-2.5" />
                     {t('cardio.manualBadge')}
                   </Badge>
                 ) : (
                   <>
-                    <Badge variant="outline" className="text-[10px] shrink-0 border-orange-500/30 text-orange-600">
+                    <Badge variant="outline" className="text-[11px] shrink-0 border-orange-500/30 text-orange-600">
                       Strava
                     </Badge>
-                    <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground">
+                    <Badge variant="outline" className="text-[11px] shrink-0 text-muted-foreground">
                       {typeLabel}
                     </Badge>
                   </>
@@ -117,7 +117,7 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
                   <span className="flex items-center gap-1">
                     <Heart className="h-3 w-3" aria-hidden /> {Math.round(activity.averageHeartrate)}
                     {hrZoneConfig && (
-                      <span className={`inline-flex items-center px-1 rounded text-[10px] font-bold text-white ${hrZoneConfig.color}`}>
+                      <span className={`inline-flex items-center px-1 rounded text-[11px] font-bold text-white ${hrZoneConfig.color}`}>
                         Z{hrZone}
                       </span>
                     )}

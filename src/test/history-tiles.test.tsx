@@ -5,8 +5,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { WorkoutSession } from '@/types';
 
-// WP-H (X28): Historia v2 "tiles" — poziom 1 (kafle cykli + PERIOD + Export +
-// LATEST), poziom 2 (?cycle= — nagłówek, chipsy, tygodnie), Export sheet (2c).
+// WP-H (X28): Historia v2 — poziom 1 (chronologia + wtórne kafle cykli +
+// PERIOD + Export), poziom 2 (?cycle= — nagłówek, chipsy, tygodnie), Export sheet.
 // Fixtury WYŁĄCZNIE z canonical-states (stan history-multi-cycle, zasada 11).
 
 const navigateSpy = vi.hoisted(() => vi.fn());
@@ -108,6 +108,12 @@ const openRowMenu = async (row: HTMLElement) => {
   return await screen.findByRole('menu');
 };
 
+const openCycleDisclosure = () => {
+  const trigger = screen.getByTestId('history-cycles-toggle');
+  fireEvent.click(trigger);
+  return trigger;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -130,8 +136,31 @@ afterEach(() => {
 const activeCycleOf = () => state().cycles.find((c) => c.status === 'active')!;
 
 describe('WP-H H1 — poziom 1: kafle cykli', () => {
+  it('domyślnie pokazuje pełną załadowaną chronologię, a cykle dopiero po rozwinięciu', () => {
+    renderPage();
+
+    const timeline = screen.getByTestId('history-latest');
+    const rows = within(timeline).getAllByTestId('history-session-row');
+    expect(rows).toHaveLength(5);
+    expect(within(rows[0]).getByText('19.08')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('18.08')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('17.08')).toBeInTheDocument();
+    expect(screen.queryByTestId('cycle-tile')).not.toBeInTheDocument();
+
+    const trigger = screen.getByTestId('history-cycles-toggle');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveAttribute('aria-controls', 'history-cycle-list');
+    expect(trigger.className).toContain('min-h-11');
+
+    openCycleDisclosure();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('history-cycle-list')).toHaveAttribute('id', 'history-cycle-list');
+    expect(screen.getAllByTestId('cycle-tile')).toHaveLength(3);
+  });
+
   it('renderuje kafel aktywnego (tag Aktywny, zakres z "teraz"), przeszłego i "Poza cyklami"', () => {
     renderPage();
+    openCycleDisclosure();
     const tiles = screen.getAllByTestId('cycle-tile');
     expect(tiles).toHaveLength(3);
 
@@ -162,11 +191,11 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
     expect(screen.queryByPlaceholderText(/Szukaj po dacie/)).not.toBeInTheDocument();
   });
 
-  it('LATEST SESSIONS: 3 najnowsze sesje z kompletem akcji w menu ⋯', async () => {
+  it('chronologia sesji zachowuje komplet akcji w menu ⋯', async () => {
     renderPage();
     const latest = screen.getByTestId('history-latest');
     const rows = within(latest).getAllByTestId('history-session-row');
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(5);
     // Draft w LATEST ma badge.
     expect(within(latest).getAllByText('draft')).toHaveLength(1);
 
@@ -179,6 +208,25 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
     expect(within(menu).getByTestId('history-delete')).toHaveTextContent('Usuń');
   });
 
+  it('domyślny ekran pokazuje maksymalnie 5 sesji; pełna lista zachowuje komplet i paginację', () => {
+    const extra = {
+      ...(fixtures.workouts[0] as WorkoutSession),
+      id: 'workout-extra',
+      date: '2026-08-14',
+    };
+    fixtures.workouts = [...fixtures.workouts, extra];
+    fixtures.hasMore = true;
+    renderPage();
+
+    expect(within(screen.getByTestId('history-latest')).getAllByTestId('history-session-row')).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: 'Załaduj więcej' })).toBeNull();
+
+    fireEvent.click(screen.getByTestId('history-all-sessions-link'));
+    expect(screen.getAllByTestId('history-session-row')).toHaveLength(6);
+    fireEvent.click(screen.getByRole('button', { name: 'Załaduj więcej' }));
+    expect(fixtures.loadMore).toHaveBeenCalledTimes(1);
+  });
+
   it('link "Wszystkie sesje" prowadzi do pełnej listy z wyszukiwarką i wszystkimi wierszami', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('history-all-sessions-link'));
@@ -189,6 +237,7 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
 
   it('tap w kafel otwiera widok cyklu; przycisk PERIOD otwiera kalendarz zakresu', async () => {
     renderPage();
+    openCycleDisclosure();
     const tiles = screen.getAllByTestId('cycle-tile');
     const activeTile = tiles.find((tile) => within(tile).queryByText('Cykl 2'))!;
     fireEvent.click(activeTile);
@@ -197,6 +246,7 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
 
     // Powrót i PERIOD.
     fireEvent.click(screen.getByTestId('cycle-back'));
+    openCycleDisclosure();
     fireEvent.click(await screen.findByTestId('history-period'));
     expect(await screen.findByTestId('history-period-calendar')).toBeInTheDocument();
     expect(screen.getByTestId('history-period-clear')).toBeInTheDocument();
@@ -205,6 +255,7 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
   it('0 cykli z sesjami ad-hoc: grid pokazuje tylko kafel "Poza cyklami"', () => {
     fixtures.cycles = [];
     renderPage();
+    openCycleDisclosure();
     const tiles = screen.getAllByTestId('cycle-tile');
     expect(tiles).toHaveLength(1);
     expect(within(tiles[0]).getByText('Poza cyklami')).toBeInTheDocument();

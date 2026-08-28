@@ -149,8 +149,8 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-[100dvh] justify-center overflow-y-auto bg-background pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <Card className="my-auto w-full max-w-md">
         <CardContent className="p-6 space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <MailCheck className="h-6 w-6" />

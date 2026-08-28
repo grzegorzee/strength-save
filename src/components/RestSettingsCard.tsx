@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RotateCcw, Volume2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { cn } from '@/lib/utils';
@@ -98,7 +99,7 @@ export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } 
             <p className="min-w-0 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
               {t('rest.settings.currentLabel')}
               {settings.custom === true && (
-                <span className="ml-2 rounded-full bg-surface-highest px-2 py-0.5 text-[10px] normal-case tracking-normal text-foreground">
+                <span className="ml-2 rounded-full bg-surface-highest px-2 py-0.5 text-[11px] normal-case tracking-normal text-foreground">
                   {t('rest.settings.customBadge')}
                 </span>
               )}
@@ -108,7 +109,7 @@ export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } 
             </p>
           </div>
           {objective && (
-            <p className="text-[11px] text-muted-foreground/80" data-testid="rest-recommended-hint">
+            <p className="text-[11px] text-muted-foreground" data-testid="rest-recommended-hint">
               {onRecommended
                 ? t('rest.settings.recommendedActive')
                 : t('rest.settings.recommended', { seconds: recommended.workingSeconds })}
@@ -156,9 +157,11 @@ export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } 
                   key={preset}
                   type="button"
                   onClick={() => update(field, preset)}
+                  aria-pressed={settings[field] === preset}
                   data-testid={`rest-preset-${KEY_PREFIX[field]}-${preset}`}
                   className={cn(
                     'rounded-full px-3 py-1.5 text-xs font-bold tabular-nums transition-colors',
+                    toggleButtonClasses(settings[field] === preset),
                     settings[field] === preset
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-surface-highest text-muted-foreground hover:text-foreground',
@@ -187,6 +190,7 @@ export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } 
                 data-testid={`rest-sound-${option.id}`}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-colors',
+                  toggleButtonClasses(sound === option.id),
                   sound === option.id
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface-highest text-muted-foreground hover:text-foreground',
@@ -197,7 +201,7 @@ export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } 
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground/70">{t('rest.sound.hint')}</p>
+          <p className="text-[11px] text-muted-foreground">{t('rest.sound.hint')}</p>
         </div>
 
         {/* Regulacja głośności (Z201, zgłoszenie usera 2026-08-06: „głośność na full,
@@ -230,7 +234,7 @@ export const RestSettingsCard = ({ hideTitle = false }: { hideTitle?: boolean } 
             onKeyUp={() => previewRestSound(loadRestSound().file)}
             className="h-2 w-full cursor-pointer appearance-none rounded-full bg-surface-highest accent-primary"
           />
-          <p className="text-[11px] text-muted-foreground/70">{t('rest.volume.hint')}</p>
+          <p className="text-[11px] text-muted-foreground">{t('rest.volume.hint')}</p>
         </div>
       </CardContent>
     </Card>

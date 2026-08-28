@@ -9,6 +9,23 @@ vi.mock('@/hooks/use-toast', () => ({ toast: toastMock, useToast: () => ({ toast
 const reportErrorMock = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: reportErrorMock }));
 
+// Ten pakiet sprawdza zachowanie pickera, nie kompletność ~300-elementowej
+// biblioteki (ją chronią exercise-i18n-coverage/static i exercise-utils). Pełna
+// lista mnożyła każdy render przez setki węzłów i pod coverage blokowała workera
+// CI na >70 s. Reprezentatywne ćwiczenia zachowują filtrowanie PL/EN i kategorii.
+vi.mock('@/data/exerciseLibrary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/data/exerciseLibrary')>();
+  const fixtureNames = new Set([
+    'Wyciskanie sztangi na ławce płaskiej',
+    'Przysiad ze sztangą (High Bar)',
+    'Wiosłowanie hantlami na ławce (przodem)',
+  ]);
+  return {
+    ...actual,
+    exerciseLibrary: actual.exerciseLibrary.filter((exercise) => fixtureNames.has(exercise.name)),
+  };
+});
+
 // Kanoniczne nazwy ćwiczeń są PL — testujemy z językiem UI PL (jsdom domyślnie wykrywa EN).
 beforeEach(() => {
   localStorage.setItem('app-language', 'pl');

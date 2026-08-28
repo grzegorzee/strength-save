@@ -15,6 +15,7 @@ export interface WorkoutSyncQueueEntry {
   sessionOrigin: 'remote' | 'provisional';
   dirty: boolean;
   finalSyncPending: boolean;
+  healthSyncPending?: boolean;
   updatedAt: number;
   enqueuedAt: number;
   retryCount: number;
@@ -46,6 +47,7 @@ const normalizeQueueEntry = (value: unknown): WorkoutSyncQueueEntry | null => {
     sessionOrigin: value.sessionOrigin === 'provisional' ? 'provisional' : 'remote',
     dirty: value.dirty !== false,
     finalSyncPending: !!value.finalSyncPending,
+    ...(value.healthSyncPending === true && { healthSyncPending: true }),
     updatedAt: Number(value.updatedAt) || Date.now(),
     enqueuedAt: Number(value.enqueuedAt) || Date.now(),
     retryCount: Number(value.retryCount) || 0,
@@ -106,6 +108,7 @@ export const workoutSyncQueue = {
       sessionOrigin: draft.sessionOrigin,
       dirty: draft.dirty,
       finalSyncPending: draft.finalSyncPending,
+      ...(draft.healthSyncPending === true && { healthSyncPending: true }),
       updatedAt: draft.updatedAt,
       enqueuedAt: existing?.enqueuedAt ?? Date.now(),
       retryCount: existing?.retryCount ?? 0,

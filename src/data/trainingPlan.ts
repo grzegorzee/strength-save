@@ -101,15 +101,15 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "🎯 Test Telefonu",
+            title: "Test Telefonu",
             content: "Połóż telefon na mostku. Jeśli leży płasko = skos minimalny (1. dziurka). Jeśli spada = wyższy skos (2. dziurka)."
           },
           {
-            title: "💪 Ruch (Kształt Strzały)",
+            title: "Ruch (Kształt Strzały)",
             content: "Łokcie prowadź węziej ('w strzałę'), nie szeroko w literę T."
           },
           {
-            title: "⚡ Ciężar",
+            title: "Ciężar",
             content: "Taki, by ostatnie powtórzenie było walką, ale techniczną (1-2 ruchy zapasu)."
           }
         ]
@@ -120,15 +120,15 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "📐 Rozstaw stóp",
+            title: "Rozstaw stóp",
             content: "Podskocz i wyląduj, tak ustaw stopy."
           },
           {
-            title: "🦵 Tip dla długich ud",
+            title: "Tip dla długich ud",
             content: "Jeśli masz długie uda i lecisz do przodu, podłóż małe talerzyki pod pięty."
           },
           {
-            title: "⏱️ Przerwa",
+            title: "Przerwa",
             content: "2-3 minuty między seriami."
           }
         ]
@@ -139,11 +139,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Klatka leży na ławce (30-45°). Eliminuje to bujanie."
           },
           {
-            title: "💪 Ruch (Góra Pleców)",
+            title: "Ruch (Góra Pleców)",
             content: "Łokcie prowadź szeroko (60°). Na górze mocno ściągnij łopatki ('zgnieć orzech')."
           }
         ]
@@ -154,15 +154,15 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 8-12",
         instructions: [
           {
-            title: "🎯 Dlaczego siedząc?",
-            content: "Wersja siedząca daje lepsze przyrosty niż leżąca."
+            title: "Dlaczego siedząc?",
+            content: "Wersja siedząca stabilizuje tułów. Ustaw wałek nad kostkami i kontroluj pełny zakres ruchu."
           },
           {
-            title: "💡 Tip Pro",
+            title: "Tip Pro",
             content: "Podczas ruchu pochyl tułów do przodu (w stronę kolan), to mocniej rozciąga mięsień."
           },
           {
-            title: "⏱️ Przerwa",
+            title: "Przerwa",
             content: "60-90 sekund między seriami."
           }
         ]
@@ -175,11 +175,11 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "🔄 SUPERSERIA: Biceps + Triceps",
+            title: "SUPERSERIA: Biceps + Triceps",
             content: "Robisz oba ćwiczenia ciągiem bez przerwy. Dopiero po zrobieniu B odpoczywasz."
           },
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Leżąc na ławce skośnej. Łokcie muszą zostać za linią tułowia dla maksymalnego rozciągnięcia bicepsa."
           }
         ]
@@ -192,11 +192,11 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "🔄 SUPERSERIA",
+            title: "SUPERSERIA",
             content: "Kontynuuj od razu po bicepsie."
           },
           {
-            title: "💪 Triceps",
+            title: "Triceps",
             content: "Hantel lub linka. Łokcie przy uszach, opuszczaj głęboko za kark."
           }
         ]
@@ -207,11 +207,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 10-12",
         instructions: [
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Klęknij przed wyciągiem górnym. Trzymaj linkę za głową."
           },
           {
-            title: "💪 Ruch",
+            title: "Ruch",
             content: "Zginaj tułów w stronę kolan, napinając brzuch. Kontrolowany powrót."
           }
         ]
@@ -230,11 +230,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "📍 Stabilizacja",
-            content: "Ściągnij łopatki pod siebie (retrakcja). Stopy wbij w ziemię. Lekki mostek jest konieczny dla zdrowia barków."
+            title: "Stabilizacja",
+            content: "Ściągnij łopatki pod siebie (retrakcja), oprzyj stopy o podłogę i utrzymuj naturalny łuk tułowia."
           },
           {
-            title: "💪 Ruch",
+            title: "Ruch",
             content: "Opuszczaj sztangę na linię sutków lub nieco poniżej."
           }
         ]
@@ -245,15 +245,15 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "🎯 Ruch zawiasowy",
+            title: "Ruch zawiasowy",
             content: "Wyobraź sobie, że zamykasz drzwi pośladkami. Kolana lekko ugięte, ale zablokowane."
           },
           {
-            title: "📏 Zakres",
+            title: "Zakres",
             content: "Zatrzymaj się, gdy biodra przestaną się cofać (zwykle połowa piszczeli)."
           },
           {
-            title: "⏱️ Przerwa",
+            title: "Przerwa",
             content: "2-3 minuty między seriami."
           }
         ]
@@ -264,11 +264,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 8-10",
         instructions: [
           {
-            title: "🖐️ Chwyt",
+            title: "Chwyt",
             content: "Dłonie jak haki (nie ściskaj mocno)."
           },
           {
-            title: "🎯 Cel",
+            title: "Cel",
             content: "Ciągnij łokciami w dół, celując drążkiem w górną część klatki/obojczyki. Nie garb się."
           }
         ]
@@ -279,11 +279,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 10/noga",
         instructions: [
           {
-            title: "🍑 Focus na pośladki",
+            title: "Focus na pośladki",
             content: "Podczas kroku pochyl tułów lekko do przodu ('zawiśnij' nad nogą)."
           },
           {
-            title: "💡 Tip",
+            title: "Tip",
             content: "Kolano tylnej nogi zatrzymuj 1 cm nad ziemią."
           }
         ]
@@ -296,11 +296,11 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "🔄 SUPERSERIA: Barki + Brzuch",
+            title: "SUPERSERIA: Barki + Brzuch",
             content: "Robisz oba ćwiczenia ciągiem bez przerwy."
           },
           {
-            title: "💪 Wykonanie",
+            title: "Wykonanie",
             content: "Leżąc przodem na ławce skośnej. Unoś hantle szeroko w kształt litery Y. Nie szarp."
           }
         ]
@@ -313,11 +313,11 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "🔄 SUPERSERIA",
+            title: "SUPERSERIA",
             content: "Kontynuuj od razu po barkach."
           },
           {
-            title: "🎯 Kluczowe",
+            title: "Kluczowe",
             content: "Leżąc na macie. Lędźwie muszą być wklejone w podłogę. Opuszczaj rękę i nogę na przemian powoli."
           }
         ]
@@ -328,11 +328,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 12-15",
         instructions: [
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Leżąc na ławce płaskiej, chwyć krawędź ławki za głową."
           },
           {
-            title: "💪 Ruch",
+            title: "Ruch",
             content: "Podciągaj kolana do klatki, unosząc miednicę. Kontrolowany powrót, nie kładź stóp na ziemi."
           }
         ]
@@ -351,15 +351,15 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Ławka nie pionowo! Obniż oparcie o jeden ząbek (75-80°)."
           },
           {
-            title: "💪 Ruch",
+            title: "Ruch",
             content: "Łokcie lekko wysunięte przed ciało (nie idealnie na boki)."
           },
           {
-            title: "⏱️ Przerwa",
+            title: "Przerwa",
             content: "2-3 minuty między seriami."
           }
         ]
@@ -370,11 +370,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "🎯 Ruch 'Zamiatanie'",
+            title: "Ruch 'Zamiatanie'",
             content: "Ciągnij hantel po łuku w stronę biodra ('chowaj do kieszeni'), a nie pionowo do pachy."
           },
           {
-            title: "💡 Tip",
+            title: "Tip",
             content: "Nie skręcaj tułowia. Barki równolegle do podłogi."
           }
         ]
@@ -385,15 +385,15 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 8-10",
         instructions: [
           {
-            title: "💪 Spięcie",
+            title: "Spięcie",
             content: "Na górze ściskaj pośladki, jakbyś trzymał między nimi banknot 100 zł."
           },
           {
-            title: "👤 Głowa",
-            content: "Broda przyklejona do klatki (patrz przed siebie), chroni to lędźwie."
+            title: "Głowa",
+            content: "Utrzymuj szyję neutralnie i patrz przed siebie. Nie zadzieraj głowy w górnej fazie ruchu."
           },
           {
-            title: "📍 Stabilność",
+            title: "Stabilność",
             content: "Plecy oparte o ławkę na wysokości łopatek."
           }
         ]
@@ -404,11 +404,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 10-15",
         instructions: [
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Jeśli maszyna pozwala, odchyl oparcie mocno do tyłu (pozycja półleżąca). To lepiej angażuje prosty uda."
           },
           {
-            title: "⏱️ Przerwa",
+            title: "Przerwa",
             content: "60-90 sekund między seriami."
           }
         ]
@@ -421,11 +421,11 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "🔄 SUPERSERIA: Barki + Łydki",
+            title: "SUPERSERIA: Barki + Łydki",
             content: "Robisz oba ćwiczenia ciągiem bez przerwy."
           },
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Leżąc brzuchem na ławce skośnej. Podłóż bluzę pod klatkę. Ręce szeroko."
           }
         ]
@@ -438,11 +438,11 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "🔄 SUPERSERIA",
+            title: "SUPERSERIA",
             content: "Kontynuuj od razu po barkach."
           },
           {
-            title: "🦵 Łydki",
+            title: "Łydki",
             content: "Stojąc lub na suwnicy. Kolana proste. Długa pauza (2 sekundy) w dolnym rozciągnięciu!"
           }
         ]
@@ -453,11 +453,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 10-12",
         instructions: [
           {
-            title: "📍 Ustawienie",
+            title: "Ustawienie",
             content: "Klęknij przed wyciągiem górnym. Trzymaj linkę za głową."
           },
           {
-            title: "💪 Ruch",
+            title: "Ruch",
             content: "Zginaj tułów w stronę kolan, napinając brzuch. Kontrolowany powrót."
           }
         ]

@@ -37,7 +37,7 @@ export const EMPTY_CONSENT_SELECTION: ConsentSelection = {
 };
 
 export const hasRequiredConsents = (value: ConsentSelection): boolean =>
-  value.terms && value.privacy && value.health;
+  value.terms && value.privacy;
 
 /**
  * Buduje wpisy do recordConsent z DOKŁADNĄ treścią oświadczeń pokazanych

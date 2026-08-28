@@ -153,7 +153,7 @@ export const NotificationSettings = ({ hideTitle = false }: { hideTitle?: boolea
                     {NOTIFICATION_PREF_CHANNELS[key].map((channel) => (
                       <span
                         key={channel}
-                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary"
                       >
                         {t(CHANNEL_LABEL_KEYS[channel])}
                       </span>

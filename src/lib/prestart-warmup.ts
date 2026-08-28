@@ -56,6 +56,8 @@ export type WarmupVariant = 'upper' | 'lower' | 'full';
 export interface WarmupItem {
   /** Klucz i18n nazwy pozycji; jednocześnie klucz odhaczenia w drafcie sesji (warmupChecked). */
   key: TranslationKey;
+  /** Krótka, dostępna offline instrukcja dla aktywnej pozycji. */
+  instructionKey: TranslationKey;
   phase: WarmupPhase;
   /** Pozycja czasowa (sekundy); wyklucza się z reps. */
   durationSec?: number;
@@ -80,10 +82,12 @@ export const warmupVariantForCategory = (category: string | undefined): WarmupVa
   return 'full';
 };
 
+const instructionKeyFor = (key: TranslationKey): TranslationKey =>
+  `${key}.instruction` as TranslationKey;
 const timed = (key: TranslationKey, phase: WarmupPhase, durationSec: number): WarmupItem =>
-  ({ key, phase, durationSec });
+  ({ key, instructionKey: instructionKeyFor(key), phase, durationSec });
 const reps = (key: TranslationKey, phase: WarmupPhase, count: number, perSide = false): WarmupItem =>
-  ({ key, phase, reps: count, ...(perSide ? { perSide: true } : {}) });
+  ({ key, instructionKey: instructionKeyFor(key), phase, reps: count, ...(perSide ? { perSide: true } : {}) });
 
 // Tętno: standard spokojne cardio 2 min (rower / wioślarz / marsz na bieżni)
 // + pięty do pośladków z krążeniami 30 s; początkujący marsz z wysokimi

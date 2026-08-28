@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { cn } from '@/lib/utils';
@@ -156,8 +157,10 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
               key={bar}
               type="button"
               onClick={() => { setNoBar(false); handleBarChange(bar); }}
+              aria-pressed={!noBar && barKg === bar}
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                toggleButtonClasses(!noBar && barKg === bar),
                 !noBar && barKg === bar ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
               )}
             >
@@ -171,6 +174,7 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
             title={t('plates.noBarHint')}
             className={cn(
               'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+              toggleButtonClasses(noBar),
               noBar ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
             )}
           >
@@ -225,7 +229,7 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
                     data-testid="plates-suggest-down"
                     className="rounded-xl bg-muted/50 px-3 py-2.5 text-left transition-colors hover:bg-muted"
                   >
-                    <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.suggestDown')}</span>
+                    <span className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.suggestDown')}</span>
                     <span className="block text-base font-bold tabular-nums">{fmt(result.achievedKg)}</span>
                   </button>
                   {suggestion.up ? (
@@ -235,7 +239,7 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
                       data-testid="plates-suggest-up"
                       className="rounded-xl bg-muted/50 px-3 py-2.5 text-left transition-colors hover:bg-muted"
                     >
-                      <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.suggestUp')}</span>
+                      <span className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.suggestUp')}</span>
                       <span className="block text-base font-bold tabular-nums">{fmt(suggestion.up.achievedKg)}</span>
                     </button>
                   ) : (
@@ -263,6 +267,7 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
               aria-pressed={colors === preset}
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                toggleButtonClasses(colors === preset),
                 colors === preset ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
               )}
             >
@@ -344,8 +349,10 @@ export const PlateInventorySettings = () => {
                 key={bar}
                 type="button"
                 onClick={() => setBar(bar)}
+                aria-pressed={barKg === bar}
                 className={cn(
                   'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                  toggleButtonClasses(barKg === bar),
                   barKg === bar ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
                 )}
               >
@@ -386,6 +393,7 @@ export const PlateInventorySettings = () => {
                 onClick={() => applyUnitPreset(u)}
                 className={cn(
                   'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                  toggleButtonClasses(inventoryUnit === u),
                   inventoryUnit === u ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -398,7 +406,7 @@ export const PlateInventorySettings = () => {
         {/* Talerze: liczba sztuk per rozmiar */}
         <div className="space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.availablePlates', { unit: inventoryUnit })}</p>
-          <p className="text-[11px] text-muted-foreground/70">{t('plates.countHint')}</p>
+          <p className="text-[11px] text-muted-foreground">{t('plates.countHint')}</p>
           <div className="space-y-1.5">
             {plates.map((p) => (
               <div key={p.weightKg} className="flex items-center gap-2" data-testid={`plate-row-${round3(p.weightKg)}`}>

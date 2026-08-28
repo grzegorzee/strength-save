@@ -12,6 +12,7 @@ const setDocMock = vi.hoisted(() => vi.fn(async () => undefined));
 const getDocsMock = vi.hoisted(() => vi.fn(async () => ({ docs: [] as unknown[] })));
 const updateDocMock = vi.hoisted(() => vi.fn(async () => undefined));
 const runTransactionMock = vi.hoisted(() => vi.fn());
+const restoreWorkoutV3Mock = vi.hoisted(() => vi.fn(async () => ({ status: 'restored', workoutId: 'w-v3' })));
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, name: string) => ({ __collection: name })),
@@ -38,6 +39,9 @@ vi.mock('@/lib/firebase', () => ({ db: {} }));
 vi.mock('@/contexts/LanguageContext', () => ({
   useTranslation: () => ({ t: (k: string) => k, lang: 'pl' }),
 }));
+vi.mock('@/lib/workout-restore-v3', () => ({
+  restoreWorkoutBackupV3Item: restoreWorkoutV3Mock,
+}));
 
 import { useFirebaseWorkoutActions } from '@/hooks/useFirebaseWorkouts';
 import { buildCanonicalState, CANONICAL_UID } from '@/test/canonical-states';
@@ -45,8 +49,16 @@ import type { WorkoutSession, BodyMeasurement } from '@/types';
 
 type FirestoreRefToken = { __coll: string; __id: string };
 
-const renderActions = (workouts: WorkoutSession[] = [], measurements: BodyMeasurement[] = []) =>
-  renderHook(() => useFirebaseWorkoutActions(CANONICAL_UID, { workouts, measurements }));
+const renderActions = (
+  workouts: WorkoutSession[] = [],
+  measurements: BodyMeasurement[] = [],
+  healthEpoch?: number,
+) => renderHook(() => useFirebaseWorkoutActions(
+  CANONICAL_UID,
+  { workouts, measurements },
+  healthEpoch,
+  healthEpoch ? { healthEpoch, healthGrantId: `grant-${healthEpoch}` } : null,
+));
 
 const planCycleSetCalls = (): Array<[FirestoreRefToken, Record<string, unknown>]> =>
   (batchSetMock.mock.calls as Array<[FirestoreRefToken, Record<string, unknown>]>)
@@ -59,6 +71,94 @@ beforeEach(() => {
   updateDocMock.mockClear();
   runTransactionMock.mockReset();
   getDocsMock.mockReset().mockResolvedValue({ docs: [] });
+  restoreWorkoutV3Mock.mockClear();
+});
+
+describe('importData — restore schema 3 bez embedded health', () => {
+  it('wykonuje preflight i zapisuje workout przez chroniony callable, nie klientowy batch', async () => {
+    const { result } = renderActions([], [], 7);
+    const backup = JSON.stringify({
+      schemaVersion: 3,
+      exportedAt: '2026-08-28T10:00:00.000Z',
+      workouts: [{
+        id: 'w-v3', userId: 'old-owner', dayId: 'd1', date: '2026-08-28', completed: true,
+        exercises: [{ exerciseId: 'lunge', sets: [{ reps: 10, weight: 0, completed: true }] }],
+      }],
+      workoutHealth: [{ workoutId: 'w-v3', metrics: [{ exerciseId: 'lunge', rpe: 7 }] }],
+      measurements: [],
+    });
+
+    const outcome = await result.current.importData(backup);
+
+    expect(outcome.success).toBe(true);
+    expect(restoreWorkoutV3Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ workout: expect.objectContaining({ id: 'w-v3' }) }),
+      { healthEpoch: 7, healthGrantId: 'grant-7' },
+      expect.any(String),
+    );
+    const workoutSets = (batchSetMock.mock.calls as Array<[FirestoreRefToken]>)
+      .filter(([ref]) => ref.__coll === 'workouts');
+    expect(workoutSets).toHaveLength(0);
+  });
+
+  it('legacy backup też wydziela RPE do sidecara zamiast klientowego dokumentu workouts', async () => {
+    const { result } = renderActions([], [], 7);
+
+    const outcome = await result.current.importData(JSON.stringify({
+      workouts: [{
+        id: 'w-legacy', dayId: 'd1', date: '2026-08-28', completed: true,
+        exercises: [{
+          exerciseId: 'squat',
+          sets: [{ reps: 5, weight: 100, completed: true }],
+          rpe: 8,
+        }],
+      }],
+    }));
+
+    expect(outcome.success).toBe(true);
+    expect(restoreWorkoutV3Mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workout: expect.objectContaining({
+          id: 'w-legacy',
+          exercises: [expect.not.objectContaining({ rpe: expect.anything() })],
+        }),
+        health: { workoutId: 'w-legacy', metrics: [{ exerciseId: 'squat', rpe: 8 }] },
+      }),
+      { healthEpoch: 7, healthGrantId: 'grant-7' },
+      expect.any(String),
+    );
+  });
+});
+
+describe('importData — granica zgody zdrowotnej pomiarów', () => {
+  const backup = JSON.stringify({
+    measurements: [{ id: 'm-import', date: '2026-08-20', weight: 80 }],
+  });
+
+  it('bieżąca epoka jest przypisana do importowanego pomiaru', async () => {
+    const { result } = renderActions([], [], 4);
+
+    const outcome = await result.current.importData(backup);
+
+    expect(outcome.success).toBe(true);
+    const measurementCall = (batchSetMock.mock.calls as Array<[FirestoreRefToken, Record<string, unknown>]>)
+      .find(([ref]) => ref.__coll === 'measurements');
+    expect(measurementCall?.[1]).toMatchObject({
+      id: 'm-import',
+      userId: CANONICAL_UID,
+      healthEpoch: 4,
+    });
+  });
+
+  it('bez aktywnej epoki nie rozpoczyna częściowego importu', async () => {
+    const { result } = renderActions();
+
+    const outcome = await result.current.importData(backup);
+
+    expect(outcome).toEqual({ success: false, message: 'data.healthConsentRequired' });
+    expect(batchSetMock).not.toHaveBeenCalled();
+    expect(batchCommitMock).not.toHaveBeenCalled();
+  });
 });
 
 // Bug 14 (X30): eksport niesie cykle z polem `id` (sanitizePlanCycleDoc), a
@@ -129,10 +229,9 @@ describe('importData — planCycles przez sanitizer (bug 14)', () => {
 
     expect(outcome?.success).toBe(true);
     expect(planCycleSetCalls()).toHaveLength(0);
-    // Trening z backupu nadal zapisany (batch nie jest blokowany przez zły cykl).
-    const workoutSets = (batchSetMock.mock.calls as Array<[FirestoreRefToken]>)
-      .filter(([ref]) => ref.__coll === 'workouts');
-    expect(workoutSets).toHaveLength(1);
+    // Trening z backupu nadal zapisany przez atomowy callable restore; zły cykl
+    // nie blokuje niezależnej, bezpiecznej ścieżki treningu.
+    expect(restoreWorkoutV3Mock).toHaveBeenCalledTimes(1);
   });
 
   // WP-6 (X33): eksport -> import zachowuje odpowiedzi z kreatora na cyklu.
@@ -142,7 +241,7 @@ describe('importData — planCycles przez sanitizer (bug 14)', () => {
     const withoutChoice = state.cycles.find((cycle) => cycle.choice === undefined)!;
     const { result } = renderActions();
 
-    const exported = JSON.parse(result.current.exportData({ planCycles: state.cycles })) as { planCycles: Array<{ id: string; choice?: unknown }> };
+    const exported = JSON.parse(await result.current.exportData({ planCycles: state.cycles })) as { planCycles: Array<{ id: string; choice?: unknown }> };
     expect(exported.planCycles.find((cycle) => cycle.id === withChoice.id)?.choice).toEqual(withChoice.choice);
 
     await act(async () => {

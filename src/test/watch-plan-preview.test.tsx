@@ -74,6 +74,7 @@ describe('useWatchPlanPreview — język w payloadzie (Z164)', () => {
       restSeconds: 90,
       restBetweenSetsSeconds: 90,
       restBetweenExercisesSeconds: 150,
+      healthFeaturesEnabled: false,
     });
     expect(payload.deviceId).toMatch(/^phone-/);
     // Nazwy ćwiczeń zostają kanoniczne (zasada 5 planu X21).
@@ -83,6 +84,21 @@ describe('useWatchPlanPreview — język w payloadzie (Z164)', () => {
   it('PL: payload podglądu ma lang="pl"', async () => {
     const payload = await runPreview('pl');
     expect(payload.lang).toBe('pl');
+  });
+
+  it('wysyła jawne true wyłącznie dla aktywnej zgody zdrowotnej telefonu', async () => {
+    localStorage.setItem('app-language', 'pl');
+    renderHook(
+      () => useWatchPlanPreview({
+        uid: 'u1', type: 'training', day, dateStr: '2026-07-28', workouts: [],
+        healthFeaturesEnabled: true,
+      }),
+      { wrapper },
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    vi.useRealTimers();
+    await waitFor(() => expect(sendWorkoutToWatch).toHaveBeenCalled());
+    expect(sendWorkoutToWatch.mock.calls.at(-1)?.[0]).toMatchObject({ healthFeaturesEnabled: true });
   });
 
   it('przełożony dzień (scheduleOverrides) jedzie w preview pod NOWĄ datą', async () => {

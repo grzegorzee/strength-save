@@ -18,6 +18,8 @@ const gate = vi.hoisted(() => ({
   state: undefined as unknown as CanonicalState,
   planLoaded: true,
   cyclesLoaded: true,
+  planError: false,
+  hasTrustedPlan: true,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -53,7 +55,12 @@ vi.mock('@/hooks/useTrainingPlan', async () => {
   return {
     useTrainingPlan: () => {
       const base = helpers.buildUseTrainingPlanResult(gate.state);
-      if (gate.planLoaded) return base;
+      if (gate.planLoaded) return {
+        ...base,
+        planError: gate.planError,
+        isCustom: gate.hasTrustedPlan,
+        hasServerSnapshot: gate.hasTrustedPlan,
+      };
       // Pierwszy frame przed snapshotem planu = defaulty hooka
       // (useTrainingPlan.ts:39-62): isLoaded=false, planStartDate=null,
       // isCustom=false → planStatus 'none'.
@@ -107,6 +114,8 @@ beforeEach(() => {
   gate.state = buildCanonicalState('active-plan');
   gate.planLoaded = true;
   gate.cyclesLoaded = true;
+  gate.planError = false;
+  gate.hasTrustedPlan = true;
 });
 
 describe('WP-B (X29) — gate ładowania zakładki Plan (flash 100% -> 0%)', () => {
@@ -141,6 +150,25 @@ describe('WP-B (X29) — gate ładowania zakładki Plan (flash 100% -> 0%)', () 
     const meta = screen.getByText(/zrobione/);
     expect(meta.textContent).toContain('2 zrobione');
     expect(meta.textContent).not.toContain('100%');
+  });
+
+  it('błąd planu bez zaufanego snapshotu nie renderuje defaultPlan i ma retry', () => {
+    gate.planError = true;
+    gate.hasTrustedPlan = false;
+    renderPlan();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać planu');
+    expect(screen.getByRole('button', { name: 'Spróbuj ponownie' })).toBeInTheDocument();
+    expect(screen.queryByText(/zrobione/)).toBeNull();
+  });
+
+  it('chwilowy błąd po dobrym snapshotcie nie zasłania planu użytkownika', () => {
+    gate.planError = true;
+    gate.hasTrustedPlan = true;
+    renderPlan();
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText(/zrobione/)).toBeInTheDocument();
   });
 });
 

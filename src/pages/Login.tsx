@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -165,7 +166,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted">
+      <div className="flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-gradient-to-br from-background to-muted pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -191,8 +192,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <Card className="w-full max-w-xl">
+    <div className="flex min-h-[100dvh] justify-center overflow-y-auto bg-gradient-to-br from-background to-muted pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Card className="my-auto w-full max-w-xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
             <img src={appIcon} alt="Strength Save" className="h-16 w-16 rounded-2xl" />
@@ -207,7 +208,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                   type="button"
                   size="sm"
                   variant={lang === l.code ? 'default' : 'outline'}
-                  className="h-7 px-3 text-xs"
+                  aria-pressed={lang === l.code}
+                  className={toggleButtonClasses(lang === l.code)}
                   onClick={() => setLang(l.code)}
                 >
                   {l.label}

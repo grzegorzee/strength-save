@@ -2,7 +2,7 @@
 // treningu zwracał PERMISSION_DENIED i blokował rozpoczęcie pierwszego treningu nowego planu.
 // Uruchom: npm run test:rules  (wymaga JDK 21 + firebase-tools)
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { Timestamp, deleteDoc, doc, getDoc, increment, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 
 const env = await initializeTestEnvironment({
@@ -22,10 +22,10 @@ const seedDoc = async (path, id, data) => {
   });
 };
 
-const seedUser = async (accessField, status = 'active', uid = UID, role = 'user') => {
+const seedUser = async (accessField, status = 'active', uid = UID, role = 'user', extra = {}) => {
   await seedDoc('users', uid, {
     uid, email: `${uid}@b.c`, role, status,
-    onboardingCompleted: true, ...(accessField !== undefined ? { access: accessField } : {}),
+    onboardingCompleted: true, ...(accessField !== undefined ? { access: accessField } : {}), ...extra,
   });
 };
 
@@ -100,11 +100,21 @@ add('write training_plans (users bez pola status) dozwolone', true, await ok(() 
 // === Measurements ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
-const measurement = { userId: UID, date: '2026-06-08', weight: 80 };
-add('create measurement (active)', true, await ok(() => setDoc(doc(db, 'measurements', 'm1'), measurement)));
-add('update measurement (active)', true, await ok(() => updateDoc(doc(db, 'measurements', 'm1'), { weight: 81 })));
-add('delete measurement (active)', true, await ok(() => deleteDoc(doc(db, 'measurements', 'm1'))));
+const measurement = { userId: UID, date: '2026-06-08', weight: 80, healthEpoch: 3 };
+add('create measurement bez health consent zablokowane', false, await ok(() => setDoc(doc(db, 'measurements', 'm-no-consent'), measurement)));
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: true, healthVersion: '1.1', healthEpoch: 3, healthGrantId: 'grant-3' },
+});
+add('create measurement (active health epoch)', true, await ok(() => setDoc(doc(db, 'measurements', 'm1'), measurement)));
+add('update measurement (active health epoch)', true, await ok(() => updateDoc(doc(db, 'measurements', 'm1'), { weight: 81 })));
+add('create measurement ze starym epoch zablokowane', false, await ok(() => setDoc(doc(db, 'measurements', 'm-stale'), { ...measurement, healthEpoch: 2 })));
 add('create measurement z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'measurements', 'm2'), { ...measurement, userId: OTHER_UID })));
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: false, healthVersion: '1.1', healthEpoch: 4, healthGrantId: null },
+});
+add('withdraw: update measurement zablokowane', false, await ok(() => updateDoc(doc(db, 'measurements', 'm1'), { weight: 82, healthEpoch: 4 })));
+add('withdraw: read legacy measurement dozwolony', true, await ok(() => getDoc(doc(db, 'measurements', 'm1'))));
+add('withdraw: delete measurement dozwolone', true, await ok(() => deleteDoc(doc(db, 'measurements', 'm1'))));
 
 await env.clearFirestore();
 await seedUser({ enabled: true }, 'pending_verification');
@@ -136,6 +146,7 @@ add('create app_telemetry_daily (active)', true, await ok(() => setDoc(doc(db, '
 add('create app_telemetry_daily z licznikiem spoza listy zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-evil'), { ...telemetry, counters: { evil_counter: 1 } })));
 add('create app_telemetry_daily z licznikami funnelu ALLOWED (Z222)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}-funnel`), { ...telemetry, counters: { register_started: 1, profile_created: 1, email_verified: 1, paywall_viewed: 2, trial_started: 1, purchase_failed: 1 } })));
 add('create app_telemetry_daily z licznikami autosyncu ALLOWED (X38)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}-autosync`), { ...telemetry, counters: { sync_offline_deferred: 1, sync_success_deferred: 1, sync_timeout: 1 } })));
+add('create app_telemetry_daily z lejkiem onboardingu ALLOWED (X46)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}-onboarding`), { ...telemetry, counters: { screen_onboarding: 3, onboarding_started: 1, onboarding_resumed: 1, onboarding_completed: 1, onboarding_save_failed: 1, post_plan_guide_started: 1, post_plan_guide_completed: 1, post_plan_guide_skipped: 1 } })));
 add('delete app_telemetry_daily zablokowane', false, await ok(() => deleteDoc(doc(db, 'app_telemetry_daily', `t-${UID}`))));
 add('create app_telemetry_daily z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-x'), { ...telemetry, userId: OTHER_UID })));
 // X13A: merge-update liczników (dot-notation) = hasOnly z pełną listą nazw.
@@ -226,6 +237,64 @@ await seedUser({ enabled: true });
 await seedDoc('workouts', WORKOUT_ID, { ...newWorkout, createdAt: 1751000000000 });
 add('update workouta LEGACY z polem createdAt dozwolony — REGRESJA', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { completed: true })));
 
+// Dokument zapisany przez syncWorkoutV2 zawiera metadane idempotencji i
+// niesensytywny znacznik sidecara. Stary klient może nadal zapisać bazowy
+// trening; zamknięty shape nie może blokować go wyłącznie z powodu tych pól.
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedDoc('workouts', WORKOUT_ID, {
+  ...newWorkout,
+  revision: 2,
+  lastWriteId: 'write-v2',
+  lastWriteDigest: 'digest-v2',
+  healthSidecarRevision: 2,
+  healthSidecarPresent: true,
+});
+add('update workouta po sync v2 z metadanymi sidecara ALLOWED — REGRESJA', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { completed: true })));
+
+// Restore v3 zapisuje identyfikator i digest wyłącznie przez Admin SDK. Kolejny
+// zwykły checkpoint usera musi nadal przejść przez zamknięty shape.
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedDoc('workouts', WORKOUT_ID, {
+  ...newWorkout,
+  revision: 2,
+  restoreV3Id: 'restore-12345678',
+  restoreV3Digest: 'a'.repeat(64),
+  healthSidecarRevision: 2,
+  healthSidecarPresent: false,
+});
+add('update workouta po restore v3 z metadanymi restore ALLOWED — REGRESJA', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { completed: true })));
+add('zmiana restoreV3Digest przez klienta DENIED', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { restoreV3Digest: 'b'.repeat(64) })));
+
+// === workout_health_v2: owner rights survive health-consent withdrawal ===
+await env.clearFirestore();
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: false, healthVersion: '1.1', healthEpoch: 4, healthGrantId: null },
+});
+await seedUser(undefined, 'active', OTHER_UID);
+await seedUser(undefined, 'active', ADMIN_UID, 'admin');
+const healthSidecar = {
+  workoutId: WORKOUT_ID,
+  userId: UID,
+  healthEpoch: 3,
+  healthGrantId: 'grant-3',
+  sourceWriteId: 'write-v2',
+  baseRevision: 2,
+  exercises: [{ exerciseId: 'bench', rpe: 8 }],
+};
+await seedDoc('workout_health_v2', WORKOUT_ID, healthSidecar);
+add('workout_health_v2: owner get po withdraw ALLOWED', true, await ok(() => getDoc(doc(db, 'workout_health_v2', WORKOUT_ID))));
+add('workout_health_v2: owner list po withdraw ALLOWED', true, await ok(() => getDocs(query(collection(db, 'workout_health_v2'), where('userId', '==', UID)))));
+add('workout_health_v2: other user get DENIED', false, await ok(() => getDoc(doc(otherDb, 'workout_health_v2', WORKOUT_ID))));
+add('workout_health_v2: admin-as-client get cudzego DENIED', false, await ok(() => getDoc(doc(adminDb, 'workout_health_v2', WORKOUT_ID))));
+add('workout_health_v2: client create DENIED', false, await ok(() => setDoc(doc(db, 'workout_health_v2', `${WORKOUT_ID}-client`), { ...healthSidecar, workoutId: `${WORKOUT_ID}-client` })));
+add('workout_health_v2: owner update DENIED', false, await ok(() => updateDoc(doc(db, 'workout_health_v2', WORKOUT_ID), { baseRevision: 3 })));
+add('workout_health_v2: admin-as-client update DENIED', false, await ok(() => updateDoc(doc(adminDb, 'workout_health_v2', WORKOUT_ID), { baseRevision: 3 })));
+add('workout_health_v2: other user delete DENIED', false, await ok(() => deleteDoc(doc(otherDb, 'workout_health_v2', WORKOUT_ID))));
+add('workout_health_v2: admin-as-client delete cudzego DENIED', false, await ok(() => deleteDoc(doc(adminDb, 'workout_health_v2', WORKOUT_ID))));
+add('workout_health_v2: owner delete po withdraw ALLOWED', true, await ok(() => deleteDoc(doc(db, 'workout_health_v2', WORKOUT_ID))));
+
 // === Chat messages: create zamkniete (feature usuniety v6.7.0, pisze tylko admin SDK) ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
@@ -267,12 +336,30 @@ add('read notification_logs zablokowane', false, await ok(() => getDoc(doc(db, '
 // === Pola Max HR (Z59): user pisze bezposrednio z walidacja typow i widelek ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
-add('user update estimatedMaxHR w widelkach ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true })));
-add('user update estimatedMaxHR poza widelkami DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 300 })));
-add('user update estimatedMaxHR zly typ DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 'wysoki' })));
-add('user update maxHRManualOverride zly typ DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { maxHRManualOverride: 'tak' })));
+add('user update estimatedMaxHR bez zgody zdrowotnej DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  estimatedMaxHR: 190, maxHRManualOverride: true, estimatedMaxHREpoch: 1,
+})));
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: true, healthVersion: '1.1', healthEpoch: 5, healthGrantId: 'grant-5' },
+});
+add('user update estimatedMaxHR z biezaca epoka ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), {
+  estimatedMaxHR: 190, maxHRManualOverride: true, estimatedMaxHREpoch: 5,
+})));
+add('user update estimatedMaxHR ze stara epoka DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  estimatedMaxHR: 191, maxHRManualOverride: true, estimatedMaxHREpoch: 4,
+})));
+add('user update estimatedMaxHR poza widelkami DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 300, estimatedMaxHREpoch: 5 })));
+add('user update estimatedMaxHR zly typ DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 'wysoki', estimatedMaxHREpoch: 5 })));
+add('user update maxHRManualOverride zly typ DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { maxHRManualOverride: 'tak', estimatedMaxHREpoch: 5 })));
 add('user update zwyklego pola profilu (displayName)', true, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'G' })));
 add('user update trainingProfile podczas onboardingu', true, await ok(() => updateDoc(doc(db, 'users', UID), { trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 3 } })));
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: false, healthVersion: '1.1', healthEpoch: 6, healthGrantId: null },
+});
+add('po wycofaniu zgody zwykle pole profilu nadal ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'G2' })));
+add('po wycofaniu zgody zmiana Max HR DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  estimatedMaxHR: 192, maxHRManualOverride: true, estimatedMaxHREpoch: 6,
+})));
 add('user update subscription zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { subscription: { tier: 'yearly', status: 'active' } })));
 // Backfill rekordow (Runna p.1, spec A5): zamknieta mapa boi glownych.
 add('user update prBackfill (boje glowne) ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { squat: 140, bench: 100, deadlift: 180 } })));
@@ -334,8 +421,10 @@ add('training_plans: scheduleOverrides ponad limit 60 wpisow DENIED', false, awa
 
 // measurements: zamkniety schemat + typy
 await env.clearFirestore();
-await seedUser({ enabled: true });
-const validMeasurement = { id: 'm-1', userId: UID, date: '2026-06-08', weight: 82.5, waist: 90 };
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: true, healthVersion: '1.1', healthEpoch: 7, healthGrantId: 'grant-7' },
+});
+const validMeasurement = { id: 'm-1', userId: UID, date: '2026-06-08', weight: 82.5, waist: 90, healthEpoch: 7 };
 add('measurements: zgodny pomiar ALLOWED', true, await ok(() => setDoc(doc(db, 'measurements', 'm-1'), validMeasurement)));
 add('measurements: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-2'), { ...validMeasurement, id: 'm-2', notes: 'blob' })));
 add('measurements: weight nie-liczba DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-3'), { ...validMeasurement, id: 'm-3', weight: 'duzo' })));
@@ -406,6 +495,47 @@ add('users: klient nie zapisze activitySummary DENIED', false, await ok(() => up
 add('users: notificationPrefs nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: 'wylacz' })));
 add('users: displayName > 200 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'x'.repeat(201) })));
 add('users: preferences nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { preferences: 42 })));
+const validPaletteTheme = {
+  version: 2, id: 'pulse', source: 'preset',
+  primary: '#c6ff00', supportA: '#22d3ee', supportB: '#a78bfa',
+};
+add('users: PaletteThemeV2 zamkniety obiekt ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { accentColor: '#c6ff00', paletteTheme: validPaletteTheme },
+})));
+add('users: PaletteThemeV2 nadmiarowy klucz DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteTheme: { ...validPaletteTheme, pixels: [1, 2, 3] } },
+})));
+add('users: PaletteThemeV2 zla wersja DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteTheme: { ...validPaletteTheme, version: 3 } },
+})));
+add('users: PaletteThemeV2 preset z source=avatar DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteTheme: { ...validPaletteTheme, source: 'avatar' } },
+})));
+add('users: PaletteThemeV2 preset ze zmienionymi kolorami DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteTheme: { ...validPaletteTheme, primary: '#ffffff' } },
+})));
+add('users: PaletteThemeV2 niepelny hex DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteTheme: { ...validPaletteTheme, supportB: '#fff' } },
+})));
+add('users: PaletteThemeV2 powtorzona rola DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteTheme: { ...validPaletteTheme, supportB: validPaletteTheme.primary } },
+})));
+add('users: avatar-custom przed wdrozeniem walidatora kontrastu DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: {
+    paletteTheme: {
+      version: 2, id: 'avatar-custom', source: 'avatar',
+      primary: '#111111', supportA: '#222222', supportB: '#333333',
+    },
+  },
+})));
+add('users: legacy PaletteThemeV2 spoza presetow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: {
+    paletteTheme: {
+      version: 2, id: 'legacy', source: 'legacy',
+      primary: '#111111', supportA: '#222222', supportB: '#333333',
+    },
+  },
+})));
 // Bug 11 (X30): klient pisze strefę IANA (TimeZoneSync) — string do 64 znakow.
 add('users: timeZone string ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { timeZone: 'America/Los_Angeles' })));
 add('users: timeZone nie-string DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { timeZone: 7 })));
@@ -495,9 +625,29 @@ await seedUser({ enabled: true });
 await seedUser(undefined, 'active', OTHER_UID);
 const validManualActivity = {
   userId: UID, type: 'Treadmill', date: '2026-07-19', movingTime: 1800,
-  name: 'Bieżnia po treningu', perceivedIntensity: 'moderate', createdAt: Date.now(),
+  name: 'Bieżnia po treningu', createdAt: Date.now(),
 };
-add('manual_activities: create wlasnego ALLOWED', true, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-1'), validManualActivity)));
+add('manual_activities: base create bez health consent ALLOWED', true, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-1'), validManualActivity)));
+add('manual_activities: health pola bez consent DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-health-no-consent'), {
+  ...validManualActivity, averageHeartrate: 145, calories: 300, perceivedIntensity: 'moderate', healthEpoch: 1,
+})));
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: true, healthVersion: '1.1', healthEpoch: 5, healthGrantId: 'grant-5' },
+});
+const validHealthManualActivity = {
+  ...validManualActivity, averageHeartrate: 145, calories: 300,
+  perceivedIntensity: 'moderate', healthEpoch: 5,
+};
+add('manual_activities: health pola z aktualnym epoch ALLOWED', true, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-health'), validHealthManualActivity)));
+add('manual_activities: health pola ze starym epoch DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-health-stale'), {
+  ...validHealthManualActivity, healthEpoch: 4,
+})));
+await seedUser({ enabled: true }, 'active', UID, 'user', {
+  consents: { healthGranted: false, healthVersion: '1.1', healthEpoch: 6, healthGrantId: null },
+});
+add('manual_activities: po withdraw base update bez zmiany health ALLOWED', true, await ok(() => updateDoc(doc(db, 'manual_activities', 'ma-health'), { movingTime: 2400 })));
+add('manual_activities: po withdraw zmiana health DENIED', false, await ok(() => updateDoc(doc(db, 'manual_activities', 'ma-health'), { averageHeartrate: 150 })));
+add('manual_activities: po withdraw read health legacy ALLOWED', true, await ok(() => getDoc(doc(db, 'manual_activities', 'ma-health'))));
 add('manual_activities: create z cudzym userId DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-2'), { ...validManualActivity, userId: OTHER_UID })));
 add('manual_activities: typ spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-3'), { ...validManualActivity, type: 'KravMaga' })));
 add('manual_activities: pole spoza schematu DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-4'), { ...validManualActivity, evil: 1 })));

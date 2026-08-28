@@ -18,6 +18,19 @@ const DIGEST_CONCURRENCY = 10;
 /** Bug 11 (X30): digest wychodzi w poniedziałek o tej lokalnej godzinie ODBIORCY. */
 export const DIGEST_LOCAL_HOUR = 8;
 
+/** Digest korzysta wyłącznie z bazowych danych aktywności. Projekcja chroni
+ * przed przypadkowym odczytem HR/kalorii zapisanych w dokumentach legacy. */
+export const STRAVA_DIGEST_BASE_FIELDS = [
+  "userId",
+  "date",
+  "type",
+  "sportType",
+  "distance",
+  "movingTime",
+  "name",
+  "averageSpeed",
+] as const;
+
 interface StravaDoc {
   date: string;
   type: string;
@@ -323,6 +336,7 @@ export function buildWeeklyDigestDeps(
       const snapshot = await db.collection("strava_activities")
         .where("date", ">=", startStr)
         .where("date", "<=", endStr)
+        .select(...STRAVA_DIGEST_BASE_FIELDS)
         .get();
       return snapshot.docs.map((doc) => doc.data() as StravaDoc & { userId: string });
     },

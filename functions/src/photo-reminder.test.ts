@@ -6,13 +6,27 @@ import { runPhotoReminder, type PhotoReminderDeps } from "./photo-reminder";
 // Wzorzec reduced-mode-push: DI-testowalny rdzeń + wrapper onSchedule.
 
 const TODAY = "2026-08-21";
+const ACTIVE_HEALTH_CONSENT = {
+  healthGranted: true,
+  healthVersion: "1.1",
+  healthEpoch: 1,
+  healthGrantId: "health-grant-1",
+};
 
 const baseDeps = (overrides: Partial<PhotoReminderDeps> = {}): PhotoReminderDeps => ({
   listCandidates: async () => [
-    { uid: "u1", user: { displayName: "Grzesiek", language: "pl", status: "active" } },
+    {
+      uid: "u1",
+      user: {
+        displayName: "Grzesiek",
+        language: "pl",
+        status: "active",
+        consents: ACTIVE_HEALTH_CONSENT,
+      },
+    },
   ],
-  getFirstWorkoutDate: async () => "2026-07-01",
-  hasBodyPhoto: async () => false,
+  getFirstWorkoutDate: vi.fn(async () => "2026-07-01"),
+  hasBodyPhoto: vi.fn(async () => false),
   listTokenRegistrations: async () => [
     { id: "r1", userId: "u1", token: "t1" },
     { id: "r2", userId: "u2", token: "t2" },
@@ -30,6 +44,26 @@ const baseDeps = (overrides: Partial<PhotoReminderDeps> = {}): PhotoReminderDeps
 });
 
 describe("runPhotoReminder", () => {
+  it("bez aktywnej zgody health pomija proces zdjęć bez odczytu danych health", async () => {
+    const deps = baseDeps({
+      listCandidates: async () => [
+        { uid: "u1", user: { status: "active" } },
+      ],
+    });
+
+    expect(await runPhotoReminder(deps)).toEqual({
+      candidates: 1,
+      eligible: 0,
+      sent: 0,
+      failed: 0,
+      invalidTokens: 0,
+    });
+    expect(deps.getFirstWorkoutDate).not.toHaveBeenCalled();
+    expect(deps.hasBodyPhoto).not.toHaveBeenCalled();
+    expect(deps.writeUserEvent).not.toHaveBeenCalled();
+    expect(deps.markReminderSent).not.toHaveBeenCalled();
+  });
+
   it("user z pierwszym treningiem >=30 dni temu i bez zdjęć dostaje push + event + znacznik", async () => {
     const deps = baseDeps();
     const result = await runPhotoReminder(deps);
@@ -61,7 +95,14 @@ describe("runPhotoReminder", () => {
   it("user ze znacznikiem photoReminderSentAt NIE dostaje ponownie (defensywnie)", async () => {
     const deps = baseDeps({
       listCandidates: async () => [
-        { uid: "u1", user: { status: "active", photoReminderSentAt: "2026-08-01" } },
+        {
+          uid: "u1",
+          user: {
+            status: "active",
+            photoReminderSentAt: "2026-08-01",
+            consents: ACTIVE_HEALTH_CONSENT,
+          },
+        },
       ],
     });
     const result = await runPhotoReminder(deps);
@@ -104,7 +145,14 @@ describe("runPhotoReminder", () => {
   it("wyłączone photoReminder = bez pusha, bez dzwonka, bez znacznika", async () => {
     const deps = baseDeps({
       listCandidates: async () => [
-        { uid: "u1", user: { status: "active", notificationPrefs: { photoReminder: false } } },
+        {
+          uid: "u1",
+          user: {
+            status: "active",
+            notificationPrefs: { photoReminder: false },
+            consents: ACTIVE_HEALTH_CONSENT,
+          },
+        },
       ],
     });
     const result = await runPhotoReminder(deps);
@@ -118,7 +166,14 @@ describe("runPhotoReminder", () => {
   it("wyłączone dailyReminder NIE blokuje już przypomnienia o zdjęciu (osobny przełącznik)", async () => {
     const deps = baseDeps({
       listCandidates: async () => [
-        { uid: "u1", user: { status: "active", notificationPrefs: { dailyReminder: false } } },
+        {
+          uid: "u1",
+          user: {
+            status: "active",
+            notificationPrefs: { dailyReminder: false },
+            consents: ACTIVE_HEALTH_CONSENT,
+          },
+        },
       ],
     });
     const result = await runPhotoReminder(deps);
@@ -131,7 +186,10 @@ describe("runPhotoReminder", () => {
   it("push w języku usera (EN)", async () => {
     const deps = baseDeps({
       listCandidates: async () => [
-        { uid: "u1", user: { status: "active", language: "en" } },
+        {
+          uid: "u1",
+          user: { status: "active", language: "en", consents: ACTIVE_HEALTH_CONSENT },
+        },
       ],
     });
     await runPhotoReminder(deps);
@@ -141,12 +199,22 @@ describe("runPhotoReminder", () => {
 
   it("zawieszony user / wyłączony dostęp NIE dostaje", async () => {
     const suspended = baseDeps({
-      listCandidates: async () => [{ uid: "u1", user: { status: "suspended" } }],
+      listCandidates: async () => [{
+        uid: "u1",
+        user: { status: "suspended", consents: ACTIVE_HEALTH_CONSENT },
+      }],
     });
     expect((await runPhotoReminder(suspended)).eligible).toBe(0);
 
     const disabled = baseDeps({
-      listCandidates: async () => [{ uid: "u1", user: { status: "active", access: { enabled: false } } }],
+      listCandidates: async () => [{
+        uid: "u1",
+        user: {
+          status: "active",
+          access: { enabled: false },
+          consents: ACTIVE_HEALTH_CONSENT,
+        },
+      }],
     });
     expect((await runPhotoReminder(disabled)).eligible).toBe(0);
   });

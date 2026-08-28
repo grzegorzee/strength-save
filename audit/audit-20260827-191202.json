@@ -1,0 +1,95 @@
+{
+  "score": 8.5,
+  "mode": "web-e2e (Playwright Chromium + WebKit, fresh Vite, VITE_E2E_MODE) + visual/code audit",
+  "date": "2026-08-27",
+  "run_at": "2026-08-27T19:12:02+02:00",
+  "seeded": true,
+  "scenarios_audited": [
+    "active-user (plan + 5 completed workouts)",
+    "new-user (onboarding)",
+    "active-admin (panel)",
+    "legacy #/settings redirect to #/profile"
+  ],
+  "summary": "Fresh-Vite product audit passed 20/20 checks in Chromium and 20/20 in WebKit after the complete test-first microtypography migration. There was no blank screen, NaN, horizontal overflow, uncaught page error or unexpected console.error in portrait or landscape. All 112 production labels formerly sized 8-10.5 px now have a guarded minimum of 11 px. Personalization remains 11 single accents, while a concrete, privacy-safe three-palette plan is documented but not implemented.",
+  "blockers_red": [],
+  "orange": [
+    {
+      "route": "onboarding and Profile theme settings",
+      "title": "Avatar personalization is an accent picker, not a three-color palette system",
+      "evidence": "accent-theme.ts defines 11 independent accents and applies one hue to primary/ring/accent; avatar-accent.ts ranks existing accent IDs. The research plan now specifies Pulse, Forge and Glacier presets, a versioned data contract, local avatar proposal, lossless legacy migration and contrast/privacy acceptance tests, but runtime behavior has not changed.",
+      "suggestion": "Implement the documented PaletteThemeV2 in a separate test-first wave after release blockers, preserving every existing accent/custom hex until explicit user selection.",
+      "owner": "product/design/frontend",
+      "weight": -1.5
+    }
+  ],
+  "yellow": [
+    {
+      "route": "#/plan, #/history, #/progress, #/cycles",
+      "title": "Some root routes repeat context in the top bar and page heading",
+      "evidence": "audit/shots/2026-08-27/active-user_plan.png, active-user_history.png, active-user_progress.png and active-user_cycles.png",
+      "suggestion": "Keep one screen title and use the second line for context or an action in a post-blocker UX cleanup.",
+      "owner": "product/design",
+      "weight": -0.5
+    }
+  ],
+  "fixed_during_audit": [
+    "Expanded the canonical route contract from 8 to 12 paths and the data-state sweep from 143 to 195 renders.",
+    "Added day, plan edit, new plan and exercise detail to the browser audit; all four pass in Chromium and WebKit.",
+    "Raised all 112 production labels formerly sized 8-10.5 px to a minimum of 11 px in isolated test-first waves.",
+    "Added per-wave and global static typography contracts; the global contract moved from RED with 74 violations to GREEN with zero while preserving existing workout/data flows."
+  ],
+  "native_not_covered": [
+    "safe-area/notch and real WKWebView overlay lifecycle",
+    "native Share sheet and FileProvider",
+    "push/local notification tap",
+    "haptics and sound",
+    "iOS keyboard",
+    "screen-off/background/resume",
+    "cold restart recovery",
+    "Dynamic Type / Android font scale 100/150/200%",
+    "real Google and Apple authentication"
+  ],
+  "top_fixes": [
+    "Complete physical iOS and Android background/resume, interrupted workout, export/share and restart recovery.",
+    "Complete physical 100/150/200% text-scale QA on iOS and Android.",
+    "Implement the documented Pulse/Forge/Glacier PaletteThemeV2 only after release blockers, with lossless legacy migration.",
+    "Resolve repeated root-route headings after the release-critical work."
+  ],
+  "checks": {
+    "console_errors_unexpected": 0,
+    "page_errors": 0,
+    "blank_screens": 0,
+    "nan_in_ui": 0,
+    "horizontal_overflow_routes": 0,
+    "routes_audited_per_engine": 20,
+    "canonical_route_contract": "12/12",
+    "route_state_renders": "195/195",
+    "viewports": ["390x844", "844x390"],
+    "chromium_tests": 20,
+    "chromium_passed": 20,
+    "webkit_tests": 20,
+    "webkit_passed": 20,
+    "fresh_vite": true
+  },
+  "screenshots": [
+    "audit/shots/2026-08-27/active-user_dashboard.png",
+    "audit/shots/2026-08-27/active-user_day.png",
+    "audit/shots/2026-08-27/active-user_plan.png",
+    "audit/shots/2026-08-27/active-user_plan-edit.png",
+    "audit/shots/2026-08-27/active-user_history.png",
+    "audit/shots/2026-08-27/active-user_progress.png",
+    "audit/shots/2026-08-27/active-user_measurements.png",
+    "audit/shots/2026-08-27/active-user_exercises.png",
+    "audit/shots/2026-08-27/active-user_exercise-detail.png",
+    "audit/shots/2026-08-27/active-user_cycles.png",
+    "audit/shots/2026-08-27/active-user_profile.png",
+    "audit/shots/2026-08-27/active-user_new-plan.png",
+    "audit/shots/2026-08-27/active-user_workout.png",
+    "audit/shots/2026-08-27/new-user_onboarding.png",
+    "audit/shots/2026-08-27/active-admin_admin.png",
+    "audit/shots/2026-08-27/landscape_dashboard.png",
+    "audit/shots/2026-08-27/landscape_workout.png",
+    "audit/shots/2026-08-27/landscape_history.png",
+    "audit/shots/2026-08-27/landscape_profile.png"
+  ]
+}

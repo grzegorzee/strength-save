@@ -6,7 +6,7 @@ const authoritativeMirror = {
   termsVersion: '2.0',
   privacyVersion: '2.1',
   healthGranted: true,
-  healthVersion: '1.0',
+  healthVersion: '1.1',
 };
 
 const recordConsents = vi.fn(async () => authoritativeMirror);
@@ -58,20 +58,20 @@ describe('needsConsentRefresh', () => {
     expect(needsConsentRefresh(profileWith({ ...currentConsents, healthGranted: false }))).toBe(false);
   });
 
-  it('brak decyzji zdrowotnej (bez healthGranted/healthVersion) = true', () => {
+  it('brak decyzji zdrowotnej nie blokuje trybu podstawowego', () => {
     expect(needsConsentRefresh(profileWith({
       ...currentConsents,
       healthGranted: undefined,
       healthVersion: undefined,
-    }))).toBe(true);
+    }))).toBe(false);
   });
 
-  it('decyzja zdrowotna na starej wersji dokumentu = true (re-consent po bumpie)', () => {
+  it('stara decyzja zdrowotna nie blokuje trybu podstawowego', () => {
     expect(needsConsentRefresh(profileWith({
       ...currentConsents,
       healthGranted: false,
       healthVersion: '0.9',
-    }))).toBe(true);
+    }))).toBe(false);
   });
 });
 
@@ -94,16 +94,19 @@ describe('ConsentGate', () => {
     </LanguageProvider>,
   );
 
-  it('przycisk zablokowany do zaznaczenia 3 obowiązkowych zgód, potem wysyła recordConsents', async () => {
+  it('wymaga tylko regulaminu i privacy; brak health zapisuje decyzję withdrawn', async () => {
     renderGate(profileWith(undefined));
     const submit = screen.getByTestId('consent-gate-submit');
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByTestId('consent-terms'));
     fireEvent.click(screen.getByTestId('consent-privacy'));
-    fireEvent.click(screen.getByTestId('consent-health'));
     expect(submit).not.toBeDisabled();
     fireEvent.click(submit);
     await waitFor(() => expect(recordConsents).toHaveBeenCalledTimes(1));
+    const submitted = (recordConsents.mock.calls as unknown[][])[0]?.[0];
+    expect(submitted).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'health', action: 'withdrawn' }),
+    ]));
   });
 
   // Root cause buildu 129: batch na serwerze kończył się sukcesem, ale gate

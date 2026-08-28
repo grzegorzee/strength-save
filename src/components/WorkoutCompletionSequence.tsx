@@ -269,7 +269,7 @@ export const WorkoutCompletionSequence = ({
                   style={{ width: `${barPct(summary.volumeKg)}%` }}
                 />
               </div>
-              <span className="w-14 shrink-0 text-right font-mono text-[10.5px] tabular-nums text-foreground/80">
+              <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-foreground/80">
                 {tonnageText}
               </span>
             </div>
@@ -283,7 +283,7 @@ export const WorkoutCompletionSequence = ({
                   style={{ width: `${barPct(summary.prevVolumeKg)}%` }}
                 />
               </div>
-              <span className="w-14 shrink-0 text-right font-mono text-[10.5px] tabular-nums text-muted-foreground">
+              <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
                 {fmtTonnage(summary.prevVolumeKg)}
               </span>
             </div>

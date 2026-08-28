@@ -10,7 +10,7 @@ test.describe('Critical Routing and Shell', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
     await expect(
       page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link', { name: 'Dzisiaj' }),
     ).toBeVisible();
@@ -30,9 +30,9 @@ test.describe('Critical Routing and Shell', () => {
   test('plan page shows current plan title and schedule summary', async ({ page }) => {
     await navigateAndWait(page, '/plan');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Plan treningowy' })).toBeVisible();
+    await expect(page.locator('header').getByRole('heading', { name: 'Plan', exact: true })).toBeVisible();
     await expect(page.getByText(/tygodniowy program/i)).toBeVisible();
-    await expect(page.getByText(/Tydzień \d+\/\d+/)).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: /Tydzień \d+\/\d+/ })).toBeVisible();
   });
 
   test('training day pages render their plan day heading', async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe('Critical Routing and Shell', () => {
   test('cycles page shows current active plan summary', async ({ page }) => {
     await navigateAndWait(page, '/cycles');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
+    await expect(page.locator('header').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
     await expect(page.getByText('Aktualny plan')).toBeVisible();
     await expect(page.getByText(/Closeout i progres cyklu|Brak aktywnego closeoutu cyklu/)).toBeVisible();
   });
@@ -63,7 +63,7 @@ test.describe('Critical Routing and Shell', () => {
       await expect(page.getByText('API eksportu')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Generuj klucz' })).toBeVisible();
     } else {
-      await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
     }
   });
 });
@@ -78,7 +78,7 @@ test.describe('Critical Interactions', () => {
     await expectPageRendered(page);
 
     const tabs = [
-      { label: 'Podsumowanie', testId: 'progress-view-summary' },
+      { label: 'Wyniki', testId: 'progress-view-summary' },
       { label: 'Wykresy', testId: 'progress-view-charts' },
       { label: 'Rekordy', testId: 'progress-view-records' },
     ];

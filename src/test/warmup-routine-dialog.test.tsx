@@ -96,6 +96,13 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(onToggle).toHaveBeenCalledWith('warmup.v3.heelsArmCircles');
   });
 
+  it('pokazuje krótką instrukcję wykonania tylko dla aktywnej pozycji', () => {
+    renderDialog();
+    const instruction = screen.getByTestId('warmup-active-instruction');
+    expect(instruction.textContent).toContain('Ustaw spokojne tempo');
+    expect(document.querySelectorAll('[data-testid="warmup-active-instruction"]')).toHaveLength(1);
+  });
+
   it('X37: wszystko odhaczone = bez "Dalej", komunikat "Rozgrzewka zrobiona", Zakończ zostaje', () => {
     const checked = new Set(chestPlan().items.map((i) => i.key));
     renderDialog({ checked });

@@ -1,4 +1,4 @@
-import { deleteDoc, doc } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
@@ -10,9 +10,17 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 // syncu. Bez tego szkic zostawał i przy następnym wejściu odtwarzał usunięty trening.
 
 const WORKOUTS_COLLECTION = 'workouts';
+const WORKOUT_HEALTH_COLLECTION = 'workout_health_v2';
 
 const isMockE2E = () =>
   import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true';
+
+export const deleteWorkoutCloudDocuments = async (workoutId: string): Promise<void> => {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, WORKOUTS_COLLECTION, workoutId));
+  batch.delete(doc(db, WORKOUT_HEALTH_COLLECTION, workoutId));
+  await batch.commit();
+};
 
 export const deleteWorkoutEverywhere = async (
   userId: string,
@@ -27,7 +35,7 @@ export const deleteWorkoutEverywhere = async (
         JSON.stringify(existing.filter((w) => w.id !== workoutId)),
       );
     } else {
-      await deleteDoc(doc(db, WORKOUTS_COLLECTION, workoutId));
+      await deleteWorkoutCloudDocuments(workoutId);
     }
 
     // Ślady lokalne kasujemy zawsze — nawet gdy dokumentu w chmurze już nie było.

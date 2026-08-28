@@ -59,19 +59,19 @@ export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivit
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{month.totalKm} km</p>
-                    <p className="text-[10px] text-muted-foreground">{t('strava.distance')}</p>
+                    <p className="text-[11px] text-muted-foreground">{t('strava.distance')}</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{month.activityCount}</p>
-                    <p className="text-[10px] text-muted-foreground">{t('strava.activities')}</p>
+                    <p className="text-[11px] text-muted-foreground">{t('strava.activities')}</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{Math.round(month.totalElevation)} m</p>
-                    <p className="text-[10px] text-muted-foreground">{t('strava.elevation')}</p>
+                    <p className="text-[11px] text-muted-foreground">{t('strava.elevation')}</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{Math.round(month.totalCalories)} kcal</p>
-                    <p className="text-[10px] text-muted-foreground">{t('strava.calories')}</p>
+                    <p className="text-[11px] text-muted-foreground">{t('strava.calories')}</p>
                   </div>
                 </div>
                 <div className="space-y-2">

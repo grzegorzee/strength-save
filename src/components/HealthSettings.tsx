@@ -5,6 +5,7 @@ import { HeartPulse } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { getHealthBridge, loadHealthSettings, saveHealthSettings, type HealthSettings as HealthSettingsShape } from '@/lib/health-bridge';
 import { dateLocale } from '@/i18n';
+import { useHealthConsent } from '@/hooks/useHealthConsent';
 
 /**
  * Ustawienia zdrowia (Z118): sekcja widoczna TYLKO gdy platforma ma Health
@@ -13,15 +14,20 @@ import { dateLocale } from '@/i18n';
  */
 export const HealthSettings = () => {
   const { t, lang } = useTranslation();
+  const healthConsent = useHealthConsent();
   const [available, setAvailable] = useState(false);
   const [settings, setSettings] = useState<HealthSettingsShape>(() => loadHealthSettings());
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
+    if (!healthConsent) {
+      setAvailable(false);
+      return;
+    }
     void getHealthBridge().isAvailable().then(setAvailable);
-  }, []);
+  }, [healthConsent]);
 
-  if (!available) return null;
+  if (!healthConsent || !available) return null;
 
   const toggleSyncWorkouts = async (next: boolean) => {
     if (next) {
@@ -67,6 +73,7 @@ export const HealthSettings = () => {
             checked={settings.syncWorkouts}
             disabled={requesting}
             onCheckedChange={(next) => void toggleSyncWorkouts(next)}
+            aria-label={t('health.syncWorkouts')}
           />
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -78,6 +85,7 @@ export const HealthSettings = () => {
             checked={settings.suggestWeight}
             disabled={requesting}
             onCheckedChange={(next) => void toggleSuggestWeight(next)}
+            aria-label={t('health.suggestWeight')}
           />
         </div>
         {settings.lastSyncAt && (

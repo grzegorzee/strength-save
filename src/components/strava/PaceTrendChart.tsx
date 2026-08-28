@@ -32,7 +32,7 @@ export const PaceTrendChart = ({ activities, referenceDate }: PaceTrendChartProp
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={2} />
             <YAxis
               reversed
               tick={{ fontSize: 11 }}

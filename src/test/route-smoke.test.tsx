@@ -144,6 +144,26 @@ vi.mock('@/hooks/useCustomExercises', async () => {
   const helpers = await import('@/test/canonical-states');
   return { useCustomExercises: () => helpers.buildUseCustomExercisesResult() };
 });
+vi.mock('@/hooks/useStrava', () => ({
+  useStrava: () => ({
+    activities: [],
+    isLoaded: true,
+    connection: { connected: false },
+    isSyncing: false,
+    error: null,
+    connectStrava: vi.fn(),
+    syncActivities: vi.fn(),
+    saveMaxHR: vi.fn(),
+    disconnectStrava: vi.fn(),
+    nextSyncAvailableAt: null,
+  }),
+}));
+vi.mock('@/hooks/useExerciseNotes', () => ({
+  useExerciseNotes: () => ({
+    getPinnedNote: () => undefined,
+    savePinnedNote: vi.fn(async () => undefined),
+  }),
+}));
 vi.mock('@/hooks/useWorkoutAggregate', () => ({ useWorkoutAggregate: () => null }));
 vi.mock('@/hooks/useWatchPlanPreview', () => ({ useWatchPlanPreview: () => {} }));
 vi.mock('@/hooks/useToday', () => ({
@@ -167,6 +187,10 @@ import ExerciseLibrary from '@/pages/ExerciseLibrary';
 import Measurements from '@/pages/Measurements';
 import Cycles from '@/pages/Cycles';
 import Profile from '@/pages/Profile';
+import DayPlan from '@/pages/DayPlan';
+import PlanEditor from '@/pages/PlanEditor';
+import ExerciseDetail from '@/pages/ExerciseDetail';
+import NewPlan from '@/pages/NewPlan';
 
 const TODAY_ISO = '2026-08-20';
 
@@ -177,12 +201,14 @@ interface SmokeRoute {
   Component: () => JSX.Element;
 }
 
-// Trasy z AuthenticatedApp (bez focused-flow /workout/* i /exercise/:slug —
-// WorkoutDay ciagnie timery/draft-sync poza tanim scaffoldingiem; odnotowane
-// w raporcie WP-G). /exercises dodatkowo w widoku grupy (?group=, WP-E).
+// Trasy z AuthenticatedApp (bez focused-flow /workout/* — WorkoutDay ciagnie
+// timery/draft-sync poza tanim scaffoldingiem i ma osobny zestaw testów).
+// /exercises dodatkowo w widoku grupy (?group=, WP-E).
 const ROUTES: SmokeRoute[] = [
   { name: '/', entry: '/', pattern: '/', Component: Dashboard as () => JSX.Element },
+  { name: '/day', entry: '/day', pattern: '/day', Component: DayPlan as () => JSX.Element },
   { name: '/plan', entry: '/plan', pattern: '/plan', Component: TrainingPlanPage as () => JSX.Element },
+  { name: '/plan/edit', entry: '/plan/edit', pattern: '/plan/edit', Component: PlanEditor as () => JSX.Element },
   { name: '/history', entry: '/history', pattern: '/history', Component: WorkoutHistory as () => JSX.Element },
   // WP-H (X28): pełna płaska lista Historii jako osobna powierzchnia.
   { name: '/history?list=all', entry: '/history?list=all', pattern: '/history', Component: WorkoutHistory as () => JSX.Element },
@@ -191,10 +217,40 @@ const ROUTES: SmokeRoute[] = [
   { name: '/achievements?view=records', entry: '/achievements?view=records', pattern: '/achievements', Component: Achievements as () => JSX.Element },
   { name: '/exercises', entry: '/exercises', pattern: '/exercises', Component: ExerciseLibrary as () => JSX.Element },
   { name: '/exercises?group=chest', entry: '/exercises?group=chest', pattern: '/exercises', Component: ExerciseLibrary as () => JSX.Element },
+  {
+    name: '/exercise/:slug',
+    entry: '/exercise/wyciskanie-sztangi-na-lawce-plaskiej',
+    pattern: '/exercise/:slug',
+    Component: ExerciseDetail as () => JSX.Element,
+  },
   { name: '/measurements', entry: '/measurements', pattern: '/measurements', Component: Measurements as () => JSX.Element },
+  { name: '/new-plan', entry: '/new-plan', pattern: '/new-plan', Component: NewPlan as () => JSX.Element },
   { name: '/cycles', entry: '/cycles', pattern: '/cycles', Component: Cycles as () => JSX.Element },
   { name: '/profile', entry: '/profile', pattern: '/profile', Component: Profile as () => JSX.Element },
 ];
+
+// Kontrakt pokrycia kanonicznych tras AuthenticatedApp. Utrzymujemy go osobno
+// od tabeli scenariuszy, żeby pominięcie nowej powierzchni było jawnym czerwonym
+// testem, a nie tylko brakiem testu.
+const REQUIRED_CANONICAL_ROUTE_PATTERNS = [
+  '/',
+  '/day',
+  '/plan',
+  '/plan/edit',
+  '/history',
+  '/achievements',
+  '/exercises',
+  '/exercise/:slug',
+  '/measurements',
+  '/new-plan',
+  '/cycles',
+  '/profile',
+] as const;
+
+it('pokrywa wszystkie kanoniczne trasy użytkownika w route sweepie', () => {
+  const covered = new Set(ROUTES.map((route) => route.pattern));
+  expect(REQUIRED_CANONICAL_ROUTE_PATTERNS.filter((pattern) => !covered.has(pattern))).toEqual([]);
+});
 
 // Znane, niekrasowe logi dev-mode (filtr JAWNY — nie wycinamy wszystkiego).
 const IGNORED_CONSOLE_ERRORS = [

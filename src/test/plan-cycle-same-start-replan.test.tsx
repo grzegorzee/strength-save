@@ -214,6 +214,22 @@ describe('WP-6 (X33): createActiveCycle z opts.choice', () => {
     expect(fake.store.get(`plan_cycles/${BASE_ID}`)?.choice).toEqual(choiceA);
   });
 
+  it('NIEZMIENNIK onboardingu: błąd zapisu planu + restart + zmieniony wybór nadal daje jeden aktywny cykl', async () => {
+    fake.store.set(`plan_cycles/${BASE_ID}`, cycleDoc(oldDays, { choice: choiceA }));
+    const { result } = renderHook(() => usePlanCycles(UID));
+    const changedOnboardingChoice = buildCycleChoice('onboarding', '2026-08-25T10:30:00.000Z');
+
+    const id = await result.current.createActiveCycle(newDays, 12, START, { choice: changedOnboardingChoice });
+
+    expect(id).toBe(BASE_ID);
+    expect(storeCycles().filter((cycle) => cycle.status === 'active')).toHaveLength(1);
+    expect(fake.store.get(`plan_cycles/${BASE_ID}`)).toMatchObject({
+      days: newDays,
+      durationWeeks: 12,
+      choice: changedOnboardingChoice,
+    });
+  });
+
   it('id zajete przez zamkniety cykl z choice -> nowy dokument ma WLASNE choice, stary nietkniety', async () => {
     const completed = cycleDoc(oldDays, { status: 'completed', endDate: '2026-08-25', durationWeeks: 1, choice: choiceA });
     fake.store.set(`plan_cycles/${BASE_ID}`, completed);

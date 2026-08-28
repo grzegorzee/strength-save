@@ -1,6 +1,8 @@
 import type { SetData, ExerciseMetrics } from '@/types';
 import { workoutDraft } from '@/lib/workout-draft';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import type { ExerciseMetricGrants, WorkoutHealthMetricKey } from '@/lib/workout-health-fence';
 
 export const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 export const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
@@ -42,6 +44,10 @@ export interface ActiveWorkoutDraft {
   // Metryki autoregulacji per ćwiczenie (RPE/ból/jakość). Opcjonalne — stare drafty bez nich
   // normalizują się do {}. Nie wymaga bumpu wersji IndexedDB (pole additive na obiekcie).
   exerciseMetrics: Record<string, ExerciseMetrics>;
+  /** Grant per pole z chwili wpisania metryki; nie wolno zastępować go grantem z retry. */
+  exerciseMetricGrants?: ExerciseMetricGrants;
+  /** Grant jednej oczekującej operacji replace sidecara. */
+  pendingHealthGrant?: ActiveHealthGrant | null;
   dayNotes: string;
   dayName?: string;
   dayFocus?: string;
@@ -71,6 +77,8 @@ export interface ActiveWorkoutDraft {
   dirty: boolean;
   completedLocally: boolean;
   finalSyncPending: boolean;
+  /** Baza jest już w chmurze, lecz prywatny sidecar health czeka na retry. */
+  healthSyncPending?: boolean;
   version: number;
   // Klucz idempotencji trwającej próby zapisu + wersja treści, której dotyczy.
   // Reuse writeId dozwolony TYLKO gdy pendingWriteVersion === version.
@@ -144,6 +152,28 @@ const normalizeExerciseMetrics = (value: unknown): Record<string, ExerciseMetric
         return [exerciseId, metrics];
       })
   );
+};
+
+const normalizeHealthGrant = (value: unknown): ActiveHealthGrant | null => {
+  if (!isRecord(value)) return null;
+  if (!Number.isSafeInteger(value.healthEpoch) || Number(value.healthEpoch) <= 0) return null;
+  if (typeof value.healthGrantId !== 'string' || value.healthGrantId.length === 0) return null;
+  return { healthEpoch: Number(value.healthEpoch), healthGrantId: value.healthGrantId };
+};
+
+const normalizeExerciseMetricGrants = (value: unknown): ExerciseMetricGrants => {
+  if (!isRecord(value)) return {};
+  const metricKeys: WorkoutHealthMetricKey[] = ['rpe', 'pain', 'quality'];
+  const entries = Object.entries(value).flatMap(([exerciseId, rawFields]) => {
+    if (!isRecord(rawFields)) return [];
+    const fields: Partial<Record<WorkoutHealthMetricKey, ActiveHealthGrant>> = {};
+    metricKeys.forEach((key) => {
+      const grant = normalizeHealthGrant(rawFields[key]);
+      if (grant) fields[key] = grant;
+    });
+    return Object.keys(fields).length > 0 ? [[exerciseId, fields] as const] : [];
+  });
+  return Object.fromEntries(entries);
 };
 
 const normalizeStringArray = (value: unknown): string[] => (
@@ -281,6 +311,12 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
       ),
     }),
     exerciseMetrics: normalizeExerciseMetrics(value.exerciseMetrics),
+    ...(value.exerciseMetricGrants !== undefined && {
+      exerciseMetricGrants: normalizeExerciseMetricGrants(value.exerciseMetricGrants),
+    }),
+    ...(value.pendingHealthGrant !== undefined && {
+      pendingHealthGrant: normalizeHealthGrant(value.pendingHealthGrant),
+    }),
     dayNotes: String(value.dayNotes ?? ''),
     ...(value.dayName !== undefined && { dayName: String(value.dayName) }),
     ...(value.dayFocus !== undefined && { dayFocus: String(value.dayFocus) }),
@@ -303,6 +339,7 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     dirty: !!value.dirty,
     completedLocally: !!value.completedLocally,
     finalSyncPending: !!value.finalSyncPending,
+    ...(value.healthSyncPending === true && { healthSyncPending: true }),
     version: Math.max(1, Math.round(toNumberOr(value.version, 1))),
     ...(value.pendingWriteId != null && { pendingWriteId: String(value.pendingWriteId) }),
     ...(value.pendingWriteVersion != null && { pendingWriteVersion: Math.max(1, Math.round(toNumberOr(value.pendingWriteVersion, 1))) }),
@@ -368,6 +405,8 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     // przeżywają round-trip przez fallback (asymetria vs normalizeDraft była
     // przeoczeniem — wzorzec Z162/Z185/incydent 180 s).
     exerciseMetrics: draft.exerciseMetrics,
+    ...(draft.exerciseMetricGrants !== undefined && { exerciseMetricGrants: draft.exerciseMetricGrants }),
+    ...(draft.pendingHealthGrant !== undefined && { pendingHealthGrant: draft.pendingHealthGrant }),
     ...(draft.exerciseNames !== undefined && { exerciseNames: draft.exerciseNames }),
     dayNotes: draft.dayNotes,
     ...(draft.dayName !== undefined && { dayName: draft.dayName }),
@@ -391,6 +430,7 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     dirty: draft.dirty,
     completedLocally: draft.completedLocally,
     finalSyncPending: draft.finalSyncPending,
+    ...(draft.healthSyncPending === true && { healthSyncPending: true }),
   }, draft.userId);
   if (!saved) {
     throw new Error('LOCAL_STORAGE_SAVE_FAILED');
@@ -905,6 +945,8 @@ const redirectDraftSave = async (incoming: ActiveWorkoutDraft, remoteSessionId: 
         exerciseSets: incoming.exerciseSets,
         exerciseNotes: incoming.exerciseNotes,
         exerciseMetrics: incoming.exerciseMetrics,
+        ...(incoming.exerciseMetricGrants !== undefined && { exerciseMetricGrants: incoming.exerciseMetricGrants }),
+        ...(incoming.pendingHealthGrant !== undefined && { pendingHealthGrant: incoming.pendingHealthGrant }),
         ...(incoming.exerciseNames !== undefined && { exerciseNames: incoming.exerciseNames }),
         dayNotes: incoming.dayNotes,
         ...(incoming.dayName !== undefined && { dayName: incoming.dayName }),
@@ -920,6 +962,7 @@ const redirectDraftSave = async (incoming: ActiveWorkoutDraft, remoteSessionId: 
         ...(incoming.lastActivityAt !== undefined && { lastActivityAt: incoming.lastActivityAt }),
         completedLocally: incoming.completedLocally || existing.completedLocally,
         finalSyncPending: incoming.finalSyncPending || existing.finalSyncPending,
+        ...((incoming.healthSyncPending || existing.healthSyncPending) && { healthSyncPending: true }),
         ...(incoming.finalizedAt !== undefined && { finalizedAt: incoming.finalizedAt }),
         updatedAt: incoming.updatedAt,
         dirty: true,
@@ -962,6 +1005,13 @@ const resolveFresherFallback = (
     // świeższego fallbacku wygrywają, klucze znane tylko staremu rekordowi IDB
     // zostają (fallback w starym formacie = pusta mapa, nic nie nadpisze).
     exerciseMetrics: { ...idbRecord.exerciseMetrics, ...fallback.exerciseMetrics },
+    ...((idbRecord.exerciseMetricGrants !== undefined || fallback.exerciseMetricGrants !== undefined) && {
+      exerciseMetricGrants: {
+        ...(idbRecord.exerciseMetricGrants ?? {}),
+        ...(fallback.exerciseMetricGrants ?? {}),
+      },
+    }),
+    ...(fallback.pendingHealthGrant !== undefined && { pendingHealthGrant: fallback.pendingHealthGrant }),
     ...((idbRecord.exerciseNames !== undefined || fallback.exerciseNames !== undefined) && {
       exerciseNames: { ...(idbRecord.exerciseNames ?? {}), ...(fallback.exerciseNames ?? {}) },
     }),
@@ -991,6 +1041,7 @@ const resolveFresherFallback = (
     // nie może cofnąć intencji finalnego syncu zapisanej już w fallbacku.
     completedLocally: idbRecord.completedLocally || fallback.completedLocally,
     finalSyncPending: idbRecord.finalSyncPending || fallback.finalSyncPending,
+    ...((idbRecord.healthSyncPending || fallback.healthSyncPending) && { healthSyncPending: true }),
     updatedAt: fallback.updatedAt,
     dirty: true,
     version: fallback.version,
@@ -1187,6 +1238,8 @@ export const workoutDraftDb = {
         ...draft,
         ...acknowledgedWrite,
         dirty: false,
+        healthSyncPending: false,
+        pendingHealthGrant: null,
         lastFirebaseSyncAt: syncedAt,
         ...cloudMarkers,
       };
@@ -1334,6 +1387,24 @@ export const workoutDraftDb = {
       ...draft,
       ...(cloudState.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
       ...(cloudState.revision !== undefined && { cloudRevision: cloudState.revision }),
+    }));
+  },
+
+  /** Zachowuje writeId i dirty, ale utrwala revision bazy po częściowym sukcesie. */
+  async markHealthWritePending(
+    userId: string,
+    sessionId: string,
+    expectedDraftVersion: number,
+    cloudState: { updatedAt?: number; revision?: number },
+  ): Promise<void> {
+    await updateDraft(userId, sessionId, draft => ({
+      ...draft,
+      ...(cloudState.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+      ...(cloudState.revision !== undefined && { cloudRevision: cloudState.revision }),
+      ...(draft.version === expectedDraftVersion && {
+        dirty: true,
+        healthSyncPending: true,
+      }),
     }));
   },
 

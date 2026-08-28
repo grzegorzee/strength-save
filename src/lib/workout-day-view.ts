@@ -1,6 +1,6 @@
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
-import type { TrackingType } from '@/lib/set-tracking';
+import { hasCompleteSetData, type TrackingType } from '@/lib/set-tracking';
 
 // Widok dnia treningu składany z planu + draftu.
 //
@@ -100,7 +100,14 @@ export const seedSetsFromSession = (sets: SetData[]): SetData[] =>
 
 /** Czy trening ma cokolwiek do zapisania (>=1 odhaczona seria robocza lub rozgrzewkowa). */
 export const hasAnyCompletedSet = (exerciseSets: Record<string, SetData[]>): boolean =>
-  Object.values(exerciseSets).some((sets) => sets.some((set) => set.completed));
+  Object.values(exerciseSets).some((sets) => sets.some((set) => (
+    set.completed
+    && (
+      set.reps > 0
+      || (set.durationSec ?? 0) > 0
+      || (set.distanceM ?? 0) > 0
+    )
+  )));
 
 /**
  * Z131: metryki nagłówka aktywnej sesji. Liczą się WYŁĄCZNIE ukończone serie
@@ -123,22 +130,6 @@ export const sessionStats = (
  *  rozgrzewką i rozjeżdżał się z ekranem treningu ("Odhaczone serie: 0/4"). */
 export const countCompletedWorkingSets = (exerciseSets: Record<string, SetData[]>): number =>
   sessionStats(exerciseSets).completedSets;
-
-/** WP-D (X37): komplet danych serii wg typu śledzenia. Progi zgodne z tym, co
- *  karta pokazuje jako wpisaną wartość (0 = puste pole). */
-const hasCompleteSetData = (set: SetData, tracking: TrackingType): boolean => {
-  switch (tracking) {
-    case 'weight_reps':
-      return set.reps > 0 && set.weight > 0;
-    case 'bodyweight_reps':
-    case 'assisted_bodyweight':
-      return set.reps > 0;
-    case 'duration':
-      return (set.durationSec ?? 0) > 0;
-    case 'weight_distance_duration':
-      return (set.distanceM ?? 0) > 0 || (set.durationSec ?? 0) > 0;
-  }
-};
 
 /**
  * WP-D (X37): przy "Zakończ trening" serie ROBOCZE z kompletem danych, ale bez

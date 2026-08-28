@@ -136,14 +136,18 @@ test.describe('Emulator: cykl życia planu', () => {
 
     // Wizard: welcome → poziom → cel → protokół → precyzja
     await expect(page.getByText('Witaj w')).toBeVisible({ timeout: 15000 });
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByTestId('ob-personalization-next').click();
+    await page.getByTestId('consent-terms').click();
+    await page.getByTestId('consent-privacy').click();
+    await page.getByTestId('consent-health').click();
+    await page.getByTestId('ob-legal-submit').click();
     await page.getByRole('button', { name: 'Następny krok' }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
 
-    // Krok 5A: przerywnik "Dobieram plany" (3,5 s, X34) mija sam; potem ścieżka
-    // "Ułóż własny" → PlanBuilder (Z73: najpierw wybór startu)
-    await expect(page.getByTestId('ob-matching')).toBeHidden({ timeout: 6000 });
+    // Krok 5A jest dostępny natychmiast; potem ścieżka "Ułóż własny" →
+    // PlanBuilder (Z73: najpierw wybór startu).
+    await expect(page.getByTestId('ob-matching')).toHaveCount(0);
     await page.getByRole('button', { name: 'Ułóż własny' }).click();
     await page.getByRole('button', { name: 'Zacznij od zera' }).click();
 
@@ -167,7 +171,7 @@ test.describe('Emulator: cykl życia planu', () => {
     await page.getByTestId('plan-preview-confirm').click();
 
     // Ląduje na Dashboardzie
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 20000 });
 
     // Plan zapisany w Firestore z naszym ćwiczeniem + aktywny cykl istnieje
     const planDoc = await readDoc(`training_plans/${uid}`);
@@ -222,7 +226,7 @@ test.describe('Emulator: cykl życia planu', () => {
     });
 
     await loginThroughUi(page, email);
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
 
     await page.goto('./#/cycles');
     await page.getByRole('button', { name: 'Zakończ plan' }).click();
@@ -278,7 +282,7 @@ test.describe('Emulator: cykl życia planu', () => {
     });
 
     await loginThroughUi(page, email);
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
     await page.goto('./#/settings');
     // Z52: narzędzia naprawcze żyją w domyślnie zwiniętym akordeonie.
     await page.getByText('Narzędzia naprawcze').click();

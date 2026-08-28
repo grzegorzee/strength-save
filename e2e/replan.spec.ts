@@ -33,7 +33,7 @@ test.describe('Replan', () => {
     await page.waitForLoadState('domcontentloaded');
     // Poczekaj na content wizarda (po lazy-load / Suspense). X32: replan startuje
     // od kroku 2 (poziom); X33/X34: krok 5A z dwiema kartami, linkiem biblioteki
-    // i jednym CTA "Wybierz start planu" (przerywnik 3,5 s mija sam).
+    // i jednym CTA "Wybierz start planu" (rekomendacja jest natychmiastowa).
     await expect(page.getByRole('button', { name: /Next step|Następny krok/ })).toBeVisible();
     await expect(page.getByText('02 / 06')).toBeVisible();
     await advanceWizardToStep5(page);

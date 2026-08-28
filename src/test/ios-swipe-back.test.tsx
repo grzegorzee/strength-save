@@ -35,6 +35,14 @@ const mountOverlay = (role: 'dialog' | 'alertdialog', state: 'open' | 'closed' =
   return node;
 };
 
+const mountWorkoutOverlay = (state: 'open' | 'closed' = 'open') => {
+  const node = document.createElement('div');
+  node.setAttribute('data-app-overlay', '');
+  node.setAttribute('data-state', state);
+  document.body.appendChild(node);
+  return node;
+};
+
 beforeEach(() => {
   navigateMock.mockClear();
 });
@@ -60,6 +68,15 @@ describe('IosSwipeBack (bug 29)', () => {
   it('otwarty AlertDialog (role=alertdialog) blokuje gest', () => {
     render(<IosSwipeBack />);
     mountOverlay('alertdialog');
+    edgeSwipeRight();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('custom overlay treningu blokuje gest jak Radix Dialog', () => {
+    // Blackout: celebracja / live PR / pełny timer mają data-app-overlay, ale
+    // nie role=dialog. Stary selektor ich nie widział i robił route unmount.
+    render(<IosSwipeBack />);
+    mountWorkoutOverlay();
     edgeSwipeRight();
     expect(navigateMock).not.toHaveBeenCalled();
   });

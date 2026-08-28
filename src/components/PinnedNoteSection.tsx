@@ -55,7 +55,7 @@ export const PinnedNoteSection = ({ exerciseName, pinnedNote, onSave, className,
   return (
     <div className={cn('rounded-lg bg-surface-lowest px-3 py-2.5', className)} data-testid="pinned-note-section">
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
           <Pin className="h-3 w-3" />
           {t('notes.pinnedTitle')}
           <span className="font-semibold normal-case tracking-normal text-muted-foreground/60">{t('notes.pinnedAlways')}</span>

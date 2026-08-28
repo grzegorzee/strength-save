@@ -87,7 +87,7 @@ export const MissedWorkoutBanner = ({
         <button
           type="button"
           aria-label={t('reschedule.dismiss')}
-          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0"
+          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
           onClick={dismiss}
         >
           <X className="h-4 w-4" />

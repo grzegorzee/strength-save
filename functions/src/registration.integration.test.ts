@@ -42,6 +42,7 @@ const collectionsToClean = [
   "fcm_token_registrations",
   "deletion_operations",
   "workouts",
+  "workout_health_v2",
   "measurements",
   "plan_cycles",
   "weekly_summaries",
@@ -347,6 +348,7 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
     await admin.auth().createUser({ uid, email: "delete-me@example.com" });
     await admin.firestore().collection("users").doc(uid).set({ uid, deletionPending: { requestedAt: "old" } });
     await admin.firestore().collection("workouts").doc("w1").set({ userId: uid });
+    await admin.firestore().collection("workout_health_v2").doc("w1").set({ userId: uid, workoutId: "w1" });
     await admin.firestore().collection("measurements").doc("m1").set({ userId: uid });
     await admin.firestore().collection("email_verification_codes").doc("code1").set({ uid });
     await admin.firestore().collection("training_plans").doc(uid).set({ userId: uid });
@@ -370,6 +372,7 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
     await Promise.all([
       expect(admin.firestore().collection("users").doc(uid).get()).resolves.toMatchObject({ exists: false }),
       expect(admin.firestore().collection("workouts").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),
+      expect(admin.firestore().collection("workout_health_v2").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),
       expect(admin.firestore().collection("measurements").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),
       expect(admin.firestore().collection("email_verification_codes").where("uid", "==", uid).get()).resolves.toMatchObject({ empty: true }),
       expect(admin.firestore().collection("fcm_token_registrations").where("userId", "==", uid).get()).resolves.toMatchObject({ empty: true }),

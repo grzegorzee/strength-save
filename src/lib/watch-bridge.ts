@@ -109,6 +109,11 @@ export interface WatchWorkoutPayload {
   restBetweenExercisesSeconds?: number;
   /** Globalna flaga timerów treningowych. Brak lub false wyłącza timer na zegarku. */
   timersEnabled?: boolean;
+  /**
+   * Jawna granica dobrowolnych funkcji zdrowotnych. Brak/false = Watch nie
+   * uruchamia, nie odzyskuje i nie zapisuje sesji HealthKit; bazowy trening działa.
+   */
+  healthFeaturesEnabled?: boolean;
   /** Jednostka wyświetlania ciężaru na zegarku (model i eventy zawsze w kg). */
   unit?: 'kg' | 'lbs';
   /** Język UI zegarka (Z122): 'pl' | 'en' — spójny z telefonem. */
@@ -118,6 +123,13 @@ export interface WatchWorkoutPayload {
   exercises?: WatchExercisePayload[];
   /** Mała lista lokalnego quick workout; działa także w payloadzie noWorkout. */
   recentExercises?: WatchRecentExercisePayload[];
+}
+
+/** Każdy kontekst wysłany przez aktualny telefon niesie jawną wartość fail-closed. */
+export function buildWatchHealthBoundary(enabled: boolean | undefined): {
+  healthFeaturesEnabled: boolean;
+} {
+  return { healthFeaturesEnabled: enabled === true };
 }
 
 /** Jednostka usera — ten sam klucz co UnitContext na telefonie. */
@@ -232,12 +244,16 @@ export type WatchEvent = WatchSetLoggedEvent | WatchWorkoutFinishedEvent | Watch
 
 export async function sendWorkoutToWatch(payload: WatchWorkoutPayload): Promise<void> {
   if (!isWatchBridgeSupported()) return;
-  if (!isProtocolPayloadWithinLimit(payload, 'watchContextBytes')) {
+  const boundedPayload: WatchWorkoutPayload = {
+    ...payload,
+    ...buildWatchHealthBoundary(payload.healthFeaturesEnabled),
+  };
+  if (!isProtocolPayloadWithinLimit(boundedPayload, 'watchContextBytes')) {
     console.warn('[watch-bridge] workout context exceeds 256KB');
     return;
   }
   try {
-    await WatchBridge.sendWorkout({ payload: JSON.stringify(payload) });
+    await WatchBridge.sendWorkout({ payload: JSON.stringify(boundedPayload) });
   } catch (err) {
     console.warn('[watch-bridge] sendWorkout failed', err);
   }

@@ -1,0 +1,68 @@
+{
+  "score": 9.5,
+  "mode": "web-e2e (Playwright, fresh Vite, VITE_E2E_MODE)",
+  "date": "2026-08-27",
+  "run_at": "2026-08-27T13:19:35+02:00",
+  "seeded": true,
+  "scenarios_audited": [
+    "active-user (plan + 5 completed workouts)",
+    "new-user (onboarding)",
+    "active-admin (panel)"
+  ],
+  "summary": "Fresh-Vite rerun after TestFlight 128: 15 combinations of route/scenario/orientation passed in Chromium: 9 active-user portrait routes, new-user onboarding, admin panel and 4 active-user landscape routes. No blank screen, NaN, horizontal overflow, uncaught page error or unexpected console.error. Firebase transport errors caused solely by the harness blocking production services were explicitly filtered; the audit did not read or write real user data.",
+  "blockers_red": [],
+  "orange": [],
+  "yellow": [
+    {
+      "route": "#/plan, #/history",
+      "title": "Root routes repeat context in the top bar and page heading",
+      "evidence": "audit/shots/2026-08-27/active-user_plan.png and active-user_history.png",
+      "suggestion": "Resolve as a design decision after release blockers; it does not obstruct tasks.",
+      "owner": "product/design",
+      "weight": -0.5
+    }
+  ],
+  "fixed_during_audit": [],
+  "native_not_covered": [
+    "safe-area/notch",
+    "native Share sheet and FileProvider",
+    "push/local notification tap",
+    "haptics and sound",
+    "iOS keyboard",
+    "screen-off/background/resume",
+    "cold restart recovery"
+  ],
+  "top_fixes": [
+    "Complete physical iOS and Android export/background/recovery smoke before release.",
+    "Resolve the repeated root-route heading as a non-blocking design decision."
+  ],
+  "checks": {
+    "console_errors_unexpected": 0,
+    "page_errors": 0,
+    "blank_screens": 0,
+    "nan_in_ui": 0,
+    "horizontal_overflow_routes": 0,
+    "routes_audited": 15,
+    "viewports": ["390x844", "844x390"],
+    "chromium_tests": 15,
+    "chromium_passed": 15,
+    "fresh_vite": true
+  },
+  "screenshots": [
+    "audit/shots/2026-08-27/active-user_dashboard.png",
+    "audit/shots/2026-08-27/active-user_plan.png",
+    "audit/shots/2026-08-27/active-user_history.png",
+    "audit/shots/2026-08-27/active-user_progress.png",
+    "audit/shots/2026-08-27/active-user_measurements.png",
+    "audit/shots/2026-08-27/active-user_exercises.png",
+    "audit/shots/2026-08-27/active-user_cycles.png",
+    "audit/shots/2026-08-27/active-user_settings.png",
+    "audit/shots/2026-08-27/active-user_workout.png",
+    "audit/shots/2026-08-27/new-user_onboarding.png",
+    "audit/shots/2026-08-27/active-admin_admin.png",
+    "audit/shots/2026-08-27/landscape_dashboard.png",
+    "audit/shots/2026-08-27/landscape_workout.png",
+    "audit/shots/2026-08-27/landscape_history.png",
+    "audit/shots/2026-08-27/landscape_settings.png"
+  ]
+}

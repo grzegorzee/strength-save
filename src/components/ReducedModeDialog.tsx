@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { cn, formatLocalDateLabel } from '@/lib/utils';
@@ -77,10 +78,11 @@ export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable
                     onClick={() => setLevel(option)}
                     aria-pressed={level === option}
                     className={cn(
-                      'rounded-xl border px-4 py-2.5 text-left text-sm transition-colors',
+                      'rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
+                      toggleButtonClasses(level === option),
                       level === option
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted',
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted',
                     )}
                   >
                     {t(LEVEL_KEYS[option])}
@@ -96,10 +98,11 @@ export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable
                     onClick={() => setDays(option)}
                     aria-pressed={days === option}
                     className={cn(
-                      'flex-1 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                      'flex-1 rounded-full px-3 py-1.5 text-sm transition-colors',
+                      toggleButtonClasses(days === option),
                       days === option
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted',
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted',
                     )}
                   >
                     {t('rmode.days', { n: option })}

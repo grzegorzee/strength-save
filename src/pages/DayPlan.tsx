@@ -7,7 +7,8 @@ import { Calendar, Dumbbell, Info, Play, Moon, Sun, CheckCircle, ChevronDown, Ch
 import { getTrainingRules } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { slugifyExercise } from '@/lib/exercise-media';
-import { warmupExercises, getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
+import { getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
+import { buildPreStartWarmup } from '@/lib/prestart-warmup';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useStrava } from '@/hooks/useStrava';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -24,7 +25,7 @@ import { dateLocale } from '@/i18n';
 const DayPlan = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
-  const { uid, canUseStrava } = useCurrentUser();
+  const { uid, profile, canUseStrava } = useCurrentUser();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { plan: trainingPlan, scheduleOverrides, planStartDate } = useTrainingPlan(uid);
   // Z214: ekran dnia pokazuje wyłącznie dzisiejsze aktywności — okno od dziś.
@@ -69,6 +70,20 @@ const DayPlan = () => {
   const stretchingExercises = todaysTraining
     ? getStretchingForFocus(todaysTraining.focus)
     : [];
+  // Jedno źródło prawdy z dialogiem startu treningu. Stara stała lista na /day
+  // nie miała opisów i nadal pokazywała pajacyki usunięte z rozgrzewki v3.
+  const firstExercise = todaysTraining?.exercises[0];
+  const firstLibraryExercise = firstExercise
+    ? exerciseLibrary.find((exercise) => exercise.name === firstExercise.name)
+    : undefined;
+  const warmupPlan = firstExercise
+    ? buildPreStartWarmup({
+      exerciseName: firstExercise.name,
+      category: firstLibraryExercise?.category,
+      isBodyweight: firstLibraryExercise?.isBodyweight,
+      level: profile?.trainingProfile?.level,
+    })
+    : null;
 
   if (!isLoaded) {
     return (
@@ -228,13 +243,22 @@ const DayPlan = () => {
             {showWarmup ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </button>
           {showWarmup && (
-            <div className="space-y-1 pl-4">
-              {warmupExercises.map((ex, i) => {
-                const w = localizeWarmup(ex, lang);
+            <div className="space-y-2 pl-4" data-testid="dayplan-warmup-v3">
+              {warmupPlan?.items.map((item) => {
+                const amount = typeof item.durationSec === 'number'
+                  ? t('warmup.v3.seconds', { n: item.durationSec })
+                  : item.perSide
+                    ? t('warmup.v3.repsPerSide', { n: item.reps ?? 0 })
+                    : t('warmup.v3.reps', { n: item.reps ?? 0 });
                 return (
-                  <div key={i} className="flex items-center justify-between py-1.5 text-sm">
-                    <span>{w.name}</span>
-                    <span className="text-muted-foreground text-xs">{w.duration}</span>
+                  <div key={item.key} className="rounded-lg bg-muted/30 px-3 py-2.5 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-medium">{t(item.key)}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{amount}</span>
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {t(item.instructionKey)}
+                    </p>
                   </div>
                 );
               })}

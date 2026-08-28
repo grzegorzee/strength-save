@@ -4,7 +4,9 @@ import {
   formatDurationSec,
   formatHistorySetLabel,
   getTrackingType,
+  hasCompleteSetData,
   parseDurationInput,
+  resolveCompletionTracking,
   visibleSetFields,
   type TrackingType,
 } from '@/lib/set-tracking';
@@ -23,6 +25,32 @@ describe('getTrackingType (Z105)', () => {
     expect(getTrackingType({ isBodyweight: true, tracking: 'duration' })).toBe('duration');
     expect(getTrackingType({ isBodyweight: false, tracking: 'assisted_bodyweight' })).toBe('assisted_bodyweight');
     expect(getTrackingType({ tracking: 'weight_distance_duration' })).toBe('weight_distance_duration');
+  });
+});
+
+describe('resolveCompletionTracking', () => {
+  it('opcjonalne obciążenie: same powtórzenia są kompletem danych przy zakończeniu', () => {
+    expect(resolveCompletionTracking('weight_reps', false, true)).toBe('bodyweight_reps');
+  });
+
+  it('zwykłe weight_reps nadal wymaga ciężaru, a jawne typy pozostają bez zmian', () => {
+    expect(resolveCompletionTracking('weight_reps', false, false)).toBe('weight_reps');
+    expect(resolveCompletionTracking('duration', false, true)).toBe('duration');
+  });
+});
+
+describe('hasCompleteSetData — jeden kontrakt ręcznego i automatycznego ukończenia', () => {
+  it('odrzuca semantycznie pustą serię dla każdego typu śledzenia', () => {
+    const empty = { reps: 0, weight: 0, completed: false };
+    expect(hasCompleteSetData(empty, 'weight_reps')).toBe(false);
+    expect(hasCompleteSetData(empty, 'bodyweight_reps')).toBe(false);
+    expect(hasCompleteSetData(empty, 'duration')).toBe(false);
+    expect(hasCompleteSetData(empty, 'weight_distance_duration')).toBe(false);
+    expect(hasCompleteSetData(empty, 'assisted_bodyweight')).toBe(false);
+  });
+
+  it('zero kg jest poprawne, gdy kontrakt ćwiczenia wymaga tylko powtórzeń', () => {
+    expect(hasCompleteSetData({ reps: 10, weight: 0 }, 'bodyweight_reps')).toBe(true);
   });
 });
 

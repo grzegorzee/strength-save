@@ -52,7 +52,7 @@ const renderAt = (entries: string[]) =>
   );
 
 describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
-  it.each(['/measurements', '/cycles', '/plan/edit', '/admin', '/exercise/x'])(
+  it.each(['/exercises', '/measurements', '/cycles', '/plan/edit', '/admin', '/exercise/x'])(
     'trasa spoza bottom nav %s: pasek widoczny z etykietą nav.back',
     (path) => {
       renderAt([path]);
@@ -62,7 +62,7 @@ describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
     },
   );
 
-  it.each(['/', '/plan', '/history', '/achievements', '/exercises'])(
+  it.each(['/', '/plan', '/history', '/achievements', '/profile'])(
     'trasa główna %s: bez paska',
     (path) => {
       renderAt([path]);
@@ -70,12 +70,10 @@ describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
     },
   );
 
-  // X36 (głosówka po 124): Profil bez dolnego paska — wejście z avatara,
-  // strzałka wstecz w nagłówku zostaje jedynym powrotem.
-  it('/profile: bez paska, ale nagłówek dostaje onBack (strzałka w headerze)', () => {
+  it('/profile: główna zakładka bez paska i bez strzałki w nagłówku', () => {
     renderAt(['/profile']);
     expect(screen.queryByTestId('back-bar')).toBeNull();
-    expect(screen.getByTestId('app-header').getAttribute('data-has-back')).toBe('yes');
+    expect(screen.getByTestId('app-header').getAttribute('data-has-back')).toBe('no');
     expect(screen.getByRole('main').className).toContain('7.5rem');
   });
 

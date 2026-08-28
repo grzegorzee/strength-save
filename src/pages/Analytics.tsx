@@ -3,13 +3,19 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useWorkoutRange } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
-import { localizeDayName } from '@/lib/plan-i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -20,12 +26,12 @@ import {
   filterWorkoutsByPeriod,
 } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
-import { formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
-  Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
+  Trophy, Flame, Copy, Check, Calendar, BarChart3, MoreHorizontal,
   ChevronRight, FileDown, FileSpreadsheet, Loader2, TrendingUp,
 } from 'lucide-react';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
@@ -42,7 +48,7 @@ import { shareOrDownloadFile } from '@/lib/share-export';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { MeasurementReadError } from '@/components/MeasurementReadError';
 
-type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
+type AnalyticsTab = 'summary' | 'charts' | 'details' | 'strava' | 'weekly';
 
 const ChartsTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsChartsTab'), 'lazy-retry:analytics-charts');
 const WeeklyTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsWeeklyTab'), 'lazy-retry:analytics-weekly');
@@ -54,7 +60,7 @@ const StravaTab = lazyWithRetry(() => import('@/components/strava/StravaTab').th
 
 type Period = 'week' | 'month';
 
-const SummaryTab = () => {
+const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) => {
   const { uid, profile } = useCurrentUser();
   const { workouts: liveWorkouts, measurements, measurementError, retryMeasurements, isLoaded: liveLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate } = useTrainingPlan(uid);
@@ -200,15 +206,15 @@ const SummaryTab = () => {
     const periodLabel = period === 'week' ? t('analytics.period.week') : t('analytics.period.month');
     const dateRange = `${bounds.start.toLocaleDateString(dateLocale(lang))} - ${bounds.end.toLocaleDateString(dateLocale(lang))}`;
     const lines = [
-      `📊 ${t('analytics.copy.summary', { period: periodLabel })}`,
-      `📅 ${dateRange}`,
+      t('analytics.copy.summary', { period: periodLabel }),
+      dateRange,
       ``,
-      `🏋️ ${t('analytics.copy.frequency', { done: frequency, expected: expectedWorkouts })}`,
-      `💪 ${t('analytics.copy.tonnage', { value: Math.round(toDisplay(currentTonnage)).toLocaleString(dateLocale(lang)), unit })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
-      `🔥 ${t('analytics.copy.streak', { n: streak })}`,
+      t('analytics.copy.frequency', { done: frequency, expected: expectedWorkouts }),
+      `${t('analytics.copy.tonnage', { value: Math.round(toDisplay(currentTonnage)).toLocaleString(dateLocale(lang)), unit })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
+      t('analytics.copy.streak', { n: streak }),
     ];
-    if (periodPRs.length > 0) lines.push(`🏆 ${t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') })}`);
-    if (latestWeight) lines.push(`⚖️ ${t('analytics.copy.weight', { value: Number(toDisplay(latestWeight).toFixed(1)), unit })}`);
+    if (periodPRs.length > 0) lines.push(t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') }));
+    if (latestWeight) lines.push(t('analytics.copy.weight', { value: Number(toDisplay(latestWeight).toFixed(1)), unit }));
 
     await navigator.clipboard.writeText(lines.join('\n'));
     setCopied(true);
@@ -253,81 +259,83 @@ const SummaryTab = () => {
     <div className="space-y-6">
       <MeasurementReadError error={measurementError} onRetry={retryMeasurements} />
 
-      {/* Z93: przegląd miesięcy na górze Podsumowania (liczba treningów, czas, tonaż). */}
-      <MonthlyOverviewCard workouts={workouts} />
-
-      {/* Z115: obciążenie hybrydowe (siła + cardio na jednej osi tygodniowej). */}
-      <HybridLoadCard />
-
-      {/* T11 (feedback 2026-08-20): flex-wrap, bo na 390px rząd przekraczał
-          viewport i "Kopiuj" wystawał poza ekran. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
-          <Button variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('week')}>
+        {mode === 'details' && <div className="flex gap-2">
+          <Button aria-pressed={period === 'week'} className={toggleButtonClasses(period === 'week')} variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('week')}>
             <Calendar className="h-4 w-4 mr-2" />{t('analytics.period.week')}
           </Button>
-          <Button variant={period === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('month')}>
+          <Button aria-pressed={period === 'month'} className={toggleButtonClasses(period === 'month')} variant={period === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('month')}>
             <BarChart3 className="h-4 w-4 mr-2" />{t('analytics.period.month')}
           </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => void handlePdf()} disabled={isGeneratingPdf}>
-            {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-            {t('report.download')}
-          </Button>
-          {/* T12 (feedback 2026-08-20): trzeci punkt wejścia do eksportu CSV
-              (reuse ExportWorkoutsDialog z Historii/Ustawień, zero nowej logiki). */}
-          <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)} data-testid="analytics-export-csv">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            {t('exportCsv.analyticsButton')}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleCopy} data-testid="analytics-copy">
-            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-            {copied ? t('analytics.copied') : t('analytics.copy')}
-          </Button>
-        </div>
+        </div>}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="min-h-11" data-testid="analytics-actions-trigger">
+              <MoreHorizontal className="h-4 w-4 mr-2" />
+              {t('analytics.actions')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-44">
+            <DropdownMenuItem className="min-h-11" onSelect={() => void handlePdf()} disabled={isGeneratingPdf}>
+              {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+              {t('report.download')}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="min-h-11" onSelect={() => setShowExportDialog(true)} data-testid="analytics-export-csv">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              {t('exportCsv.analyticsButton')}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="min-h-11" onSelect={() => void handleCopy()} data-testid="analytics-copy">
+              {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+              {copied ? t('analytics.copied') : t('analytics.copy')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <p className="text-sm text-muted-foreground">
         {bounds.start.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })} - {bounds.end.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
       </p>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card><CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><Dumbbell className="h-5 w-5 text-primary" /></div>
-            <div><p className="text-2xl font-bold">{frequency}/{expectedWorkouts}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.frequency')}</p></div>
-          </div>
-        </CardContent></Card>
-        <Card><CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><Trophy className="h-5 w-5 text-primary" /></div>
-            <div>
-              <p className="text-2xl font-bold">{fmtTonnage(currentTonnage)}</p>
-              <p className="text-xs text-muted-foreground">
-                {t('analytics.stat.tonnage')}
-                {tonnageChange !== 0 && (
-                  <span className={tonnageChange > 0 ? 'text-green-600 ml-1' : 'text-red-600 ml-1'}>
-                    {tonnageChange > 0 ? '+' : ''}{tonnageChange}%
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </CardContent></Card>
-        <Card><CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center"><Flame className="h-5 w-5 text-orange-500" /></div>
-            <div><p className="text-2xl font-bold">{streak}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.streakWeeks')}</p></div>
-          </div>
-        </CardContent></Card>
-        <Card><CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><BarChart3 className="h-5 w-5 text-primary" /></div>
-            <div><p className="text-2xl font-bold">{latestWeight ? fmt(latestWeight) : '--'}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.bodyWeight')}</p></div>
-          </div>
-        </CardContent></Card>
-      </div>
+      {mode === 'overview' && <div className="space-y-3" data-testid="analytics-summary-first-view">
+        <Card className="border-primary/30 bg-primary/10" data-testid="analytics-summary-insight">
+          <CardContent className="py-4">
+            <p className="text-sm font-medium">
+              {t(period === 'week' ? 'analytics.insight.week' : 'analytics.insight.month', { done: frequency, expected: expectedWorkouts })}
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-3 gap-2">
+          <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
+            <Trophy className="mb-2 h-4 w-4 text-primary" />
+            <p className="font-heading text-xl font-bold leading-none">{fmtTonnage(currentTonnage)}</p>
+            <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+              {t('analytics.stat.tonnage')}
+              {tonnageChange !== 0 && (
+                <span className={tonnageChange > 0 ? 'ml-1 text-fitness-success' : 'ml-1 text-destructive'}>
+                  {tonnageChange > 0 ? '+' : ''}{tonnageChange}%
+                </span>
+              )}
+            </p>
+          </CardContent></Card>
+          <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
+            <Flame className="mb-2 h-4 w-4 text-fitness-warning" />
+            <p className="font-heading text-xl font-bold leading-none">{streak}</p>
+            <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.streakWeeks')}</p>
+          </CardContent></Card>
+          <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
+            <TrendingUp className="mb-2 h-4 w-4 text-primary" />
+            <p className="font-heading text-xl font-bold leading-none">{periodPRs.length}</p>
+            <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.newRecords')}</p>
+          </CardContent></Card>
+        </div>
+      </div>}
+
+      {/* Pełne analizy są osobnym szczegółem: nie konkurują z odpowiedzią
+          „czy idę do przodu?” na domyślnych Wynikach. */}
+      {mode === 'details' && <>
+        <MonthlyOverviewCard workouts={workouts} />
+        <HybridLoadCard />
 
       {/* FIX-B T5: ostatni PR (z Dashboardu) — dom rekordów to Achievements (X36: ?view=records). */}
       {latestPR && (
@@ -378,37 +386,9 @@ const SummaryTab = () => {
           </CardContent>
         </Card>
       )}
+      </>}
 
-      {currentWorkouts.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">{t('analytics.completedWorkouts')}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {currentWorkouts.map(w => {
-              const dayLabel = resolver.resolveDayLabel(w);
-              return (
-                <button
-                  key={w.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 w-full text-left hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate(`/workout/${w.dayId}?date=${w.date}&session=${w.id}`)}
-                >
-                  <div>
-                    <p className="font-medium text-sm">{localizeDayName(dayLabel.dayName, lang)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatLocalDateLabel(w.date, dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{t('analytics.exercisesCount', { n: w.exercises.length })}</Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {currentWorkouts.length === 0 && (
+      {mode === 'overview' && currentWorkouts.length === 0 && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center space-y-3">
             <p className="text-muted-foreground">{period === 'week' ? t('analytics.noWorkouts.week') : t('analytics.noWorkouts.month')}</p>
@@ -476,8 +456,8 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { t } = useTranslation();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
   const validTabs: AnalyticsTab[] = canUseStrava
-    ? ['summary', 'charts', 'strava', 'weekly']
-    : ['summary', 'charts', 'weekly'];
+    ? ['summary', 'charts', 'details', 'strava', 'weekly']
+    : ['summary', 'charts', 'details', 'weekly'];
   // Bez parametru ?tab= otwieramy BIEŻĄCE podsumowanie (zgłoszenie 2026-08-13:
   // weekly digest otwierał się na "randomowym" tygodniu z wejścia z Dashboardu).
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
@@ -492,9 +472,9 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
         </div>
       )}
 
-      {/* X36 (głosówka po 124): skróty do najczęściej oglądanych wykresów — jedno
-          tapnięcie z Postępów zamiast Analityka → Wykresy → kafel. */}
-      <div className="grid grid-cols-2 gap-2" data-testid="analytics-quick-access">
+      {/* Samodzielna trasa zachowuje skróty. W Postępach ich rolę przejął
+          główny segment Podsumowanie / Wykresy / Rekordy. */}
+      {!embedded && <div className="grid grid-cols-2 gap-2" data-testid="analytics-quick-access">
         {([
           { id: 'tonnage', icon: Trophy, labelKey: 'analytics.subtab.tonnage' },
           { id: 'progression', icon: TrendingUp, labelKey: 'analytics.subtab.progression' },
@@ -514,25 +494,28 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
             {/* Bez chevrona: na 393 px "Progresja" ucinała się do "PROGRES…" (QA X36). */}
             <span className="min-w-0 flex-1">
               <span className="block truncate font-heading text-[13px] font-bold uppercase leading-tight tracking-tight">{t(item.labelKey)}</span>
-              <span className="block truncate text-[10px] text-muted-foreground">{t('analytics.quick.hint')}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{t('analytics.quick.hint')}</span>
             </span>
           </button>
         ))}
-      </div>
+      </div>}
 
       <Tabs value={currentTab} onValueChange={(value) => {
         if (value === 'strava') trackTelemetryEvent(uid, 'action_strava_opened');
         setSearchParams(embedded ? { view: 'analytics', tab: value } : { tab: value });
       }}>
-        <TabsList className="w-full">
+        {!embedded && <TabsList className="w-full">
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">{t('analytics.tab.summary')}</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">{t('analytics.tab.charts')}</TabsTrigger>
           {canUseStrava && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
           <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">{t('analytics.tab.weekly')}</TabsTrigger>
-        </TabsList>
+        </TabsList>}
 
         <TabsContent value="summary">
-          <TabBoundary uid={uid}><SummaryTab /></TabBoundary>
+          <TabBoundary uid={uid}><SummaryTab mode="overview" /></TabBoundary>
+        </TabsContent>
+        <TabsContent value="details">
+          <TabBoundary uid={uid}><SummaryTab mode="details" /></TabBoundary>
         </TabsContent>
         <TabsContent value="charts">
           <TabBoundary uid={uid}>

@@ -126,7 +126,7 @@ test.describe('Emulator critical: auth + rules', () => {
 
     await loginThroughUi(page, email);
 
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony/i)).toBeVisible();
   });
 
@@ -147,7 +147,7 @@ test.describe('Emulator critical: auth + rules', () => {
     await loginThroughUi(page, email);
 
     await expect(page.getByText('Potwierdź adres email')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toHaveCount(0);
   });
 
   test('start treningu zapisuje sesję przez realne Firestore Rules', async ({ page }) => {
@@ -175,7 +175,7 @@ test.describe('Emulator critical: auth + rules', () => {
     });
 
     await loginThroughUi(page, email);
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
     await page.goto(`./#/workout/${dayId}?date=${today}&autostart=true`);
     await expect(page.getByText('Trening rozpoczęty!', { exact: true })).toBeVisible({ timeout: 15000 });
 

@@ -63,7 +63,7 @@ export const RzaMetricsCard = ({ workouts }: { workouts: WorkoutSession[] }) => 
         {/* Watchlist bólu (Z75): ćwiczenia z bólem >= 3 w ostatnich 4 tygodniach */}
         {painWatchlist.length > 0 && (
           <div className="space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-fitness-warning flex items-center gap-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-fitness-warning flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5" />
               {t('analytics.rza.painWatchlist')}
             </p>
@@ -99,7 +99,7 @@ export const RzaMetricsCard = ({ workouts }: { workouts: WorkoutSession[] }) => 
 const SummaryTile = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="text-center p-3 bg-muted/30 rounded-xl">
     <p className="text-lg font-heading font-bold tracking-tight tabular-nums">{value}</p>
-    <p className="text-[10px] text-muted-foreground leading-tight">{label}</p>
+    <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
   </div>
 );
 

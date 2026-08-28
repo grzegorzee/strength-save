@@ -3,6 +3,18 @@ import { releaseBodyLocksAfterOverlayUnmount } from '@/lib/release-body-locks';
 
 const EXCLUSIVE_OVERLAY_EVENT = 'strength-save:exclusive-overlay-open';
 
+// Otwierane warstwy zapisują się w kolejności montowania. Android Back zamyka
+// tylko ostatnią (najwyższą) — przy AlertDialog nad Dialogiem rodzic zostaje.
+// Callback nadal należy do komponentu; rejestr nie przechowuje stanu UI.
+const openOverlayStack = new Map<string, () => void>();
+
+export const closeTopExclusiveOverlay = (): boolean => {
+  const top = Array.from(openOverlayStack.values()).at(-1);
+  if (!top) return false;
+  top();
+  return true;
+};
+
 export interface ExclusiveOverlayOptions {
   /**
    * false = warstwa NAD bieżącą (potwierdzenia/alerty): nie ogłasza otwarcia,
@@ -32,6 +44,8 @@ export const useExclusiveOverlay = (
   React.useEffect(() => {
     if (!open) return;
 
+    openOverlayStack.set(id, () => closeRef.current());
+
     const closeWhenAnotherOpens = (event: Event) => {
       if ((event as CustomEvent<string>).detail !== id) closeRef.current();
     };
@@ -41,6 +55,7 @@ export const useExclusiveOverlay = (
     }
 
     return () => {
+      openOverlayStack.delete(id);
       window.removeEventListener(EXCLUSIVE_OVERLAY_EVENT, closeWhenAnotherOpens);
       releaseBodyLocksAfterOverlayUnmount();
     };

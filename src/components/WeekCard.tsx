@@ -38,7 +38,7 @@ export const WeekCard = ({ model, isDeloadWeek, todayDoneDayName }: WeekCardProp
                 : t('dash.week.title', { current: model.week.current, total: model.week.total })}
             </p>
             {isDeloadWeek && (
-              <span className="shrink-0 rounded-full border border-fitness-warning bg-fitness-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fitness-warning">
+              <span className="shrink-0 rounded-full border border-fitness-warning bg-fitness-warning/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-fitness-warning">
                 {t('dash.week.deload')}
               </span>
             )}

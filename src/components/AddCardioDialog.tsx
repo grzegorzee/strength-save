@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +19,7 @@ import {
   type ManualActivityType,
   type PerceivedIntensity,
 } from '@/lib/manual-activity';
+import { useHealthConsent } from '@/hooks/useHealthConsent';
 
 interface AddCardioDialogProps {
   open: boolean;
@@ -37,6 +39,7 @@ interface AddCardioDialogProps {
  */
 export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity, onAdd, onUpdate, onDelete }: AddCardioDialogProps) => {
   const { t } = useTranslation();
+  const healthConsent = useHealthConsent();
   const [type, setType] = useState<ManualActivityType>('Treadmill');
   const [minutes, setMinutes] = useState('');
   const [date, setDate] = useState(defaultDate ?? formatLocalDate(new Date()));
@@ -81,9 +84,9 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
     date,
     movingTime: Math.round((parseDecimalInput(minutes) ?? 0) * 60),
     ...(distanceKm && { distance: Math.round((parseDecimalInput(distanceKm) ?? 0) * 1000) }),
-    ...(avgHR && { averageHeartrate: parseDecimalInput(avgHR) ?? 0 }),
-    ...(calories && { calories: parseDecimalInput(calories) ?? 0 }),
-    ...(intensity && { perceivedIntensity: intensity }),
+    ...(healthConsent && avgHR && { averageHeartrate: parseDecimalInput(avgHR) ?? 0 }),
+    ...(healthConsent && calories && { calories: parseDecimalInput(calories) ?? 0 }),
+    ...(healthConsent && intensity && { perceivedIntensity: intensity }),
     ...(note.trim() && { description: note.trim() }),
   });
 
@@ -133,7 +136,8 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
                 onClick={() => setType(option)}
                 aria-pressed={type === option}
                 className={cn(
-                  'flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-center text-[10px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                  'flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                  toggleButtonClasses(type === option),
                   type === option ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
                 )}
               >
@@ -167,27 +171,31 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
         <Collapsible>
           <CollapsibleTrigger asChild>
             <button type="button" className="flex w-full items-center justify-between py-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-              {t('cardio.more')}
+              {t(healthConsent ? 'cardio.more' : 'cardio.moreBasic')}
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 pt-2">
-            <div className="grid grid-cols-3 gap-2">
+            <div className={cn('grid gap-2', healthConsent ? 'grid-cols-3' : 'grid-cols-1')}>
               <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.distanceKm')}</p>
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.distanceKm')}</p>
                 <Input type="text" inputMode="decimal" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="5.0" data-testid="cardio-distance" />
               </div>
-              <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.avgHR')}</p>
-                <Input type="number" inputMode="numeric" min={30} max={250} value={avgHR} onChange={(e) => setAvgHR(e.target.value)} placeholder="140" data-testid="cardio-hr" />
-              </div>
-              <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.calories')}</p>
-                <Input type="number" inputMode="numeric" min={1} value={calories} onChange={(e) => setCalories(e.target.value)} placeholder="300" data-testid="cardio-calories" />
-              </div>
+              {healthConsent && (
+                <>
+                  <div>
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.avgHR')}</p>
+                    <Input type="number" inputMode="numeric" min={30} max={250} value={avgHR} onChange={(e) => setAvgHR(e.target.value)} placeholder="140" data-testid="cardio-hr" />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.calories')}</p>
+                    <Input type="number" inputMode="numeric" min={1} value={calories} onChange={(e) => setCalories(e.target.value)} placeholder="300" data-testid="cardio-calories" />
+                  </div>
+                </>
+              )}
             </div>
-            <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.intensity')}</p>
+            {healthConsent && <div>
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.intensity')}</p>
               <div className="flex gap-1.5">
                 {(['easy', 'moderate', 'hard'] as const).map((option) => (
                   <button
@@ -197,6 +205,7 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
                     aria-pressed={intensity === option}
                     className={cn(
                       'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                      toggleButtonClasses(intensity === option),
                       intensity === option ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground',
                     )}
                     data-testid={`cardio-intensity-${option}`}
@@ -205,7 +214,7 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}

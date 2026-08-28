@@ -67,7 +67,7 @@ const texts = (lang: Lang) => lang === "en"
     longestRun: "Longest run",
     footer: "You can turn this email off in the app: Settings → Notifications.",
     subject: (n: number, tonnage: string, range: string) =>
-      `💪 ${n} ${n === 1 ? "workout" : "workouts"}, ${tonnage} — your week ${range}`,
+      `${n} ${n === 1 ? "workout" : "workouts"}, ${tonnage} — your week ${range}`,
   }
   : {
     preheader: "Twój tydzień treningowy w liczbach",
@@ -89,7 +89,7 @@ const texts = (lang: Lang) => lang === "en"
     longestRun: "Najdłuższy dystans",
     footer: "Wyłączysz w aplikacji: Ustawienia → Powiadomienia.",
     subject: (n: number, tonnage: string, range: string) =>
-      `💪 ${n} ${n === 1 ? "trening" : "treningów"}, ${tonnage} — Twój tydzień ${range}`,
+      `${n} ${n === 1 ? "trening" : "treningów"}, ${tonnage} — Twój tydzień ${range}`,
   };
 
 const tile = (label: string, value: string): string => `
@@ -137,7 +137,7 @@ ${listRow(
   )}` : "";
 
   const prsSection = prs.length > 0 ? `
-${sectionTitle(`🏆 ${t.prsTitle}`)}
+${sectionTitle(t.prsTitle)}
 ${prs.slice(0, 6).map((pr) => listRow(esc(localizeName(pr.exerciseName, lang)), prValue(pr, unit, t))).join("")}` : "";
 
   const topSection = stats.topExercises.length > 0 ? `
@@ -145,7 +145,7 @@ ${sectionTitle(t.topTitle)}
 ${stats.topExercises.map((ex) => listRow(esc(localizeName(ex.name, lang)), formatTonnage(ex.tonnageKg, unit))).join("")}` : "";
 
   const stravaSection = strava && strava.runCount > 0 ? `
-${sectionTitle(`🏃 ${t.runTitle}`)}
+${sectionTitle(t.runTitle)}
 ${listRow(`${strava.runCount} ${t.runs}`, `${strava.totalRunKm} km`)}
 ${strava.bestRun ? listRow(`${t.bestRun}: ${esc(strava.bestRun.name)}`, `${strava.bestRun.km} km`) : ""}
 ${strava.longestRun ? listRow(`${t.longestRun}: ${esc(strava.longestRun.name)}`, `${strava.longestRun.km} km`) : ""}` : "";
@@ -159,7 +159,7 @@ ${strava.longestRun ? listRow(`${t.longestRun}: ${esc(strava.longestRun.name)}`,
     <tr><td align="center" style="padding:20px 12px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;">
         <tr><td style="background:#0f172a;padding:28px 24px;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:#ffffff;">💪 ${t.title}</div>
+          <div style="font-size:22px;font-weight:700;color:#ffffff;">${t.title}</div>
           <div style="margin-top:6px;font-size:13px;color:#cbd5e1;">${esc(rangeLabel)}</div>
         </td></tr>
         <tr><td style="padding:20px 24px 4px;font-size:14px;color:#334155;">${esc(t.hello(input.displayName ?? ""))}</td></tr>

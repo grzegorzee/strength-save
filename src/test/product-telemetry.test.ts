@@ -14,6 +14,7 @@ describe('screenKeyForPath (Z94)', () => {
     expect(screenKeyForPath('/cycles')).toBe('screen_cycles');
     expect(screenKeyForPath('/settings')).toBe('screen_settings');
     expect(screenKeyForPath('/workout/day-1')).toBe('screen_workout');
+    expect(screenKeyForPath('/onboarding')).toBe('screen_onboarding');
   });
   it('trasy poza whitelist dają null (admin, nieznane)', () => {
     expect(screenKeyForPath('/admin')).toBeNull();

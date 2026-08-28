@@ -40,6 +40,7 @@ export type TelemetryEventName =
   | 'screen_cycles'
   | 'screen_settings'
   | 'screen_workout'
+  | 'screen_onboarding'
   | 'action_workout_started'
   | 'action_workout_completed'
   | 'action_set_checked'
@@ -55,7 +56,14 @@ export type TelemetryEventName =
   | 'email_verified'
   | 'paywall_viewed'
   | 'trial_started'
-  | 'purchase_failed';
+  | 'purchase_failed'
+  | 'onboarding_started'
+  | 'onboarding_resumed'
+  | 'onboarding_completed'
+  | 'onboarding_save_failed'
+  | 'post_plan_guide_started'
+  | 'post_plan_guide_completed'
+  | 'post_plan_guide_skipped';
 
 type PendingTelemetry = Record<string, Record<TelemetryEventName, number>>;
 

@@ -66,7 +66,7 @@ const StatSummary = ({ items }: { items: { label: string; value: string | number
     {items.map(item => (
       <div key={item.label} className="text-center p-3 bg-muted/30 rounded-xl">
         <p className="text-lg font-heading font-bold tracking-tight">{item.value}</p>
-        <p className="text-[10px] text-muted-foreground leading-tight">{item.label}</p>
+        <p className="text-[11px] text-muted-foreground leading-tight">{item.label}</p>
       </div>
     ))}
   </div>
@@ -343,10 +343,10 @@ const AnalyticsChartsTab = () => {
               <BarChart data={workoutsData.weeks}>
                 {gradientDef('grad-workouts', true)}
                 <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} {...axisProps} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={2} {...axisProps} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} domain={[0, 'auto']} width={28} {...axisProps} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--primary) / 0.08)' }} />
-                <ReferenceLine y={3} stroke="hsl(var(--chart-2))" strokeDasharray="4 4" label={{ value: t('analytics.chart.goal3'), position: 'right', fontSize: 10, fill: 'hsl(var(--chart-2))' }} />
+                <ReferenceLine y={3} stroke="hsl(var(--chart-2))" strokeDasharray="4 4" label={{ value: t('analytics.chart.goal3'), position: 'right', fontSize: 11, fill: 'hsl(var(--chart-2))' }} />
                 <Bar dataKey="count" name={t('analytics.subtab.workouts')} fill="url(#grad-workouts)" stroke="hsl(var(--primary))" strokeWidth={1} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -363,7 +363,7 @@ const AnalyticsChartsTab = () => {
                 <ResponsiveContainer width="100%" height={220}>
                   <ComposedChart data={durationTrend}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} className="fill-muted-foreground" {...axisProps} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} className="fill-muted-foreground" {...axisProps} />
                     <YAxis yAxisId="min" tick={{ fontSize: 11 }} className="fill-muted-foreground" width={30} {...axisProps} />
                     <YAxis yAxisId="density" orientation="right" tick={{ fontSize: 11 }} className="fill-muted-foreground" width={34} {...axisProps} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--primary) / 0.08)' }} />
@@ -422,7 +422,7 @@ const AnalyticsChartsTab = () => {
                 <AreaChart data={tonnageData.chartData}>
                   {gradientDef('grad-tonnage')}
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} {...axisProps} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} {...axisProps} />
                   <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} {...axisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} ${unit}`, t('analytics.stat.tonnage')]} />
                   <Area type="monotone" dataKey="tonnage" stroke="hsl(var(--primary))" fill="url(#grad-tonnage)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
@@ -449,7 +449,7 @@ const AnalyticsChartsTab = () => {
                 <AreaChart data={weightData.chartData}>
                   {gradientDef('grad-weight')}
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} {...axisProps} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} {...axisProps} />
                   <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} domain={['dataMin - 1', 'dataMax + 1']} {...axisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} ${unit}`, t('analytics.subtab.weight')]} />
                   <Area type="monotone" dataKey="weight" stroke="hsl(var(--primary))" fill="url(#grad-weight)" strokeWidth={2.5} dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }} activeDot={{ r: 5 }} />
@@ -481,7 +481,7 @@ const AnalyticsChartsTab = () => {
             >
               {dayLabels.map((label, dayIdx) => (
                 <Fragment key={label}>
-                  <div className="flex items-center"><span className="text-[10px] text-muted-foreground">{label}</span></div>
+                  <div className="flex items-center"><span className="text-[11px] text-muted-foreground">{label}</span></div>
                   {Array.from({ length: 12 }, (_, weekIdx) => {
                     const cell = streakData.days.find(d => d.weekIndex === weekIdx && reorderDay(d.dayOfWeek) === dayIdx);
                     if (!cell) return <div key={weekIdx} className="aspect-square w-full max-w-6 rounded-sm bg-muted/10" />;
@@ -494,7 +494,7 @@ const AnalyticsChartsTab = () => {
                 </Fragment>
               ))}
             </div>
-            <div className="flex items-center gap-4 mt-4 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-4 mt-4 text-[11px] text-muted-foreground">
               <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-fitness-success" /><span>{t('analytics.legend.workout')}</span></div>
               <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-muted/30 border border-primary/30" /><span>{t('analytics.legend.planned')}</span></div>
               <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-muted/20" /><span>{t('analytics.legend.none')}</span></div>
@@ -543,8 +543,8 @@ const AnalyticsChartsTab = () => {
                         <AreaChart data={ex.chartData}>
                           {gradientDef(`grad-ex-${ex.id}`)}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                          <XAxis dataKey="date" tick={{ fontSize: 9 }} className="fill-muted-foreground" {...axisProps} />
-                          <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ` ${unit}`} width={45} {...axisProps} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" {...axisProps} />
+                          <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ` ${unit}`} width={45} {...axisProps} />
                           <Tooltip contentStyle={tooltipStyle} />
                           <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill={`url(#grad-ex-${ex.id})`} strokeWidth={2} dot={{ r: 2, fill: 'hsl(var(--primary))', strokeWidth: 0 }} connectNulls />
                         </AreaChart>
@@ -554,7 +554,7 @@ const AnalyticsChartsTab = () => {
                         {t('analytics.needMin2Sessions')}
                       </div>
                     )}
-                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
                       <span>{t('analytics.sessionsCount', { n: ex.chartData.length })}</span>
                       {ex.chartData.length > 0 && (
                         <span>{ex.chartData[ex.chartData.length - 1].value} {ex.isBodyweight ? t('analytics.unit.reps') : unit}</span>

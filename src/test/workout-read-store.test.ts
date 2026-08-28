@@ -86,6 +86,44 @@ describe('workout read store cache provenance', () => {
     expect(snapshot.workouts.map(w => w.id)).toEqual(['w-ok']);
     unsubscribe();
   });
+
+  it('aktywny grant dołącza prywatny sidecar dopiero po jego snapshocie', () => {
+    const unsubscribe = subscribeWorkoutReads(
+      'user-health',
+      () => undefined,
+      'none',
+      'recent',
+      { healthEpoch: 7, healthGrantId: 'grant-7' },
+    );
+    snapshotHandlers[0]({
+      docs: [{
+        id: 'w-health',
+        data: () => ({
+          userId: 'user-health', dayId: 'day-1', date: '2026-07-03', completed: true,
+          exercises: [{ exerciseId: 'squat', sets: [], rpe: 6 }],
+          revision: 3, healthSidecarPresent: true, healthSidecarRevision: 3,
+        }),
+      }],
+      metadata: { fromCache: false },
+    });
+    expect(getWorkoutReadSnapshot('user-health').healthDataIncomplete).toBe(true);
+    expect(getWorkoutReadSnapshot('user-health').workouts[0].exercises[0]).not.toHaveProperty('rpe');
+
+    snapshotHandlers[1]({
+      docs: [{
+        id: 'w-health',
+        data: () => ({
+          userId: 'user-health', workoutId: 'w-health', healthEpoch: 7,
+          healthGrantId: 'grant-7', sourceWriteId: 'write-7', baseRevision: 3,
+          metrics: [{ exerciseId: 'squat', rpe: 8.5 }], updatedAt: 10,
+        }),
+      }],
+      metadata: { fromCache: false },
+    });
+    expect(getWorkoutReadSnapshot('user-health').healthDataIncomplete).toBe(false);
+    expect(getWorkoutReadSnapshot('user-health').workouts[0].exercises[0]).toMatchObject({ rpe: 8.5 });
+    unsubscribe();
+  });
 });
 
 // Bug 40: błąd listenera pomiarów kończył się na console.error — snapshot bez

@@ -15,6 +15,13 @@ import {
   type EmailWorkoutDeps,
 } from "./email-workout";
 
+const ACTIVE_HEALTH_CONSENT = {
+  healthGranted: true,
+  healthVersion: "1.1",
+  healthEpoch: 1,
+  healthGrantId: "health-grant-1",
+};
+
 const workout = (over: Partial<EmailWorkout> = {}): EmailWorkout => ({
   id: "w1",
   userId: "u1",
@@ -89,6 +96,28 @@ describe("runEmailWorkout", () => {
     expect(d.sendEmail).toHaveBeenCalledOnce();
   });
 
+  it("bez aktywnej zgody wysyła bazowe podsumowanie bez RPE, bólu i oceny sesji", async () => {
+    const d = deps();
+
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).toContain("100 kg × 5");
+    expect(html).not.toContain("RPE 8");
+    expect(html).not.toContain("ból: bark");
+    expect(html).not.toContain("Ciężko (za ciężko)");
+  });
+
+  it("z aktywną zgodą zachowuje pola health w podsumowaniu", async () => {
+    const d = deps({
+      getUserContext: vi.fn(async () => ({ consents: ACTIVE_HEALTH_CONSENT })),
+    });
+
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("RPE 8");
+    expect(sentHtml(d)).toContain("ból: bark");
+    expect(sentHtml(d)).toContain("Ciężko (za ciężko)");
+  });
+
   it("cudzy trening = forbidden (bez wysyłki)", async () => {
     const d = deps({ getWorkout: vi.fn(async () => workout({ userId: "intruz" })) });
     expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: false, code: "forbidden" });
@@ -122,6 +151,19 @@ describe("runEmailHistory", () => {
     const html = sentHtml(d);
     expect(html).toContain("20.08.2026");
     expect(html).toContain("18.08.2026");
+  });
+
+  it("bez aktywnej zgody historia nie zawiera formalnych pól health", async () => {
+    const d = deps({
+      listWorkoutsInRange: vi.fn(async (_uid, opts) => (opts.beforeDate ? [] : [workout()])),
+    });
+
+    expect(await runEmailHistory(d, { ...params })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).toContain("100 kg × 5");
+    expect(html).not.toContain("RPE 8");
+    expect(html).not.toContain("ból: bark");
+    expect(html).not.toContain("Ciężko (za ciężko)");
   });
 
   it("pusta historia = empty-history (bez wysyłki i bez zaliczania limitu)", async () => {

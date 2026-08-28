@@ -40,6 +40,7 @@ describe("buildWeeklyDigest (Z160)", () => {
     expect(html).toContain("vs poprzedni tydzień");
     expect(html).toContain("Wyłączysz w aplikacji");
     expect(html).toContain("Przysiad ze sztangą");
+    expect(`${subject}\n${html}`).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 
   it("wariant EN: sekcje po angielsku, nazwy ćwiczeń przetłumaczone", () => {

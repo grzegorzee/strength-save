@@ -274,12 +274,29 @@ export const usePlanCycles = (userId: string) => {
           return baseId;
         }
         // Retry tej samej operacji: aktywny cykl tego samego planu pod tym id → reuse.
-        const data = existing.data() as { status?: unknown; durationWeeks?: unknown; days?: unknown };
+        const data = existing.data() as {
+          status?: unknown;
+          durationWeeks?: unknown;
+          days?: unknown;
+          choice?: { entry?: unknown };
+        };
         const sameActivePlan = data.status === 'active'
           && data.durationWeeks === durationWeeks
           && Array.isArray(data.days)
           && planTemplateHash(data.days as TrainingDay[]) === planTemplateHash(planDays);
         if (sameActivePlan) return baseId;
+        // Niedokończony onboarding może mieć już cykl, gdy zapis planu stracił
+        // odpowiedź lub się nie udał. Zmiana wyboru po restarcie nadal należy do
+        // tej samej operacji onboardingu: podmieniamy jej snapshot pod
+        // deterministycznym id, zamiast zostawiać dwa aktywne cykle. Replan nie
+        // wchodzi w tę gałąź i zachowuje dotychczasowy mechanizm sufiksu.
+        const replacesIncompleteOnboarding = data.status === 'active'
+          && data.choice?.entry === 'onboarding'
+          && opts?.choice?.entry === 'onboarding';
+        if (replacesIncompleteOnboarding) {
+          transaction.set(baseRef, cycle);
+          return baseId;
+        }
         // H1 bug B (X31): id zajęte przez ZAMKNIĘTY cykl (albo aktywny z innym
         // planem) — ponowny wybór planu z tą samą datą startu. Dotąd transakcja
         // była no-op i zwracała "sukces" bez aktywnego cyklu (konto usera

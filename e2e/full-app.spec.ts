@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish, openProfileSection } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, openProfileSection } from './helpers';
 
 // X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
 // dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
@@ -311,23 +311,48 @@ test.describe('Analytics Tabs', () => {
   });
 
   test('all main tabs are accessible', async ({ page }) => {
-    await navigateAndWait(page, '/analytics');
+    await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
 
-    // Check for tab triggers
-    const tabLabels = ['Podsum.', 'Wykresy', 'Strava', 'Tygodnie'];
-    for (const label of tabLabels) {
+    // X50: główny segment Postępów ma trzy najczęstsze widoki.
+    const mainViews = [
+      { label: 'Wyniki', url: /#\/achievements\?view=analytics$/ },
+      { label: 'Wykresy', url: /#\/achievements\?view=analytics&tab=charts$/ },
+      { label: 'Rekordy', url: /#\/achievements\?view=records$/ },
+    ];
+    for (const { label, url } of mainViews) {
       const tab = page.getByRole('tab', { name: label });
       await expect(tab).toBeVisible();
       await tab.click();
+      await expect(page).toHaveURL(url);
       await expectPageRendered(page);
     }
+
+    // Rzadsze widoki zachowują pełne pokrycie przez menu „Więcej”.
+    const moreViews = [
+      { label: 'Tygodnie', url: /#\/achievements\?view=analytics&tab=weekly$/ },
+      { label: 'Strava', url: /#\/achievements\?view=analytics&tab=strava$/ },
+      { label: 'Odznaki', url: /#\/achievements\?view=records&section=badges$/ },
+    ];
+    for (const { label, url } of moreViews) {
+      await page.getByTestId('progress-more-trigger').click();
+      await page.getByRole('menuitem', { name: label }).click();
+      await expect(page).toHaveURL(url);
+      await expectPageRendered(page);
+    }
+
+    // Eksporty podsumowania są dostępne z wtórnej akcji „Udostępnij”.
+    await page.getByRole('tab', { name: 'Wyniki' }).click();
+    await page.getByTestId('analytics-actions-trigger').click();
+    await expect(page.getByRole('menuitem', { name: 'PDF' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'CSV' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Kopiuj' })).toBeVisible();
   });
 
   test('charts sub-tabs work', async ({ page }) => {
-    await navigateAndWait(page, '/analytics');
+    await navigateAndWait(page, '/achievements');
 
-    // Click "Wykresy" tab
+    // X50: wykresy otwieramy z głównego segmentu Postępów.
     const chartsTab = page.getByRole('tab', { name: 'Wykresy' });
     await expect(chartsTab).toBeVisible();
     await chartsTab.click();
@@ -357,7 +382,7 @@ test.describe('Achievements', () => {
   test('loads with sections visible', async ({ page }) => {
     await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Postępy' })).toBeVisible();
+    await expect(page.locator('header').getByRole('heading', { name: 'Postępy' })).toBeVisible();
   });
 });
 
@@ -372,7 +397,7 @@ test.describe('Cycles', () => {
   test('shows page title', async ({ page }) => {
     await navigateAndWait(page, '/cycles');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
+    await expect(page.locator('header').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
   });
 
   test('shows active plan card when plan exists', async ({ page }) => {
@@ -397,26 +422,48 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     const labels = await page.getByRole('main').locator('h2').evaluateAll((headings) =>
       headings.map((h) => (h.querySelector('[data-section-label]') ?? h).textContent?.trim()));
     expect(labels).toEqual([
-      'Osiągnięcia', 'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy', 'Kalkulator talerzy',
-      'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
-      'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
+      'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
+      'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
+      'Konto i pomoc',
     ]);
-    // Wszystkie sekcje ustawień zwiniete: 11 wierszy (X37: kolor zawsze rozwiniety), zero zamontowanych kart.
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
-    await expect(page.getByTestId('accent-swatches')).toBeVisible();
+    // Wszystkie sekcje ustawień zwinięte: wygląd pokazuje tylko bieżące kolory,
+    // a ciężki edytor montuje się dopiero po jawnej akcji.
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(8);
+    await expect(page.getByTestId('profile-accent-preview')).toBeVisible();
+    await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
     await expect(page.getByTestId('device-settings')).toHaveCount(0);
+    await openProfileSection(page, 'accent');
+    await expect(page.getByTestId('accent-swatches')).toBeVisible();
+    await page.getByTestId('profile-toggle-accent').click();
     // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
     await openProfileSection(page, 'timer');
     await expect(page.getByLabel('Timer przerwy')).toBeVisible();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(10);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(7);
     await page.getByTestId('profile-toggle-timer').click();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(11);
-    // Profil bez dolnego paska Wstecz (strzalka w naglowku zostaje).
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(8);
+    // Profil jest główną zakładką: bez dolnego paska i strzałki Wstecz,
+    // ze wspólnym avatarem w nagłówku głównych ekranów.
     await expect(page.getByTestId('back-bar')).toHaveCount(0);
-    await expect(page.locator('header').getByRole('button', { name: 'Wstecz' })).toBeVisible();
+    await expect(page.locator('header').getByRole('button', { name: 'Wstecz' })).toHaveCount(0);
+    await expect(page.getByTestId('header-avatar')).toBeVisible();
     // Bez duplikatu wejscia do edycji imienia (tylko naglowek tozsamosci).
     await expect(page.getByText('Imię i avatar')).toHaveCount(0);
     await expect(page.getByText('Ustawienia zaawansowane')).toHaveCount(0);
+  });
+
+  test('8 grup Profilu mieści się bez poziomego overflow na 320 i 390 px; każdy trigger ma co najmniej 44 px', async ({ page }) => {
+    for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      await navigateAndWait(page, '/profile');
+      const triggers = page.locator('section[data-state] > div > h2 > button[data-testid^="profile-toggle-"]');
+      await expect(triggers).toHaveCount(8);
+      const boxes = await triggers.evaluateAll((buttons) => buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, height: rect.height };
+      }));
+      expect(boxes.every((box) => box.left >= 0 && box.right <= viewport.width + 1 && box.height >= 44)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    }
   });
 });
 
@@ -529,14 +576,15 @@ test.describe('Onboarding z podglądem (Z73)', () => {
 
   test('wybór planu w onboardingu pokazuje podgląd PRZED zapisem, swap działa', async ({ page }) => {
     await navigateAndWait(page, '/');
-    // Pakiet prawny v2: krok 1 wymaga 3 rozdzielonych zgód (regulamin+wiek,
-    // privacy, zdrowie art. 9); marketing jest opcjonalny i zostaje pusty.
-    await expect(page.getByRole('button', { name: 'Dalej', exact: true })).toBeDisabled();
+    // Regulamin i privacy są wymagane; health jest dobrowolnym opt-inem.
+    await expect(page.getByTestId('ob-personalization-next')).toBeEnabled();
+    await page.getByTestId('ob-personalization-next').click();
+    await expect(page.getByTestId('ob-legal-submit')).toBeDisabled();
     await page.getByTestId('consent-terms').click();
     await page.getByTestId('consent-privacy').click();
-    await expect(page.getByRole('button', { name: 'Dalej', exact: true })).toBeDisabled();
+    await expect(page.getByTestId('ob-legal-submit')).toBeEnabled();
     await page.getByTestId('consent-health').click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByTestId('ob-legal-submit').click();
     // X34: krok 5A (wybór) -> 6/6 (Start planu) -> "Podgląd planu".
     await advanceWizardToStep6(page);
     await page.getByTestId('ob-start-preview').click();
@@ -552,7 +600,7 @@ test.describe('Onboarding z podglądem (Z73)', () => {
   // zapisuje BEZ podglądu (w mock E2E Firestore jest zablokowany, więc sam zapis
   // nie kończy się Dashboardem; pełną ścieżkę do Dashboardu pokrywa spec
   // emulatorowy e2e/emulator/plan-lifecycle.spec.ts).
-  test('X34 (a): onboarding 1-6, przerywnik 3,5 s, 5A odchudzone, "Zacznij redukcję" bez podglądu', async ({ page }) => {
+  test('X34 (a): onboarding 1-6, natychmiastowa rekomendacja, 5A odchudzone, "Zacznij redukcję" bez podglądu', async ({ page }) => {
     await navigateAndWait(page, '/');
     await passOnboardingWelcome(page);
     await expect(page.getByText('02 / 06')).toBeVisible();
@@ -560,17 +608,11 @@ test.describe('Onboarding z podglądem (Z73)', () => {
     await page.getByRole('button', { name: 'Redukcja', exact: false }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: '3', exact: true }).click();
-    const shownAt = Date.now();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
 
-    // Przerywnik: nakładka z tytułem, wiersze wchodzą kolejno, pasek; >= 3 s na ekranie.
-    const overlay = page.getByTestId('ob-matching');
-    await expect(overlay).toBeVisible();
-    await expect(overlay.getByText('Dobieram plany')).toBeVisible();
-    await expect(overlay.getByTestId('ob-matching-row')).toHaveCount(3, { timeout: 4000 });
-    await expect(overlay.getByTestId('ob-matching-row').nth(2)).toContainText('3 dni/tydz');
-    await waitForMatchingToFinish(page);
-    expect(Date.now() - shownAt).toBeGreaterThanOrEqual(3000);
+    // Wynik jest synchroniczny: żadna pełnoekranowa nakładka ani timer nie
+    // blokują kart, także gdy WebView wraca z backgroundu.
+    await expect(page.getByTestId('ob-matching')).toHaveCount(0, { timeout: 500 });
 
     // 5A: tylko wybór.
     await expect(page.getByText('05 / 06')).toBeVisible();
@@ -785,7 +827,9 @@ test.describe('PlanDaysEditor (Z70)', () => {
     await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).first().click();
     await dialog.getByPlaceholder(/Szukaj|Find/).fill('martwy ciag rumunski');
     await dialog.getByText('Martwy Ciąg Rumuński (RDL)').click();
-    await page.getByRole('button', { name: 'Przesuń w górę' }).nth(1).click();
+    // Pierwsze ćwiczenie ma celowo wyłączony przycisk „w górę”.
+    // Wybieramy aktywny kontroler, żeby test nie zależał od liczby dni/wierszy.
+    await page.locator('button[aria-label="Przesuń w górę"]:not(:disabled)').first().click();
 
     // Usuń zduplikowany dzień.
     await page.getByRole('button', { name: 'Usuń dzień' }).nth(1).click();
@@ -844,6 +888,7 @@ test.describe('Linki krzyżowe (Z67)', () => {
 
     // FIX-B T5: Cykle przeniesione z karty planu Dashboardu na stronę Planu.
     await navigateAndWait(page, '/plan');
+    await page.getByTestId('plan-manage-trigger').click();
     await page.getByTestId('plan-cycles-link').click();
     await expect(page).toHaveURL(/#\/cycles$/);
   });
@@ -1273,8 +1318,11 @@ test.describe('Import CSV (Z110)', () => {
 
     // Cofnięcie: historia importów -> Cofnij -> treningi znikają.
     await page.getByTestId('import-wizard-open').click();
-    await expect(page.getByTestId('import-history-entry').first()).toBeVisible();
-    await page.getByTestId('import-undo').first().click();
+    const activeImportDialog = page.locator('[role="dialog"][data-state="open"]');
+    await expect(activeImportDialog).toHaveCount(1);
+    await expect(page.locator('[data-radix-overlay][data-state="open"]')).toHaveCount(1);
+    await expect(activeImportDialog.getByTestId('import-history-entry').first()).toBeVisible();
+    await activeImportDialog.getByTestId('import-undo').first().click();
     await expect(page.getByTestId('import-history-entry')).toHaveCount(0);
     const workoutsAfterUndo = await page.evaluate(() => {
       const raw = window.localStorage.getItem('fittracker_e2e_workouts');
@@ -1362,8 +1410,11 @@ test.describe('Manualne cardio w analityce (Z113)', () => {
       }],
     });
 
-    await navigateAndWait(page, '/analytics');
-    await page.getByRole('tab', { name: 'Tygodnie' }).click();
+    // X50: tygodnie są wtórnym widokiem Postępów, osiągalnym z „Więcej”.
+    await navigateAndWait(page, '/achievements');
+    await page.getByTestId('progress-more-trigger').click();
+    await page.getByRole('menuitem', { name: 'Tygodnie' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=weekly$/);
     await expect(page.getByText('5 km').first()).toBeVisible();
   });
 });
@@ -1417,9 +1468,16 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
     await expect(page.getByTestId('hybrid-week-strip')).toBeVisible();
     await expect(page.getByTestId('interference-banner')).toHaveCount(0);
 
-    // Analytics: karta hybrydowa z podziałem procentowym (zakładka Podsumowanie).
-    await navigateAndWait(page, '/analytics');
-    await page.getByRole('tab', { name: 'Podsum.' }).click();
+    // Główne Wyniki pozostają lekkie; analiza hybrydowa jest w szczegółach.
+    await navigateAndWait(page, '/achievements');
+    await page.getByRole('tab', { name: 'Wyniki' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics$/);
+    await expect(page.getByTestId('hybrid-load-card')).toHaveCount(0);
+    await expect(page.getByTestId('hybrid-week-split')).toHaveCount(0);
+
+    await page.getByTestId('progress-more-trigger').click();
+    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=details$/);
     await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
     await expect(page.getByTestId('hybrid-week-split')).toBeVisible();
   });
@@ -1427,8 +1485,15 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
   test('konto tylko-siłowe: karta hybrydowa z samą siłą, bez crasha', async ({ page }) => {
     const today = localToday();
     await setE2EWorkouts(page, [strengthSeed(today)]);
-    await navigateAndWait(page, '/analytics');
-    await page.getByRole('tab', { name: 'Podsum.' }).click();
+    await navigateAndWait(page, '/achievements');
+    await page.getByRole('tab', { name: 'Wyniki' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics$/);
+    await expect(page.getByTestId('hybrid-load-card')).toHaveCount(0);
+    await expect(page.getByTestId('hybrid-week-split')).toHaveCount(0);
+
+    await page.getByTestId('progress-more-trigger').click();
+    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=details$/);
     await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
     await expect(page.getByTestId('hybrid-week-split')).toContainText('100%');
   });
@@ -1937,6 +2002,8 @@ test.describe('Pomiary (WP-G X35a)', () => {
   test('popup pomiarów po onboardingu: /?welcome=1 bez pomiarów -> "Tak, dodaj pomiary" -> /measurements', async ({ page }) => {
     await page.goto('./#/?welcome=1');
     await page.waitForLoadState('domcontentloaded');
+    // Handoff planu ma pierwszeństwo, żeby dwa komunikaty nie konkurowały.
+    await page.getByRole('button', { name: 'Później' }).click();
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText('Dodać pomiary ciała?')).toBeVisible();
@@ -1948,6 +2015,7 @@ test.describe('Pomiary (WP-G X35a)', () => {
   test('popup pomiarów: "Nie teraz" zamyka bez nawigacji; user z pomiarem popupu nie widzi', async ({ page }) => {
     await page.goto('./#/?welcome=1');
     await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('button', { name: 'Później' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Nie teraz' }).click();
     await expect(page.getByRole('alertdialog')).toHaveCount(0);
     await expect(page).not.toHaveURL(/#\/measurements/);
@@ -2005,6 +2073,18 @@ test.describe('Pomiary (WP-G X35a)', () => {
 
   // p.1-2: arkusz edycji od dołu bez poziomego overflow, focus na polu wagi (nie na dacie).
   test('edycja pomiaru: arkusz od dołu bez poziomego przewijania, focus na wadze, data i godzina w osobnych wierszach', async ({ page }) => {
+    // Edycja pomiarów wymaga aktualnej, dobrowolnej zgody zdrowotnej. Ten test
+    // zachowuje pokrycie dotychczasowego przepływu użytkownika opt-in.
+    await setE2EAuthScenario(page, 'active-user', {
+      consents: {
+        termsVersion: '2.0',
+        privacyVersion: '2.1',
+        healthGranted: true,
+        healthVersion: '1.1',
+        healthEpoch: 1,
+        healthGrantId: 'e2e-health-grant-1',
+      },
+    });
     await setE2EMeasurements(page, e2eMeasurements(84, 83));
     await navigateAndWait(page, '/measurements');
     await page.getByTestId('measurement-row-m-later').click();

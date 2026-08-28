@@ -34,6 +34,51 @@ service cloud.firestore {
              );
     }
 
+    // Dane zdrowotne można dopisywać wyłącznie w ramach bieżącej, jawnej zgody.
+    // Epoch unieważnia operacje zapisane offline przed wycofaniem lub ponownym
+    // udzieleniem zgody; odczyt i usunięcie istniejących danych pozostają dostępne.
+    function hasCurrentHealthConsent(userId, healthEpoch) {
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      return hasSelfAccess(userId)
+             && ('consents' in profile)
+             && profile.consents is map
+             && profile.consents.keys().hasAll([
+               'healthGranted', 'healthVersion', 'healthEpoch', 'healthGrantId'
+             ])
+             && profile.consents.healthGranted == true
+             && profile.consents.healthVersion == '1.1'
+             && profile.consents.healthEpoch is int
+             && profile.consents.healthEpoch > 0
+             && profile.consents.healthGrantId is string
+             && profile.consents.healthGrantId.size() > 0
+             && healthEpoch is int
+             && healthEpoch == profile.consents.healthEpoch;
+    }
+
+    function isValidPaletteTheme(theme) {
+      return theme is map
+               && theme.keys().hasOnly(['version', 'id', 'source', 'primary', 'supportA', 'supportB'])
+               && theme.version == 2
+               && (
+                 (theme.id == 'pulse' && theme.source == 'preset'
+                   && theme.primary == '#c6ff00' && theme.supportA == '#22d3ee' && theme.supportB == '#a78bfa')
+                 || (theme.id == 'forge' && theme.source == 'preset'
+                   && theme.primary == '#ff6b35' && theme.supportA == '#fbbf24' && theme.supportB == '#fb7185')
+                 || (theme.id == 'glacier' && theme.source == 'preset'
+                   && theme.primary == '#38bdf8' && theme.supportA == '#818cf8' && theme.supportB == '#2dd4bf')
+               )
+               && theme.primary is string
+               && theme.primary.matches('^#[0-9a-fA-F]{6}$')
+               && theme.supportA is string
+               && theme.supportA.matches('^#[0-9a-fA-F]{6}$')
+               && theme.supportB is string
+               && theme.supportB.matches('^#[0-9a-fA-F]{6}$')
+               && theme.primary != theme.supportA
+               && theme.primary != theme.supportB
+               && theme.supportA != theme.supportB
+             ;
+    }
+
     // Users collection
     match /users/{userId} {
       // Users can read their own profile
@@ -47,6 +92,7 @@ service cloud.firestore {
                       'displayName', 'photoURL', 'language', 'preferences',
                       'notificationPrefs', 'onboardingCompleted', 'onboarding',
                       'trainingProfile', 'estimatedMaxHR', 'maxHRManualOverride',
+                      'estimatedMaxHREpoch',
                       'prBackfill', 'timeZone', 'onboardingAnswers'
                     ])
                     // Bug 11 (X30): strefa IANA urządzenia (TimeZoneSync) — backend liczy z niej
@@ -60,6 +106,9 @@ service cloud.firestore {
                     && (!('language' in request.resource.data)
                         || (request.resource.data.language is string && request.resource.data.language.size() <= 10))
                     && (!('preferences' in request.resource.data) || request.resource.data.preferences is map)
+                    && (!('preferences' in request.resource.data)
+                        || !('paletteTheme' in request.resource.data.preferences)
+                        || isValidPaletteTheme(request.resource.data.preferences.paletteTheme))
                     && (!('notificationPrefs' in request.resource.data) || request.resource.data.notificationPrefs is map)
                     && (!('onboardingCompleted' in request.resource.data) || request.resource.data.onboardingCompleted is bool)
                     && (!('onboarding' in request.resource.data) || request.resource.data.onboarding is map)
@@ -71,6 +120,16 @@ service cloud.firestore {
                             && request.resource.data.estimatedMaxHR <= 230))
                     && (!('maxHRManualOverride' in request.resource.data)
                         || request.resource.data.maxHRManualOverride is bool)
+                    && (!('estimatedMaxHREpoch' in request.resource.data)
+                        || (request.resource.data.estimatedMaxHREpoch is int
+                            && request.resource.data.estimatedMaxHREpoch > 0))
+                    // Max HR jest daną zdrowotną. Zwykłe aktualizacje profilu nadal
+                    // działają po wycofaniu zgody, o ile nie zmieniają tych pól.
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                          'estimatedMaxHR', 'maxHRManualOverride', 'estimatedMaxHREpoch'
+                        ])
+                        || (('estimatedMaxHREpoch' in request.resource.data)
+                            && hasCurrentHealthConsent(userId, request.resource.data.estimatedMaxHREpoch)))
                     // Backfill rekordow (Runna p.1, spec A5): zamknieta mapa boi glownych,
                     // wartosci w kg (0-600) — twardy limit, miekkie "na pewno?" robi UI.
                     && (!('prBackfill' in request.resource.data)
@@ -122,6 +181,8 @@ service cloud.firestore {
         'id', 'userId', 'dayId', 'date', 'exercises', 'completed', 'completedAt',
         'notes', 'cycleId', 'skippedExercises', 'dayName', 'dayFocus',
         'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId', 'createdAt',
+        'lastWriteDigest', 'healthSidecarRevision', 'healthSidecarPresent',
+        'restoreV3Id', 'restoreV3Digest',
         'importBatchId', 'sessionRating', 'sessionRatingReasons'
       ])
       && (!('notes' in request.resource.data)
@@ -130,6 +191,20 @@ service cloud.firestore {
       && (!('importBatchId' in request.resource.data)
           || (request.resource.data.importBatchId is string
               && request.resource.data.importBatchId.size() <= 64))
+      // Metadane atomowego restore zapisuje wyłącznie Admin SDK. Późniejsze
+      // checkpointy klienta mogą je zachować, ale nie tworzyć ani zmieniać.
+      && (!('restoreV3Id' in request.resource.data)
+          || (resource != null
+              && 'restoreV3Id' in resource.data
+              && request.resource.data.restoreV3Id is string
+              && request.resource.data.restoreV3Id.size() <= 180
+              && request.resource.data.restoreV3Id == resource.data.restoreV3Id))
+      && (!('restoreV3Digest' in request.resource.data)
+          || (resource != null
+              && 'restoreV3Digest' in resource.data
+              && request.resource.data.restoreV3Digest is string
+              && request.resource.data.restoreV3Digest.size() == 64
+              && request.resource.data.restoreV3Digest == resource.data.restoreV3Digest))
       // Ocena sesji po treningu (Runna pakiet 1): kciuk + zamknieta lista powodow.
       && (!('sessionRating' in request.resource.data)
           || request.resource.data.sessionRating in ['up', 'down'])
@@ -158,14 +233,24 @@ service cloud.firestore {
       allow read: if request.auth != null && isAdmin();
     }
 
+    // Wrażliwe metryki treningowe zapisuje wyłącznie syncWorkoutV2 przez Admin
+    // SDK. Właściciel zachowuje prawo dostępu i usunięcia także po wycofaniu
+    // zgody zdrowotnej; rola admina w kliencie nie daje dostępu do cudzych danych.
+    match /workout_health_v2/{workoutId} {
+      allow get, list, delete: if request.auth != null
+                               && request.auth.uid == resource.data.userId;
+      allow create, update: if false;
+    }
+
     // Zamknięty schemat pomiaru (Z41): znane pola liczbowe + identyfikatory.
     function validMeasurementShape() {
       return request.resource.data.keys().hasOnly([
         'id', 'userId', 'date', 'weight', 'armLeft', 'armRight', 'chest', 'waist',
         'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'recordedAt',
-        'photoUrl', 'photoPath'
+        'photoUrl', 'photoPath', 'healthEpoch'
       ])
       && (request.resource.data.date is string && request.resource.data.date.size() <= 10)
+      && (request.resource.data.healthEpoch is int && request.resource.data.healthEpoch > 0)
       && (!('recordedAt' in request.resource.data) || request.resource.data.recordedAt is number)
       // T13a: zdjęcie sylwetki — URL z tokenem + ścieżka Storage (do GDPR cleanup).
       && (!('photoUrl' in request.resource.data) || (request.resource.data.photoUrl is string && request.resource.data.photoUrl.size() <= 1000))
@@ -186,10 +271,19 @@ service cloud.firestore {
     match /measurements/{measurementId} {
       allow read: if request.auth != null
                   && (isAdmin() || hasSelfAccess(resource.data.userId));
-      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId) && validMeasurementShape();
+      allow create: if userIdMatchesAuth()
+                    && hasCurrentHealthConsent(
+                      request.resource.data.userId,
+                      request.resource.data.healthEpoch
+                    )
+                    && validMeasurementShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
                     && keepsOwner()
+                    && hasCurrentHealthConsent(
+                      request.resource.data.userId,
+                      request.resource.data.healthEpoch
+                    )
                     && validMeasurementShape();
       allow delete: if request.auth != null
                     && hasSelfAccess(resource.data.userId);
@@ -516,13 +610,19 @@ service cloud.firestore {
         'screen_exercises', 'screen_profile', 'screen_history',
         'screen_measurements', 'screen_achievements', 'screen_cycles',
         'screen_settings', 'screen_workout',
+        'screen_onboarding',
         'action_workout_started', 'action_workout_completed',
         'action_set_checked', 'action_plan_edited',
         'action_replan_completed', 'action_export_data',
         'action_strava_opened',
         // Z222: funnel rejestracji i monetyzacji.
         'register_started', 'profile_created', 'email_verified',
-        'paywall_viewed', 'trial_started', 'purchase_failed'
+        'paywall_viewed', 'trial_started', 'purchase_failed',
+        // X46: lejek onboardingu bez treści odpowiedzi użytkownika.
+        'onboarding_started', 'onboarding_resumed',
+        'onboarding_completed', 'onboarding_save_failed',
+        'post_plan_guide_started', 'post_plan_guide_completed',
+        'post_plan_guide_skipped'
               ])));
     }
 
@@ -744,7 +844,8 @@ service cloud.firestore {
     function validManualActivityShape() {
       return request.resource.data.keys().hasOnly([
         'userId', 'type', 'date', 'movingTime', 'name', 'distance',
-        'averageHeartrate', 'calories', 'perceivedIntensity', 'description', 'createdAt'
+        'averageHeartrate', 'calories', 'perceivedIntensity', 'description', 'createdAt',
+        'healthEpoch'
       ])
       && request.resource.data.userId is string
       && request.resource.data.type in [
@@ -763,9 +864,32 @@ service cloud.firestore {
       && (!('calories' in request.resource.data) || request.resource.data.calories is number)
       && (!('perceivedIntensity' in request.resource.data)
           || request.resource.data.perceivedIntensity in ['easy', 'moderate', 'hard'])
+      && (!('healthEpoch' in request.resource.data)
+          || (request.resource.data.healthEpoch is int && request.resource.data.healthEpoch > 0))
       && (!('description' in request.resource.data)
           || (request.resource.data.description is string && request.resource.data.description.size() <= 2000))
       && request.resource.data.createdAt is int;
+    }
+
+    function manualActivityHasHealthData(data) {
+      return data.keys().hasAny([
+        'averageHeartrate', 'calories', 'perceivedIntensity'
+      ]);
+    }
+
+    function validManualActivityHealthGrant() {
+      return manualActivityHasHealthData(request.resource.data)
+             && ('healthEpoch' in request.resource.data)
+             && hasCurrentHealthConsent(
+               request.resource.data.userId,
+               request.resource.data.healthEpoch
+             );
+    }
+
+    function changesManualActivityHealthData() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'averageHeartrate', 'calories', 'perceivedIntensity', 'healthEpoch'
+      ]);
     }
 
     match /manual_activities/{activityId} {
@@ -773,10 +897,25 @@ service cloud.firestore {
                   && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
       allow create: if userIdMatchesAuth()
                     && hasSelfAccess(request.resource.data.userId)
+                    && (
+                      (
+                        !manualActivityHasHealthData(request.resource.data)
+                        && !('healthEpoch' in request.resource.data)
+                      )
+                      || validManualActivityHealthGrant()
+                    )
                     && validManualActivityShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
                     && keepsOwner()
+                    && (
+                      !changesManualActivityHealthData()
+                      || (
+                        !manualActivityHasHealthData(request.resource.data)
+                        && !('healthEpoch' in request.resource.data)
+                      )
+                      || validManualActivityHealthGrant()
+                    )
                     && validManualActivityShape();
       allow delete: if request.auth != null
                     && hasSelfAccess(resource.data.userId);

@@ -24,6 +24,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     data-app-overlay
+    data-radix-overlay
     className={cn(
       "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
@@ -38,13 +39,13 @@ SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 // taflę .kinetic-glass-sheet (utility bg-background z bazy wygrywałby z klasą
 // warstwy components i dusił glass).
 const sheetVariants = cva(
-  "fixed z-50 gap-4 p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  "fixed z-[51] gap-4 p-6 shadow-lg transition-transform ease-in-out data-[state=closed]:pointer-events-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
   {
     variants: {
       side: {
         top: "inset-x-0 top-0 border-b bg-background data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
-          "kinetic-glass-sheet inset-x-0 bottom-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "kinetic-glass-sheet inset-x-0 bottom-[var(--keyboard-inset,0px)] max-h-[calc(100dvh-var(--keyboard-inset,0px))] overflow-y-auto overscroll-contain pb-[calc(1.5rem+env(safe-area-inset-bottom))] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r bg-background data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4  border-l bg-background data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, Trophy, Check } from 'lucide-react';
 import {
@@ -14,7 +15,17 @@ import { Exercise } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
-import { parseSetCount, sanitizeSets, parseRepRange, parseDurationRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
+import {
+  parseSetCount,
+  sanitizeSets,
+  parseRepRange,
+  parseDurationRange,
+  getProgressionAdvice,
+  getExerciseInstructions,
+  previousWorkingSet,
+  supportsZeroWeight,
+  isPerSideRepTarget,
+} from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl, getExercisePosterUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { buildRecordBadges, formatEst1RMBadge, formatMaxLiftBadge } from '@/lib/record-labels';
@@ -38,7 +49,14 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { reportClientError } from '@/lib/error-telemetry';
 import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
 import type { ExerciseNote } from '@/lib/exercise-notes';
-import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingType } from '@/lib/set-tracking';
+import {
+  formatDistanceM,
+  formatDurationSec,
+  hasCompleteSetData,
+  parseDurationInput,
+  resolveCompletionTracking,
+  type TrackingType,
+} from '@/lib/set-tracking';
 import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 import { generateWarmupSets } from '@/lib/warmup-generator';
@@ -65,6 +83,16 @@ async function exerciseCompleteHaptic() {
 // zero ramek 1px — granicę robi tło (No-Line Rule, docs/DESIGN.md).
 // Fala 2 (2026-08-20, mockup 2a): h-10, radius 12, tło surface-low.
 const chipClass = 'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors';
+
+const incompleteSetMessageKey = (tracking: TrackingType): TranslationKey => {
+  switch (tracking) {
+    case 'weight_reps': return 'card.incompleteSetWeightReps';
+    case 'bodyweight_reps':
+    case 'assisted_bodyweight': return 'card.incompleteSetReps';
+    case 'duration': return 'card.incompleteSetDuration';
+    case 'weight_distance_duration': return 'card.incompleteSetDistanceDuration';
+  }
+};
 
 // Fala 2 (2026-08-20): dawne badge celu (Progression/NextTarget/WeeklyTarget/Rza)
 // zastapil jeden TARGET BOX w karcie — kaskada i dane bez zmian (targetBox nizej).
@@ -249,6 +277,9 @@ const ExerciseCardInner = ({
   // Z176: dialog startuje wideo twardo (play() w onLoadedMetadata); odmowa
   // autoplay (np. Low Power Mode) → natywne controls, user ma przycisk (reguła 6).
   const [videoControls, setVideoControls] = useState(false);
+  // Słaby internet / tryb samolotowy nie może zostawić czarnego modala.
+  // Filmy pozostają strumieniowane, ale opis techniki jest częścią bundla.
+  const [videoFailed, setVideoFailed] = useState(false);
   // Z129.2: instrukcje wyprowadzone z karty do menu ⋯ (dialog na żądanie).
   const [showInstructions, setShowInstructions] = useState(false);
   // Z191: kontrolowany stan menu ⋯ — dialog wolno otworzyć dopiero PO zamknięciu
@@ -271,6 +302,7 @@ const ExerciseCardInner = ({
   // X17C Z136 → Z143: stan przerwy przeniesiony do rodzica (jeden timer na sesję);
   // karta dostaje restRun propsem tylko, gdy przerwa należy do niej.
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
+  const [completionError, setCompletionError] = useState<{ setIndex: number; key: TranslationKey } | null>(null);
   // WP-C (X37): odliczanie serii na czas, jedno naraz w karcie. Stan tu (karta
   // jest właścicielem serii), SetCountdown tylko tyka i uzbraja notyfikację.
   const [countdown, setCountdown] = useState<(SetCountdownRun & { setIndex: number }) | null>(null);
@@ -294,6 +326,7 @@ const ExerciseCardInner = ({
       // Z171: otwarty dialog usuwania nie przeżywa podmiany sets — jego referencja
       // wskazywałaby obiekt, którego już nie ma w tablicy.
       setPendingRemove(null);
+      setCompletionError(null);
     }
   }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible]);
 
@@ -321,6 +354,7 @@ const ExerciseCardInner = ({
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight' | 'durationSec' | 'distanceM' | 'assistWeight', value: number) => {
     if (isBodyweight && field === 'weight') return;
     hasLocalChanges.current = true;
+    setCompletionError((current) => current?.setIndex === setIndex ? null : current);
 
     const updatedSet = {
       ...sets[setIndex],
@@ -343,22 +377,23 @@ const ExerciseCardInner = ({
     if (!isEditable) return;
     hasLocalChanges.current = true;
 
-    // Ręczne odhaczenie w trakcie odliczania tej serii kończy odliczanie.
-    if (countdown?.setIndex === setIndex) setCountdown(null);
-
     const currentSet: SetData = { ...sets[setIndex], ...override };
     const turningOn = !currentSet.completed;
 
     // If confirming an empty set and we have last time's value, adopt it.
+    // Indeks serii roboczej pomija rozgrzewkę po obu stronach.
+    const workingIndex = sets.slice(0, setIndex).filter((set) => !set.isWarmup).length;
+    const prevForAdopt = turningOn
+      ? (currentSet.isWarmup ? previousSets?.[setIndex] : previousWorkingSet(previousSets, workingIndex))
+      : undefined;
     let reps = currentSet.reps;
     let weight = currentSet.weight;
-    if (turningOn && reps === 0 && previousSets && previousSets[setIndex]) {
-      reps = previousSets[setIndex].reps;
-      if (!isBodyweight) weight = previousSets[setIndex].weight;
+    if (turningOn && reps === 0 && prevForAdopt) {
+      reps = prevForAdopt.reps;
+      if (!isBodyweight) weight = prevForAdopt.weight;
     }
 
     // Z105: adopcja pustych pól nowych typów z poprzedniej sesji przy odhaczaniu.
-    const prevForAdopt = turningOn ? previousSets?.[setIndex] : undefined;
     const adoptedExtras = prevForAdopt
       ? {
         ...(!(currentSet.durationSec ?? 0) && prevForAdopt.durationSec !== undefined && { durationSec: prevForAdopt.durationSec }),
@@ -374,6 +409,19 @@ const ExerciseCardInner = ({
       ...adoptedExtras,
       completed: turningOn,
     };
+    const completionTracking = resolveCompletionTracking(
+      tracking,
+      isBodyweight,
+      supportsZeroWeight(exercise.name),
+    );
+    if (turningOn && !hasCompleteSetData(updatedSet, completionTracking)) {
+      setCompletionError({ setIndex, key: incompleteSetMessageKey(completionTracking) });
+      return;
+    }
+    // Dopiero prawidłowe ręczne odhaczenie kończy odliczanie. Błędny tap nie
+    // niszczy trwającego pomiaru — user może zaczekać albo użyć Stop.
+    if (countdown?.setIndex === setIndex) setCountdown(null);
+    setCompletionError(null);
     // Z171: odznaczona seria dalej niesie realne dane — bez tego X po odznaczeniu
     // kasowałby ją bez pytania.
     touchedSets.current.add(updatedSet);
@@ -565,6 +613,8 @@ const ExerciseCardInner = ({
     const { min, max } = range;
     return min === max ? String(min) : `${min}-${max}`;
   }, [exercise.sets]);
+  const zeroWeightAllowed = !isBodyweight && tracking === 'weight_reps' && supportsZeroWeight(exercise.name);
+  const perSideTarget = isPerSideRepTarget(exercise.sets);
 
   // WP-C (X37): sekundy z zapisu planu ("3 x 45s" → 45) jako fallback celu odliczania.
   const planDurationSec = useMemo(() => parseDurationRange(exercise.sets)?.min ?? null, [exercise.sets]);
@@ -1057,8 +1107,12 @@ const ExerciseCardInner = ({
                 // dialog wideo nie może wjechać pod modalną warstwę menu.
                 if (menuOpen) {
                   setMenuOpen(false);
-                  requestAnimationFrame(() => setShowVideo(true));
+                  requestAnimationFrame(() => {
+                    setVideoFailed(false);
+                    setShowVideo(true);
+                  });
                 } else {
+                  setVideoFailed(false);
                   setShowVideo(true);
                 }
               }}
@@ -1106,15 +1160,15 @@ const ExerciseCardInner = ({
             <h3 className="font-heading text-lg font-bold leading-tight line-clamp-2">{localizedName}</h3>
             {/* Fala 2 (2026-08-20, mockup 2a): jedna mono linia metadanych.
                 B-T2 bez zmian: estymacja zawsze z widocznym źródłem (formatEst1RMBadge). */}
-            <p className="mt-1 font-mono text-[9px] uppercase leading-snug tracking-[0.06em] text-muted-foreground" title={t('card.maxLiftTitle')}>
+            <p className="mt-1 font-mono text-[11px] uppercase leading-snug tracking-[0.06em] text-muted-foreground" title={t('card.maxLiftTitle')}>
               {(() => {
                 const badges = buildRecordBadges(historicalBest);
                 // Naprawa r3 (2026-08-21, sędzia struktury): jednostka wagi RAZ,
                 // przy pierwszej wartości ("3 SERII · 1RM 79 KG · 63×8 · MAX 63") —
                 // powtarzana przy każdej liczbie łamała mono linię na dwie
                 // z zawinięciem w środku członu ("63 / KG×8") na 390 px.
-                // Iteracja 3 pętli wizualnej: stopień 9px (skala mono mockupu
-                // 8.5-11px) mieści standardowy przypadek w JEDNEJ linii, a NBSP
+                // Iteracja 3 pętli wizualnej: zwarty stopień mono 11px mieści
+                // standardowy przypadek w JEDNEJ linii, a NBSP
                 // wewnątrz członów gwarantuje, że dłuższe dane łamią się wyłącznie
                 // na separatorach między członami, nigdy w środku członu.
                 // B-T2 bez zmian: źródło estymacji nadal widoczne (formatEst1RMBadge).
@@ -1139,7 +1193,7 @@ const ExerciseCardInner = ({
                 {livePRWeight != null && (
                   <span
                     data-testid="live-pr-badge"
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-success bg-fitness-success/10 text-fitness-success"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border border-fitness-success bg-fitness-success/10 text-fitness-success"
                   >
                     <Trophy className="h-3 w-3" aria-hidden /> PR {Math.round(toDisplay(livePRWeight))} {unit}
                   </span>
@@ -1147,7 +1201,7 @@ const ExerciseCardInner = ({
                 {FEATURE_FLAGS.intervalTimers && intervalSpec && (
                   <button
                     onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                   >
                     <Timer className="h-3 w-3" />
                     {intervalSpec.label}
@@ -1322,6 +1376,24 @@ const ExerciseCardInner = ({
           return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
 
+        {completionError && (
+          <p
+            role="alert"
+            aria-live="polite"
+            className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+          >
+            {t(completionError.key)}
+          </p>
+        )}
+
+        {(zeroWeightAllowed || perSideTarget) && (
+          <p className="mt-2 px-2 text-[11px] leading-relaxed text-muted-foreground" data-testid="zero-weight-rep-hint">
+            {zeroWeightAllowed && <span>{t('card.zeroWeightHint')}</span>}
+            {zeroWeightAllowed && perSideTarget && <span aria-hidden> · </span>}
+            {perSideTarget && <span>{t('card.perSideTargetHint', { n: repsPlaceholder })}</span>}
+          </p>
+        )}
+
         {/* Fala 2 (2026-08-20): pasek przerwy przeniesiony z karty do STICKY slotu
             na dole ekranu (renderuje WorkoutDay). Prop restRun zostaje — steruje
             przygaszeniem ukończonej karty (Z145). */}
@@ -1340,7 +1412,7 @@ const ExerciseCardInner = ({
             </button>
             {/* Z129.1: nieme `disabled` nie mówiło userowi, dlaczego nie da się kliknąć. */}
             {atSetLimit && (
-              <p className="mt-1.5 text-center text-[11px] text-muted-foreground/70">{t('card.addSetLimit')}</p>
+              <p className="mt-1.5 text-center text-[11px] text-muted-foreground">{t('card.addSetLimit')}</p>
             )}
           </>
         )}
@@ -1391,6 +1463,7 @@ const ExerciseCardInner = ({
                 aria-pressed={showMetrics}
                 className={cn(
                   chipClass,
+                  toggleButtonClasses(showMetrics),
                   showMetrics
                     ? 'bg-primary/10 text-primary'
                     : 'bg-surface-low text-foreground/80 hover:text-foreground',
@@ -1490,7 +1563,13 @@ const ExerciseCardInner = ({
           {detailSlug && (
             <button
               type="button"
-              onClick={() => navigate(`/exercise/${detailSlug}`)}
+              onClick={() => {
+                // Blackout WKWebView: nawigacja w tym samym ticku twardo
+                // unmountowała OTWARTY portal Radixa. Najpierw przeprowadzamy
+                // Root przez open=false, a trasę zmieniamy w następnej klatce.
+                setShowInstructions(false);
+                window.requestAnimationFrame(() => navigate(`/exercise/${detailSlug}`));
+              }}
               className="mt-1 w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary/20"
             >
               {t('card.details')}
@@ -1501,7 +1580,13 @@ const ExerciseCardInner = ({
 
       {/* ── Animation Dialog ── */}
       {animationUrl && (
-        <Dialog open={showVideo} onOpenChange={(open) => { setShowVideo(open); if (!open) setVideoControls(false); }}>
+        <Dialog open={showVideo} onOpenChange={(open) => {
+          setShowVideo(open);
+          if (!open) {
+            setVideoControls(false);
+            setVideoFailed(false);
+          }
+        }}>
           <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="text-sm pr-6">{localizedName}</DialogTitle>
@@ -1510,7 +1595,7 @@ const ExerciseCardInner = ({
                 56.25% (16:9), przez co object-cover ucinał 25% wysokości, czyli
                 głowę i stopy ćwiczącego. */}
             <div className="relative w-full overflow-hidden rounded-lg" style={{ paddingBottom: '75%' }}>
-              {showVideo && (
+              {showVideo && !videoFailed && (
                 <video
                   className="absolute inset-0 w-full h-full object-cover"
                   src={animationUrl}
@@ -1518,6 +1603,14 @@ const ExerciseCardInner = ({
                   muted
                   playsInline
                   controls={videoControls}
+                  onError={() => {
+                    setVideoFailed(true);
+                    void reportClientError(uid ?? '', {
+                      code: 'exercise-video-load-error',
+                      phase: 'other',
+                      detail: exercise.name,
+                    });
+                  }}
                   // Z176: twardy start zamiast atrybutu autoplay — odmowę widać
                   // (rejection) i dajemy controls; sam atrybut milczał (Low Power Mode).
                   onLoadedMetadata={(e) => {
@@ -1533,6 +1626,25 @@ const ExerciseCardInner = ({
                     });
                   }}
                 />
+              )}
+              {videoFailed && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-low p-5 text-center">
+                  <Dumbbell className="h-10 w-10 text-muted-foreground" aria-hidden />
+                  <div>
+                    <p className="text-sm font-semibold">{t('card.animationUnavailable')}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{t('card.animationFallbackHint')}</p>
+                  </div>
+                  {(() => {
+                    const instructions = exercise.instructions.length > 0
+                      ? exercise.instructions
+                      : getExerciseInstructions(exercise.name);
+                    return instructions.length > 0 ? (
+                      <p className="max-h-28 overflow-y-auto text-sm leading-relaxed text-muted-foreground">
+                        {instructions.map((instruction) => localizeExerciseInstruction(exercise.name, instruction.content, lang)).join(' ')}
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
               )}
             </div>
           </DialogContent>

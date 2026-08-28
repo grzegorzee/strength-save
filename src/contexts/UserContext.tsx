@@ -19,10 +19,13 @@ import {
   type ProtectedCallableRejectionReason,
 } from '@/lib/protected-callable';
 import type { ConsentMirror } from '@/lib/legal-versions';
+import { purgeAvatarCache, readCachedAvatar, refreshCachedAvatar } from '@/lib/avatar-cache';
 
 interface UserContextValue {
   uid: string;
   profile: UserProfile | null;
+  /** Lokalna miniatura avatara; null oznacza bezpieczny fallback do inicjałów. */
+  avatarSrc: string | null;
   isAdmin: boolean;
   hasAppAccess: boolean;
   needsEmailVerification: boolean;
@@ -49,6 +52,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const [profileSyncBlockReason, setProfileSyncBlockReason] = useState<ProtectedCallableRejectionReason | null>(null);
   const [profileSyncPending, setProfileSyncPending] = useState(false);
+  const [avatarState, setAvatarState] = useState<{ uid: string; src: string | null }>({ uid: '', src: null });
+  const lastAvatarUidRef = useRef<string | null>(null);
   const retryProfileSyncRef = useRef<(() => Promise<void>) | null>(null);
   const confirmedConsentRef = useRef<{ uid: string; mirror: ConsentMirror } | null>(null);
   const userId = user?.uid;
@@ -70,6 +75,37 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       ? { ...current, consents: { ...current.consents, ...merged } }
       : current);
   }, [userId]);
+
+  useEffect(() => {
+    const previousUid = lastAvatarUidRef.current;
+    if (previousUid && previousUid !== userId) void purgeAvatarCache(previousUid);
+    lastAvatarUidRef.current = userId ?? null;
+    if (!userId) setAvatarState({ uid: '', src: null });
+  }, [userId]);
+
+  useEffect(() => {
+    const sourceUrl = userId && profile?.uid === userId ? profile.photoURL : null;
+    if (!userId || !sourceUrl) {
+      setAvatarState({ uid: userId ?? '', src: null });
+      return;
+    }
+    let cancelled = false;
+    // Nie renderujemy kruchego URL sieciowego. Najpierw ostatnia lokalna
+    // miniatura, potem odświeżenie w foregroundzie; offline zawsze ma inicjały
+    // jako natychmiastowe wyjście ze stanu.
+    setAvatarState({ uid: userId, src: null });
+    void readCachedAvatar(userId, sourceUrl).then((cached) => {
+      if (!cancelled && cached) setAvatarState({ uid: userId, src: cached });
+    });
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      void refreshCachedAvatar(userId, sourceUrl)
+        .then((cached) => {
+          if (!cancelled) setAvatarState({ uid: userId, src: cached });
+        })
+        .catch(() => undefined);
+    }
+    return () => { cancelled = true; };
+  }, [profile?.photoURL, profile?.uid, userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -117,6 +153,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         cohorts: e2eState.scenario === 'active-admin' ? ['internal'] : [],
         subscription: mapSubscription(e2eState.subscription ?? undefined),
         trainingProfile: e2eState.trainingProfile,
+        consents: e2eState.consents,
       });
       setProfileLoaded(true);
       setProfileLoadError(null);
@@ -285,6 +322,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     <UserContext.Provider value={{
       uid: userId,
       profile: currentProfile,
+      avatarSrc: avatarState.uid === userId ? avatarState.src : null,
       isAdmin: currentProfile?.role === 'admin',
       hasAppAccess,
       needsEmailVerification,

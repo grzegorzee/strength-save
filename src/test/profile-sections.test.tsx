@@ -127,6 +127,7 @@ import { loadRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { readWorkoutTimersSetting } from '@/lib/workout-timers-setting';
 import { isWarmupPromptEnabled } from '@/lib/warmup-prompt';
 import { shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
+import { readPalettePreferenceOutbox } from '@/lib/palette-preference-outbox';
 
 const renderProfile = (entry = '/profile') =>
   render(
@@ -140,8 +141,7 @@ const renderProfile = (entry = '/profile') =>
   );
 
 // X36: etykieta sekcji zwijanej siedzi w <h2> > <button> > [data-section-label]
-// (wartość w wierszu nie jest częścią etykiety); sekcje otwarte (Osiągnięcia)
-// mają zwykłe h2.
+// (wartość w wierszu nie jest częścią etykiety).
 const headingLabel = (h: HTMLHeadingElement): string =>
   (h.querySelector('[data-section-label]') ?? h).textContent ?? '';
 const sectionLabels = (container: HTMLElement): string[] =>
@@ -151,20 +151,24 @@ const sectionByLabel = (container: HTMLElement, label: string): HTMLElement => {
   if (!h2) throw new Error(`brak sekcji "${label}"`);
   return h2.closest('section') as HTMLElement;
 };
+const subsectionById = (container: HTMLElement, id: string): HTMLElement => {
+  const target = container.querySelector<HTMLElement>(`#profile-${id}`);
+  if (!target) throw new Error(`brak podsekcji "${id}"`);
+  return target;
+};
 const openSection = (id: string) => {
   fireEvent.click(screen.getByTestId(`profile-toggle-${id}`));
 };
 
 const PROFILE_SECTIONS = [
-  'Osiągnięcia', 'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy', 'Kalkulator talerzy',
-  'Trener', 'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
-  'Backup i przywracanie', 'Zgody i prywatność', 'Konto i pomoc',
+  'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
+  'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
+  'Konto i pomoc',
 ];
-// X37: Kolor przewodni znów zawsze rozwinięty (uwaga właściciela po 125).
 const COLLAPSIBLE_IDS = [
-  'training', 'timer', 'plates', 'trainer', 'devices', 'notifications',
-  'subscription', 'data', 'backup', 'consents', 'account',
+  'accent', 'training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account',
 ];
+const GROUPED_TARGET_IDS = ['plates', 'trainer', 'backup', 'consents'];
 
 beforeEach(() => {
   localStorage.clear();
@@ -188,15 +192,24 @@ const renderSheet = () =>
   );
 
 describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
-  it('sekcje w kolejności: Osiągnięcia → Kolor → Trening → Timer i przerwy → Talerze → Trener → Urządzenia i połączenia → Powiadomienia → Subskrypcja → Dane → Backup → Zgody → Konto', () => {
+  it('pokazuje najwyżej 8 logicznych grup zamiast 12 równorzędnych decyzji', () => {
     const { container } = renderProfile();
     expect(sectionLabels(container)).toEqual(PROFILE_SECTIONS);
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(8);
   });
 
-  it('każda sekcja ma kotwicę id="profile-<sekcja>" (deep linki ?section=)', () => {
+  it('każda grupa ma kotwicę, a zgrupowane funkcje montują swoje stare kotwice dopiero po otwarciu rodzica', () => {
     const { container } = renderProfile();
-    ['identity', 'pride', ...COLLAPSIBLE_IDS]
+    ['identity', ...COLLAPSIBLE_IDS]
       .forEach((id) => expect(container.querySelector(`#profile-${id}`), id).toBeTruthy());
+    GROUPED_TARGET_IDS.forEach((id) => expect(container.querySelector(`#profile-${id}`), id).toBeNull());
+
+    openSection('training');
+    expect(container.querySelector('#profile-plates')).toBeTruthy();
+    openSection('devices');
+    expect(container.querySelector('#profile-trainer')).toBeTruthy();
+    openSection('data');
+    ['backup', 'consents'].forEach((id) => expect(container.querySelector(`#profile-${id}`), id).toBeTruthy());
   });
 
   it('wszystkie sekcje ustawień domyślnie ZWINIĘTE: jedna linia na sekcję, treść niezamontowana', () => {
@@ -209,8 +222,21 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByLabelText('Timer przerwy')).toBeNull();
     expect(queryByLabelText('Jednostki: kg')).toBeNull();
     expect(queryByTestId('device-settings')).toBeNull();
-    // X37: kolor przewodni widoczny bez rozwijania.
-    expect(screen.getByTestId('accent-swatches')).toBeTruthy();
+    expect(queryByTestId('plate-inventory-settings')).toBeNull();
+    expect(queryByTestId('backup-settings')).toBeNull();
+    expect(queryByTestId('consent-marketing-toggle')).toBeNull();
+    // Edytor wyglądu nie dominuje Profilu; pojawia się dopiero po jawnej akcji.
+    expect(queryByTestId('accent-swatches')).toBeNull();
+    const appearanceToggle = screen.getByTestId('profile-toggle-accent');
+    expect(appearanceToggle.textContent).toContain('Kolor przewodni aplikacji');
+    expect(appearanceToggle.className).toContain('focus-visible:ring-2');
+    expect(appearanceToggle.className).toContain('touch-manipulation');
+    expect(screen.getByTestId('profile-accent-preview').children).toHaveLength(1);
+    COLLAPSIBLE_IDS.forEach((id) => {
+      const trigger = screen.getByTestId(`profile-toggle-${id}`);
+      expect(trigger.className).toContain('min-h-[50px]');
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    });
   });
 
   it('klik wiersza rozwija sekcję, drugi klik zwija (chevron); inne sekcje bez zmian', () => {
@@ -251,14 +277,29 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(await third.findByLabelText('Przerwa między seriami')).toBeTruthy();
   });
 
+  it.each([
+    ['plates', 'training', 'profile-plates'],
+    ['trainer', 'devices', 'profile-trainer'],
+    ['backup', 'data', 'profile-backup'],
+    ['consents', 'data', 'profile-consents'],
+  ])('deep link ?section=%s otwiera grupę %s i przewija do zachowanej kotwicy', async (target, parent, targetId) => {
+    const scrollSpy = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollSpy;
+    renderProfile(`/profile?section=${target}`);
+
+    await waitFor(() => expect(screen.getByTestId(`profile-section-${parent}`)).toHaveAttribute('data-state', 'open'));
+    await waitFor(() => expect(document.getElementById(targetId)).toBeTruthy());
+    await waitFor(() => expect(scrollSpy.mock.instances.some((instance) => (instance as HTMLElement).id === targetId)).toBe(true));
+  });
+
   it('TRENING: jednostki, nie wygaszaj ekranu, proponuj rozgrzewkę, tryby, w tej kolejności; wiersz pokazuje jednostkę', () => {
     const { container, queryByLabelText } = renderProfile();
     expect(screen.getByTestId('profile-toggle-training').textContent).toContain('KG');
     openSection('training');
     const trening = sectionByLabel(container, 'Trening');
     const text = trening.textContent ?? '';
-    // X37 WP-B: przełącznik rozgrzewki między "Nie wygaszaj ekranu" a "Nie na 100%?".
-    const order = ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Proponuj rozgrzewkę przed treningiem', 'Nie na 100%?', 'Urlop / wyjazd']
+    // X37 WP-B: przełącznik rozgrzewki między "Nie wygaszaj ekranu" a "Dostosuj trening".
+    const order = ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Proponuj rozgrzewkę przed treningiem', 'Dostosuj trening', 'Urlop / wyjazd']
       .map((l) => text.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -356,10 +397,9 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(within(devices2).getByTestId('device-settings')).toBeTruthy();
   });
 
-  it('POWIADOMIENIA: sekcja niżej niż Trener i Urządzenia (nie są najważniejsze); po rozwinięciu karta bez zdublowanego tytułu', () => {
+  it('POWIADOMIENIA: sekcja niżej niż grupa Urządzenia i połączenia; po rozwinięciu karta bez zdublowanego tytułu', () => {
     const { container } = renderProfile();
     const labels = sectionLabels(container);
-    expect(labels.indexOf('Powiadomienia')).toBeGreaterThan(labels.indexOf('Trener'));
     expect(labels.indexOf('Powiadomienia')).toBeGreaterThan(labels.indexOf('Urządzenia i połączenia'));
     openSection('notifications');
     const notif = sectionByLabel(container, 'Powiadomienia');
@@ -368,22 +408,94 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(within(notif).getAllByText('Powiadomienia')).toHaveLength(1);
   });
 
-  it('F-T2: sekcja Kolor przewodni (zawsze rozwinięta) — wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
+  it('F-T2: sekcja Kolor przewodni rozwija edytor na żądanie; wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
     // Plan I: paleta wg wzoru właściciela — cyan zastąpiony przez sky (#29b6f6).
     const { getByTestId } = renderProfile();
+    expect(screen.queryByTestId('accent-swatches')).toBeNull();
+    openSection('accent');
     fireEvent.click(getByTestId('accent-sky'));
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('199 92% 56%');
     expect(document.documentElement.dataset.accent).toBe('sky');
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
-      expect.anything(), { 'preferences.accentColor': 'sky' },
+      expect.anything(), {
+        'preferences.accentColor': 'sky',
+        'preferences.paletteTheme': firestoreFixture.DELETE_SENTINEL,
+      },
     ));
     // Powrót do limonki zdejmuje nadpisania.
     fireEvent.click(getByTestId('accent-lime'));
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
   });
 
+  it('legacy kolory w Profilu mają jeden tab stop, wybór strzałkami i mobilny target', () => {
+    renderProfile();
+    openSection('accent');
+    const group = screen.getByTestId('accent-swatches');
+    expect(group).toHaveClass('grid-cols-4', 'sm:grid-cols-6');
+    const radios = group.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    expect(Array.from(radios).filter((radio) => radio.tabIndex === 0)).toHaveLength(1);
+    for (const radio of radios) expect(radio).toHaveClass('min-h-11', 'min-w-11');
+    radios[0].focus();
+    fireEvent.keyDown(radios[0], { key: 'ArrowRight' });
+    expect(radios[1]).toHaveFocus();
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('PaletteThemeV2: preview nie zapisuje, potwierdzenie zapisuje pełną paletę i fallback accentColor', async () => {
+    renderProfile();
+    openSection('accent');
+    fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
+    expect(firestoreFixture.updateDoc).not.toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ 'preferences.paletteTheme': expect.anything() }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Zastosuj paletę' }));
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        'preferences.accentColor': '#ff6b35',
+        'preferences.paletteTheme': {
+          version: 2,
+          id: 'forge',
+          source: 'preset',
+          primary: '#ff6b35',
+          supportA: '#fbbf24',
+          supportB: '#fb7185',
+        },
+      },
+    ));
+    expect(JSON.parse(localStorage.getItem('ss-palette-theme-v2') ?? '{}').id).toBe('forge');
+  });
+
+  it('PaletteThemeV2 offline: porażka mirroru zostawia trwały outbox presetu', async () => {
+    firestoreFixture.updateDoc.mockRejectedValueOnce(new Error('offline'));
+    renderProfile();
+    openSection('accent');
+    fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zastosuj paletę' }));
+
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledTimes(1));
+    expect(readPalettePreferenceOutbox('u1')?.palette.id).toBe('forge');
+  });
+
+  it('zamknięcie sekcji anuluje niezapisany preview i ponowne otwarcie zaczyna od zatwierdzonego motywu', () => {
+    renderProfile();
+    openSection('accent');
+    fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('16 100% 60%');
+    expect(screen.getByTestId('palette-preview-actions')).toBeTruthy();
+
+    openSection('accent');
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
+    expect(localStorage.getItem('ss-palette-theme-v2')).toBeNull();
+    expect(firestoreFixture.updateDoc).not.toHaveBeenCalled();
+
+    openSection('accent');
+    expect(screen.queryByTestId('palette-preview-actions')).toBeNull();
+  });
+
   it('F-T2b: własny kolor po hex — walidacja i zastosowanie + mirror', async () => {
     const { getByTestId } = renderProfile();
+    openSection('accent');
     const input = getByTestId('accent-hex-input') as HTMLInputElement;
     const apply = getByTestId('accent-hex-apply') as HTMLButtonElement;
     fireEvent.change(input, { target: { value: '#12' } });
@@ -394,7 +506,10 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(document.documentElement.dataset.accent).toBe('custom');
     expect(document.documentElement.style.getPropertyValue('--primary')).toMatch(/^\d+ \d+% \d+%$/);
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
-      expect.anything(), { 'preferences.accentColor': '#1e90ff' },
+      expect.anything(), {
+        'preferences.accentColor': '#1e90ff',
+        'preferences.paletteTheme': firestoreFixture.DELETE_SENTINEL,
+      },
     ));
   });
 
@@ -409,17 +524,19 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     const { container, getByText, getByTestId, getByLabelText, queryByText } = renderProfile();
     COLLAPSIBLE_IDS.forEach(openSection);
     // IDENTITY: imię (dialog), avatar (upload), email (WP-G: domyślnie
-    // zamaskowany, pełny po odsłonięciu toggle), chip poziomu.
+    // zamaskowany, pełny po odsłonięciu toggle); poziomy nie dublują Postępów.
     expect(getByTestId('profile-name-edit')).toBeTruthy();
     expect(getByLabelText('Zmień zdjęcie profilowe')).toBeTruthy();
     expect(getByText('t•••••@e••••••.com')).toBeTruthy();
     fireEvent.click(getByLabelText('Pokaż lub ukryj adres email'));
     expect(getByText('tester@example.com')).toBeTruthy();
-    expect(getByTestId('chip-tier')).toBeTruthy();
-    // KAFLE DUMY (fala 2): 4 realne statystyki, renderowane zawsze.
-    ['Treningi', 'Seria', 'Tonaż', 'Serie'].forEach((l) => expect(getByText(l)).toBeTruthy());
+    expect(screen.queryByTestId('chip-tier')).toBeNull();
+    // Metryki i odznaki mają własny ekran; Profil zachowuje do niego wejście
+    // w sekcji danych, ale nie dubluje jego kafli.
+    ['workouts', 'streak', 'tonnage', 'sets']
+      .forEach((key) => expect(screen.queryByTestId(`profile-pride-${key}`)).toBeNull());
     // TRENING + TIMER (dawna karta Trening + Przerwy)
-    ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Proponuj rozgrzewkę przed treningiem', 'Nie na 100%?', 'Urlop / wyjazd']
+    ['Jednostki', 'Nie wygaszaj ekranu podczas treningu', 'Proponuj rozgrzewkę przed treningiem', 'Dostosuj trening', 'Urlop / wyjazd']
       .forEach((l) => expect(within(sectionByLabel(container, 'Trening')).getByText(l)).toBeTruthy());
     const timer = sectionByLabel(container, 'Timer i przerwy');
     ['Timer przerwy', 'Dźwięk timera'].forEach((l) => expect(within(timer).getByLabelText(l)).toBeTruthy());
@@ -428,26 +545,34 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     ['accent-swatches', 'accent-custom', 'accent-hex-input', 'accent-hex-apply']
       .forEach((id) => expect(getByTestId(id)).toBeTruthy());
     // KALKULATOR TALERZY: inwentarz (bez własnego nagłówka w karcie).
-    expect(within(sectionByLabel(container, 'Kalkulator talerzy')).getByLabelText('Sztuk 25')).toBeTruthy();
+    expect(within(subsectionById(container, 'plates')).getByLabelText('Sztuk 25')).toBeTruthy();
     // SUBSKRYPCJA (admin → "Pełny dostęp" w wierszu i w środku)
     expect(within(sectionByLabel(container, 'Subskrypcja')).getAllByText('Pełny dostęp').length).toBeGreaterThanOrEqual(1);
-    // TWOJE DANE: dojścia; BACKUP i ZGODY jako własne sekcje.
+    // TWOJE DANE: dojścia, backup i zgody w jednej grupie.
     const dane = sectionByLabel(container, 'Twoje dane');
-    ['Historia', 'Pomiary ciała', 'Postępy', 'Rekordy sprzed aplikacji', 'Admin']
+    ['Pomiary ciała', 'Rekordy sprzed aplikacji', 'Admin']
       .forEach((l) => expect(within(dane).getByText(l)).toBeTruthy());
-    const backup = sectionByLabel(container, 'Backup i przywracanie');
+    expect(within(dane).queryByText('Historia')).toBeNull();
+    expect(within(dane).queryByText('Postępy')).toBeNull();
+    const backup = subsectionById(container, 'backup');
     ['Eksportuj kopię', 'Importuj kopię'].forEach((l) => expect(within(backup).getByText(l)).toBeTruthy());
-    expect(within(sectionByLabel(container, 'Zgody i prywatność')).getByTestId('consent-marketing-toggle')).toBeTruthy();
+    expect(within(subsectionById(container, 'consents')).getByTestId('consent-marketing-toggle')).toBeTruthy();
     // "Ustawienia zaawansowane" nie istnieją — nie ma dokąd prowadzić.
     expect(queryByText('Ustawienia zaawansowane')).toBeNull();
     // KONTO I POMOC: język przeszedł tu z sekcji Aplikacja.
     const konto = sectionByLabel(container, 'Konto i pomoc');
-    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Zgłoś błąd', 'Kontakt', 'O aplikacji']
+    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Pierwszy trening', 'Zgłoś błąd', 'Kontakt', 'O aplikacji']
       .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
     // X37: wiersz "Konto i pomoc" bez wartości języka ("Polski" myliło właściciela).
     expect(getByTestId('profile-toggle-account').textContent).not.toContain('Polski');
     // Stopka akcji + wersja
-    expect(getByText('Wyloguj')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Wyloguj' })).toHaveClass(
+      'bg-surface-container',
+      'focus-visible:outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-ring',
+      'focus-visible:ring-offset-2',
+    );
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();
     expect(getByText('Strength Save 0.0.0-test')).toBeTruthy();
   });
@@ -458,6 +583,14 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     fireEvent.click(within(sectionByLabel(container, 'Konto i pomoc')).getByText('Zgłoś błąd'));
     expect(screen.getByRole('dialog', { name: 'Zgłoś błąd' })).toBeTruthy();
     expect(screen.getByLabelText('Co się stało?')).toBeTruthy();
+  });
+
+  it('KONTO I POMOC: handoff do pierwszego treningu można uruchomić ponownie', () => {
+    const { container } = renderProfile();
+    openSection('account');
+    const konto = sectionByLabel(container, 'Konto i pomoc');
+    expect(within(konto).getByText('Pierwszy trening')).toBeTruthy();
+    expect(within(konto).getByText('Wróć do planu i najbliższego treningu.')).toBeTruthy();
   });
 
   it('narzędzia naprawcze NIE są w Profilu (przeniesione do /admin)', () => {
@@ -508,8 +641,8 @@ describe('WP-G: maskowanie emaila w Profilu', () => {
   });
 });
 
-// WP-I (plan X29) + X35b + X36: sekcja Trener zwijana — wiersz pokazuje imię /
-// zamaskowany adres / "Nie ustawiono"; w środku pusty stan z formularzem
+// WP-I (plan X29) + X35b + X36: Trener mieszka w grupie Urządzenia i połączenia;
+// w środku pusty stan z formularzem
 // "Dodaj trenera" (imię + e-mail z walidacją) albo zapisany adres (zmiana
 // imienia inline, usunięcie).
 describe('WP-I + X35b + X36: sekcja Trener w Profilu', () => {
@@ -520,13 +653,12 @@ describe('WP-I + X35b + X36: sekcja Trener w Profilu', () => {
     };
   };
   const openTrainer = (container: HTMLElement) => {
-    openSection('trainer');
-    return sectionByLabel(container, 'Trener');
+    openSection('devices');
+    return subsectionById(container, 'trainer');
   };
 
-  it('bez trainerEmail: wiersz "Nie ustawiono", po rozwinięciu pusty stan z akcją "Dodaj trenera"', () => {
+  it('bez trainerEmail: po rozwinięciu grupy pusty stan z akcją "Dodaj trenera"', () => {
     const { container, getByTestId } = renderProfile();
-    expect(getByTestId('profile-toggle-trainer').textContent).toContain('Nie ustawiono');
     const sekcja = openTrainer(container);
     expect(getByTestId('trainer-empty')).toBeTruthy();
     expect(within(sekcja).getByText('Dodaj trenera')).toBeTruthy();
@@ -582,9 +714,9 @@ describe('WP-I + X35b + X36: sekcja Trener w Profilu', () => {
   it('z trainerEmail + imieniem: imię w wierszu i w środku, adres ZAMASKOWANY, bez pustego stanu', () => {
     withTrainer('Marek');
     const { container, getByTestId, getByText, queryByText, queryByTestId } = renderProfile();
-    expect(getByTestId('profile-toggle-trainer').textContent).toContain('Marek');
+    expect(getByTestId('profile-toggle-devices').textContent).toContain('Marek');
     const sekcja = openTrainer(container);
-    expect(within(sekcja).getAllByText('Marek').length).toBeGreaterThanOrEqual(2);
+    expect(within(sekcja).getByText('Marek')).toBeTruthy();
     expect(getByText('c••••@e••••••.com')).toBeTruthy();
     expect(queryByText('coach@example.com')).toBeNull();
     expect(queryByTestId('trainer-empty')).toBeNull();
@@ -593,9 +725,9 @@ describe('WP-I + X35b + X36: sekcja Trener w Profilu', () => {
   it('bez imienia: zamaskowany adres w wierszu sekcji i w środku', () => {
     withTrainer();
     const { container, getByTestId } = renderProfile();
-    expect(getByTestId('profile-toggle-trainer').textContent).toContain('c••••@e••••••.com');
+    expect(getByTestId('profile-toggle-devices').textContent).toContain('c••••@e••••••.com');
     const sekcja = openTrainer(container);
-    expect(within(sekcja).getAllByText('c••••@e••••••.com').length).toBeGreaterThanOrEqual(2);
+    expect(within(sekcja).getByText('c••••@e••••••.com')).toBeTruthy();
   });
 
   it('Zmień imię: inline input + zapis preferences.trainerName', async () => {
@@ -647,7 +779,7 @@ describe('WP-I + X35b + X36: sekcja Trener w Profilu', () => {
       </MemoryRouter>,
     );
     expect(getByTestId('trainer-empty')).toBeTruthy();
-    expect(getByTestId('profile-toggle-trainer').textContent).toContain('Nie ustawiono');
+    expect(getByTestId('profile-toggle-devices').textContent).not.toContain('Marek');
   });
 });
 
@@ -744,11 +876,10 @@ describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () =
     expect(profil.getByLabelText('Timer przerwy').getAttribute('aria-checked')).toBe('false');
   });
 
-  // PRO-D T3 + fala 2: pasek postępu poziomu pełnej szerokości pod identity,
-  // tekst "N do: {poziom}" w rzędzie chipów (0 treningów → 5 do Rookie).
-  it('nagłówek: pasek postępu do następnego poziomu (tier.next != null)', () => {
-    const { getByTestId, getByText } = renderProfile();
-    expect(getByTestId('tier-progress')).toBeTruthy();
-    expect(getByText(/5 do: Rookie/)).toBeTruthy();
+  it('nagłówek: pokazuje rzetelny licznik bez poziomu i paska grywalizacji', () => {
+    const { queryByTestId, getByText } = renderProfile();
+    expect(queryByTestId('tier-progress')).toBeNull();
+    expect(queryByTestId('chip-tier')).toBeNull();
+    expect(getByText('0 treningów')).toBeTruthy();
   });
 });

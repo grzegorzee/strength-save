@@ -18,3 +18,21 @@ export const findBuildNumberMismatch = (projectText) => {
     ? { ok: false, reason: 'mismatch', values: distinct }
     : { ok: true, reason: 'consistent', values: distinct };
 };
+
+/**
+ * Archiwum iOS może dostać wyłącznie publiczny, app-specific klucz Apple.
+ * Odrzucamy klucze innej platformy, Test Store i sekretne API keys, zanim trafią
+ * do nieodwracalnego artefaktu podpisanego.
+ */
+export const validateRevenueCatAppleApiKey = (candidate) => {
+  if (typeof candidate !== 'string' || candidate.length === 0) {
+    return { ok: false, reason: 'missing' };
+  }
+  if (candidate.startsWith('sk_')) return { ok: false, reason: 'secret-key' };
+  if (candidate.startsWith('test_')) return { ok: false, reason: 'test-store' };
+  if (candidate.startsWith('goog_')) return { ok: false, reason: 'wrong-platform' };
+  if (!/^appl_[A-Za-z0-9]{12,}$/.test(candidate)) {
+    return { ok: false, reason: 'malformed' };
+  }
+  return { ok: true, reason: 'valid' };
+};

@@ -130,7 +130,7 @@ export const SetCountdown = ({
         data-testid="set-countdown-strip"
         className="mt-1 flex items-center gap-2 rounded-xl bg-surface-low py-0.5 pl-3 pr-1"
       >
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
           {t('setCountdown.label')}
         </span>
         <span

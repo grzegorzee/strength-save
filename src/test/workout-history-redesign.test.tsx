@@ -7,8 +7,8 @@ import type { WorkoutSession } from '@/types';
 
 // Fala 2 (2026-08-20) + WP-H (X28): niezmienniki Historii (wzorzec
 // workout-day-view: "stary przepływ nadal ma wszystko"). Po redesignie v2
-// "tiles" pełna płaska lista żyje pod ?list=all (miesiące, wyszukiwarka,
-// filtry, porównanie, usuwanie), poziom 1 to kafle cykli, a widok cyklu
+// pełna płaska lista żyje pod ?list=all (miesiące, wyszukiwarka, filtry,
+// porównanie, usuwanie), poziom 1 to chronologia + wtórne kafle cykli, a widok cyklu
 // (?cycle=) niesie staty live. Mapowanie starych testów → nowa struktura
 // w opisach; ŻADEN niezmiennik nie znika.
 
@@ -23,6 +23,8 @@ const fixtures = vi.hoisted(() => ({
   cycles: [] as unknown[],
   hasMore: false,
   loadMore: vi.fn(),
+  error: null as string | null,
+  retry: vi.fn(),
   deleteResult: { success: true } as { success: boolean; error?: string },
 }));
 
@@ -36,6 +38,8 @@ vi.mock('@/hooks/useWorkoutHistoryPage', () => ({
     isLoadingMore: false,
     hasMore: fixtures.hasMore,
     loadMore: fixtures.loadMore,
+    error: fixtures.error,
+    retry: fixtures.retry,
   }),
 }));
 vi.mock('@/hooks/useTrainingPlan', () => ({
@@ -85,15 +89,30 @@ const openRowMenu = async (row: HTMLElement) => {
   return await screen.findByRole('menu');
 };
 
+const openCycles = () => fireEvent.click(screen.getByTestId('history-cycles-toggle'));
+
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   // jsdom wykrywa EN z navigatora — asercje tekstów są po polsku.
   window.localStorage.setItem('app-language', 'pl');
   fixtures.hasMore = false;
+  fixtures.error = null;
   fixtures.deleteResult = { success: true };
   fixtures.cycles = [];
   fixtures.workouts = [];
+});
+
+describe('WorkoutHistory — błąd pierwszego odczytu bez cache', () => {
+  it('pokazuje błąd z retry zamiast fałszywego pustego stanu', () => {
+    fixtures.error = 'offline';
+    renderPage('/history');
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać historii');
+    fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }));
+    expect(fixtures.retry).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Nie masz jeszcze żadnych treningów')).toBeNull();
+  });
 });
 
 describe('WorkoutHistory — pełna lista (?list=all) bez cykli (niezmiennik starego przepływu)', () => {
@@ -154,6 +173,18 @@ describe('WorkoutHistory — pełna lista (?list=all) bez cykli (niezmiennik sta
     expect(duration.className).not.toContain('truncate');
   });
 
+  it('tonaż w wierszu sesji zawsze pokazuje aktywną jednostkę kg/lbs', () => {
+    const kgView = renderPage();
+    const kgRow = screen.getAllByTestId('history-session-row')[0];
+    expect(within(kgRow).getByText(/^[\d\s,.]+ kg$/)).toBeInTheDocument();
+
+    kgView.unmount();
+    window.localStorage.setItem('unit-system', 'lbs');
+    renderPage();
+    const lbsRow = screen.getAllByTestId('history-session-row')[0];
+    expect(within(lbsRow).getByText(/^[\d\s,.]+ lbs$/)).toBeInTheDocument();
+  });
+
   it('tap w wiersz otwiera trening; ⋯ nie nawiguje', async () => {
     renderPage();
     const row = screen.getAllByTestId('history-session-row')[0];
@@ -191,6 +222,7 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
 
   it('aktywny cykl bez endDate renderuje zakres z "teraz" zamiast crashować (regresja E-8UE4S)', () => {
     renderPage('/history');
+    openCycles();
     const activeTile = screen.getAllByTestId('cycle-tile')
       .find((tile) => within(tile).queryByText('Cykl 2'))!;
     expect(activeTile).toBeDefined();
@@ -199,6 +231,7 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
 
   it('każda sesja osiągalna: kafle na poziomie 1 i komplet wierszy w pełnej liście', () => {
     renderPage('/history');
+    openCycles();
     // Kafle: aktywny (Cykl 2 — numeracja od najstarszego), przeszły (Cykl 1),
     // "Poza cyklami" dla sesji bez cyklu.
     const tiles = screen.getAllByTestId('cycle-tile');
@@ -261,6 +294,7 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
     fireEvent.click(screen.getByRole('button', { name: 'Drafty' }));
     fireEvent.click(screen.getByTestId('history-list-back'));
     // Draft żyje w aktywnym cyklu: przeszły cykl i "Poza cyklami" znikają.
+    openCycles();
     const tiles = screen.getAllByTestId('cycle-tile');
     expect(tiles).toHaveLength(1);
     expect(within(tiles[0]).getByText('Cykl 2')).toBeInTheDocument();

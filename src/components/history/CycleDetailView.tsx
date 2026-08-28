@@ -184,7 +184,7 @@ export const CycleDetailView = ({
               <p className={cn('truncate font-heading text-base font-bold tabular-nums', item.hot && 'text-primary')}>
                 {item.value}
               </p>
-              <p className="eyebrow-mono truncate text-[9px] tracking-[0.06em] text-muted-foreground">{item.label}</p>
+              <p className="eyebrow-mono truncate text-[11px] tracking-[0.06em] text-muted-foreground">{item.label}</p>
             </div>
           ))}
         </div>

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 // Styl wg ekranu Ćwiczenia (Kinetic Precision): pigułka bez bordera, uppercase,
 // lime jako domyślny akcent, cyan jako drugorzędny. No-Line — granice przez tło.
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] transition-colors",
+  "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors",
   {
     variants: {
       variant: {

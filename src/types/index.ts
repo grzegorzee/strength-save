@@ -76,6 +76,9 @@ export interface WorkoutSession {
   revision?: number;
   // Klucz idempotencji ostatniego zapisu — lost-ack retry rozpoznaje własny commit.
   lastWriteId?: string;
+  /** Marker spójności prywatnego sidecara health z bieżącą rewizją bazy. */
+  healthSidecarRevision?: number;
+  healthSidecarPresent?: boolean;
   /** Tag wsadu importu CSV (Z110) — hash pliku; cofnięcie importu = delete wg tego pola. */
   importBatchId?: string;
   /** Ocena sesji 1 tapem po zakonczeniu treningu (spec A1). Brak = user nie ocenil. */
@@ -104,4 +107,6 @@ export interface BodyMeasurement {
   photoUrl?: string;
   /** T13a: ścieżka pliku w Storage (body-photos/{uid}/...) — do GDPR cleanup. */
   photoPath?: string;
+  /** Generacja jawnej zgody zdrowotnej, która autoryzowała zapis. */
+  healthEpoch?: number;
 }

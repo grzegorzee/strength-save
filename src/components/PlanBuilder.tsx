@@ -134,9 +134,10 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
       ...d,
       focus: d.focus.trim() || t('planbuilder.defaultFocus', { n: i + 1 }),
     }));
-    if (draftStorageKey) {
-      try { localStorage.removeItem(draftStorageKey); } catch { /* nieistotne */ }
-    }
+    // Submit przenosi dane dopiero do kroku 6/6; nie jest jeszcze trwałym
+    // zapisem planu. Draft usuwa host dopiero po udanym zakończeniu onboardingu
+    // / replanu, dzięki czemu kill WKWebView między tymi krokami nie kasuje
+    // ćwiczeń własnego planu.
     onSubmit(finalized, durationWeeks);
   };
 

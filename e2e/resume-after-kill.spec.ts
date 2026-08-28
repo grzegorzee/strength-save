@@ -39,6 +39,12 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     await firstCard.getByTestId('warmup-generate').click();
     await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
 
+    // Serie robocze muszą zawierać faktyczny wynik; sam checkbox nie może już
+    // stworzyć pustego, niesynchronizowalnego treningu.
+    await firstCard.getByLabel(/Set 1, Powt\./).fill('8');
+    await firstCard.getByLabel(/Set 2, kg/).fill('100');
+    await firstCard.getByLabel(/Set 2, Powt\./).fill('8');
+
     // Odhacz 2xW + 2 serie robocze — pierwszy przycisk "Zaznacz" to zawsze
     // pierwsza nieodhaczona seria (W są na górze tabeli).
     for (let i = 0; i < 4; i += 1) {

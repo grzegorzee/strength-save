@@ -9,6 +9,8 @@ import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
 import { draftWriteId } from '@/lib/workout-write-attempt';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { withTimeout } from '@/lib/promise-timeout';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import { selectFencedHealthMetrics } from '@/lib/workout-health-fence';
 
 // Jeden silnik syncu treningu: cała sekwencja promote -> alreadyFinalized -> save ->
 // validate -> cleanup w jednym miejscu, z blokadą in-flight per (userId, sessionId).
@@ -47,7 +49,15 @@ export interface WorkoutSyncDeps {
     sessionId: string,
     exercises: WorkoutSaveExercise[],
     options: WorkoutSaveOptions,
-  ) => Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number; alreadyApplied?: boolean }>;
+    health?: { healthGrant: ActiveHealthGrant | null; healthMode?: 'replace' },
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    updatedAt?: number;
+    revision?: number;
+    alreadyApplied?: boolean;
+    health?: 'none' | 'stripped' | 'written' | 'pending';
+  }>;
   getFromServer: (sessionId: string) => Promise<WorkoutSession | null>;
   createSession: (
     dayId: string,
@@ -77,11 +87,18 @@ export interface WorkoutSyncDeps {
     sessionId: string,
     pending: { writeId: string; version: number } | null,
   ) => Promise<void>;
+  markHealthPending?: (
+    userId: string,
+    sessionId: string,
+    expectedDraftVersion: number,
+    cloudState: { updatedAt?: number; revision?: number },
+  ) => Promise<void>;
   // Czyści draft TYLKO gdy jego wersja <= expectedVersion (guard R2-03);
   // zwraca false, gdy draft ma nowszą treść i musi zostać (dirty).
   clearDraftIfVersion: (userId: string, sessionId: string, expectedVersion: number) => Promise<boolean>;
   queue: {
     remove: (userId: string, sessionId: string) => void;
+    upsertFromDraft?: (draft: ActiveWorkoutDraft, options?: { lastError?: string | null }) => unknown;
   };
   isOnline?: () => boolean;
   now?: () => number;
@@ -117,6 +134,7 @@ export interface SyncOutcome {
   // (chmura ma dane), nie powód do trzymania finalSyncPending; UI loguje.
   cloudUnconfirmed?: boolean;
   unconfirmedReason?: string;
+  healthWritePending?: boolean;
 }
 
 const inFlight = new Map<string, Promise<SyncOutcome>>();
@@ -134,6 +152,28 @@ export const buildDraftExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSa
     ...(draft.exerciseMetrics[exerciseId] ?? {}),
   }))
 );
+
+export const buildDraftBaseExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSaveExercise[] => (
+  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({
+    exerciseId,
+    sets,
+    ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),
+    ...(draft.exerciseNames?.[exerciseId] && { name: draft.exerciseNames[exerciseId] }),
+  }))
+);
+
+const buildDraftV2ExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSaveExercise[] => {
+  const base = buildDraftBaseExercisesPayload(draft);
+  const selectedMetrics = selectFencedHealthMetrics({
+    exerciseMetrics: draft.exerciseMetrics,
+    exerciseMetricGrants: draft.exerciseMetricGrants ?? {},
+    pendingHealthGrant: draft.pendingHealthGrant ?? null,
+  });
+  return base.map(exercise => ({
+    ...exercise,
+    ...(selectedMetrics[exercise.exerciseId] ?? {}),
+  }));
+};
 
 export const syncWorkoutSession = (
   userId: string,
@@ -260,7 +300,8 @@ const runSync = async (
       }
     }
 
-    const exercisesPayload = buildDraftExercisesPayload(draft);
+    const baseExercisesPayload = buildDraftBaseExercisesPayload(draft);
+    const exercisesPayload = buildDraftV2ExercisesPayload(draft);
     const finalizedAt = requiresFinal ? draft.finalizedAt ?? now() : undefined;
     // Z142: duration do ostatniej realnej aktywności (clamp porzuconej sesji);
     // completedAt ZOSTAJE momentem faktycznego zapisu (porządek syncu i historia).
@@ -286,19 +327,22 @@ const runSync = async (
       writeId,
     };
 
-    const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
+    const expectation = buildWorkoutWriteExpectation(baseExercisesPayload, saveOptions);
     const existingFinalWorkout = requiresFinal ? serverWorkout : null;
     // Odpowiedź poprzedniego zapisu mogła zginąć po przejściu appki do tła.
     // Jeżeli finalna treść już jest w chmurze, nie nadpisujemy jej starym revisionem.
     const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
-    const result = alreadyFinalized
+    const result = alreadyFinalized && !draft.pendingHealthGrant
       ? {
         success: true as const,
         updatedAt: existingFinalWorkout?.updatedAt,
         revision: existingFinalWorkout?.revision,
       }
       : await guarded(
-        deps.saveWorkout(targetSessionId, exercisesPayload, saveOptions),
+        deps.saveWorkout(targetSessionId, exercisesPayload, saveOptions, {
+          healthGrant: draft.pendingHealthGrant ?? null,
+          ...(draft.pendingHealthGrant && { healthMode: 'replace' as const }),
+        }),
         requiresFinal ? 'final-save' : 'checkpoint-save',
         requiresFinal ? finalTimeoutMs : checkpointTimeoutMs,
       );
@@ -309,6 +353,36 @@ const runSync = async (
         return { success: false, conflict: true, error, sessionId: targetSessionId, promotedSessionId };
       }
       return { success: false, error, sessionId: targetSessionId, promotedSessionId };
+    }
+
+    if (result.health === 'pending') {
+      try {
+        if (deps.markHealthPending) {
+          await deps.markHealthPending(userId, targetSessionId, draft.version, {
+            updatedAt: result.updatedAt,
+            revision: result.revision,
+          });
+        } else {
+          await deps.setCloudBaseline(userId, targetSessionId, {
+            updatedAt: result.updatedAt,
+            revision: result.revision,
+          });
+        }
+      } catch {
+        // Referencja kolejki i draft nadal istnieją; kolejny resume ponowi zapis.
+      }
+      const retainedDraft = await deps.loadDraft(userId, targetSessionId).catch(() => null);
+      if (retainedDraft) deps.queue.upsertFromDraft?.(retainedDraft, { lastError: 'HEALTH_SYNC_PENDING' });
+      return {
+        success: true,
+        revision: result.revision,
+        updatedAt: result.updatedAt,
+        sessionId: targetSessionId,
+        promotedSessionId,
+        syncedDraftVersion: draft.version,
+        healthWritePending: true,
+        draftRetained: true,
+      };
     }
 
     if (requiresFinal) {

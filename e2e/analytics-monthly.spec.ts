@@ -28,7 +28,7 @@ const workout = (id: string, date: string, over: Record<string, unknown> = {}) =
   ...over,
 });
 
-test('karta Miesiące: treningi, czas i jawny brak pomiaru czasu', async ({ page }) => {
+test('Wyniki są lekkie, a karta Miesiące pozostaje w szczegółach', async ({ page }) => {
   await setE2EAuthScenario(page, 'active-admin');
   await blockFirebase(page);
   await setE2EWorkouts(page, [
@@ -37,8 +37,17 @@ test('karta Miesiące: treningi, czas i jawny brak pomiaru czasu', async ({ page
     workout('m-3', `${PREVIOUS}-01`, { durationSec: 1800 }),
   ]);
 
-  await navigateAndWait(page, '/analytics?tab=summary');
+  await navigateAndWait(page, '/achievements?view=analytics');
   await expectPageRendered(page);
+
+  await expect(page.getByTestId('analytics-summary-insight')).toBeVisible();
+  await expect(page.getByTestId('analytics-summary-metric')).toHaveCount(3);
+  await expect(page.getByText('Miesiące', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Ukończone treningi', { exact: true })).toHaveCount(0);
+
+  await page.getByTestId('progress-more-trigger').click();
+  await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
+  await expect(page).toHaveURL(/tab=details/);
 
   await expect(page.getByText('Miesiące', { exact: true })).toBeVisible();
 
@@ -52,4 +61,27 @@ test('karta Miesiące: treningi, czas i jawny brak pomiaru czasu', async ({ page
   await expect(page.getByText('30 min', { exact: true })).toBeVisible();
 
   await page.screenshot({ path: 'tmp/z93-monthly-card.png', fullPage: false });
+});
+
+test('320 px / EN: Wyniki zachowują hierarchię i dostęp do szczegółów bez overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.addInitScript(() => localStorage.setItem('app-language', 'en'));
+  await setE2EAuthScenario(page, 'active-admin');
+  await blockFirebase(page);
+  await setE2EWorkouts(page, [workout('compact-1', `${CURRENT}-01`, { durationSec: 1800 })]);
+
+  await navigateAndWait(page, '/achievements?view=analytics');
+  await expectPageRendered(page);
+
+  await expect(page.getByRole('tab', { name: 'Summary' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Charts' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Records' })).toBeVisible();
+  await expect(page.getByTestId('analytics-summary-metric')).toHaveCount(3);
+  await expect(page.getByText('Completed workouts', { exact: true })).toHaveCount(0);
+
+  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(hasHorizontalOverflow).toBe(false);
+
+  await page.getByTestId('progress-more-trigger').click();
+  await expect(page.getByRole('menuitem', { name: 'Details' })).toBeVisible();
 });

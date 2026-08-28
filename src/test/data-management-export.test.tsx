@@ -18,11 +18,11 @@ vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid
 
 import { DataManagement } from '@/components/DataManagement';
 
-const renderCard = () =>
+const renderCard = (onExport: () => string | Promise<string> = () => '{"workouts":[]}') =>
   render(
     <LanguageProvider>
       <DataManagement
-        onExport={() => '{"workouts":[]}'}
+        onExport={onExport}
         onImport={async () => ({ success: true, message: 'ok' })}
       />
     </LanguageProvider>,
@@ -41,6 +41,24 @@ beforeEach(() => {
 });
 
 describe('DataManagement — eksport backupu bramkuje feedback wynikiem share', () => {
+  it('czeka na asynchroniczne zebranie pełnego backupu przed otwarciem share sheeta', async () => {
+    let resolveExport!: (value: string) => void;
+    const onExport = vi.fn(() => new Promise<string>((resolve) => { resolveExport = resolve; }));
+    renderCard(onExport);
+    clickExport();
+    expect(shareMock).not.toHaveBeenCalled();
+    resolveExport('{"schemaVersion":3,"workouts":[]}');
+    await waitFor(() => expect(shareMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('błąd zebrania backupu ma ścieżkę wyjścia i nie otwiera pustego pliku', async () => {
+    renderCard(async () => { throw new Error('backup incomplete'); });
+    clickExport();
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
+    expect(toastMock.mock.calls[0][0]).toMatchObject({ variant: 'destructive' });
+    expect(shareMock).not.toHaveBeenCalled();
+  });
+
   it('failed: destructive toast zamiast ciszy', async () => {
     shareMock.mockResolvedValue('failed');
     renderCard();

@@ -7,7 +7,7 @@ import type { ExerciseDetails } from "./exercise-details";
 export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   "Wyciskanie sztangi na ławce płaskiej": {
     steps: ["Lie on the bench, eyes under the bar, shoulder blades retracted and pinned to the bench, feet firmly on the floor.","Grip the bar slightly wider than your shoulders, unrack it and position it over your chest.","Lower the bar under control to your lower chest, elbows at about 45 degrees to the torso.","Drive the bar up explosively to full extension without harshly locking out the elbows."],
-    proTip: "Keep your shoulder blades tight and a slight chest arch throughout the movement, this protects the shoulders and increases strength.",
+    proTip: "Keep your shoulder blades tight and a slight chest arch throughout the movement. Stop the set if you cannot hold this position.",
     targetMuscles: ["Chest","Triceps","Front Delts"],
     primaryMuscle: "chest",
     equipment: "Olympic Barbell",
@@ -126,7 +126,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie sztangi nad głowę (OHP)": {
     steps: ["Stand with feet hip-width apart, grip the bar slightly wider than your shoulders, bar at collarbone height.","Brace your core and glutes, elbows pointing forward and slightly under the bar.","Press the bar vertically overhead, pulling your head slightly back out of the bar's path.","Once the bar passes your forehead, push your head forward and lock the bar out overhead, then lower under control."],
-    proTip: "Drive the bar in a straight line over the middle of your feet; a braced torso protects the spine from leaning back.",
+    proTip: "Drive the bar in a straight line over the middle of your feet and keep your torso braced without leaning back.",
     targetMuscles: ["Shoulders","Triceps","Traps","Abs"],
     primaryMuscle: "shoulders",
     equipment: "Olympic Barbell",
@@ -189,7 +189,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Prasa nożna": {
     steps: ["Sit on the machine, brace your back and hips, and place your feet shoulder-width apart on the platform.","Release the safeties and bend your knees, lowering the platform under control.","Descend to about 90 degrees at the knees without lifting your hips off the backrest.","Drive the platform up through your whole feet without locking the knees rigidly."],
-    proTip: "Don't fully lock out the knees at the top, to keep tension and protect the joints.",
+    proTip: "Do not snap the knees into a hard lockout; keep the top phase controlled.",
     targetMuscles: ["Quads","Glutes","Hamstrings"],
     primaryMuscle: "quads",
     equipment: "Machine",
@@ -238,7 +238,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Uginanie nóg na maszynie (Leżąc)": {
     steps: ["Lie face down on the machine, with the pad set above your Achilles tendons.","Grab the handles, hips pressed into the bench.","Bend your knees, pulling the pad toward your glutes to full contraction.","Lower the pad under control to nearly full leg extension."],
-    proTip: "Don't lift your hips off the bench during the curl, this isolates the hamstrings and protects the lower back.",
+    proTip: "Keep your hips on the bench during the curl and hold the torso still throughout the set.",
     targetMuscles: ["Hamstrings","Calves"],
     primaryMuscle: "hamstrings",
     equipment: "Machine",
@@ -462,7 +462,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Szrugi ze sztangą": {
     steps: ["Stand upright, grab the barbell with an overhand grip at shoulder width.","Arms extended, barbell in front of your thighs.","Raise your shoulders straight up toward your ears.","Squeeze the traps at the top and lower your shoulders under control."],
-    proTip: "Move only your shoulders straight up, without rolling them in circles, to safely load the traps.",
+    proTip: "Move your shoulders straight up and down without rolling them in circles.",
     targetMuscles: ["Traps","Levator Scapulae"],
     primaryMuscle: "back",
     equipment: "Olympic Barbell",
@@ -623,7 +623,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Uginanie na modlitewniku (Preacher)": {
     steps: ["Sit at the preacher bench, rest the backs of your upper arms flat against the pad.","Grip the weight (a dumbbell or handle) with your arms almost fully extended.","Curl the forearm, pulling the weight toward your shoulder while keeping your elbows on the pad.","Lower under control to near-full extension, without locking the joint."],
-    proTip: "Don't snap your arm to full extension, to protect the biceps tendon stop just short of full lockout.",
+    proTip: "Do not snap the arm into full extension; control the end range and do not bounce the load.",
     targetMuscles: ["Biceps","Brachialis","Brachioradialis"],
     primaryMuscle: "biceps",
     equipment: "Machine",
@@ -658,7 +658,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie wąsko (Close-grip)": {
     steps: ["Lie on the bench, grip the barbell slightly narrower than shoulder width.","Unrack the barbell and position it over your chest with arms extended.","Lower the barbell to your lower chest, keeping your elbows close to your torso.","Press the barbell to extension, tensing the triceps at the top."],
-    proTip: "Don't narrow the grip too much; a shoulder-width hand spacing protects the wrists and still strongly engages the triceps.",
+    proTip: "Do not narrow the grip too much; keep the hands around shoulder width and the wrists stacked over the forearms.",
     targetMuscles: ["Triceps","Chest","Front Delts"],
     primaryMuscle: "triceps",
     equipment: "Olympic Barbell",
@@ -751,7 +751,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   // chest (added)
   "Wyciskanie sztangi na ławce ujemnej (deklina)": {
     steps: ["Lie on a decline bench and lock your legs under the pads.","Grip the bar slightly wider than shoulders and unrack it.","Lower the bar under control to your lower chest.","Press the bar up while squeezing the lower chest."],
-    proTip: "Keep elbows at ~45 degrees to maximize lower chest activation and protect the shoulders.",
+    proTip: "Keep the elbows at about 45 degrees to the torso and control the lowering phase.",
     targetMuscles: ["Lower chest","Triceps","Front delts"],
     primaryMuscle: "chest",
     equipment: "Barbell",
@@ -765,14 +765,14 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie na Smith maszynie (ławka skośna)": {
     steps: ["Position the incline bench so the Smith bar descends to your upper chest.","Grip the bar slightly wider than shoulders and rotate to unlock it.","Lower the bar under control to your upper chest.","Press the bar up along the track without locking the elbows."],
-    proTip: "The fixed path lets you safely overload the upper chest even without a spotter.",
+    proTip: "The guided path reduces the balance demand; set the stops to an appropriate height before the set.",
     targetMuscles: ["Upper chest","Front delts","Triceps"],
     primaryMuscle: "chest",
     equipment: "Smith Machine",
   },
   "Wyciskanie na Smith maszynie (ławka płaska)": {
     steps: ["Center a flat bench under the Smith machine bar.","Lie so the bar descends to mid-chest, grip slightly wider than shoulders.","Unlock the bar and lower it under control to your chest.","Press the bar up along the track, squeezing the chest."],
-    proTip: "Great for training to failure: the safety hooks replace a spotter.",
+    proTip: "Before the set, position the stops so the bar can be racked without pressing into the chest.",
     targetMuscles: ["Chest","Triceps","Front delts"],
     primaryMuscle: "chest",
     equipment: "Smith Machine",
@@ -935,7 +935,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Szrugi w maszynie Smitha": {
     steps: ["Set the Smith bar at thigh height and grip it overhand at shoulder width.","Stand tall, arms straight, bar in front of the thighs.","Shrug the shoulders straight up toward the ears, squeezing the traps at the top.","Lower the shoulders under control to a full stretch."],
-    proTip: "Do not roll the shoulders; keep the motion strictly vertical for joint safety.",
+    proTip: "Do not roll the shoulders; keep the motion vertical and control the lowering phase.",
     targetMuscles: ["Upper trapezius","Levator scapulae"],
     primaryMuscle: "back",
     equipment: "Smith Machine",
@@ -956,7 +956,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wiosłowanie na lince stojąc (Face Pull do twarzy)": {
     steps: ["Set the rope at face height and grab both ends with a neutral grip.","Step back to tension the cable and stand with a slight stagger.","Pull the rope to the face, separating the ends and externally rotating the arms.","Slowly return to arm extension, controlling the weight."],
-    proTip: "Keep elbows high and separate the rope ends at the face for shoulder health.",
+    proTip: "Keep the elbows high, separate the rope ends at face level, and control the return to arm extension.",
     targetMuscles: ["Rear deltoid","Middle trapezius","Rhomboids"],
     primaryMuscle: "back",
     equipment: "High Cable with Rope",
@@ -993,7 +993,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie nad głowę w Smith (Smith OHP)": {
     steps: ["Position a bench or stand under the Smith bar so the bar is at collarbone height.","Grip the bar slightly wider than shoulder width with elbows angled slightly forward.","Unrack the bar and press it vertically overhead to full arm extension.","Lower the bar under control to chin level.","Repeat while keeping the torso braced and avoiding excessive backward lean."],
-    proTip: "The Smith's fixed path lets you safely load heavier and focus on pressing instead of balancing.",
+    proTip: "The guided path reduces the balance demand; choose a load that lets you keep the torso from leaning back.",
     targetMuscles: ["Anterior deltoids","Lateral deltoids","Triceps"],
     primaryMuscle: "shoulders",
     equipment: "Smith Machine",
@@ -1014,7 +1014,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Podciąganie sztangi wzdłuż tułowia (Upright Row)": {
     steps: ["Stand tall holding a barbell with an overhand shoulder-width grip, arms extended.","Guide the bar vertically up along the torso, lifting the elbows out to the sides.","Pull the bar to sternum height with elbows higher than the hands.","Pause at the top and slowly lower the barbell.","Repeat, keeping the bar close to the body throughout the movement."],
-    proTip: "Don't pull the bar above sternum height to avoid impingement in the shoulder joint.",
+    proTip: "Stop the bar at sternum height, keep the wrists under the elbows, and lower it under control.",
     targetMuscles: ["Lateral deltoids","Upper trapezius","Anterior deltoids"],
     primaryMuscle: "shoulders",
     equipment: "Barbell",
@@ -1028,7 +1028,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Podciąganie hantli wzdłuż tułowia (Dumbbell Upright Row)": {
     steps: ["Stand tall holding dumbbells overhand in front of your thighs, hands close together.","Pull the dumbbells vertically up along the torso, leading with the elbows out and up.","Bring the dumbbells to upper-chest height with elbows higher than the hands.","Pause at the top and slowly lower the dumbbells.","Repeat, keeping the dumbbells close to the body."],
-    proTip: "Dumbbells allow more wrist freedom than a barbell, easing joint stress during the pull.",
+    proTip: "Dumbbells let each hand move independently; keep the wrists neutral and the elbows below shoulder height.",
     targetMuscles: ["Lateral deltoids","Upper trapezius","Anterior deltoids"],
     primaryMuscle: "shoulders",
     equipment: "Dumbbells",
@@ -1049,7 +1049,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Landmine Press (wyciskanie jednorącz)": {
     steps: ["Anchor one end of the barbell in a landmine, lift the other end up to your shoulder.","Stand with feet slightly apart, holding the bar end with one hand at your collarbone.","Press the bar up and forward along an arc, extending the arm.","Slowly return the bar to your shoulder under control.","Complete all reps, then switch hands."],
-    proTip: "The landmine's angled path is gentler on the shoulders than vertical pressing, great for mobility issues.",
+    proTip: "The bar travels on an angled path; keep the shoulder blade stable and avoid leaning the torso.",
     targetMuscles: ["Anterior deltoids","Lateral deltoids","Core","Triceps"],
     primaryMuscle: "shoulders",
     equipment: "Barbell (Landmine)",
@@ -1063,7 +1063,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wyciskanie hantli neutralnym chwytem nad głowę": {
     steps: ["Sit on a bench with backrest, holding dumbbells at shoulder height with a neutral grip (palms facing each other).","Angle the elbows slightly forward rather than fully out to the sides.","Press the dumbbells overhead, keeping the palms facing each other throughout.","Extend the arms without locking the elbows, then lower the dumbbells slowly.","Repeat, keeping the torso braced and against the bench."],
-    proTip: "The neutral grip places the shoulders in a more natural position and spares the joint if pronated pressing hurts.",
+    proTip: "A neutral grip changes the arm position; keep the elbows under the wrists and control the descent.",
     targetMuscles: ["Anterior deltoids","Lateral deltoids","Triceps"],
     primaryMuscle: "shoulders",
     equipment: "Dumbbells",
@@ -1107,7 +1107,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Prasa nożna pozioma (siedząc)": {
     steps: ["Sit in the horizontal machine with your back against the pad, feet hip-width on the platform.","Release the safeties and let the platform travel toward you under control.","Bend the knees to about 90 degrees without lifting your hips.","Press the platform away through your heels, avoiding locking the knees."],
-    proTip: "The horizontal version loads the spine less than the angled press, good with back issues.",
+    proTip: "The horizontal path changes the setup compared with an angled press; keep the back and pelvis against the pad.",
     targetMuscles: ["Quadriceps","Gluteus maximus","Hamstrings"],
     primaryMuscle: "quads",
     equipment: "Horizontal Leg Press Machine",
@@ -1135,7 +1135,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Przysiad Belt Squat (z pasem biodrowym)": {
     steps: ["Attach the hip belt to the load and stand on the machine platforms.","Hold the handles, keep the torso upright and core braced.","Squat down by bending knees and hips while the load pulls from the hips.","Drive up through the heels to full hip extension."],
-    proTip: "The belt squat loads the legs without spinal compression, ideal for back recovery.",
+    proTip: "The load attaches to a hip belt; keep the torso stable and control the squat depth.",
     targetMuscles: ["Quadriceps","Gluteus maximus","Hamstrings"],
     primaryMuscle: "quads",
     equipment: "Belt Squat Machine",
@@ -1249,7 +1249,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Hip Thrust w maszynie Smith": {
     steps: ["Rest your upper back on a bench and position the Smith bar low across your hips with a pad.","Set your feet flat, hip-width apart, slightly in front of your knees.","Unrack the bar and drive your hips up until your torso is parallel to the floor.","Squeeze the glutes at the top, then lower your hips under control."],
-    proTip: "The fixed Smith bar path lets you safely add load without balancing, ideal for overloading the glutes.",
+    proTip: "The guided bar reduces the balance demand; add load gradually while keeping the movement controlled.",
     targetMuscles: ["Gluteus maximus","Hamstrings","Gluteus medius"],
     primaryMuscle: "glutes",
     equipment: "Smith Machine",
@@ -1440,7 +1440,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Dipy na maszynie (Assisted Dip Machine)": {
     steps: ["Sit in the dip machine and grab the handles at your sides.","Set the load and brace your hands, keeping your torso upright.","Extend the elbows, pressing the handles down to full arm extension.","Return slowly, bending the elbows to a 90-degree angle."],
-    proTip: "The machine lets you dial in the load safely and keep a fixed path.",
+    proTip: "The machine guides a fixed path; choose assistance and range that you can control.",
     targetMuscles: ["Triceps","Lower chest","Front delts"],
     primaryMuscle: "triceps",
     equipment: "Dip Machine",
@@ -1454,7 +1454,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Dipy na ławce (Bench Dips)": {
     steps: ["Sit on the edge of a bench and place your hands beside your hips.","Slide your hips off the bench, keeping legs straight or bent.","Lower your body by bending the elbows to a 90-degree angle.","Press back up by extending the elbows and squeezing the triceps."],
-    proTip: "Keep your back close to the bench to protect the shoulders and load the triceps more.",
+    proTip: "Keep your back close to the bench, point the elbows back, and control the bottom range.",
     targetMuscles: ["Triceps","Front delts","Lower chest"],
     primaryMuscle: "triceps",
     equipment: "Bodyweight",
@@ -1631,7 +1631,7 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Burpees": {
     steps: ["From standing, squat down and place your hands on the floor.","Explosively kick your legs back into a plank position.","Do a push-up (or just touch your chest to the floor), then jump your feet back under your torso.","Jump up explosively with arms overhead and land softly."],
-    proTip: "Keep your core braced throughout the plank phase to protect your lower back.",
+    proTip: "Keep your core braced throughout the plank phase and do not let the hips sag.",
     targetMuscles: ["Full body","Abs","Chest","Legs"],
     primaryMuscle: "fullbody",
     equipment: "Bodyweight",
@@ -1675,14 +1675,14 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
   },
   "Wznosy palców na piszczel (Tibialis Raise)": {
     steps: ["Lean your back and glutes against a wall, heels about 15-30 cm away from it.","Keep your legs straight and feet flat on the floor.","Lift your toes and forefoot as high as possible toward the shins, heels staying down.","Hold the contraction at the top for a second.","Lower the feet slowly to a full stretch of the front of the shin."],
-    proTip: "Training the antagonist of the calf improves ankle balance and reduces shin splint risk.",
+    proTip: "Lift the forefoot slowly, pause at the top, and keep the heels on the floor throughout the set.",
     targetMuscles: ["Tibialis anterior","Toe extensors"],
     primaryMuscle: "calves",
     equipment: "Bodyweight",
   },
   "Skakanka jako trening łydek": {
     steps: ["Grab the rope, elbows close to the torso, feet together.","Turn the rope with your wrists and bounce low off the balls of your feet.","Land softly on the toes, absorbing through the calves and ankles.","Keep an even rhythm and springy ankle action throughout the set duration."],
-    proTip: "Jump low and soft off the balls of your feet to maximally engage the calves and spare the knees.",
+    proTip: "Use low, quiet jumps from the balls of the feet, keep a steady rhythm, and land with the knees slightly bent.",
     targetMuscles: ["Gastrocnemius","Soleus","Tibialis anterior"],
     primaryMuscle: "calves",
     equipment: "Jump Rope",
@@ -1707,5 +1707,31 @@ export const exerciseDetailsEn: Record<string, ExerciseDetails> = {
     targetMuscles: ["Soleus","Gastrocnemius"],
     primaryMuscle: "calves",
     equipment: "Smith Machine",
+  },
+  "Spacer farmera (Farmer's Walk)": {
+    steps: [
+      "Place two dumbbells or farmer's handles beside your feet and stand between them.",
+      "Bend at the hips and knees, grip both weights, then stand with your core braced and torso upright.",
+      "Keep your shoulders down, arms straight, and eyes looking ahead.",
+      "Walk with short, even steps for the prescribed distance or time without swinging the weights.",
+      "Stop, bend at the hips and knees, and place both weights down under control.",
+    ],
+    proTip: "Choose a load that lets you keep an even stride, stable torso, and secure grip for the whole set.",
+    targetMuscles: ["Forearms", "Core", "Trapezius", "Glutes"],
+    primaryMuscle: "core",
+    equipment: "Dumbbells or Farmer's Handles",
+  },
+  "Dipy wspomagane na maszynie": {
+    steps: [
+      "Set the machine's assistance level; more assistance makes the movement easier.",
+      "Step onto the machine, grip the handles, and place your knees or feet on the moving platform.",
+      "Keep your shoulders down, brace your core, and begin with your arms extended.",
+      "Bend your elbows and lower your torso slowly only as far as you can control the movement.",
+      "Press through the handles, return to the top without snapping the elbows straight, and wait for the platform to stop before stepping off.",
+    ],
+    proTip: "Learn a consistent path with more assistance first; reduce it only when every repetition looks the same.",
+    targetMuscles: ["Chest", "Triceps", "Front Delts"],
+    primaryMuscle: "chest",
+    equipment: "Assisted Dip Machine",
   },
 };

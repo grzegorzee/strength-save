@@ -117,10 +117,11 @@ describe('PlanPreview: przycisk "Wybierz inny plan"', () => {
 
 // Krok 1 (zgody) -> 2 -> 3 (Redukcja) -> 4 (3 dni) -> 5A.
 const onboardingToStep5 = async () => {
+  fireEvent.click(screen.getByTestId('ob-personalization-next'));
   fireEvent.click(screen.getByTestId('consent-terms'));
   fireEvent.click(screen.getByTestId('consent-privacy'));
   fireEvent.click(screen.getByTestId('consent-health'));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByTestId('ob-legal-submit'));
   await screen.findByRole('button', { name: /Następny krok/ });
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByText('Redukcja'));

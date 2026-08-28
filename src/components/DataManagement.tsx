@@ -20,7 +20,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface DataManagementProps {
-  onExport: () => string;
+  onExport: () => string | Promise<string>;
   /** J-T5: klik "Eksport treningów (CSV)" — otwiera ExportWorkoutsDialog rodzica. */
   onExportCsv?: () => void;
   onImport: (jsonString: string) => Promise<{ success: boolean; message: string }>;
@@ -205,13 +205,31 @@ export const DataManagement = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // WP-L (X29): na native <a download> jest martwe (Z179) — backup idzie
   // w share sheet; toast sukcesu tylko gdy plik realnie wyszedł (wzorzec Z198).
   // Bug 24 (X30): 'failed' (share sheet padł) dostaje destructive toast +
   // telemetrię; cisza zostaje WYŁĄCZNIE dla 'aborted' (user zamknął sheet).
   const handleExport = async () => {
-    const data = onExport();
+    setIsExporting(true);
+    let data: string;
+    try {
+      data = await onExport();
+    } catch (err) {
+      reportClientErrorWithCurrentUid({
+        code: 'data-export-build',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      });
+      toast({
+        title: t('data.export.failed'),
+        description: t('data.export.failedDesc'),
+        variant: 'destructive',
+      });
+      setIsExporting(false);
+      return;
+    }
     const file = new File([data], `fittracker-backup-${formatLocalDate(new Date())}.json`, {
       type: 'application/json',
     });
@@ -222,6 +240,7 @@ export const DataManagement = ({
         detail: err instanceof Error ? err.message : String(err),
       }),
     });
+    setIsExporting(false);
     if (result === 'aborted') return;
     if (result === 'failed') {
       toast({
@@ -306,8 +325,10 @@ export const DataManagement = ({
         </CardHeader>
         <CardContent className="space-y-4 px-3 sm:px-6">
           <div className="grid grid-cols-2 gap-3">
-            <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm" disabled={disabled}>
-              <Download className="h-4 w-4 mr-1.5 shrink-0" />
+            <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm" disabled={disabled || isExporting}>
+              {isExporting
+                ? <Loader2 className="h-4 w-4 mr-1.5 shrink-0 animate-spin" />
+                : <Download className="h-4 w-4 mr-1.5 shrink-0" />}
               {exportLabel ?? t('data.exportLabel')}
             </Button>
             <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm" disabled={disabled}>

@@ -226,7 +226,7 @@ export const AdminBugReportsCard = () => {
                         <p className="mt-1 break-all text-xs text-muted-foreground">{email}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{platform} · {version}</p>
                       </div>
-                      <span className="rounded-full border border-fitness-cyan/40 bg-fitness-cyan/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-fitness-cyan">
+                      <span className="rounded-full border border-fitness-cyan/40 bg-fitness-cyan/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-fitness-cyan">
                         {categoryLabel(row.category)}
                       </span>
                     </div>

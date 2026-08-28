@@ -42,6 +42,10 @@ export interface PlanDaysEditorProps {
 
 const DURATIONS = [8, 10, 12, 16];
 
+const revealField = (element: HTMLElement) => {
+  element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+};
+
 /**
  * WP-PLANS-1 (X27, Task P5): chipsy [8,10,12,16] + własna liczba tygodni 2-36.
  * Wartość spoza zakresu = komunikat walidacji i BRAK zapisu (clamp dopiero na
@@ -100,10 +104,17 @@ export const PlanDurationPicker = ({
           id="plan-duration-custom"
           data-testid="duration-custom-input"
           inputMode="numeric"
+          enterKeyHint="done"
           value={customText}
           placeholder={String(value)}
           onChange={(e) => handleCustomChange(e.target.value)}
-          className="w-28"
+          onFocus={(e) => revealField(e.currentTarget)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            e.currentTarget.blur();
+          }}
+          className="min-h-11 w-28"
         />
         {customError && (
           <p data-testid="duration-custom-error" className="text-sm text-destructive">
@@ -167,7 +178,7 @@ export const PlanDaysEditor = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="min-h-11 min-w-11"
                     disabled={days.length >= MAX_PLAN_DAYS}
                     aria-label={t('daysedit.duplicateDay')}
                     onClick={() => onDaysChange(duplicatePlanDay(days, day.id))}
@@ -177,7 +188,7 @@ export const PlanDaysEditor = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive"
+                    className="min-h-11 min-w-11 text-destructive"
                     aria-label={t('daysedit.removeDay')}
                     onClick={() => onDaysChange(removePlanDay(days, day.id))}
                   >
@@ -208,10 +219,17 @@ export const PlanDaysEditor = ({
                 placeholder={t('planbuilder.focusPlaceholderOptional')}
                 defaultValue={day.focus}
                 key={`${day.id}-focus-${day.focus}`}
+                enterKeyHint="done"
+                onFocus={(e) => revealField(e.currentTarget)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }}
                 onBlur={e => {
                   if (e.target.value !== day.focus) onDaysChange(setPlanDayFocus(days, day.id, e.target.value));
                 }}
-                className="text-sm"
+                className="min-h-11 text-sm"
               />
 
               <div className="space-y-1">
@@ -230,7 +248,7 @@ export const PlanDaysEditor = ({
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="min-h-11 min-w-11"
                                   data-testid="sets-count-dec"
                                   aria-label={t('daysedit.fewerSets')}
                                   onClick={() => setEditingSets({ ...editingSets, count: Math.max(1, editingSets.count! - 1) })}
@@ -243,7 +261,7 @@ export const PlanDaysEditor = ({
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="min-h-11 min-w-11"
                                   data-testid="sets-count-inc"
                                   aria-label={t('daysedit.moreSets')}
                                   onClick={() => setEditingSets({ ...editingSets, count: Math.min(12, editingSets.count! + 1) })}
@@ -255,29 +273,43 @@ export const PlanDaysEditor = ({
                               <Input
                                 value={editingSets.reps}
                                 data-testid="sets-reps-input"
+                                enterKeyHint="done"
                                 onChange={e => setEditingSets({ ...editingSets, reps: e.target.value })}
-                                className="h-8 w-20 text-sm"
+                                onFocus={(e) => revealField(e.currentTarget)}
+                                onKeyDown={(e) => {
+                                  if (e.key !== 'Enter') return;
+                                  e.preventDefault();
+                                  e.currentTarget.blur();
+                                }}
+                                className="min-h-11 w-20 text-sm"
                               />
                             </>
                           ) : (
                             <Input
                               value={editingSets.raw}
                               data-testid="sets-raw-input"
+                              enterKeyHint="done"
                               onChange={e => setEditingSets({ ...editingSets, raw: e.target.value })}
-                              className="h-8 w-32 text-sm"
+                              onFocus={(e) => revealField(e.currentTarget)}
+                              onKeyDown={(e) => {
+                                if (e.key !== 'Enter') return;
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                              }}
+                              className="min-h-11 w-32 text-sm"
                             />
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-fitness-success" data-testid="sets-save" aria-label={t('common.save')} onClick={saveSets}>
+                          <Button variant="ghost" size="icon" className="min-h-11 min-w-11 text-fitness-success" data-testid="sets-save" aria-label={t('common.save')} onClick={saveSets}>
                             <Check className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="sets-cancel" aria-label={t('common.cancel')} onClick={() => setEditingSets(null)}>
+                          <Button variant="ghost" size="icon" className="min-h-11 min-w-11" data-testid="sets-cancel" aria-label={t('common.cancel')} onClick={() => setEditingSets(null)}>
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ) : (
                         <button
                           data-testid={`edit-sets-${exercise.id}`}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
+                          className="mt-0.5 flex min-h-11 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                           onClick={() => startEditingSets(day.id, exercise.id, exercise.sets)}
                         >
                           {exercise.sets}
@@ -289,7 +321,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="min-h-11 min-w-11"
                         disabled={idx === 0}
                         aria-label={t('daysedit.moveUp')}
                         onClick={() => onMoveExercise(day.id, exercise.id, 'up')}
@@ -299,7 +331,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="min-h-11 min-w-11"
                         disabled={idx === day.exercises.length - 1}
                         aria-label={t('daysedit.moveDown')}
                         onClick={() => onMoveExercise(day.id, exercise.id, 'down')}
@@ -309,7 +341,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="min-h-11 min-w-11"
                         aria-label={t('planeditor.swapExercise')}
                         onClick={() => setSwapDialog({ dayId: day.id, exerciseId: exercise.id, exerciseName: exercise.name })}
                       >
@@ -318,7 +350,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        className="min-h-11 min-w-11 text-destructive hover:text-destructive"
                         aria-label={t('daysedit.removeExercise')}
                         onClick={() => onRemoveExercise(day.id, exercise.id)}
                       >
@@ -330,7 +362,7 @@ export const PlanDaysEditor = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full"
+                  className="min-h-11 w-full"
                   onClick={() => setPickerDayId(day.id)}
                 >
                   <Plus className="h-4 w-4 mr-1" />

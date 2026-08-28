@@ -33,7 +33,35 @@ export interface ManualActivity extends ManualActivityInput {
   userId: string;
   type: ManualActivityType;
   createdAt: number;
+  /** Generacja zgody przypisana tylko do wpisów zawierających pola health. */
+  healthEpoch?: number;
 }
+
+export type ManualActivityWriteInput = ManualActivityInput & { healthEpoch?: number };
+
+const hasManualHealthData = (input: ManualActivityInput): boolean =>
+  input.averageHeartrate !== undefined
+  || input.calories !== undefined
+  || input.perceivedIntensity !== undefined;
+
+/** Fail-closed write payload: cardio bazowe działa zawsze, health wyłącznie z bieżącą epoką. */
+export const buildManualActivityWriteInput = (
+  input: ManualActivityInput,
+  grant: { healthEpoch: number } | null,
+): ManualActivityWriteInput => {
+  const { averageHeartrate, calories, perceivedIntensity, ...base } = input;
+  if (!grant || !Number.isSafeInteger(grant.healthEpoch) || grant.healthEpoch <= 0) {
+    return base;
+  }
+  if (!hasManualHealthData(input)) return base;
+  return {
+    ...base,
+    ...(averageHeartrate !== undefined && { averageHeartrate }),
+    ...(calories !== undefined && { calories }),
+    ...(perceivedIntensity !== undefined && { perceivedIntensity }),
+    healthEpoch: grant.healthEpoch,
+  };
+};
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const INTENSITIES: PerceivedIntensity[] = ['easy', 'moderate', 'hard'];

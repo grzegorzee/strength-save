@@ -120,9 +120,10 @@ describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', 
     fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     fireEvent.click(screen.getByRole('button', { name: '3' }));
-    // Domyślnie pon/śr/pt; user przekłada piątek na sobotę ('P' = Pn i Pt, drugi to piątek).
-    fireEvent.click(screen.getAllByRole('button', { name: 'P' })[1]);
-    fireEvent.click(screen.getByRole('button', { name: 'S' }));
+    // Domyślnie pon/śr/pt; user przekłada piątek na sobotę.
+    // Pełne etykiety są kontraktem VoiceOver/TalkBack, nie skróty wizualne.
+    fireEvent.click(screen.getByRole('button', { name: 'Piątek' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sobota' }));
     expect(screen.getByText('Wybrano 3/3 dni')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
 

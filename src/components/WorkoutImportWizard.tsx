@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { FileUp, Loader2, Undo2, CheckCircle } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -240,7 +242,12 @@ export const WorkoutImportWizard = () => {
                       key={unit}
                       type="button"
                       onClick={() => setStrongUnit(unit)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${strongUnit === unit ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground'}`}
+                      aria-pressed={strongUnit === unit}
+                      className={cn(
+                        'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                        toggleButtonClasses(strongUnit === unit),
+                        strongUnit === unit ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
+                      )}
                     >
                       {unit}
                     </button>

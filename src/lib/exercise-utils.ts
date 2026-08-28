@@ -12,6 +12,23 @@ export interface RepRange {
   isMax?: boolean;
 }
 
+const normalizedExerciseText = (value: string): string => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase();
+
+/** Ćwiczenia opcjonalnie obciążane, które poprawnie można wykonać z masą własną. */
+export const supportsZeroWeight = (exerciseName: string): boolean => {
+  const name = normalizedExerciseText(exerciseName);
+  return name.includes('wykro') || /\blunges?\b|\bsplit squats?\b/.test(name);
+};
+
+/** Zachowuje semantykę planów „na nogę / na stronę” w karcie serii. */
+export const isPerSideRepTarget = (sets: string): boolean => (
+  /(?:\/\s*(?:noga|noge|strona|leg|side)\b|\bper\s+(?:leg|side)\b)/i
+    .test(normalizedExerciseText(sets))
+);
+
 // WP-C (X37): zapis serii czasowej z planu: "3 x 30s", "1 x 30-90s", "3 x 45 sek".
 // Sufiks sekund MUSI stac bezposrednio po liczbie (ze spacja lub bez) i konczyc
 // slowo: "10/strona" to nadal powtorzenia.

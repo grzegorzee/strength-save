@@ -15,7 +15,9 @@ const MAX_DY_PX = 50;
 // scroll-lock na body w WKWebView). Otwarty overlay = gest zignorowany;
 // zamknięcie modala należy do jego własnych kontrolek.
 const hasOpenOverlay = (): boolean =>
-  document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') !== null;
+  document.querySelector(
+    '[data-app-overlay][data-state="open"], [role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+  ) !== null;
 
 export const IosSwipeBack = () => {
   const navigate = useNavigate();

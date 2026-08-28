@@ -48,7 +48,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
     getCompletedWorkoutsCount: () => 1,
     getLatestMeasurement: () => null,
     isLoaded: true,
-    error: null,
+    error: workoutsFixture.error,
     backfillHistoricalWorkouts: vi.fn(),
   }),
 }));
@@ -56,7 +56,8 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({
     plan: planFixture.plan,
     isLoaded: true,
-    isCustom: true,
+    isCustom: planFixture.hasTrustedPlan,
+    hasServerSnapshot: planFixture.hasTrustedPlan,
     planDurationWeeks: 12,
     planStartDate: '2026-07-27',
     progression: null,
@@ -71,7 +72,7 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
     isPlanExpired: false,
     weeksRemaining: 9,
     planStarted: true,
-    planError: false,
+    planError: planFixture.planError,
     savePlan: vi.fn(),
     saveDeloadDecision: vi.fn(),
     swapExercise: vi.fn(),
@@ -104,8 +105,8 @@ vi.mock('@/lib/workout-sync-queue', () => ({
   workoutSyncQueue: { pendingCount: () => 0, list: () => [] },
 }));
 
-const planFixture = vi.hoisted(() => ({ plan: [] as unknown[] }));
-const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
+const planFixture = vi.hoisted(() => ({ plan: [] as unknown[], planError: false, hasTrustedPlan: true }));
+const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[], error: null as string | null }));
 
 import Dashboard from '@/pages/Dashboard';
 
@@ -141,9 +142,51 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   navigateSpy.mockClear();
   workoutsFixture.workouts = [];
+  workoutsFixture.error = null;
+  planFixture.planError = false;
+  planFixture.hasTrustedPlan = true;
 });
 
 describe('kolejność Dashboardu (spec B2)', () => {
+  it('błąd źródła danych nie pokazuje planu i ma prostą ścieżkę ponowienia', () => {
+    planFixture.plan = [dayOn(0, 'day-1', 'Push')];
+    planFixture.planError = true;
+    planFixture.hasTrustedPlan = false;
+    renderDashboard();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać planu');
+    expect(screen.getByRole('button', { name: 'Spróbuj ponownie' })).toBeInTheDocument();
+    expect(screen.queryByTestId('dash-hero')).toBeNull();
+  });
+
+  it('chwilowy błąd po dobrym snapshotcie nie zasłania Dzisiaj', async () => {
+    planFixture.plan = [dayOn(0, 'day-1', 'Push')];
+    planFixture.planError = true;
+    planFixture.hasTrustedPlan = true;
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByTestId('dash-hero')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('zaległy trening ma jeden komunikat i jedną ścieżkę decyzji', async () => {
+    planFixture.plan = [dayOn(-1, 'day-missed', 'Push')];
+    renderDashboard();
+
+    expect(await screen.findByTestId('lapse-status-card')).toBeInTheDocument();
+    expect(screen.queryByText(/niezrobiony/i)).toBeNull();
+  });
+
+  it('błąd historii treningów ma przycisk ponowienia zamiast ślepej uliczki', () => {
+    planFixture.plan = [dayOn(0, 'day-1', 'Push')];
+    workoutsFixture.error = 'offline';
+    renderDashboard();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać danych');
+    expect(screen.getByRole('button', { name: 'Spróbuj ponownie' })).toBeInTheDocument();
+    expect(screen.queryByTestId('dash-hero')).toBeNull();
+  });
+
   it('D-T2: hero -> tydzień -> szybkie akcje -> max jeden insight; duplikaty usunięte', async () => {
     planFixture.plan = [dayOn(0, 'day-1', 'Push')];
     renderDashboard();
@@ -154,8 +197,6 @@ describe('kolejność Dashboardu (spec B2)', () => {
     const weekCard = screen.getByTestId('week-card');
     const quickStart = screen.getByTestId('quick-workout-start');
     const cardio = screen.getByTestId('add-cardio-open');
-    // Fala 2: analityka to kafel w gridzie akcji (pełnowymiarowy przycisk zniknął).
-    const analytics = screen.getByTestId('dash-analytics');
 
     // Duplikaty analityki/planu/tygodnia zeszły z Dashboardu (domy: Postępy i Plan).
     expect(screen.queryByTestId('dash-stats')).toBeNull();
@@ -170,9 +211,10 @@ describe('kolejność Dashboardu (spec B2)', () => {
     expect(greeting.compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(hero.compareDocumentPosition(weekCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(weekCard.compareDocumentPosition(quickStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(quickStart.compareDocumentPosition(analytics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(cardio).toBeTruthy();
-    expect(screen.getByTestId('dash-your-numbers')).toBeTruthy();
+    // Dane i analityka mają jeden dom w zakładce Postępy, bez skrótów-duplikatów.
+    expect(screen.queryByTestId('dash-your-numbers')).toBeNull();
+    expect(screen.queryByTestId('dash-analytics')).toBeNull();
 
     // Zaległość nie jest automatycznym modalem: zero blokujących warstw po wejściu.
     expect(document.querySelectorAll('[data-app-overlay]')).toHaveLength(0);

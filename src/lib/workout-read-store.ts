@@ -16,6 +16,12 @@ import { db } from '@/lib/firebase';
 import { sanitizeMeasurementDoc, sanitizeWorkoutDoc } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import type { BodyMeasurement, WorkoutSession } from '@/types';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import {
+  joinWorkoutHealth,
+  sanitizeWorkoutHealthDoc,
+  type WorkoutHealthDocument,
+} from '@/lib/workout-health-read';
 
 export const WORKOUT_LISTENER_LIMIT = 500;
 export const MEASUREMENT_LISTENER_LIMIT = 365;
@@ -84,6 +90,7 @@ export const selectLatestMeasurement = (measurements: BodyMeasurement[]): BodyMe
 };
 
 const WORKOUTS_COLLECTION = 'workouts';
+const WORKOUT_HEALTH_COLLECTION = 'workout_health_v2';
 const MEASUREMENTS_COLLECTION = 'measurements';
 const isBackendDisabledForMockE2E = (): boolean => (
   import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true'
@@ -119,6 +126,9 @@ export interface WorkoutReadSnapshot {
   // true dopóki snapshot pochodzi z persistentLocalCache — stale rewizje z cache
   // NIE mogą seedować baseline konfliktu (audyt 3.5).
   workoutsFromCache: boolean;
+  /** true oznacza, że marker bazy wskazuje brakujący/stary sidecar w cache. */
+  healthDataIncomplete: boolean;
+  healthError: string | null;
 }
 
 export interface WorkoutHistoryCursor {
@@ -129,9 +139,57 @@ export interface WorkoutHistoryCursor {
 export interface WorkoutHistoryPage {
   workouts: WorkoutSession[];
   nextCursor: WorkoutHistoryCursor | null;
+  healthDataIncomplete?: boolean;
   /** E-T5: source 'cache' bez danych w cache — hook czeka na serwer, bez pustego błysku. */
   cacheMiss?: boolean;
 }
+
+const chunks = <T>(items: T[], size: number): T[][] => {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  return result;
+};
+
+const fetchWorkoutHealthForPage = async (
+  userId: string,
+  workouts: WorkoutSession[],
+  source: 'cache' | 'default',
+): Promise<Map<string, WorkoutHealthDocument>> => {
+  const ids = workouts
+    .filter(workout => workout.healthSidecarPresent === true
+      && workout.healthSidecarRevision === workout.revision)
+    .map(workout => workout.id);
+  if (ids.length === 0) return new Map();
+
+  const documents = await Promise.all(chunks(ids, 30).map(async (idsChunk) => {
+    const healthQuery = query(
+      collection(db, WORKOUT_HEALTH_COLLECTION),
+      where('userId', '==', userId),
+      where(documentId(), 'in', idsChunk),
+    );
+    try {
+      const snapshot = source === 'cache'
+        ? await getDocsFromCache(healthQuery)
+        : await getDocs(healthQuery);
+      return snapshot.docs;
+    } catch {
+      return [];
+    }
+  }));
+
+  return new Map(documents.flat().flatMap((healthDoc) => {
+    const health = sanitizeWorkoutHealthDoc(healthDoc.id, healthDoc.data(), userId);
+    if (!health) {
+      void reportClientError(userId, {
+        code: 'invalid-doc',
+        phase: 'other',
+        detail: `${WORKOUT_HEALTH_COLLECTION}/${healthDoc.id}`,
+      });
+      return [];
+    }
+    return [[health.workoutId, health] as const];
+  }));
+};
 
 const EMPTY_SNAPSHOT: WorkoutReadSnapshot = {
   workouts: [],
@@ -140,6 +198,8 @@ const EMPTY_SNAPSHOT: WorkoutReadSnapshot = {
   error: null,
   measurementError: null,
   workoutsFromCache: true,
+  healthDataIncomplete: false,
+  healthError: null,
 };
 
 // Brak userId (np. odświeżanie tokena) = nie ma czego ładować → "puste, ale gotowe".
@@ -151,20 +211,28 @@ const EMPTY_LOADED_SNAPSHOT: WorkoutReadSnapshot = {
   error: null,
   measurementError: null,
   workoutsFromCache: true,
+  healthDataIncomplete: false,
+  healthError: null,
 };
 
 type Listener = () => void;
 
 interface StoreEntry {
   snapshot: WorkoutReadSnapshot;
+  baseWorkouts: WorkoutSession[];
+  healthByWorkoutId: Map<string, WorkoutHealthDocument>;
   listeners: Set<Listener>;
   // Z213: tier pomiarów per subskrybent; listener działa na maksimum aktywnych tierów.
   measurementTiers: Map<Listener, MeasurementTier>;
   activeMeasurementTier: MeasurementTier;
   // Z216: analogiczny tier treningów (recent 120 / full 500).
   workoutTiers: Map<Listener, WorkoutTier>;
+  healthGrants: Map<Listener, ActiveHealthGrant | null>;
+  activeHealthGrant: ActiveHealthGrant | null;
   activeWorkoutTier: WorkoutTier | null;
+  activeHealthLimit: number | null;
   unsubscribeWorkouts: Unsubscribe | null;
+  unsubscribeHealth: Unsubscribe | null;
   unsubscribeMeasurements: Unsubscribe | null;
 }
 
@@ -193,12 +261,18 @@ const getOrCreateStore = (userId: string): StoreEntry => {
 
   const entry: StoreEntry = {
     snapshot: EMPTY_SNAPSHOT,
+    baseWorkouts: [],
+    healthByWorkoutId: new Map(),
     listeners: new Set(),
     measurementTiers: new Map(),
     activeMeasurementTier: 'none',
     workoutTiers: new Map(),
+    healthGrants: new Map(),
+    activeHealthGrant: null,
     activeWorkoutTier: null,
+    activeHealthLimit: null,
     unsubscribeWorkouts: null,
+    unsubscribeHealth: null,
     unsubscribeMeasurements: null,
   };
   stores.set(userId, entry);
@@ -208,6 +282,29 @@ const getOrCreateStore = (userId: string): StoreEntry => {
 const emit = (entry: StoreEntry, next: Partial<WorkoutReadSnapshot>): void => {
   entry.snapshot = { ...entry.snapshot, ...next };
   entry.listeners.forEach(listener => listener());
+};
+
+const sameGrant = (a: ActiveHealthGrant | null, b: ActiveHealthGrant | null): boolean => (
+  a === b || (!!a && !!b && a.healthEpoch === b.healthEpoch && a.healthGrantId === b.healthGrantId)
+);
+
+const effectiveHealthGrant = (grants: Iterable<ActiveHealthGrant | null>): ActiveHealthGrant | null => {
+  for (const grant of grants) if (grant) return grant;
+  return null;
+};
+
+const emitVisibleWorkouts = (entry: StoreEntry, next: Partial<WorkoutReadSnapshot> = {}): void => {
+  const mode = entry.activeHealthGrant ? 'active' as const : 'base' as const;
+  let incomplete = false;
+  const workouts = entry.baseWorkouts.map((workout) => {
+    const joined = joinWorkoutHealth(workout, entry.healthByWorkoutId.get(workout.id) ?? null, {
+      mode,
+      activeGrant: entry.activeHealthGrant,
+    });
+    if (joined.state === 'partial') incomplete = true;
+    return joined.workout;
+  });
+  emit(entry, { workouts, healthDataIncomplete: incomplete, ...next });
 };
 
 // Z213: (re)startuje listener pomiarów zgodnie z maksymalnym tierem aktywnych
@@ -272,10 +369,10 @@ const ensureWorkoutListener = (userId: string, entry: StoreEntry): void => {
   entry.unsubscribeWorkouts = onSnapshot(
     workoutsQuery,
     (snapshot) => {
-      emit(entry, {
-        workouts: snapshot.docs
-          .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
-          .filter((workout): workout is WorkoutSession => workout !== null),
+      entry.baseWorkouts = snapshot.docs
+        .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
+        .filter((workout): workout is WorkoutSession => workout !== null);
+      emitVisibleWorkouts(entry, {
         isLoaded: true,
         error: null,
         workoutsFromCache: snapshot.metadata.fromCache,
@@ -290,21 +387,89 @@ const ensureWorkoutListener = (userId: string, entry: StoreEntry): void => {
   );
 };
 
+const ensureHealthListener = (userId: string, entry: StoreEntry): void => {
+  const grant = effectiveHealthGrant(entry.healthGrants.values());
+  const grantChanged = !sameGrant(grant, entry.activeHealthGrant);
+  entry.activeHealthGrant = grant;
+  const healthLimit = grant && entry.activeWorkoutTier
+    ? workoutLimitForTier(entry.activeWorkoutTier)
+    : null;
+
+  if (!grant) {
+    entry.unsubscribeHealth?.();
+    entry.unsubscribeHealth = null;
+    entry.activeHealthLimit = null;
+    if (grantChanged) emitVisibleWorkouts(entry, { healthError: null });
+    return;
+  }
+  if (entry.unsubscribeHealth && entry.activeHealthLimit === healthLimit) {
+    if (grantChanged) emitVisibleWorkouts(entry);
+    return;
+  }
+
+  entry.unsubscribeHealth?.();
+  entry.activeHealthLimit = healthLimit;
+  const healthQuery = query(
+    collection(db, WORKOUT_HEALTH_COLLECTION),
+    where('userId', '==', userId),
+    orderBy('date', 'desc'),
+    limit(healthLimit ?? RECENT_WORKOUTS_LIMIT),
+  );
+  entry.unsubscribeHealth = onSnapshot(
+    healthQuery,
+    (snapshot) => {
+      entry.healthByWorkoutId = new Map(snapshot.docs.flatMap((healthDoc) => {
+        const health = sanitizeWorkoutHealthDoc(healthDoc.id, healthDoc.data(), userId);
+        if (!health) {
+          void reportClientError(userId, {
+            code: 'invalid-doc',
+            phase: 'other',
+            detail: `${WORKOUT_HEALTH_COLLECTION}/${healthDoc.id}`,
+          });
+          return [];
+        }
+        return [[health.workoutId, health] as const];
+      }));
+      emitVisibleWorkouts(entry, { healthError: null });
+    },
+    (err) => {
+      console.error('Error fetching workout health:', err);
+      emitVisibleWorkouts(entry, { healthError: err.message });
+      void reportClientError(userId, {
+        code: 'listener-error',
+        phase: 'other',
+        detail: `workout-health-listener: ${err.message}`,
+      });
+    },
+  );
+};
+
 const startStore = (userId: string, entry: StoreEntry): void => {
   if (isBackendDisabledForMockE2E()) {
     if (!entry.snapshot.isLoaded) {
       // E2E mock: historia treningów wstrzykiwana z localStorage (wzorzec fittracker_e2e_cycles).
-      entry.snapshot = { workouts: readE2EWorkouts(), measurements: readE2EMeasurements(), isLoaded: true, error: null, measurementError: null, workoutsFromCache: false };
+      entry.snapshot = {
+        workouts: readE2EWorkouts(),
+        measurements: readE2EMeasurements(),
+        isLoaded: true,
+        error: null,
+        measurementError: null,
+        workoutsFromCache: false,
+        healthDataIncomplete: false,
+        healthError: null,
+      };
     }
     return;
   }
 
   ensureWorkoutListener(userId, entry);
+  ensureHealthListener(userId, entry);
   ensureMeasurementListener(userId, entry);
 };
 
 const stopStore = (userId: string, entry: StoreEntry): void => {
   entry.unsubscribeWorkouts?.();
+  entry.unsubscribeHealth?.();
   entry.unsubscribeMeasurements?.();
   stores.delete(userId);
 };
@@ -314,6 +479,7 @@ export const subscribeWorkoutReads = (
   listener: Listener,
   measurementTier: MeasurementTier = 'full',
   workoutTier: WorkoutTier = 'full',
+  activeHealthGrant: ActiveHealthGrant | null = null,
 ): Unsubscribe => {
   if (!userId) return () => undefined;
 
@@ -321,16 +487,19 @@ export const subscribeWorkoutReads = (
   entry.listeners.add(listener);
   entry.measurementTiers.set(listener, measurementTier);
   entry.workoutTiers.set(listener, workoutTier);
+  entry.healthGrants.set(listener, activeHealthGrant);
   startStore(userId, entry);
 
   return () => {
     entry.listeners.delete(listener);
     entry.measurementTiers.delete(listener);
     entry.workoutTiers.delete(listener);
+    entry.healthGrants.delete(listener);
     if (entry.listeners.size === 0) {
       stopStore(userId, entry);
     } else if (!isBackendDisabledForMockE2E()) {
       ensureWorkoutListener(userId, entry);
+      ensureHealthListener(userId, entry);
       ensureMeasurementListener(userId, entry);
     }
   };
@@ -417,9 +586,24 @@ export const fetchWorkoutHistoryPage = async (
   if (options.source === 'cache' && snapshot.docs.length === 0) {
     return { workouts: [], nextCursor: null, cacheMiss: true };
   }
-  const workouts = snapshot.docs
+  const baseWorkouts = snapshot.docs
     .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
     .filter((workout): workout is WorkoutSession => workout !== null);
+  const healthByWorkoutId = await fetchWorkoutHealthForPage(
+    userId,
+    baseWorkouts,
+    options.source === 'cache' ? 'cache' : 'default',
+  );
+  let healthDataIncomplete = false;
+  const workouts = baseWorkouts.map((workout) => {
+    const joined = joinWorkoutHealth(
+      workout,
+      healthByWorkoutId.get(workout.id) ?? null,
+      { mode: 'owner' },
+    );
+    if (joined.state === 'partial') healthDataIncomplete = true;
+    return joined.workout;
+  });
   // Pełność strony po SUROWYM snapshotcie: odfiltrowany uszkodzony dokument
   // nie może przerwać paginacji w środku historii (P0). Bug 41: kursor też
   // z SUROWEGO ogona — strona zakończona odrzuconymi dokumentami (w skrajności
@@ -442,7 +626,11 @@ export const fetchWorkoutHistoryPage = async (
     // Brak obu: strona w całości odrzucona i bez porównywalnych dat — stop;
     // każdy odrzut zaraportowany invalid-doc (toWorkout), przypadek widoczny w client_errors.
   }
-  return { workouts, nextCursor };
+  return {
+    workouts,
+    nextCursor,
+    ...(healthDataIncomplete ? { healthDataIncomplete: true } : {}),
+  };
 };
 
 export const fetchWorkoutRange = async (

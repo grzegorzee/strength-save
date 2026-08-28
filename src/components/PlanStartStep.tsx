@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { PlanDurationPicker } from '@/components/PlanDaysEditor';
+import { toggleButtonClasses } from '@/components/ui/chip-button';
 import type { PlanObjective } from '@/data/planTemplates';
 import { cn, parseLocalDateSafe } from '@/lib/utils';
 
@@ -56,20 +57,48 @@ export const PlanStartStep = ({
 }: PlanStartStepProps) => {
   const { t, lang } = useTranslation();
   const [customOpen, setCustomOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLTextAreaElement | null>(null);
   const tiles = useMemo(
     () => Array.from(new Set(templateWeeks ? [...BASE_WEEKS, templateWeeks] : BASE_WEEKS)).sort((a, b) => a - b),
     [templateWeeks],
   );
   const customActive = customOpen || !tiles.includes(weeks);
 
+  const revealNameField = useCallback((behavior: ScrollBehavior) => {
+    const scroll = scrollRef.current;
+    const input = nameRef.current;
+    if (!scroll || !input) return;
+    const scrollRect = scroll.getBoundingClientRect();
+    const inputRect = input.getBoundingClientRect();
+    const top = Math.max(0, scroll.scrollTop + inputRect.top - scrollRect.top - ((scroll.clientHeight - inputRect.height) / 2));
+    if (typeof scroll.scrollTo === 'function') scroll.scrollTo({ top, behavior });
+    else scroll.scrollTop = top;
+  }, []);
+
+  useEffect(() => {
+    const revealAfterInsetChange = () => {
+      if (document.activeElement !== nameRef.current) return;
+      window.requestAnimationFrame(() => revealNameField('auto'));
+    };
+    const observer = new MutationObserver(revealAfterInsetChange);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    return () => observer.disconnect();
+  }, [revealNameField]);
+
   return (
-    <div data-testid="ob-start-step" className="flex flex-1 flex-col">
-      <div className="mt-5 mb-4">
+    <div
+      data-testid="ob-start-step"
+      className="flex h-[calc(100dvh-var(--keyboard-inset,0px)-9.25rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-0 shrink-0 flex-col"
+    >
+      <div ref={scrollRef} data-testid="ob-start-scroll" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
+      <div className="mb-4 mt-5">
         <p className="mb-1.5 text-xs font-medium uppercase tracking-widest text-primary">{t('ob.start.kicker')}</p>
         <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight">{t('ob.start.title')}</h1>
         <p className="mt-1.5 text-[13px] text-muted-foreground">{t('ob.start.desc')}</p>
       </div>
-      <div className="flex-1 space-y-3">
+      <div className="space-y-3 pb-2">
         <div className="rounded-2xl bg-surface-low p-4" data-testid="ob-first-workout">
           <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.start.firstWorkout')}</p>
           <p className="mb-2 text-[12px] text-muted-foreground">{t('ob.start.firstWorkoutHint')}</p>
@@ -87,13 +116,17 @@ export const PlanStartStep = ({
                   aria-pressed={on}
                   data-date={iso}
                   onClick={() => onFirstWorkoutChange(iso)}
-                  className={cn('flex touch-manipulation select-none flex-col items-center rounded-full py-2 transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
+                  className={cn(
+                    'flex touch-manipulation select-none flex-col items-center rounded-full py-2 transition-colors',
+                    toggleButtonClasses(on),
+                    on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest',
+                  )}
                 >
-                  <span className="text-[10px] font-medium uppercase">
+                  <span className="text-[11px] font-medium uppercase">
                     {isToday ? t('ob.start.today') : date ? date.toLocaleDateString(dateLocale(lang), { weekday: 'short' }) : '-'}
                   </span>
                   <span className="mt-0.5 font-heading text-lg font-bold leading-none">{date ? date.getDate() : '-'}</span>
-                  <span className="mt-0.5 text-[9px] uppercase opacity-70">{date ? date.toLocaleDateString(dateLocale(lang), { month: 'short' }) : ''}</span>
+                  <span className="mt-0.5 text-[11px] uppercase opacity-70">{date ? date.toLocaleDateString(dateLocale(lang), { month: 'short' }) : ''}</span>
                 </button>
               );
             })}
@@ -110,11 +143,15 @@ export const PlanStartStep = ({
                   type="button"
                   aria-pressed={on}
                   onClick={() => { setCustomOpen(false); onWeeksChange(n); }}
-                  className={cn('touch-manipulation select-none rounded-full px-3.5 py-2 text-sm font-medium transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}
+                  className={cn(
+                    'touch-manipulation select-none rounded-full px-3.5 py-2 text-sm font-medium transition-colors',
+                    toggleButtonClasses(on),
+                    on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground',
+                  )}
                 >
                   {t('planbuilder.weeksShort', { n })}
                   {n === templateWeeks && (
-                    <span data-testid="ob-weeks-recommended" className="ml-1.5 text-[10px] uppercase tracking-wide opacity-70">{t('ob.start.recommendedWeeks')}</span>
+                    <span data-testid="ob-weeks-recommended" className="ml-1.5 text-[11px] uppercase tracking-wide opacity-70">{t('ob.start.recommendedWeeks')}</span>
                   )}
                 </button>
               );
@@ -123,7 +160,11 @@ export const PlanStartStep = ({
               type="button"
               aria-pressed={customActive}
               onClick={() => setCustomOpen((v) => !v)}
-              className={cn('touch-manipulation select-none rounded-full px-3.5 py-2 text-sm font-medium transition-colors', customActive ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}
+              className={cn(
+                'touch-manipulation select-none rounded-full px-3.5 py-2 text-sm font-medium transition-colors',
+                toggleButtonClasses(customActive),
+                customActive ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground',
+              )}
             >
               {t('ob.start.otherWeeks')}
             </button>
@@ -143,10 +184,21 @@ export const PlanStartStep = ({
             data-testid="ob-plan-name"
             rows={1}
             maxLength={60}
+            enterKeyHint="done"
             value={name}
             onChange={(e) => onNameChange(e.target.value.replace(/[\r\n]+/g, ' '))}
-            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+            onFocus={() => {
+              setKeyboardOpen(true);
+              window.requestAnimationFrame(() => revealNameField('smooth'));
+            }}
+            onBlur={() => setKeyboardOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              e.currentTarget.blur();
+            }}
             ref={(el) => {
+              nameRef.current = el;
               if (!el) return;
               el.style.height = '0px';
               el.style.height = `${el.scrollHeight}px`;
@@ -155,26 +207,35 @@ export const PlanStartStep = ({
           />
         </div>
       </div>
-      <div className="space-y-2 pt-4">
+      </div>
+      <div
+        data-testid="ob-start-actions"
+        className={cn(
+          'sticky bottom-0 z-10 shrink-0 space-y-2 bg-background',
+          keyboardOpen ? 'py-2' : 'pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4',
+        )}
+      >
         <button
           type="button"
           data-testid="ob-start-cta"
           onClick={onStart}
           disabled={isSaving}
-          className="flex w-full touch-manipulation select-none items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary-light to-primary py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground transition-opacity disabled:opacity-50"
+          className="flex min-h-12 w-full touch-manipulation select-none items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary-light to-primary py-3 font-heading font-bold uppercase tracking-wide text-primary-foreground transition-opacity disabled:opacity-50"
         >
           {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           {t(startCtaKey(objective))}
         </button>
-        <button
-          type="button"
-          data-testid="ob-start-preview"
-          onClick={onPreview}
-          disabled={isSaving}
-          className="w-full touch-manipulation select-none rounded-2xl bg-surface-high py-3 text-sm font-medium disabled:opacity-50"
-        >
-          {previewLabel}
-        </button>
+        {!keyboardOpen && (
+          <button
+            type="button"
+            data-testid="ob-start-preview"
+            onClick={onPreview}
+            disabled={isSaving}
+            className="min-h-12 w-full touch-manipulation select-none rounded-2xl bg-surface-high py-3 text-sm font-medium disabled:opacity-50"
+          >
+            {previewLabel}
+          </button>
+        )}
         {error && <p className="mt-3 text-center text-sm text-destructive">{error}</p>}
       </div>
     </div>

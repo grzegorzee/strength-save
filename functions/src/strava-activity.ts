@@ -34,11 +34,11 @@ export interface StravaActivityDoc {
   distance: number | null;
   movingTime: number | null;
   elapsedTime: number | null;
-  averageHeartrate: number | null;
-  maxHeartrate: number | null;
+  averageHeartrate?: number | null;
+  maxHeartrate?: number | null;
   totalElevationGain: number | null;
   averageSpeed: number | null;
-  calories: number | null;
+  calories?: number | null;
   description: string | null;
   sportType: string | null;
   averageCadence: number | null;
@@ -76,6 +76,12 @@ export const REFRESHABLE_ACTIVITY_FIELDS = [
 
 export type RefreshableField = (typeof REFRESHABLE_ACTIVITY_FIELDS)[number];
 
+const STRAVA_HEALTH_ACTIVITY_FIELDS = new Set<RefreshableField>([
+  "averageHeartrate",
+  "maxHeartrate",
+  "calories",
+]);
+
 /** T7: minimalny odstęp między RĘCZNYMI syncami (scheduled/callback bez limitu).
  *  X27/WP-C: podniesiony z 5 min do 24 h — manual to maks. drugi sync dziennie
  *  obok crona; łączny koszt API Stravy pozostaje ograniczony. */
@@ -110,6 +116,7 @@ export function mapStravaActivityToDoc(
   userId: string,
   activity: StravaApiActivityInput,
   syncedAt: string,
+  includeHealthData: boolean,
 ): StravaActivityDoc {
   return {
     userId,
@@ -120,11 +127,13 @@ export function mapStravaActivityToDoc(
     distance: activity.distance || null,
     movingTime: activity.moving_time || null,
     elapsedTime: activity.elapsed_time || null,
-    averageHeartrate: activity.average_heartrate || null,
-    maxHeartrate: activity.max_heartrate || null,
+    ...(includeHealthData ? {
+      averageHeartrate: activity.average_heartrate || null,
+      maxHeartrate: activity.max_heartrate || null,
+      calories: activity.calories || null,
+    } : {}),
     totalElevationGain: activity.total_elevation_gain || null,
     averageSpeed: activity.average_speed || null,
-    calories: activity.calories || null,
     description: activity.description || null,
     sportType: activity.sport_type || null,
     averageCadence: activity.average_cadence || null,
@@ -134,6 +143,26 @@ export function mapStravaActivityToDoc(
     stravaUrl: `https://www.strava.com/activities/${activity.id}`,
     syncedAt,
   };
+}
+
+/**
+ * Returns the higher Strava-derived max HR that may be persisted, or null when
+ * health processing is not allowed / not needed. The consent flag is required
+ * explicitly so callers cannot accidentally derive health data by default.
+ */
+export function nextEstimatedMaxHr(
+  activities: StravaApiActivityInput[],
+  currentEstimatedMaxHr: unknown,
+  manualOverride: boolean,
+  includeHealthData: boolean,
+): number | null {
+  if (!includeHealthData || manualOverride) return null;
+
+  const current = Number(currentEstimatedMaxHr || 0);
+  const fetched = activities.reduce((max, activity) => (
+    activity.max_heartrate && activity.max_heartrate > max ? activity.max_heartrate : max
+  ), current);
+  return fetched > current ? fetched : null;
 }
 
 /**
@@ -179,10 +208,12 @@ export async function loadExistingActivities(
 export function diffRefreshableFields(
   existing: Partial<StravaActivityDoc> | undefined,
   incoming: StravaActivityDoc,
+  includeHealthData: boolean,
 ): Partial<StravaActivityDoc> | null {
   if (!existing) return null;
   const changes: Partial<StravaActivityDoc> = {};
   for (const field of REFRESHABLE_ACTIVITY_FIELDS) {
+    if (!includeHealthData && STRAVA_HEALTH_ACTIVITY_FIELDS.has(field)) continue;
     const next = incoming[field] ?? null;
     const prev = existing[field] ?? null;
     if (next !== prev) {

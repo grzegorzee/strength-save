@@ -20,6 +20,7 @@ import { PreferenceSync } from '@/components/PreferenceSync';
 import { TimeZoneSync } from '@/components/TimeZoneSync';
 import { PushRegistrar } from '@/components/PushRegistrar';
 import { IosSwipeBack } from '@/components/IosSwipeBack';
+import { AndroidBackHandler } from '@/components/AndroidBackHandler';
 import { EmailVerificationGate } from '@/components/EmailVerificationGate';
 import { ConsentGate } from '@/components/ConsentGate';
 import { needsConsentRefresh } from '@/lib/consent-selection';
@@ -74,11 +75,6 @@ const RouteCrashFallback = ({ onReset, error, code }: { onReset: () => void; err
             {code}
           </p>
         )}
-        {error?.message && (
-          <p className="mt-1 select-text break-words rounded bg-muted p-2 font-mono text-[11px] text-muted-foreground/80">
-            {error.message}
-          </p>
-        )}
         <Button
           className="mt-6"
           onClick={() => {
@@ -125,8 +121,8 @@ export const AccessRestrictedView = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6">
-      <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="flex min-h-[100dvh] justify-center overflow-y-auto bg-background pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="my-auto w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-fitness-warning/10 text-fitness-warning">
           <ShieldOff className="h-6 w-6" />
         </div>
@@ -232,6 +228,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
     <HashRouter useTransitions={false}>
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <ProductTelemetry />
+      <AndroidBackHandler />
       {/* Z232: gest krawędziowy w onboardingu wyrzucałby z kreatora (kroki nie są trasami) i kasował wybory. */}
       {!isNewUser && <IosSwipeBack />}
       {!isNewUser && <WatchEventRouter />}
@@ -243,8 +240,8 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
               <>
                 <Route path="/login" element={<Navigate to="/onboarding" replace />} />
                 <Route path="/register" element={<Navigate to="/onboarding" replace />} />
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="*" element={<Onboarding />} />
+                <Route path="/onboarding" element={<Onboarding onExitBack={onLogout} />} />
+                <Route path="*" element={<Onboarding onExitBack={onLogout} />} />
               </>
             ) : (
               <Route element={<PaywallRouteGuard />}>

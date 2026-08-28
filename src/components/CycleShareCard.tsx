@@ -71,7 +71,7 @@ export function buildCycleShareHtml(
   const statCell = (value: string, label: string): string => `
     <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 12px;text-align:center;">
       <div style="font-size:24px;font-weight:800;color:#fff;">${value}</div>
-      <div style="font-size:10px;color:#8b93a1;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">${label}</div>
+      <div style="font-size:11px;color:#8b93a1;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">${label}</div>
     </div>`;
 
   return `
@@ -98,7 +98,7 @@ export function buildCycleShareHtml(
       </div>
       <div style="position:relative;z-index:1;margin-top:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;text-align:center;">
         <div style="font-size:34px;font-weight:800;color:${accentHex};letter-spacing:-1px;">${escapeHtml(data.timeLabel)}</div>
-        <div style="font-size:10px;color:#8b93a1;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">${escapeHtml(translate(lang, 'cycles.timeAtGym'))}</div>
+        <div style="font-size:11px;color:#8b93a1;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">${escapeHtml(translate(lang, 'cycles.timeAtGym'))}</div>
       </div>
       <div style="position:relative;z-index:1;margin-top:auto;text-align:center;font-size:12px;color:#8b93a1;letter-spacing:1px;">strengthsave.app</div>
     </div>
