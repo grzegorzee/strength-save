@@ -610,6 +610,8 @@ const TrainingPlan = () => {
           info={preStart}
           ctaLabel={t('trainingplan.seeFirstWeek')}
           onCta={() => setSelectedDate(new Date(startDate))}
+          // B1c (X70): nagłówek strony już mówi "Przed startem" — bez drugiego eyebrow.
+          showEyebrow={false}
           testId="plan-prestart-card"
         />
       )}

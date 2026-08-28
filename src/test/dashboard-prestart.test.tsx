@@ -168,9 +168,13 @@ describe('karta pre-start (T3)', () => {
     await waitFor(() => expect(screen.getByTestId('prestart-card')).toBeTruthy());
 
     const card = screen.getByTestId('prestart-card');
-    expect(card.textContent).toContain('Start cyklu:');
-    expect(card.textContent).toContain(longDate(start, 'pl-PL'));
+    expect(card.textContent).toContain('Start:');
+    // B1a (X70): pierwszy trening w dniu startu → pełna data pada w karcie
+    // DOKŁADNIE raz (tytuł), bez duplikatu w linii "Pierwszy trening".
+    expect(card.textContent?.split(longDate(start, 'pl-PL'))).toHaveLength(2);
     expect(card.textContent).toContain('Pierwszy trening:');
+    // B1c (X70): na Dashboardzie eyebrow zostaje (strona go nie dubluje).
+    expect(card.textContent).toContain('Plan startuje');
     expect(screen.queryByTestId('recovery-card')).toBeNull();
   });
 
@@ -184,7 +188,7 @@ describe('karta pre-start (T3)', () => {
     await waitFor(() => expect(screen.getByTestId('prestart-card')).toBeTruthy());
 
     const card = screen.getByTestId('prestart-card');
-    expect(card.textContent).toContain('Cycle starts:');
+    expect(card.textContent).toContain('Starts:');
     expect(card.textContent).toContain(longDate(start, 'en-US'));
   });
 

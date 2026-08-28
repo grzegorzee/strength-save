@@ -1,6 +1,6 @@
 // WP-F (X35a): zakładka Plan przed startem cyklu. Plan od poniedziałku 7.09,
 // dziś 25.08: bieżący tydzień to "Przed startem" (nie "Historia") z kartą
-// pre-start nad zakresem tygodnia; CTA "Zobacz pierwszy tydzień" skacze do
+// pre-start nad zakresem tygodnia; CTA "Zobacz tydzień 1" skacze do
 // tygodnia 1 z realnymi treningami. Niezmiennik: plan wystartowany = zero karty,
 // tydzień sprzed startu dalej "Historia". Fixtury: canonical-states (zasada 11).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -100,18 +100,25 @@ describe('WP-F (X35a) — Plan przed startem cyklu', () => {
     expect(fixture.state.plan?.startDate).toBe('2026-09-07');
 
     const card = screen.getByTestId('plan-prestart-card');
-    expect(card.textContent).toContain('Plan startuje');
+    // B1c (X70): nagłówek strony już mówi "Przed startem" — karta na Planie
+    // NIE dubluje eyebrow "Plan startuje" (Dashboard trzyma go bez zmian).
+    expect(card.textContent).not.toContain('Plan startuje');
     const startLabel = new Date(2026, 8, 7).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
-    expect(card.textContent).toContain(`Start cyklu: ${startLabel}`);
+    expect(card.textContent).toContain(`Start: ${startLabel}`);
+    // B1a (X70): pełna data startu pada w karcie dokładnie raz.
+    expect(card.textContent?.split(startLabel)).toHaveLength(2);
     expect(card.textContent).toContain('Pierwszy trening:');
+    // B1a: pierwszy trening w INNY dzień niż start → jego data zostaje.
+    const firstLabel = new Date(2026, 8, 8).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+    expect(card.textContent).toContain(firstLabel);
     expect(screen.getByText('Przed startem')).toBeInTheDocument();
     expect(screen.queryByText('Historia')).toBeNull();
     expect(screen.queryByText(/Tydzień \d+\/8/)).toBeNull();
   });
 
-  it('CTA "Zobacz pierwszy tydzień" skacze do tygodnia 1 z treningami; karta znika', () => {
+  it('CTA "Zobacz tydzień 1" skacze do tygodnia 1 z treningami; karta znika', () => {
     renderPlan('plan-future-start-wpc');
-    fireEvent.click(screen.getByRole('button', { name: 'Zobacz pierwszy tydzień' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zobacz tydzień 1' }));
 
     expect(screen.getByText('Tydzień 1/8')).toBeInTheDocument();
     expect(screen.getByText(/Start planu/)).toBeInTheDocument();
@@ -124,7 +131,7 @@ describe('WP-F (X35a) — Plan przed startem cyklu', () => {
 
   it('strzałka wstecz z tygodnia 1 wraca do "Przed startem" z kartą', () => {
     renderPlan('plan-future-start-wpc');
-    fireEvent.click(screen.getByRole('button', { name: 'Zobacz pierwszy tydzień' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zobacz tydzień 1' }));
     fireEvent.click(screen.getByLabelText('Poprzedni tydzień'));
     expect(screen.getByText('Przed startem')).toBeInTheDocument();
     expect(screen.getByTestId('plan-prestart-card')).toBeInTheDocument();

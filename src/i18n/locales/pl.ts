@@ -254,7 +254,7 @@ export const pl = {
   'dash.restDay': 'Dzisiaj wolne',
   'dash.nextTraining': 'Następny trening',
   // Karta pre-start (T3, feedback 2026-08-20): cykl startuje w przyszłości.
-  'dash.preStart.title': 'Start cyklu: {date}',
+  'dash.preStart.title': 'Start: {date}',
   'dash.preStart.firstWorkout': 'Pierwszy trening: {day}',
   'dash.preStart.viewPlan': 'Zobacz plan',
   // Dzień regeneracji (Runna p.1, spec B2).
@@ -897,7 +897,7 @@ export const pl = {
   'trainingplan.manage': 'Zarządzaj planem',
   'trainingplan.history': 'Historia',
   'trainingplan.preStart': 'Przed startem',
-  'trainingplan.seeFirstWeek': 'Zobacz pierwszy tydzień',
+  'trainingplan.seeFirstWeek': 'Zobacz tydzień 1',
   'trainingplan.weekOf': 'Tydzień {current}/{total}',
   'trainingplan.start': 'Start',
   'trainingplan.percentDone': '{percent}% ukończone',

@@ -248,7 +248,7 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.restDay': 'Day off today',
   'dash.nextTraining': 'Next workout',
   // Pre-start card (T3, feedback 2026-08-20): cycle starts in the future.
-  'dash.preStart.title': 'Cycle starts: {date}',
+  'dash.preStart.title': 'Starts: {date}',
   'dash.preStart.firstWorkout': 'First workout: {day}',
   'dash.preStart.viewPlan': 'View plan',
   // Recovery day (Runna p.1, spec B2).
@@ -890,7 +890,7 @@ export const en: Record<keyof typeof pl, string> = {
   'trainingplan.manage': 'Manage plan',
   'trainingplan.history': 'History',
   'trainingplan.preStart': 'Before start',
-  'trainingplan.seeFirstWeek': 'See first week',
+  'trainingplan.seeFirstWeek': 'See week 1',
   'trainingplan.weekOf': 'Week {current}/{total}',
   'trainingplan.start': 'Start',
   'trainingplan.percentDone': '{percent}% done',
