@@ -107,6 +107,15 @@ All colors MUST be HSL.
        applyAccent podbija jasność do >= 4.5:1 na ciemnych powierzchniach. */
     --primary-text: var(--primary);
     --outline-variant: 214 20% 80%;
+
+    /* A4 (X70): kolory wspierające palety (role: support-a = dane,
+       support-b = dekoracja). Fallback = --primary, czyli dotychczasowy kolor
+       tych miejsc — user bez palety nie widzi żadnej zmiany. Aktywna paleta
+       (applyPaletteTheme) nadpisuje te tokeny inline na :root. */
+    --palette-support-a: var(--primary);
+    --palette-support-b: var(--primary);
+    --palette-support-a-foreground: var(--primary-foreground);
+    --palette-support-b-foreground: var(--primary-foreground);
   }
 
   .dark {
@@ -176,6 +185,12 @@ All colors MUST be HSL.
     --ec-warmup-gold: 43 75% 48%;
     --ec-warmup-gold-bg: 43 75% 48% / 0.08;
     --ec-warmup-gold-border: 43 75% 48% / 0.25;
+
+    /* A4 (X70): kolory wspierające — fallback jak w :root (= --primary). */
+    --palette-support-a: var(--primary);
+    --palette-support-b: var(--primary);
+    --palette-support-a-foreground: var(--primary-foreground);
+    --palette-support-b-foreground: var(--primary-foreground);
   }
 }
 
@@ -216,6 +231,17 @@ All colors MUST be HSL.
 
 /* Kinetic Precision workout surfaces */
 @layer components {
+  /* A4 (X70): dekoracyjna poświata hero "Dzisiaj" w kolorze wspierającym B.
+     Świadomie bramkowana na data-palette: bez aktywnej palety hero wygląda
+     dokładnie jak dotąd (zero poświaty), więc domyślny wygląd się nie zmienia. */
+  :root[data-palette] .hero-support-glow {
+    background-image: radial-gradient(
+      120% 90% at 100% 0%,
+      hsl(var(--palette-support-b) / 0.12),
+      transparent 60%
+    );
+  }
+
   .exercise-card {
     border-radius: 24px;
     position: relative;

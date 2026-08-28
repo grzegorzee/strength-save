@@ -712,6 +712,9 @@ const Dashboard = () => {
   const hour = new Date().getHours();
   const greetingText = hour < 12 ? t('dash.greeting.morning') : hour < 18 ? t('dash.greeting.day') : t('dash.greeting.evening');
   const GreetingIcon = hour < 18 ? Sun : Moon;
+  // A4 (X70): księżyc w powitaniu = dekoracja w kolorze wspierającym B
+  // (fallback tokenu = primary, bez palety wygląda jak dotąd); słońce zostaje primary.
+  const greetingIconClass = hour < 18 ? 'h-6 w-6 text-primary' : 'h-6 w-6 text-support-b';
   const displayName = profile?.displayName?.split(' ')[0] || t('dash.defaultName');
   const formattedDate = new Date().toLocaleDateString(dateLocale(lang), {
     weekday: 'long',
@@ -1033,7 +1036,7 @@ const Dashboard = () => {
           imienia, bo gap-2 flexa robił szczelinę przed wykrzyknikiem. */}
       <div data-testid="dash-greeting">
         <h1 className="text-2xl font-heading font-bold uppercase flex items-center gap-2 tracking-tight">
-          <GreetingIcon className="h-6 w-6 text-primary" />
+          <GreetingIcon className={greetingIconClass} />
           {greetingText}, <span className="text-primary">{displayName}!</span>
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -1082,7 +1085,9 @@ const Dashboard = () => {
         const todayPlanDayName = displayDayNameForDate(todayTraining.day.dayName, todayTraining.day.weekday, today, lang);
         const showTodayPlanDayName = todayPlanDayName.toLocaleLowerCase(dateLocale(lang)) !== todayWeekdayLabel.toLocaleLowerCase(dateLocale(lang));
         return (
-        <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5">
+        // A4 (X70): hero-support-glow = poświata w kolorze wspierającym B,
+        // aktywna wyłącznie przy palecie (index.css, :root[data-palette]).
+        <div className="hero-support-glow flex flex-col gap-3 rounded-xl bg-surface-container p-5">
           <span className="eyebrow-mono text-primary">
             {t('dash.hero.today')}
             {showTodayPlanDayName && ` · ${todayPlanDayName}`}

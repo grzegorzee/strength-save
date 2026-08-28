@@ -92,6 +92,19 @@ export default {
           success: "hsl(var(--fitness-success))",
           warning: "hsl(var(--fitness-warning))",
         },
+        // A4 (X70): kolory wspierające palety dostają realne role w UI.
+        // support-a = drugi akcent DANYCH (ikony kafli statystyk, druga seria
+        // wykresów), support-b = akcent DEKORACYJNY (tinty banerów, poświata
+        // hero, ikona księżyca). Fallback tokenów w index.css = --primary,
+        // więc bez aktywnej palety wygląd pozostaje dotychczasowy.
+        "support-a": {
+          DEFAULT: "hsl(var(--palette-support-a))",
+          foreground: "hsl(var(--palette-support-a-foreground))",
+        },
+        "support-b": {
+          DEFAULT: "hsl(var(--palette-support-b))",
+          foreground: "hsl(var(--palette-support-b-foreground))",
+        },
       },
       textColor: {
         // Naprawa r1 (2026-08-21, sędzia "jeden akcent"): akcent jako TEKST idzie

@@ -97,7 +97,9 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
     ? 'records'
     : analyticsTab === 'charts' ? 'charts' : analyticsTab === 'weekly' || analyticsTab === 'strava' ? null : 'summary';
   const tabClass = (selected: boolean) => selected
-    ? 'min-h-11 rounded-lg bg-primary px-2 py-2 text-xs font-bold uppercase tracking-wide text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+    // C4 (X70): tekst na wypełnieniu bg-primary = text-primary-foreground
+    // (text-background robił nieczytelny tab przy jasnych akcentach w light mode).
+    ? 'min-h-11 rounded-lg bg-primary px-2 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
     : 'min-h-11 rounded-lg px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
   return (

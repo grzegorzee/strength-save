@@ -466,7 +466,7 @@ export const pl = {
   'analytics.toast.copiedDesc': 'Podsumowanie w schowku.',
   'analytics.stat.frequency': 'Frekwencja',
   'analytics.stat.tonnage': 'Tonaż',
-  'analytics.stat.streakWeeks': 'Seria (tyg.)',
+  'analytics.stat.streakWeeks': 'Tygodnie z rzędu',
   'analytics.stat.bodyWeight': 'Waga ciała',
   'analytics.stat.newRecords': 'Nowe rekordy',
   'analytics.newPRs.week': 'Nowe rekordy w tym tygodniu',

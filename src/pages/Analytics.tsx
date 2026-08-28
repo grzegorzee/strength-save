@@ -31,7 +31,7 @@ import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
-  Trophy, Flame, Copy, Check, Calendar, BarChart3, MoreHorizontal,
+  Trophy, Flame, Copy, Check, Calendar, BarChart3, Share2,
   ChevronRight, FileDown, FileSpreadsheet, Loader2, TrendingUp,
 } from 'lucide-react';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
@@ -132,6 +132,13 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
   const tonnageChange = previousTonnage > 0
     ? Math.round(((currentTonnage - previousTonnage) / previousTonnage) * 100)
     : 0;
+  // B4 (X70): delta porównuje PEŁNY poprzedni okres z ledwo rozpoczętym bieżącym,
+  // więc np. we wtorek rano pokazywała "-62%" mimo treningów zgodnie z planem.
+  // Chowamy ją, gdy baza porównania jest za słaba: poprzedni okres ma <2 treningi
+  // (pojedynczy trening to nie trend) LUB bieżący okres trwa <3 dni (za wcześnie
+  // na sensowne porównanie). Docelowa matematyka "to-date" = osobna zmiana.
+  const elapsedDaysInPeriod = Math.floor((Date.now() - bounds.start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const showTonnageDelta = tonnageChange !== 0 && previousWorkouts.length >= 2 && elapsedDaysInPeriod >= 3;
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
 
@@ -210,7 +217,7 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
       dateRange,
       ``,
       t('analytics.copy.frequency', { done: frequency, expected: expectedWorkouts }),
-      `${t('analytics.copy.tonnage', { value: Math.round(toDisplay(currentTonnage)).toLocaleString(dateLocale(lang)), unit })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
+      `${t('analytics.copy.tonnage', { value: Math.round(toDisplay(currentTonnage)).toLocaleString(dateLocale(lang)), unit })}${showTonnageDelta ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
       t('analytics.copy.streak', { n: streak }),
     ];
     if (periodPRs.length > 0) lines.push(t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') }));
@@ -271,7 +278,8 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="min-h-11" data-testid="analytics-actions-trigger">
-              <MoreHorizontal className="h-4 w-4 mr-2" />
+              {/* C4 (X70): ikona spójna z etykietą "Udostępnij" (była MoreHorizontal). */}
+              <Share2 className="h-4 w-4 mr-2" />
               {t('analytics.actions')}
             </Button>
           </DropdownMenuTrigger>
@@ -297,7 +305,9 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
       </p>
 
       {mode === 'overview' && <div className="space-y-3" data-testid="analytics-summary-first-view">
-        <Card className="border-primary/30 bg-primary/10" data-testid="analytics-summary-insight">
+        {/* A4 (X70): tint banera tygodnia = kolor wspierający B (dekoracja);
+            fallback tokenu = primary, więc bez palety wygląd bez zmian. */}
+        <Card className="border-support-b/30 bg-support-b/10" data-testid="analytics-summary-insight">
           <CardContent className="py-4">
             <p className="text-sm font-medium">
               {t(period === 'week' ? 'analytics.insight.week' : 'analytics.insight.month', { done: frequency, expected: expectedWorkouts })}
@@ -311,9 +321,11 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
             <p className="font-heading text-xl font-bold leading-none">{fmtTonnage(currentTonnage)}</p>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
               {t('analytics.stat.tonnage')}
-              {tonnageChange !== 0 && (
+              {/* B4 (X70): realna spacja przed deltą — sam margines sklejał
+                  innerText do "Tonaż-62%" (czytniki i kopiowanie). */}
+              {showTonnageDelta && (
                 <span className={tonnageChange > 0 ? 'ml-1 text-fitness-success' : 'ml-1 text-destructive'}>
-                  {tonnageChange > 0 ? '+' : ''}{tonnageChange}%
+                  {' '}{tonnageChange > 0 ? '+' : ''}{tonnageChange}%
                 </span>
               )}
             </p>
@@ -324,7 +336,9 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.streakWeeks')}</p>
           </CardContent></Card>
           <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
-            <TrendingUp className="mb-2 h-4 w-4 text-primary" />
+            {/* A4 (X70): trend rekordów = drugi akcent danych (support-a);
+                puchar tonażu zostaje primary, płomień streaka semantyczny. */}
+            <TrendingUp className="mb-2 h-4 w-4 text-support-a" />
             <p className="font-heading text-xl font-bold leading-none">{periodPRs.length}</p>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.newRecords')}</p>
           </CardContent></Card>

@@ -460,7 +460,7 @@ export const en: Record<keyof typeof pl, string> = {
   'analytics.toast.copiedDesc': 'Summary in clipboard.',
   'analytics.stat.frequency': 'Attendance',
   'analytics.stat.tonnage': 'Tonnage',
-  'analytics.stat.streakWeeks': 'Streak (wks)',
+  'analytics.stat.streakWeeks': 'Weeks in a row',
   'analytics.stat.bodyWeight': 'Body weight',
   'analytics.stat.newRecords': 'New records',
   'analytics.newPRs.week': 'New records this week',
