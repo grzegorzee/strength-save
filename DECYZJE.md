@@ -5,11 +5,27 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-28 (X69: dokończenie fali po limicie agenta, zmierzony clearance nawigacji, komplet bramek; bez wydania)
+**Ostatnia aktualizacja:** 2026-08-28 (X69 WYDANE: backend-first rollout, web B4A79kd5, iOS 131 APPROVED, AAB v43)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-28: X69-release — kontrolowane wydanie backend-first na jawne zlecenie właściciela
+
+Właściciel zlecił wydanie i zapowiedział testy urządzeniowe tego samego dnia.
+Kolejność zgodna z planem rollout health v2: najpierw backend, potem klient.
+Push `3009e42f` + `51878d55`; 69 Functions (nowe `syncWorkoutV2`,
+`restoreWorkoutBackupV3`), Firestore rules + indexes i Storage rules released;
+web `index-B4A79kd5` na produkcji z zielonym smoke Chromium + WebKit (zero
+pageerror); iOS build 131 w TestFlight z `betaReviewState = APPROVED` (obie
+grupy, whatsNew ustawione); podpisany AAB versionCode 43, SHA-256
+`39d172bd5e409f3a5cf04a9f765ad1ec2a5cdd01001deacca70633f3be9d0431`, na Pulpicie.
+Syntetyczny pierwszy zapis `syncWorkoutV2` na produkcji wykona właściciel
+(callable wymusza App Check; dane konta QA nieosiągalne, plik z CLAUDE.md nie
+istnieje — do odtworzenia). Obowiązkowy przegląd `client_errors` w ciągu 24 h
+po testach. Wersje marketingowe pozostają 1.0.0; publiczna publikacja App
+Store/Play nadal wymaga osobnej decyzji po fizycznym QA.
 
 ### 2026-08-28: X69 — dokończenie fali uciętej limitem: pasek nawigacji publikuje zmierzoną wysokość, outbox palety jest typowo i behawioralnie domknięty
 

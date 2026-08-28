@@ -5,6 +5,35 @@ podaje własną proweniencję. Nie jest zgodą na publiczną publikację App Sto
 Play Store. Wersje marketingowe pozostają
 `1.0.0`. Audyt nie przywraca RTK, hooków RTK ani `SessionStart`.
 
+## Wydanie X69 — kontrolowany rollout backend-first 2026-08-28 (decyzja właściciela)
+
+- Właściciel jawnie zlecił wydanie („działaj rób push na produkcje") i zapowiedział
+  własne testy urządzeniowe tego samego dnia. Kolejność rolloutu zgodna z planem
+  health v2: backend przed klientem.
+- Push: `3009e42f` (zamrożony kandydat, 489 plików) + `51878d55` (bump 131/43).
+- Backend: **69 Functions** wdrożonych, w tym NOWE `syncWorkoutV2` i
+  `restoreWorkoutBackupV3` (Successful create). Firestore rules + indexes oraz
+  Storage rules released. Deploy z predeploy (typecheck + testy + build Functions).
+- Web: `index-B4A79kd5.js` opublikowany na `https://app.strengthsave.app/` i
+  potwierdzony na live. Prod smoke Chromium + WebKit: ekran logowania renderuje
+  się, zero `pageerror`, zero nieudanych żądań aplikacji.
+- iOS: build **131** (1.0.0) zbudowany, wgrany do TestFlight, whatsNew ustawione,
+  grupa wewnętrzna i zewnętrzna podpięte, Beta App Review zgłoszony —
+  `betaReviewState = APPROVED`. Robert dostaje build automatycznie.
+- Android: podpisany AAB **versionCode 43** (1.0.0), SHA-256
+  `39d172bd5e409f3a5cf04a9f765ad1ec2a5cdd01001deacca70633f3be9d0431`,
+  kopia na Pulpicie (`strength-save-v43.aab`) do wgrania w Play Console.
+- Syntetyczny save/read `syncWorkoutV2` na produkcji: callable wymusza App Check,
+  a zapisane dane logowania konta QA są nieosiągalne (plik z CLAUDE.md nie
+  istnieje), więc pierwszy produkcyjny zapis wykona właściciel w ramach
+  zapowiedzianych testów urządzeniowych; przegląd `client_errors` w ciągu 24 h
+  pozostaje obowiązkowy.
+- Blockery zaktualizowane tą deltą: #5 (buildy 131/43) i #8 (zamrożony commit +
+  manifest) są zrealizowane; #1 zrealizowany w części backendowej (Functions +
+  Rules na produkcji), część walidacyjna przechodzi na testy właściciela.
+  Pozostałe blockery (fizyczne QA, rotacja sekretu Stravy, SNS SES, CDN animacji,
+  dostępność na realnych urządzeniach) bez zmian.
+
 ## Delta X69 — dokończony kandydat po ucięciu sesji agenta, końcowa bramka 2026-08-28 15:24 CEST
 
 - Sesja agenta prowadzącego falę została ucięta limitem ~14:16 w trakcie trzech
