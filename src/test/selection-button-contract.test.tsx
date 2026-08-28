@@ -105,7 +105,11 @@ describe('selection button visual contract', () => {
     const achievements = readFileSync(join(process.cwd(), 'src/pages/Achievements.tsx'), 'utf8');
     const warmup = readFileSync(join(process.cwd(), 'src/components/WarmupRoutineDialog.tsx'), 'utf8');
 
-    expect(achievements).toContain('border-muted-foreground');
+    // X70b: taby Postępów to trzy osobne przyciski z ramką 1px (border-border),
+    // aktywny wypełniony primary — kontrakt pilnuje nowego wyglądu.
+    expect(achievements).toContain('border border-border');
+    expect(achievements).toContain('bg-primary');
+    expect(achievements).toContain('text-primary-foreground');
     expect(achievements.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(achievements.match(/focus-visible:ring-2/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(warmup).toContain('role="checkbox"');
