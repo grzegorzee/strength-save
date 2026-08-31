@@ -13,9 +13,9 @@
     "checkout": ["ios", "android"]
   },
   "web": {
-    "commit": "956b61a0",
+    "commit": "7fd295c7",
     "url": "https://grzegorzee.github.io/strength-save/",
-    "asset": "assets/index-BK4azUWq.js",
+    "asset": "assets/index-aT6jBzZu.js",
     "state": "deployed-verified"
   },
   "functions": {
