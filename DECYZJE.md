@@ -5,11 +5,53 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-31 (X71: naprawy przed wydaniem 1.0)
+**Ostatnia aktualizacja:** 2026-08-31 (X72: spójne Postępy i pełne etykiety PL/EN)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-31: X72 — Postępy są dziennikiem wyników, a etykiety nie mogą być skracane
+
+**Kontekst i root cause:** poprzedni ekran Postępów dokładał kolejne kapsuły i
+duże przyciski bez wspólnej hierarchii. Cztery główne miejsca były ściskane do
+trzech przycisków i menu, przez co „Wykresy” zmieniały się w „WYKRE…”. Tydzień,
+Miesiąc i Udostępnij zajmowały osobne duże kafle. Rekordy rozbijały jedną liczbę
+na trzy nierówne karty, nazwy ćwiczeń kończyły się `(...)`, a Odznaki zaczynały
+się od niepowiązanej z produktem grafiki gwiazdy i wieńca. Osiągalne legacy
+„Podsumowania tygodniowe” nie miały wystarczającego kontraktu danych i sprawiały
+wrażenie niepełnych. Poza Postępami kilka statycznych etykiet w Planie, Profilu,
+Historii i bibliotece ćwiczeń dziedziczyło `truncate` albo jednoliniową wysokość.
+
+**Decyzja:** Postępy przyjmują hierarchię spokojnego dziennika siłowego. Cztery
+główne zakładki — Wyniki, Wykresy, Rekordy i Odznaki — są zawsze bezpośrednio
+widoczne jako jedna równa szyna z pełnymi nazwami. Wyniki mają kompaktowy segment
+Tydzień/Miesiąc i ikonową akcję udostępniania, a pod nimi jeden wspólny
+scoreboard. Rekordy pokazują tonaż na pełnej szerokości, a nazwy ćwiczeń zawijają
+się zamiast być skracane. Odznaki nie mają sztucznego hero; zaczynają się od
+rzeczywistych osiągnięć użytkownika. Legacy `tab=weekly` i `tab=details` wracają
+do aktualnych Wyników, a powiadomienie tygodniowe otwiera właściwy poprzedni
+okres. Strava pozostaje osiągalna z Wykresów dla kont objętych flagą.
+
+Statyczne etykiety interfejsu w PL i EN nie mogą używać wielokropka ani być
+obcinane przez kontener. Długie dane użytkownika mogą pozostać ograniczone tylko
+tam, gdzie obok istnieje pełny kontekst lub osobny widok, ale nazwy rekordowych
+ćwiczeń są informacją pierwszoplanową i zawijają się. Test runtime sprawdza
+viewport 320 px, oba języki, główne trasy, rozwinięte menu, dialogi, formularze,
+onboarding, paywall i panel administracyjny: brak wyjścia poza viewport, clippingu,
+ellipsis i poziomego scrolla. Przy okazji audyt wykrył błąd przekierowania
+`/analytics`: alias zachowywał tylko `tab`, gubiąc `period` i `offset`; alias
+przenosi teraz cały query string.
+
+**Weryfikacja przed wydaniem:** Vitest 3869/3869 (446 plików), typecheck, build,
+budżet 1 442 738/1 536 000 B, dist-smoke, offline i no-emoji 276 są zielone.
+Lint ma 0 błędów i 15 zastanych warningów Fast Refresh. Pełny Chromium E2E
+przechodzi 314/314, w tym 8 scenariuszy audytu etykiet PL/EN oraz wizualny smoke
+Postępów 393 px. Na JDK 21 Firestore Rules przechodzą 317/317, a Storage Rules
+42/42. Fala nie zmienia Functions ani Rules, więc backendu nie wdrażamy ponownie.
+Galeria dowodowa jest w `audit/shots/2026-08-31-x72/`. Wersja marketingowa
+pozostaje 1.0.0; następnym kandydatem iOS jest build 135. Fizyczny przegląd
+Postępów i smoke na realnym iPhonie pozostają podpisem właściciela po TestFlight.
 
 ### 2026-08-31: X71 — trwałe palety, kanoniczny reminder, bounded auth i przebudowane Postępy
 

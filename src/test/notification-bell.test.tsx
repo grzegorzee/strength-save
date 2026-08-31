@@ -116,9 +116,9 @@ describe('NotificationBell (B-T6: serwerowe user_events)', () => {
     expect(screen.getByText('Eksportuj historię treningów z Analityki.')).toBeTruthy();
   });
 
-  // X29: legacy eventy week w produkcji mają deepLink "/analytics" (tab summary);
-  // klik ma prowadzić na listę tygodni niezależnie od zapisanego linku.
-  it('klik w event week z legacy deepLink /analytics nawiguje na /analytics?tab=weekly', () => {
+  // X72: osobna lista tygodni została usunięta. Event otwiera poprzedni tydzień
+  // w kanonicznych Wynikach, gdzie metryki mają jedno źródło prawdy.
+  it('klik w event week otwiera poprzedni tydzień w Wynikach', () => {
     renderBell();
     emitEvents([
       event({
@@ -130,7 +130,7 @@ describe('NotificationBell (B-T6: serwerowe user_events)', () => {
     ]);
     fireEvent.click(screen.getByLabelText('inbox.open'));
     fireEvent.click(screen.getByText('inbox.week.title'));
-    expect(screen.getByTestId('location').textContent).toBe('/analytics?tab=weekly');
+    expect(screen.getByTestId('location').textContent).toBe('/analytics?period=week&offset=-1');
   });
 
   it('klik w event innego typu nadal nawiguje na jego deepLink (zasada 5)', () => {

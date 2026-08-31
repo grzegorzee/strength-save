@@ -38,6 +38,10 @@ describe('TrainingPlan: kontrakt mobilnych kontrolek', () => {
       expect(control).toContain('aria-pressed=');
       expect(control).toContain('focus-visible:outline');
       expect(control).toMatch(/border(?:-[^ ]+)?/);
+      expect(control).toContain('min-h-12');
+      expect(control).not.toMatch(/(?<!min-)h-12\s/);
+      expect(control).not.toContain('truncate');
+      expect(control).toContain('whitespace-normal');
     }
   });
 });

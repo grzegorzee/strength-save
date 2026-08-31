@@ -295,8 +295,8 @@ export const HistoryExportSheet = ({
                 {row.busy ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : row.icon}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{row.label}</span>
-                <span className="block truncate text-xs text-muted-foreground">{row.desc}</span>
+                <span className="block break-words text-sm font-semibold leading-snug">{row.label}</span>
+                <span className="mt-0.5 block break-words text-xs leading-snug text-muted-foreground">{row.desc}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
             </button>

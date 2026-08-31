@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -29,7 +28,7 @@ import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
-  Trophy, Flame, Check, Calendar, BarChart3, Share2, ChevronLeft,
+  Trophy, Flame, Check, Share2, ChevronLeft,
   ChevronRight, FileDown, FileSpreadsheet, Loader2, TrendingUp,
 } from 'lucide-react';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
@@ -45,10 +44,9 @@ import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { MeasurementReadError } from '@/components/MeasurementReadError';
 import { getAnalyticsPeriodWindow, type AnalyticsPeriod } from '@/lib/analytics-period';
 
-type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
+type AnalyticsTab = 'summary' | 'charts' | 'strava';
 
 const ChartsTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsChartsTab'), 'lazy-retry:analytics-charts');
-const WeeklyTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsWeeklyTab'), 'lazy-retry:analytics-weekly');
 const StravaTab = lazyWithRetry(() => import('@/components/strava/StravaTab').then((mod) => ({ default: mod.StravaTab })), 'lazy-retry:analytics-strava');
 
 // ========================
@@ -302,21 +300,33 @@ const SummaryTab = () => {
     <div className="space-y-6">
       <MeasurementReadError error={measurementError} onRetry={retryMeasurements} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
-          <Button aria-pressed={period === 'week'} className={toggleButtonClasses(period === 'week')} variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => updatePeriod('week')}>
-            <Calendar className="h-4 w-4 mr-2" />{t('analytics.period.week')}
-          </Button>
-          <Button aria-pressed={period === 'month'} className={toggleButtonClasses(period === 'month')} variant={period === 'month' ? 'default' : 'outline'} size="sm" onClick={() => updatePeriod('month')}>
-            <BarChart3 className="h-4 w-4 mr-2" />{t('analytics.period.month')}
-          </Button>
+      <div className="flex items-center gap-2" data-testid="analytics-period-toolbar">
+        <div className="grid min-w-0 flex-1 grid-cols-2 rounded-xl bg-surface-low p-1" data-testid="analytics-period-control">
+          <button
+            type="button"
+            aria-pressed={period === 'week'}
+            className={period === 'week'
+              ? 'min-h-11 rounded-lg bg-primary px-3 text-sm font-bold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              : 'min-h-11 rounded-lg px-3 text-sm font-semibold text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
+            onClick={() => updatePeriod('week')}
+          >
+            {t('analytics.period.week')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={period === 'month'}
+            className={period === 'month'
+              ? 'min-h-11 rounded-lg bg-primary px-3 text-sm font-bold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              : 'min-h-11 rounded-lg px-3 text-sm font-semibold text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
+            onClick={() => updatePeriod('month')}
+          >
+            {t('analytics.period.month')}
+          </button>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="min-h-11" data-testid="analytics-actions-trigger">
-              {/* C4 (X70): ikona spójna z etykietą "Udostępnij" (była MoreHorizontal). */}
-              <Share2 className="h-4 w-4 mr-2" />
-              {t('analytics.actions')}
+            <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" data-testid="analytics-actions-trigger" aria-label={t('analytics.actions')}>
+              <Share2 className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
@@ -351,16 +361,14 @@ const SummaryTab = () => {
       <div className="space-y-3" data-testid="analytics-summary-first-view">
         {/* A4 (X70): tint banera tygodnia = kolor wspierający B (dekoracja);
             fallback tokenu = primary, więc bez palety wygląd bez zmian. */}
-        <Card className="border-support-b/30 bg-support-b/10" data-testid="analytics-summary-insight">
-          <CardContent className="py-4">
+        <div className="overflow-hidden rounded-[20px] bg-surface-low accent-ring" data-testid="analytics-summary-scoreboard">
+          <div className="border-b border-support-b/30 bg-support-b/10 px-4 py-4" data-testid="analytics-summary-insight">
             <p className="text-sm font-medium">
               {t(period === 'week' ? 'analytics.insight.week' : 'analytics.insight.month', { done: frequency, expected: expectedWorkouts })}
             </p>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-3 gap-2">
-          <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-surface-high">
+          <div className="min-w-0 p-3" data-testid="analytics-summary-metric">
             <Trophy className="mb-2 h-4 w-4 text-primary" />
             <p className="font-heading text-xl font-bold leading-none">{fmtTonnage(currentTonnage)}</p>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
@@ -373,19 +381,20 @@ const SummaryTab = () => {
                 </span>
               )}
             </p>
-          </CardContent></Card>
-          <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
+          </div>
+          <div className="min-w-0 p-3" data-testid="analytics-summary-metric">
             <Flame className="mb-2 h-4 w-4 text-fitness-warning" />
             <p className="font-heading text-xl font-bold leading-none">{streak}</p>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.streakWeeks')}</p>
-          </CardContent></Card>
-          <Card data-testid="analytics-summary-metric"><CardContent className="p-3">
+          </div>
+          <div className="min-w-0 p-3" data-testid="analytics-summary-metric">
             {/* A4 (X70): trend rekordów = drugi akcent danych (support-a);
                 puchar tonażu zostaje primary, płomień streaka semantyczny. */}
             <TrendingUp className="mb-2 h-4 w-4 text-support-a" />
             <p className="font-heading text-xl font-bold leading-none">{periodPRs.length}</p>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.newRecords')}</p>
-          </CardContent></Card>
+          </div>
+          </div>
         </div>
       </div>
 
@@ -511,17 +520,18 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const rawTabParam = searchParams.get('tab');
   const tabParam = rawTabParam as AnalyticsTab | null;
   const validTabs: AnalyticsTab[] = canUseStrava
-    ? ['summary', 'charts', 'strava', 'weekly']
-    : ['summary', 'charts', 'weekly'];
+    ? ['summary', 'charts', 'strava']
+    : ['summary', 'charts'];
   // Bez parametru ?tab= otwieramy BIEŻĄCE podsumowanie (zgłoszenie 2026-08-13:
   // weekly digest otwierał się na "randomowym" tygodniu z wejścia z Dashboardu).
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
 
   useEffect(() => {
-    if (rawTabParam !== 'details') return;
+    if (rawTabParam !== 'details' && rawTabParam !== 'weekly') return;
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       next.delete('tab');
+      if (rawTabParam === 'weekly') next.set('period', 'week');
       return next;
     }, { replace: true });
   }, [rawTabParam, setSearchParams]);
@@ -572,7 +582,6 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">{t('analytics.tab.summary')}</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">{t('analytics.tab.charts')}</TabsTrigger>
           {canUseStrava && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
-          <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">{t('analytics.tab.weekly')}</TabsTrigger>
         </TabsList>}
 
         <TabsContent value="summary">
@@ -594,13 +603,6 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
             </TabBoundary>
           </TabsContent>
         )}
-        <TabsContent value="weekly">
-          <TabBoundary uid={uid}>
-            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
-              <WeeklyTab />
-            </Suspense>
-          </TabBoundary>
-        </TabsContent>
       </Tabs>
     </div>
   );

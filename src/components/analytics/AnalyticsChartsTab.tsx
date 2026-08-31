@@ -113,7 +113,7 @@ const formatDateShort = (date: string, lang: LanguageCode): string =>
   formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short' });
 
 const AnalyticsChartsTab = () => {
-  const { uid } = useCurrentUser();
+  const { uid, canUseStrava } = useCurrentUser();
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
@@ -333,6 +333,18 @@ const AnalyticsChartsTab = () => {
             />
           ))}
         </div>
+        {canUseStrava && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-between rounded-xl px-4"
+            data-testid="analytics-strava-link"
+            onClick={() => navigate('/achievements?view=analytics&tab=strava')}
+          >
+            <span>Strava</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
   }

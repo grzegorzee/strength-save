@@ -43,8 +43,8 @@ const PlanEditor = lazyWithRetry(() => import('@/pages/PlanEditor'), 'lazy-retry
 // (kompatybilność deep-linków i zdarzeń inboxa) z zachowaniem ?tab=.
 const AnalyticsRedirect = () => {
   const [params] = useSearchParams();
-  const tab = params.get('tab');
-  return <Navigate to={`/achievements?view=analytics${tab ? `&tab=${tab}` : ''}`} replace />;
+  const query = params.toString();
+  return <Navigate to={`/achievements?view=analytics${query ? `&${query}` : ''}`} replace />;
 };
 const Onboarding = lazyWithRetry(() => import('@/pages/Onboarding'), 'lazy-retry:onboarding');
 const ExerciseLibrary = lazyWithRetry(() => import('@/pages/ExerciseLibrary'), 'lazy-retry:exercise-library');

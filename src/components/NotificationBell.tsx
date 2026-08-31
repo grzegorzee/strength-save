@@ -91,9 +91,9 @@ export const NotificationBell = ({ uid }: { uid: string }) => {
                 const openLink = () => {
                   if (!deepLink) return;
                   setOpen(false);
-                  // X29: legacy eventy week sprzed X29 mają deepLink "/analytics"
-                  // (tab summary) — raport tygodnia zawsze prowadzi na listę tygodni.
-                  navigate(event.type === 'week' ? '/analytics?tab=weekly' : deepLink);
+                  // X72: jeden resolver okresu w Wynikach zamiast osobnej listy
+                  // tygodni. Zdarzenie dotyczy zamkniętego, poprzedniego tygodnia.
+                  navigate(event.type === 'week' ? '/analytics?period=week&offset=-1' : deepLink);
                 };
                 return (
                   <div

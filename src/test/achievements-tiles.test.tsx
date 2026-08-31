@@ -76,12 +76,25 @@ describe('niezmienniki treści Postępów', () => {
   it('Rekordy pokazują trzy metryki i obie listy bez kafla pośredniego', () => {
     renderPage('/achievements?view=records');
 
+    expect(screen.getByTestId('records-scoreboard')).toBeInTheDocument();
+    expect(screen.getAllByTestId('records-scoreboard-metric')).toHaveLength(3);
     expect(screen.getByText('Ukończone treningi')).toBeInTheDocument();
     expect(screen.getByText('Tonaż całkowity')).toBeInTheDocument();
     expect(screen.getByText('Ćwiczeń z rekordem')).toBeInTheDocument();
     expect(screen.getByText('Rekordy wszystkich ćwiczeń')).toBeInTheDocument();
     expect(screen.getByText('Rekordy osobiste (szacowane 1RM)')).toBeInTheDocument();
     expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
+  });
+
+  it('nazwy ćwiczeń w Rekordach zawijają się zamiast kończyć wielokropkiem', () => {
+    renderPage('/achievements?view=records');
+
+    const recordNames = document.querySelectorAll('[data-record-exercise-name]');
+    expect(recordNames.length).toBeGreaterThan(0);
+    recordNames.forEach((name) => {
+      expect(name).not.toHaveClass('truncate');
+      expect(name).toHaveClass('break-words');
+    });
   });
 
   it('stary deep link ?section=records nadal pokazuje komplet rekordów', () => {
@@ -94,6 +107,7 @@ describe('niezmienniki treści Postępów', () => {
     renderPage('/achievements?section=badges');
     expect(screen.getByRole('heading', { level: 1, name: 'Odznaki' })).toBeInTheDocument();
     expect(screen.getByText('Odznaki specjalne')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-hero')).not.toBeInTheDocument();
   });
 
   it('pusty widok Rekordów zachowuje zaproszenie do pierwszego treningu', () => {
@@ -109,14 +123,16 @@ describe('niezmienniki treści Postępów', () => {
   });
 });
 
-describe('X50: płaska nawigacja mobilnych Postępów', () => {
-  it('ma jeden główny poziom: Podsumowanie, Wykresy i Rekordy', () => {
+describe('X72: płaska nawigacja mobilnych Postępów', () => {
+  it('ma jeden główny poziom bez menu i bez ucinania etykiet', () => {
     renderPage('/achievements');
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(3);
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Wyniki', 'Wykresy', 'Rekordy']);
+    expect(tabs).toHaveLength(4);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Wyniki', 'Wykresy', 'Rekordy', 'Odznaki']);
+    tabs.forEach((tab) => expect(tab.innerHTML).not.toContain('truncate'));
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByTestId('progress-more-trigger')).not.toBeInTheDocument();
   });
 
   it('Wykresy ustawiają bezpośredni deep link, a Rekordy pokazują listy bez kafla pośredniego', () => {
@@ -130,16 +146,13 @@ describe('X50: płaska nawigacja mobilnych Postępów', () => {
     expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
   });
 
-  it('funkcje poboczne zostają osiągalne z menu Więcej', () => {
+  it('Odznaki są bezpośrednią zakładką, a Tygodnie znikają z nawigacji', () => {
     renderPage('/achievements');
 
-    const trigger = screen.getByTestId('progress-more-trigger');
-    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
-    fireEvent.click(trigger);
-
-    expect(screen.queryByRole('menuitem', { name: 'Szczegóły' })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Tygodnie' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Odznaki' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Odznaki' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Odznaki' })).toBeInTheDocument();
+    expect(screen.getByTestId('loc').textContent).toContain('section=badges');
+    expect(screen.queryByText('Tygodnie')).not.toBeInTheDocument();
   });
 
   it('stary deep link Szczegółów nie przywraca usuniętej zakładki w shellu', async () => {

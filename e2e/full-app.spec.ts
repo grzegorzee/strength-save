@@ -322,11 +322,12 @@ test.describe('Analytics Tabs', () => {
     await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
 
-    // X50: główny segment Postępów ma trzy najczęstsze widoki.
+    // X72: wszystkie główne widoki mają bezpośrednią, pełną etykietę.
     const mainViews = [
       { label: 'Wyniki', url: /#\/achievements\?view=analytics$/ },
       { label: 'Wykresy', url: /#\/achievements\?view=analytics&tab=charts$/ },
       { label: 'Rekordy', url: /#\/achievements\?view=records$/ },
+      { label: 'Odznaki', url: /#\/achievements\?view=records&section=badges$/ },
     ];
     for (const { label, url } of mainViews) {
       const tab = page.getByRole('tab', { name: label });
@@ -336,20 +337,7 @@ test.describe('Analytics Tabs', () => {
       await expectPageRendered(page);
     }
 
-    // Rzadsze widoki zachowują pełne pokrycie przez menu „Więcej”.
-    const moreViews = [
-      { label: 'Tygodnie', url: /#\/achievements\?view=analytics&tab=weekly$/ },
-      { label: 'Strava', url: /#\/achievements\?view=analytics&tab=strava$/ },
-      { label: 'Odznaki', url: /#\/achievements\?view=records&section=badges$/ },
-    ];
-    for (const { label, url } of moreViews) {
-      await page.getByTestId('progress-more-trigger').click();
-      await page.getByRole('menuitem', { name: label }).click();
-      await expect(page).toHaveURL(url);
-      await expectPageRendered(page);
-    }
-
-    // Eksporty podsumowania są dostępne z wtórnej akcji „Udostępnij”.
+    // Eksporty podsumowania są dostępne z kompaktowej akcji systemowej.
     await page.getByRole('tab', { name: 'Wyniki' }).click();
     await page.getByTestId('analytics-actions-trigger').click();
     await expect(page.getByRole('menuitem', { name: 'PDF' })).toBeVisible();
@@ -1421,12 +1409,12 @@ test.describe('Manualne cardio w analityce (Z113)', () => {
       }],
     });
 
-    // X50: tygodnie są wtórnym widokiem Postępów, osiągalnym z „Więcej”.
-    await navigateAndWait(page, '/achievements');
-    await page.getByTestId('progress-more-trigger').click();
-    await page.getByRole('menuitem', { name: 'Tygodnie' }).click();
-    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=weekly$/);
-    await expect(page.getByText('5 km').first()).toBeVisible();
+    // X72: osobny, mylący ekran tygodni został usunięty. Legacy link otwiera
+    // kanoniczne Wyniki tygodnia zamiast drugiego agregatora.
+    await navigateAndWait(page, '/achievements?view=analytics&tab=weekly');
+    await expect(page).not.toHaveURL(/tab=weekly/);
+    await expect(page.getByTestId('analytics-summary-first-view')).toBeVisible();
+    await expect(page.getByText('Podsumowania tygodniowe')).toHaveCount(0);
   });
 });
 

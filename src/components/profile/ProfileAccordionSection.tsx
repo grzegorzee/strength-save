@@ -52,7 +52,7 @@ export const ProfileAccordionSection = ({
               <span
                 data-section-value
                 className={cn(
-                  'max-w-[46%] shrink-0 truncate font-mono text-[11px]',
+                  'max-w-[46%] shrink-0 break-words text-right font-mono text-[11px] leading-tight',
                   valueAccent ? 'text-primary' : 'text-muted-foreground',
                 )}
               >

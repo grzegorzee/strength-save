@@ -4,7 +4,7 @@ import { blockFirebase, expectHashRoute, navigateAndWait, setE2EAuthScenario } f
 // D-T1/X51: dolny pasek prowadzi do Postępów. Legacy /analytics przekierowuje
 // do wspólnego ekranu i zachowuje wybór zakładki w query.
 test.describe('Nawigacja Postępów', () => {
-  test('mobile tab bar otwiera Postępy z głównym segmentem trzech widoków', async ({ page }) => {
+  test('mobile tab bar otwiera Postępy z czterema pełnymi etykietami', async ({ page }) => {
     await blockFirebase(page);
     await setE2EAuthScenario(page, 'active-user');
     await navigateAndWait(page, '/');
@@ -17,10 +17,11 @@ test.describe('Nawigacja Postępów', () => {
 
     await expectHashRoute(page, '/achievements');
     const progressTabs = page.getByRole('tablist', { name: 'Postępy' });
-    await expect(progressTabs.getByRole('tab')).toHaveCount(3);
+    await expect(progressTabs.getByRole('tab')).toHaveCount(4);
     await expect(progressTabs.getByRole('tab', { name: 'Wyniki', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(progressTabs.getByRole('tab', { name: 'Wykresy', exact: true })).toBeVisible();
     await expect(progressTabs.getByRole('tab', { name: 'Rekordy', exact: true })).toBeVisible();
+    await expect(progressTabs.getByRole('tab', { name: 'Odznaki', exact: true })).toBeVisible();
   });
 
   test('legacy /analytics przekierowuje na właściwy segment Postępów', async ({ page }) => {
@@ -35,5 +36,10 @@ test.describe('Nawigacja Postępów', () => {
     await navigateAndWait(page, '/analytics?tab=charts');
     await expectHashRoute(page, '/achievements?view=analytics&tab=charts');
     await expect(page.getByTestId('progress-view-charts')).toHaveAttribute('aria-selected', 'true');
+
+    // Event tygodniowy niesie okres i przesunięcie — redirect nie może ich zgubić.
+    await navigateAndWait(page, '/analytics?period=week&offset=-1');
+    await expectHashRoute(page, '/achievements?view=analytics&period=week&offset=-1');
+    await expect(page.getByTestId('progress-view-summary')).toHaveAttribute('aria-selected', 'true');
   });
 });

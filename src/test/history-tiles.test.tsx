@@ -370,6 +370,17 @@ describe('WP-H H3 — Export sheet', () => {
     expect(within(sheet).getByTestId('history-email')).toHaveTextContent('coach@example.com');
   });
 
+  it('etykiety i opisy formatów zawijają się bez ucinania', async () => {
+    const sheet = await openSheet();
+    for (const testId of ['export-format-pdf', 'export-format-csv', 'history-email']) {
+      const row = within(sheet).getByTestId(testId);
+      for (const text of Array.from(row.querySelectorAll('span span'))) {
+        expect(text).not.toHaveClass('truncate');
+        expect(text).toHaveClass('break-words');
+      }
+    }
+  });
+
   it('CSV: pobiera sesje aktywnego cyklu (WP-D: tryb cycleId) i woła istniejącą ścieżkę CSV', async () => {
     const active = activeCycleOf();
     const sheet = await openSheet();

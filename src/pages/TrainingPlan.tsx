@@ -942,14 +942,14 @@ const TrainingPlan = () => {
           onClick={() => setReducedOpen(true)}
           aria-pressed={Boolean(reducedMode && isReducedModeActive(reducedMode, todayISOForVacation))}
           className={cn(
-            'flex h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+            'flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
             reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
               ? 'border border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
               : 'border-border/60 bg-surface-low text-foreground/80 hover:bg-surface-high',
           )}
         >
           <HeartPulse className={cn('h-4 w-4 shrink-0', !(reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
-          <span className="truncate">
+          <span className="min-w-0 whitespace-normal text-center leading-tight">
             {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
               ? t('rmode.badge', { date: formatLocalDateLabel(reducedMode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }) })
               : t('rmode.title')}
@@ -961,14 +961,14 @@ const TrainingPlan = () => {
           onClick={() => setVacationOpen(true)}
           aria-pressed={Boolean(vacation && isVacationActive(vacation, todayISOForVacation))}
           className={cn(
-            'flex h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+            'flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
             vacation && isVacationActive(vacation, todayISOForVacation)
               ? 'border border-primary/40 bg-primary/10 text-primary'
               : 'border-border/60 bg-surface-low text-foreground/80 hover:bg-surface-high',
           )}
         >
           <Plane className={cn('h-4 w-4 shrink-0', !(vacation && isVacationActive(vacation, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
-          <span className="truncate">
+          <span className="min-w-0 whitespace-normal text-center leading-tight">
             {vacation && isVacationActive(vacation, todayISOForVacation)
               ? t('vac.badge', { date: formatLocalDateLabel(vacation.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }) })
               : t('vac.title')}

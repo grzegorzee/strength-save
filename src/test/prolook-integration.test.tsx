@@ -433,6 +433,16 @@ describe('F4: kafel grupy Własne w /exercises', () => {
     expect(within(customTile).getByTestId('group-tile-fallback')).toBeInTheDocument();
   });
 
+  it('pełna nazwa grupy może się zawinąć i nie jest ucinana wielokropkiem', () => {
+    customFixture.list = [customOutside];
+    renderPage(<ExerciseLibrary />, '/exercises');
+    const customTile = screen.getAllByTestId('exercise-group-tile')
+      .find((tile) => within(tile).queryByText('Własne'))!;
+    const label = within(customTile).getByText('Własne');
+    expect(label).not.toHaveClass('truncate');
+    expect(label).toHaveClass('break-words');
+  });
+
   it('hero widoku grupy Własne (?group=custom) używa tej samej grafiki', () => {
     customFixture.list = [customOutside];
     const { container } = renderPage(<ExerciseLibrary />, '/exercises?group=custom');

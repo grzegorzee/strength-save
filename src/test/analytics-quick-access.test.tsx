@@ -110,6 +110,7 @@ describe('X50: uproszczone mobilne Podsumowanie', () => {
     renderAnalytics('/achievements?view=analytics', true);
 
     const firstView = screen.getByTestId('analytics-summary-first-view');
+    expect(within(firstView).getByTestId('analytics-summary-scoreboard')).toBeInTheDocument();
     expect(within(firstView).getAllByTestId('analytics-summary-insight')).toHaveLength(1);
     expect(within(firstView).getAllByTestId('analytics-summary-metric')).toHaveLength(3);
     expect(within(firstView).queryByText('--')).not.toBeInTheDocument();
@@ -138,12 +139,21 @@ describe('X50: uproszczone mobilne Podsumowanie', () => {
     renderAnalytics('/achievements?view=analytics', true);
 
     const trigger = screen.getByTestId('analytics-actions-trigger');
+    expect(trigger.textContent).toBe('');
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
     fireEvent.click(trigger);
 
     expect(screen.getByRole('menuitem', { name: 'PDF' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'CSV' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Udostępnij podsumowanie' })).toBeInTheDocument();
+  });
+
+  it('legacy Tygodnie przekierowują do zwykłych Wyników tygodnia', async () => {
+    renderAnalytics('/achievements?view=analytics&tab=weekly', true);
+
+    await vi.waitFor(() => expect(screen.getByTestId('loc').textContent).not.toContain('tab=weekly'));
+    expect(screen.getByTestId('analytics-summary-first-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('weekly-tab')).not.toBeInTheDocument();
   });
 
   it('Udostępnij podsumowanie otwiera natywny share sheet, gdy platforma go wspiera', async () => {

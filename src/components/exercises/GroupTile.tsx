@@ -58,8 +58,8 @@ export const GroupTile = ({ label, count, imageUrl, onClick, imageFit = 'cover',
           {Icon && <Icon className="h-6 w-6 text-primary" />}
         </span>
       )}
-      <span className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-2">
-        <span className="truncate font-heading text-[15px] font-bold uppercase leading-tight tracking-tight">
+      <span className="flex min-h-[48px] items-start justify-between gap-2 px-3 pb-2.5 pt-2">
+        <span className="min-w-0 break-words font-heading text-[15px] font-bold uppercase leading-tight tracking-tight">
           {label}
         </span>
         <span className="eyebrow-mono shrink-0 font-bold text-primary">{count}</span>

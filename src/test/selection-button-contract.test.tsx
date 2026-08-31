@@ -87,7 +87,6 @@ describe('selection button visual contract', () => {
     ['components/EmailWorkoutDialog.tsx', 1, 'aria-checked=', 1],
     ['components/ExportWorkoutsDialog.tsx', 1, 'aria-checked=', 1],
     ['components/history/HistoryExportSheet.tsx', 2, 'aria-checked=', 2],
-    ['pages/Analytics.tsx', 2, 'aria-pressed=', 2],
     ['pages/Login.tsx', 1, 'aria-pressed=', 1],
     ['pages/admin/AdminSubscriptionCard.tsx', 2, 'aria-pressed=', 2],
     ['components/WorkoutImportWizard.tsx', 1, 'aria-pressed=', 1],
@@ -103,15 +102,20 @@ describe('selection button visual contract', () => {
 
   it('keeps segmented tabs and warmup check rows keyboard-visible and named', () => {
     const achievements = readFileSync(join(process.cwd(), 'src/pages/Achievements.tsx'), 'utf8');
+    const analytics = readFileSync(join(process.cwd(), 'src/pages/Analytics.tsx'), 'utf8');
     const warmup = readFileSync(join(process.cwd(), 'src/components/WarmupRoutineDialog.tsx'), 'utf8');
 
-    // X70b: taby Postępów to trzy osobne przyciski z ramką 1px (border-border),
-    // aktywny wypełniony primary — kontrakt pilnuje nowego wyglądu.
-    expect(achievements).toContain('border border-border');
-    expect(achievements).toContain('bg-primary');
-    expect(achievements).toContain('text-primary-foreground');
+    // X72: cztery pełne etykiety w spokojnym railu z podkreśleniem aktywnej.
+    expect(achievements).toContain('grid-cols-4');
+    expect(achievements).toContain('border-b-2 border-primary');
+    expect(achievements).toContain('border-b-2 border-transparent');
+    expect(achievements).not.toContain('progress-more-trigger');
     expect(achievements.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(achievements.match(/focus-visible:ring-2/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    // Tydzień/Miesiąc to jeden kompaktowy segment, z jawnym stanem i fokusem.
+    expect(analytics).toContain('analytics-period-control');
+    expect(analytics.match(/aria-pressed=/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(analytics.match(/focus-visible:ring-2/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(warmup).toContain('role="checkbox"');
     expect(warmup).toContain('aria-checked={checked.has(nameKey)}');
     expect(warmup).toContain('focus-visible:ring-2');

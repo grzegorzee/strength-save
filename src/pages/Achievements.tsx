@@ -2,10 +2,9 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '@/components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal, MoreHorizontal } from 'lucide-react';
+import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -13,12 +12,6 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { getExerciseBest1RM } from '@/lib/pr-utils';
 import {
   buildExerciseRecords,
@@ -31,8 +24,6 @@ import {
   type Milestone,
   type SpecialBadgeId,
 } from '@/lib/achievements-utils';
-import { GroupHeader } from '@/components/exercises/GroupHeader';
-import { getProgressTileImageUrl } from '@/lib/progress-media';
 import { medalForCompletionRate } from '@/lib/season-medals';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { withLiveCompletedStats } from '@/lib/cycle-insights';
@@ -85,32 +76,24 @@ const medalLabelKey: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
   bronze: 'achievements.seasons.bronze',
 };
 
-// X50: jeden główny poziom Postępów. Tygodnie, Strava i odznaki zostają
-// osiągalne z menu wtórnego, bez dublowania ich w głównym segmencie.
+// X72: jeden spokojny poziom Postępów. Cztery pełne etykiety mieszczą się także
+// na 320 px; brak pigułek, menu i truncate usuwa konflikt hierarchii z dolnym navem.
 const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { canUseStrava } = useCurrentUser();
   const analyticsTab = searchParams.get('tab');
+  const recordsSection = searchParams.get('section');
   const activeTab = view === 'records'
-    ? 'records'
-    : analyticsTab === 'charts' ? 'charts' : analyticsTab === 'weekly' || analyticsTab === 'strava' ? null : 'summary';
-  // X70b (korekta wlasciciela): trzy OSOBNE przyciski z ramka 1px zamiast
-  // wspolnej kapsuly; aktywny = wypelnienie bg-primary bez ramki.
-  // C4 (X70): tekst na wypełnieniu bg-primary = text-primary-foreground
-  // (text-background robił nieczytelny tab przy jasnych akcentach w light mode).
+    ? recordsSection === 'badges' ? 'badges' : 'records'
+    : analyticsTab === 'charts' || analyticsTab === 'strava' ? 'charts' : 'summary';
   const tabClass = (selected: boolean) => selected
-    ? 'min-h-11 rounded-full border border-transparent bg-primary px-2 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-    : 'min-h-11 rounded-full border border-border bg-transparent px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+    ? 'min-h-11 whitespace-nowrap border-b-2 border-primary px-1 py-2 text-[11px] font-bold uppercase tracking-[0.04em] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
+    : 'min-h-11 whitespace-nowrap border-b-2 border-transparent px-1 py-2 text-[11px] font-bold uppercase tracking-[0.04em] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring';
 
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-sm text-muted-foreground">{t('progress.subtitle')}</p>
-      </div>
-      <div className="flex items-stretch gap-2">
-        <div className="grid min-w-0 flex-1 grid-cols-3 gap-2" role="tablist" aria-label={t('progress.title')}>
+    <div className="border-b border-border/70">
+        <div className="grid min-w-0 grid-cols-4" role="tablist" aria-label={t('progress.title')}>
           <button
             type="button"
             role="tab"
@@ -119,7 +102,7 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
             onClick={() => navigate('/achievements?view=analytics', { replace: true })}
             className={tabClass(activeTab === 'summary')}
           >
-            <span className="block min-w-0 truncate">{t('progress.viewSummary')}</span>
+            {t('progress.viewSummary')}
           </button>
           <button
             type="button"
@@ -129,7 +112,7 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
             onClick={() => navigate('/achievements?view=analytics&tab=charts', { replace: true })}
             className={tabClass(activeTab === 'charts')}
           >
-            <span className="block min-w-0 truncate">{t('progress.viewCharts')}</span>
+            {t('progress.viewCharts')}
           </button>
           <button
             type="button"
@@ -139,37 +122,19 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
             onClick={() => navigate('/achievements?view=records', { replace: true })}
             className={tabClass(activeTab === 'records')}
           >
-            <span className="block min-w-0 truncate">{t('progress.viewRecords')}</span>
+            {t('progress.viewRecords')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'badges'}
+            data-testid="progress-view-badges"
+            onClick={() => navigate('/achievements?view=records&section=badges', { replace: true })}
+            className={tabClass(activeTab === 'badges')}
+          >
+            {t('progress.tile.badges')}
           </button>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-auto min-h-11 w-11 shrink-0 rounded-xl"
-              data-testid="progress-more-trigger"
-              aria-label={t('progress.more')}
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=weekly', { replace: true })}>
-              {t('analytics.tab.weekly')}
-            </DropdownMenuItem>
-            {canUseStrava && (
-              <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=strava', { replace: true })}>
-                Strava
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=records&section=badges', { replace: true })}>
-              {t('progress.tile.badges')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
     </div>
   );
 };
@@ -182,7 +147,7 @@ const Achievements = () => {
   // D-T4: ?view=analytics renderuje osadzoną Analitykę pod wspólnym nagłówkiem.
   // X36: Analityka jest DOMYŚLNA (bez ?view=). Rekordy: ?view=records, a także
   // stare deep linki ?section=records|badges bez view (powiadomienia, Profil).
-  const [achSearchParams, setAchSearchParams] = useSearchParams();
+  const [achSearchParams] = useSearchParams();
   const rawSection = achSearchParams.get('section');
   const activeSection: ProgressSection | null =
     rawSection === 'records' || rawSection === 'badges' ? rawSection : null;
@@ -365,27 +330,30 @@ const Achievements = () => {
 
       {/* X50: Rekordy są treścią głównej zakładki, bez kafla pośredniego. */}
       {activeSection !== 'badges' && <>
-      {/* Main Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatsCard
-          title={t('achievements.completedWorkouts')}
-          value={completedWorkouts}
-          icon={Trophy}
-          variant="primary"
-        />
-        <StatsCard
-          title={t('achievements.totalTonnage')}
-          value={fmtTonnage(totalWeight)}
-          subtitle={t('achievements.totalTonnageSub', { unit })}
-          icon={Dumbbell}
-          variant="primary"
-        />
-        <StatsCard
-          title={t('achievements.exercisesWithRecord')}
-          value={exerciseRecords.length}
-          icon={Target}
-          variant="primary"
-        />
+      {/* X72: jedna tablica wyników. Tonaż ma pełną szerokość, więc liczba i
+          etykieta nie walczą w ciasnym kaflu; metryki pomocnicze są pod spodem. */}
+      <div data-testid="records-scoreboard" className="overflow-hidden rounded-[20px] bg-surface-low accent-ring">
+        <div data-testid="records-scoreboard-metric" className="flex items-center justify-between gap-4 bg-primary/10 p-5">
+          <div className="min-w-0">
+            <p className="eyebrow-mono font-bold text-muted-foreground">{t('achievements.totalTonnage')}</p>
+            <p className="mt-2 font-heading text-4xl font-bold leading-none tracking-tight text-primary tabular-nums">{fmtTonnage(totalWeight)}</p>
+          </div>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Dumbbell className="h-5 w-5" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-surface-high">
+          <div data-testid="records-scoreboard-metric" className="p-4">
+            <Trophy className="mb-3 h-4 w-4 text-primary" />
+            <p className="font-heading text-2xl font-bold leading-none tabular-nums">{completedWorkouts}</p>
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">{t('achievements.completedWorkouts')}</p>
+          </div>
+          <div data-testid="records-scoreboard-metric" className="p-4">
+            <Target className="mb-3 h-4 w-4 text-support-a" />
+            <p className="font-heading text-2xl font-bold leading-none tabular-nums">{exerciseRecords.length}</p>
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">{t('achievements.exercisesWithRecord')}</p>
+          </div>
+        </div>
       </div>
 
       {/* Life PRs — top 3 z deltą */}
@@ -402,7 +370,7 @@ const Achievements = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {lifePRs.map(pr => (
                 <div key={pr.id} className="rounded-xl bg-surface-low p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground truncate">{pr.name}</p>
+                  <p data-record-exercise-name className="break-words text-xs font-bold uppercase leading-snug tracking-wide text-muted-foreground">{pr.name}</p>
                   <p className="mt-2 font-heading text-3xl font-bold text-primary leading-none">
                     {Math.round(toDisplay(pr.best1RM))}
                     <span className="text-base font-normal text-muted-foreground"> {unit}</span>
@@ -431,14 +399,10 @@ const Achievements = () => {
 
       {/* X28 WP-D: poziom 2 — Odznaki i sezony (sekcje przeniesione żywcem) */}
       {activeSection === 'badges' && <>
-      <GroupHeader
-        title={t('progress.tile.badges')}
-        countLabel={t('progress.badges.count', { earned: earnedBadges, total: totalBadges })}
-        imageUrl={getProgressTileImageUrl('badges')}
-        imageFit="contain"
-        onBack={() => setAchSearchParams({ view: 'records' })}
-        backLabel={t('common.back')}
-      />
+      <div className="pt-1">
+        <p className="eyebrow-mono font-bold text-primary">{t('progress.badges.count', { earned: earnedBadges, total: totalBadges })}</p>
+        <h1 className="mt-2 font-heading text-3xl font-bold uppercase tracking-tight">{t('progress.tile.badges')}</h1>
+      </div>
 
       {/* Milestones grid */}
       <Card>
@@ -523,7 +487,7 @@ const Achievements = () => {
                       <p className="text-sm font-medium">
                         {medal ? t(medalLabelKey[medal]) : t('achievements.seasons.none')}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="break-words text-xs leading-snug text-muted-foreground">
                         {formatShortDate(cycle.startDate)} - {formatShortDate(cycle.endDate)}
                         {' · '}{t('achievements.seasons.workouts', { n: cycle.stats.totalWorkouts })}
                       </p>
@@ -558,7 +522,7 @@ const Achievements = () => {
               {plateaus.map(p => (
                 <div key={p.exerciseId} className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3">
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{p.name}</p>
+                    <p data-record-exercise-name className="break-words text-sm font-medium leading-snug">{p.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {t('achievements.plateauSessions', { n: p.sessionCount, date: formatShortDate(p.bestDate) })}
                     </p>
@@ -596,8 +560,8 @@ const Achievements = () => {
                   className="flex items-center justify-between p-4 rounded-lg bg-surface-low hover:bg-surface-high cursor-pointer transition-colors"
                   onClick={() => setSelectedExercise(record)}
                 >
-                  <div className="flex-1">
-                    <p className="font-medium">{record.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p data-record-exercise-name className="break-words font-medium leading-snug">{record.name}</p>
                     <p className="text-sm text-muted-foreground">
                       {t('achievements.savedSets', { n: record.history.length })}
                     </p>
@@ -635,10 +599,10 @@ const Achievements = () => {
               {oneRMRecords.map(record => (
                 <div
                   key={record.exerciseId}
-                  className="flex items-center justify-between p-3 rounded-lg bg-surface-low"
+                  className="flex items-start justify-between gap-3 rounded-lg bg-surface-low p-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{record.name}</p>
+                    <p data-record-exercise-name className="break-words text-sm font-medium leading-snug">{record.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {fmt(record.best1RMWeight)} × {record.best1RMReps} {t('achievements.repsShort')}
                       {record.bestDate && (
@@ -646,7 +610,7 @@ const Achievements = () => {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <div className="flex shrink-0 items-center gap-2">
                     <div className="text-right">
                       <p className="text-lg font-bold text-primary">{fmt(record.best1RM)}</p>
                       <p className="text-xs text-muted-foreground">{t('achievements.est1RM')}</p>

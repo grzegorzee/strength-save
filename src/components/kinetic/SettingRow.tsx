@@ -29,7 +29,7 @@ export const SettingRow = ({
     <>
       {Icon && <Icon className={cn(compact ? 'h-4 w-4' : 'h-5 w-5', 'shrink-0', danger ? 'text-destructive' : 'text-muted-foreground')} />}
       <div className="min-w-0 flex-1">
-        <p className={cn(compact ? 'truncate text-[13.5px] leading-snug' : 'font-medium', danger && 'text-destructive')}>{label}</p>
+        <p className={cn(compact ? 'break-words text-[13.5px] leading-snug' : 'font-medium', danger && 'text-destructive')}>{label}</p>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
       {right ?? (value != null && (
