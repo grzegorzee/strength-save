@@ -52,6 +52,23 @@ Przed zleceniem release nie wykonano deployu, pushu, bumpu ani uploadu. iOS
 X71. Wydanie X71 wymaga Functions + Firestore Rules, nowego klienta (następny
 iOS build 134) i fizycznego smoke’a; właściciel zlecił rollout 2026-08-31.
 
+**Rollout 2026-08-31:** commit implementacji `956b61a0` i przygotowanie builda
+`21a87921` są na `main`. Firestore Rules wdrożono po pełnym przebiegu na JDK 21;
+wszystkie 69 Functions są `ACTIVE`, a produkcyjne przebiegi
+`dailyTrainingReminder` kończą się bez błędów. Web został opublikowany i domena
+produkcyjna zwraca 200 z bundla `assets/index-BK4azUWq.js`. iOS 1.0.0 build 134
+przeszedł archive, export i upload (`Delivery UUID
+5e9dbbdb-9246-43df-bd1d-6084199a7ca4`), ma stan `VALID`, jest przypięty do obu
+grup TestFlight i ma Beta App Review `APPROVED`.
+
+Natywny smoke zastępczy przeszedł: iOS Simulator zbudował, zainstalował i
+uruchomił App+Watch na ekranie Dzisiaj, a Android API 35 zbudował debug APK,
+zainstalował je i uruchomił `MainActivity` na ekranie logowania. Fizycznego smoke'a
+nie wolno oznaczyć jako wykonanego: iPhone `00008120-000E6CC23638C01E` był
+offline, a ADB nie widział żadnego realnego Androida. To pozostaje obowiązkową
+bramką właściciela po podłączeniu i odblokowaniu obu telefonów; smoke nie może
+zapisywać serii na realnym koncie bez jawnej zgody.
+
 ### 2026-08-28: X70b — trzy korekty właściciela po przeglądzie przed/po
 
 Właściciel obejrzał galerię X70 i skorygował kierunek (decyzje produktowe,

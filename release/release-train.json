@@ -15,7 +15,8 @@
   "web": {
     "commit": "956b61a0",
     "url": "https://grzegorzee.github.io/strength-save/",
-    "state": "not-deployed"
+    "asset": "assets/index-BK4azUWq.js",
+    "state": "deployed-verified"
   },
   "functions": {
     "commit": "956b61a0",
@@ -25,7 +26,8 @@
   "ios": {
     "version": "1.0.0",
     "build": 134,
-    "state": "source-prepared-awaiting-testflight"
+    "deliveryUuid": "5e9dbbdb-9246-43df-bd1d-6084199a7ca4",
+    "state": "testflight-valid-beta-review-approved"
   },
   "android": {
     "version": "1.0.0",
@@ -33,7 +35,8 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "bytes": 22597259,
     "sha256": "5a481f6312f2b4025904fe5b4c65f27a1deef16cb52265de911161cd110c1c14",
-    "state": "signed-local-awaiting-play-internal-superseded-by-unreleased-x71"
+    "state": "signed-local-awaiting-play-internal-superseded-by-unreleased-x71",
+    "debugSmoke": "emulator-api35-passed"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",
@@ -43,5 +46,12 @@
     "bytes": 644900,
     "sha256": "5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98",
     "state": "signed-local-not-submitted"
+  },
+  "smoke": {
+    "web": "production-passed",
+    "iosSimulator": "build-install-launch-passed",
+    "androidEmulator": "build-install-launch-passed",
+    "physicalIos": "blocked-device-offline",
+    "physicalAndroid": "blocked-no-device-connected"
   }
 }
