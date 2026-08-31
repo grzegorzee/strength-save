@@ -5,6 +5,33 @@ podaje własną proweniencję. Nie jest zgodą na publiczną publikację App Sto
 Play Store. Wersje marketingowe pozostają
 `1.0.0`. Audyt nie przywraca RTK, hooków RTK ani `SessionStart`.
 
+## Delta X73 — kandydat 1.0 build 136 i operacyjna gotowość (2026-08-31)
+
+- Produkcyjny Firestore ma delete protection, 7-dniowy PITR i codzienny backup
+  z retencją 14 dni. Istniejący budżet 50 PLN/miesiąc został potwierdzony; nowe
+  alerty obejmują błędy runtime i 30 tys. odczytów Firestore na dobę.
+- Job `stravaScheduledSync` jest wstrzymany po potwierdzonym 403 dostawcy.
+  Strava zniknęła z publicznego Store copy i landingu; kod oraz dane pozostają
+  zachowane na czas przyszłej aktywacji.
+- Dwa konflikty rewizji z produkcji były retry starego finalnego draftu wobec
+  nowszej ukończonej rewizji w chmurze. Guard ochronił dane. Poprawiono wyłącznie
+  klasyfikację zaległej finalizacji w Centrum synchronizacji i dodano test
+  zachowania obu wersji przy konflikcie.
+- iOS ma lokalizowane PL/EN systemowe opisy Camera, Photos i Health. Numer
+  kandydata podniesiono do **136**, MARKETING_VERSION pozostaje **1.0.0**.
+- App Store 1.0: opis i Privacy URL są aktualne, rating Apple to 4+, a zestaw
+  10 angielskich screenshotów 1320×2868 ma stan COMPLETE. Listing nie został
+  wysłany do review; wymaga telefonu w Review Details i fizycznego smoke builda
+  136.
+- Bramki: Vitest **3876/3876** (448 plików), Functions **513 PASS/12 SKIP**,
+  emulator rejestracji **12/12**, Rules **317/317 + 42/42**, typecheck, lint,
+  build, bundle budget **1 442 738/1 536 000 B**, dist-smoke, offline,
+  no-emoji i oba npm audit są zielone. Pełny E2E po świeżym Vite/cache:
+  Chromium **314/314**, WebKit **314/314**.
+- Landing ma zweryfikowany katalog **71** publicznych funkcji i **25** planów,
+  10 aktualnych screenshotów z fikcyjnego konta oraz zero publicznych obietnic
+  Stravy, Garmina i AI. Testy **38/38**, build i responsive smoke są zielone.
+
 ## Delta X71 — lokalne naprawy przed wydaniem (2026-08-31)
 
 - Naprawiono trwałość palet (paleta wygrywa z legacy, wspólny resolver,
@@ -14,12 +41,13 @@ Play Store. Wersje marketingowe pozostają
 - Postępy mają Tydzień/Miesiąc i pager na Wynikach, porównanie to-date,
   systemowe udostępnianie z fallbackiem, Miesiące/Obciążenie w Wykresach oraz
   progresję po ćwiczeniu z całej historii. `tab=details` jest przekierowany.
-- Bramki finalnego kodu: Vitest **3864/3864** (446 plików), Functions **513
+- Bramki finalnego kodu: Vitest **3869/3869** (446 plików), Functions **513
   PASS/12 SKIP**, oba typechecki, lint (0 błędów), build, bundle budget
   **1 442 738/1 536 000 B**, dist-smoke, offline, no-emoji 276 i iOS preflight
-  są zielone. Świeże E2E: Chromium **305/305**, WebKit **305/305**.
+  są zielone. Świeże E2E: Chromium **314/314**, WebKit **314/314**.
 - Na Homebrew JDK 21 Firestore Rules przechodzą **317/317** (w tym 5 nowych
-  przypadków rewizji/mutation ID palety), a Storage Rules **42/42**. Przed
+  przypadków rewizji/mutation ID palety), a Storage Rules **42/42** — łącznie
+  **359/359**. Przed
   zleceniem release nie wykonano deployu/pushu/bumpu/uploadu. Build iOS 133 oraz
   Android code 45 nie zawierają X71; następny kandydat wymaga nowych artefaktów
   i fizycznego QA.

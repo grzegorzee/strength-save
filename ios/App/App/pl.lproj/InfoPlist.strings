@@ -1,0 +1,5 @@
+"NSCameraUsageDescription" = "Zrobienie zdjęcia do obrazu podsumowania treningu lub opcjonalnego zgłoszenia błędu.";
+"NSHealthShareUsageDescription" = "Strength Save odczytuje Twoją masę ciała z Apple Health, aby proponować aktualizację pomiarów i poprawnie liczyć obciążenie efektywne, na przykład przy podciąganiu z asystą. Zawsze zatwierdzasz dodanie wagi ręcznie.";
+"NSHealthUpdateUsageDescription" = "Strength Save zapisuje ukończone treningi siłowe i cardio do Apple Health, aby liczyły się do Twoich pierścieni aktywności i historii zdrowia.";
+"NSPhotoLibraryAddUsageDescription" = "Zapisywanie wygenerowanych obrazów, takich jak porównanie sylwetki i podsumowanie treningu, do Twojej biblioteki zdjęć.";
+"NSPhotoLibraryUsageDescription" = "Wybór zdjęcia z Twojej biblioteki: zdjęcia sylwetki, obrazu podsumowania treningu albo opcjonalnego zrzutu ekranu do zgłoszenia błędu.";

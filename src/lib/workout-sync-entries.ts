@@ -1,5 +1,6 @@
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
+import type { SyncKind } from '@/lib/workout-sync-engine';
 
 export const WORKOUT_SYNC_STATE_CHANGED_EVENT = 'strength-save-workout-sync-state-changed';
 // WP-C (X38): prośba o natychmiastowy bieg AutoSync (zakończenie offline,
@@ -17,6 +18,13 @@ export interface WorkoutSyncEntryTarget {
   entry: ActiveWorkoutDraft | WorkoutSyncQueueEntry;
   source: WorkoutSyncEntrySource;
 }
+
+// Sync Center obsluguje zarowno checkpointy, jak i zalegle finalizacje. Kind
+// musi wynikac z draftu, zeby telemetria i komunikaty nie maskowaly konfliktu
+// finalnego jako zwyklego checkpointu (incydent 2026-08-31).
+export const syncKindForEntry = (
+  entry: Pick<ActiveWorkoutDraft | WorkoutSyncQueueEntry, 'finalSyncPending'>,
+): SyncKind => entry.finalSyncPending ? 'final' : 'checkpoint';
 
 const isRetryable = (entry: ActiveWorkoutDraft | WorkoutSyncQueueEntry): boolean => (
   entry.dirty || entry.finalSyncPending || entry.sessionOrigin === 'provisional'

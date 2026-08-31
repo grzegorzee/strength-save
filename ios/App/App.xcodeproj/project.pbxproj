@@ -11,6 +11,7 @@
 		12D8ECF61AF066F56A22D973 /* rest_alarm.wav in Resources */ = {isa = PBXBuildFile; fileRef = EDB64D0FA5C9B08409066C44 /* rest_alarm.wav */; };
 		A25B00000000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25A00000000000000000001 /* PrivacyInfo.xcprivacy */; };
 		A25B00000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25A00000000000000000002 /* PrivacyInfo.xcprivacy */; };
+		A26000000000000000000003 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A26200000000000000000001 /* InfoPlist.strings */; };
 		22F693C1DA97013DA19AA8F3 /* rest_bell.wav in Resources */ = {isa = PBXBuildFile; fileRef = A72EF495572C1E0A667E1690 /* rest_bell.wav */; };
 		2D3CE223881D42528AB322FF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 957D18FA556717B27228D48F /* GoogleService-Info.plist */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
@@ -113,6 +114,8 @@
 		A84DA980A7D4CDB27985A666 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A25A00000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A25A00000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A26100000000000000000001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		A26100000000000000000002 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneWatchSessionManager.swift; sourceTree = "<group>"; };
 		B7A5C154A80546659595207D /* WatchBridgePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchBridgePlugin.swift; sourceTree = "<group>"; };
 		C5D6E7F8091A2B3C4D5E6F70 /* HealthSyncPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthSyncPlugin.swift; sourceTree = "<group>"; };
@@ -183,6 +186,7 @@
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
 				504EC3131FED79650016851F /* Info.plist */,
+				A26200000000000000000001 /* InfoPlist.strings */,
 				A25A00000000000000000001 /* PrivacyInfo.xcprivacy */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -345,6 +349,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				pl,
 				Base,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
@@ -380,6 +385,7 @@
 				EAF1B75A6BB569968E2F9C69 /* timer_tick.wav in Resources */,
 				69F5840B10CCB6CF9FADC07D /* timer_complete.wav in Resources */,
 				A25B00000000000000000001 /* PrivacyInfo.xcprivacy in Resources */,
+				A26000000000000000000003 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -455,6 +461,15 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+		A26200000000000000000001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A26100000000000000000001 /* en */,
+				A26100000000000000000002 /* pl */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -482,7 +497,7 @@
 				CODE_SIGN_ENTITLEMENTS = WatchApp/StrengthWatch.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -624,7 +639,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -649,7 +664,7 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -674,7 +689,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WatchApp/StrengthWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -702,7 +717,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WatchWidgets/Info.plist;
@@ -727,7 +742,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WatchWidgets/Info.plist;

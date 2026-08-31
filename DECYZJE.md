@@ -5,11 +5,47 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-31 (X72: spójne Postępy i pełne etykiety PL/EN)
+**Ostatnia aktualizacja:** 2026-08-31 (X73: kandydat 1.0, recovery produkcji i listing sklepowy)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-31: X73 — kandydat 1.0 jest prawdziwym artefaktem, a dane mają recovery
+
+**Kontekst i root cause:** audyt przed premierą wykazał nie tyle nowy błąd rdzenia,
+co cztery luki operacyjne: Firestore bez PITR/backup/delete protection, publiczną
+obietnicę niedziałającej Stravy, pusty listing App Store i dwa konflikty rewizji
+bez rozróżnienia finalizacji od checkpointu w Centrum synchronizacji. Dodatkowo
+angielskie systemowe prompty iOS dziedziczyły polskie teksty. Build 135 nie
+zawierał tych zmian, więc nie mógł być kandydatem 1.0.
+
+**Decyzja i zakres:** produkcyjny Firestore ma delete protection, siedmiodniowy
+PITR oraz codzienny backup przechowywany 14 dni. Istniejący budżet 50 PLN/miesiąc
+pozostaje kanoniczny; dodano alert błędów runtime i 30 tys. odczytów Firestore na
+dzień. Automatyczny job Stravy jest wstrzymany, a Store/landing nie obiecują tej
+funkcji do czasu aktywacji dostawcy. Dane i kod integracji nie są usuwane.
+
+Konflikty z 31 sierpnia były dwoma ręcznymi retry starej rewizji tej samej sesji;
+kanoniczna ukończona rewizja 11 z 5 ćwiczeniami i 20 seriami pozostała w chmurze.
+Guard zadziałał i nie ma dowodu utraty danych. Centrum synchronizacji rozróżnia
+teraz zaległą finalizację (`final`) od aktywnego checkpointu, a test niezmiennika
+pilnuje, że konflikt nie usuwa żadnej wersji. Nie wykonujemy automatycznego
+rozstrzygnięcia na realnym koncie.
+
+iOS otrzymał lokalizowane po polsku i angielsku prompty Camera, Photos i Health.
+Następnym kandydatem jest 1.0.0 build 136. App Store 1.0 ma aktualny angielski
+opis, Privacy URL, rating 4+, oraz 10 zaakceptowanych screenshotów 1320×2868 z
+fikcyjnego konta. Publiczne wysłanie do App Review pozostaje oddzielną decyzją po
+fizycznym smoke dokładnego builda 136 i uzupełnieniu numeru telefonu recenzenta.
+
+**Weryfikacja lokalna przed artefaktem:** Vitest 3876/3876 (448 plików),
+Functions 513 PASS/12 SKIP i registration 12/12, oba typechecki, lint bez błędów,
+build, budżet paczki, dist smoke, offline, no-emoji i npm audit są zielone.
+Firestore Rules przechodzą 317/317, Storage Rules 42/42 na JDK 21. Pełny E2E po
+świeżym cache Vite obejmuje 314 scenariuszy Chromium i 314 WebKit. Landing ma
+kanoniczne 71 publicznych funkcji, 25 programów i 10 aktualnych ekranów; jego
+testy 38/38, build oraz responsive smoke 320/390/1440 px przechodzą.
 
 ### 2026-08-31: X72 — Postępy są dziennikiem wyników, a etykiety nie mogą być skracane
 

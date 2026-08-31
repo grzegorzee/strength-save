@@ -25,9 +25,9 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 134,
-    "deliveryUuid": "5e9dbbdb-9246-43df-bd1d-6084199a7ca4",
-    "state": "testflight-valid-beta-review-approved"
+    "build": 136,
+    "deliveryUuid": "pending",
+    "state": "local-gates-in-progress"
   },
   "android": {
     "version": "1.0.0",

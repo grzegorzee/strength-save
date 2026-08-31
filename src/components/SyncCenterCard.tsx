@@ -12,7 +12,12 @@ import { cn } from '@/lib/utils';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries, recordWorkoutSyncFailure } from '@/lib/workout-sync-entries';
+import {
+  WORKOUT_SYNC_STATE_CHANGED_EVENT,
+  collectRetryableSyncEntries,
+  recordWorkoutSyncFailure,
+  syncKindForEntry,
+} from '@/lib/workout-sync-entries';
 import { useSyncCenterEntries, type ListedSyncEntry } from '@/hooks/useSyncCenterEntries';
 import { dateLocale } from '@/i18n';
 import type { WorkoutSession } from '@/types';
@@ -118,7 +123,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         return false;
       }
 
-      const outcome = await syncWorkoutSession(uid, entry.sessionId, 'checkpoint', syncDeps);
+      const kind = syncKindForEntry(entry);
+      const outcome = await syncWorkoutSession(uid, entry.sessionId, kind, syncDeps);
 
       if (outcome.promotedSessionId) {
         trackTelemetryEvent(uid, 'provisional_session_promoted');
@@ -128,8 +134,9 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         if (outcome.conflict) {
           const conflictDraft = await workoutDraftDb.loadDraft(uid, outcome.sessionId);
           if (conflictDraft) {
-            // Konflikt wykryty w trakcie syncu (kind=checkpoint), nie przy resolve.
-            await registerConflict(conflictDraft, source, outcome.error || 'WORKOUT_CONFLICT', undefined, 'checkpoint');
+            // Konflikt wykryty w trakcie syncu, nie przy resolve. Zachowaj
+            // rzeczywisty kind: zalegla finalizacja nie jest checkpointem.
+            await registerConflict(conflictDraft, source, outcome.error || 'WORKOUT_CONFLICT', undefined, kind);
           } else {
             workoutSyncQueue.markRetry(uid, outcome.sessionId, outcome.error || 'WORKOUT_CONFLICT');
           }
@@ -151,8 +158,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         );
         void reportClientError(uid, {
           code: classifyWorkoutSyncError(outcome.error),
-          // syncOne wykonuje checkpoint — raportuj rzeczywisty kind (R2-19).
-          phase: 'checkpoint',
+          phase: kind,
           detail: outcome.error,
           sessionId: outcome.sessionId,
         });

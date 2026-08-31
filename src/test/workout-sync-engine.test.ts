@@ -157,6 +157,54 @@ describe('syncWorkoutSession', () => {
     expect(deps.markSynced).not.toHaveBeenCalled();
   });
 
+  it('niezmiennik: stary finalny draft kontra nowsza ukonczona chmura zachowuje obie wersje do decyzji usera', async () => {
+    // Reprodukcja produkcji 2026-08-31: lokalny draft ma starsza rewizje,
+    // a trening w chmurze jest juz ukonczony. Silnik nie moze ani nadpisac
+    // chmury, ani skasowac lokalnego draftu po WORKOUT_CONFLICT.
+    const draft = makeDraft({
+      cloudRevision: 10,
+      completedLocally: true,
+      finalSyncPending: true,
+      finalizedAt: 4_000,
+    });
+    const cloud = makeCloudWorkout({
+      revision: 11,
+      completed: true,
+      exercises: [{
+        exerciseId: 'ex-1',
+        sets: [
+          { reps: 9, weight: 100, completed: true },
+          { reps: 6, weight: 100, completed: true },
+        ],
+      }],
+    });
+    const deps = makeDeps({
+      draft,
+      serverWorkout: cloud,
+      saveResult: { success: false, error: 'WORKOUT_CONFLICT' },
+    });
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'final', deps);
+
+    expect(outcome).toMatchObject({
+      success: false,
+      conflict: true,
+      error: 'WORKOUT_CONFLICT',
+      sessionId: 's1',
+    });
+    expect(deps.saveWorkout).toHaveBeenCalledWith(
+      's1',
+      expect.any(Array),
+      expect.objectContaining({ expectedRevision: 10, completed: true }),
+      expect.any(Object),
+    );
+    expect(deps.clearDraftIfVersion).not.toHaveBeenCalled();
+    expect(deps.markSynced).not.toHaveBeenCalled();
+    expect(deps.queue.remove).not.toHaveBeenCalled();
+    expect(draft.exerciseSets['ex-1']).toHaveLength(1);
+    expect(cloud.exercises[0].sets).toHaveLength(2);
+  });
+
   it('checkpoint po sukcesie woła markSynced z revision z wyniku', async () => {
     const deps = makeDeps({ saveResult: { success: true, updatedAt: 999, revision: 7 } });
 

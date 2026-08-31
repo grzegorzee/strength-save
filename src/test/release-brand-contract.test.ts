@@ -45,16 +45,26 @@ describe('Z230 — one Strength Save release and brand contract', () => {
 
     expect(stores[0]).toContain('Apple Watch');
     expect(stores[0]).not.toContain('Garmin:');
+    expect(stores[0]).not.toMatch(/Strava/i);
+    expect(stores[1]).not.toMatch(/Strav/i);
     expect(stores[2]).toContain('Health Connect');
     expect(stores[2]).not.toContain('Apple Watch:');
+    expect(stores[2]).not.toMatch(/Strava/i);
+    expect(stores[3]).not.toMatch(/Strav/i);
   });
 
   it('maps the exact release artifact for every surface', () => {
     const train = JSON.parse(read('release/release-train.json')) as Record<string, Record<string, unknown>>;
     expect(train.web.commit).toMatch(/^[0-9a-f]{8}$/);
-    expect(train.ios).toMatchObject({ version: '1.0.0', build: 134 });
+    expect(train.ios).toMatchObject({ version: '1.0.0', build: 136 });
     expect(train.android).toMatchObject({ version: '1.0.0', versionCode: 45 });
     expect(train.garmin).toMatchObject({ manifestSchemaVersion: 3, targetBinaries: 27 });
     expect(train.entitlement).toMatchObject({ id: 'pro', checkout: ['ios', 'android'] });
+  });
+
+  it('uses Apple\'s current API identifier for the 6.9-inch screenshot slot', () => {
+    const uploader = read('scripts/app-store-screenshots-upload.py');
+    expect(uploader).toContain('DISPLAY_TYPE = "APP_IPHONE_67"');
+    expect(uploader).not.toContain('APP_IPHONE_69');
   });
 });

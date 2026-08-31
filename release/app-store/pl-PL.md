@@ -16,7 +16,7 @@ Strength Save łączy plan treningu siłowego, dziennik i postępy na jednym kon
 - zapisuj serie, ciężar, powtórzenia, czas i dystans;
 - korzystaj z automatycznych timerów przerw i pracuj offline;
 - przeglądaj historię, rekordy osobiste i trendy treningowe;
-- synchronizuj ukończone treningi z Apple Health i Stravą;
+- synchronizuj ukończone treningi z Apple Health;
 - steruj treningiem z Apple Watch, z kolejką offline i zapisem treningu z tętnem;
 - używaj kilogramów lub funtów oraz języka polskiego albo angielskiego.
 

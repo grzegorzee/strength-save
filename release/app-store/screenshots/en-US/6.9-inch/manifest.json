@@ -1,0 +1,82 @@
+{
+  "generatedAt": "2026-08-31T16:03:13.888Z",
+  "locale": "en-US",
+  "deviceClass": "iPhone 6.9-inch display",
+  "width": 1320,
+  "height": 2868,
+  "format": "PNG, opaque",
+  "source": "deterministic fictional E2E profile; Firebase blocked; no real user data",
+  "appleSpecification": "https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/",
+  "screens": [
+    {
+      "order": 1,
+      "id": "today",
+      "file": "01-today.png",
+      "headline": "Your training day at a glance",
+      "caption": "See the next session, weekly rhythm and quick actions in one place."
+    },
+    {
+      "order": 2,
+      "id": "plan",
+      "file": "02-plan.png",
+      "headline": "Follow a plan that stays flexible",
+      "caption": "Track the current week, move sessions and adapt the plan without losing history."
+    },
+    {
+      "order": 3,
+      "id": "workout",
+      "file": "03-workout.png",
+      "headline": "Log every set with less friction",
+      "caption": "Weights, reps, set types, rest timers and exercise guidance stay together."
+    },
+    {
+      "order": 4,
+      "id": "history",
+      "file": "04-history.png",
+      "headline": "A complete workout history",
+      "caption": "Review sessions, compare periods and export your training data."
+    },
+    {
+      "order": 5,
+      "id": "results",
+      "file": "05-results.png",
+      "headline": "Understand each training week",
+      "caption": "Completion, tonnage, streaks and personal records make progress easy to read."
+    },
+    {
+      "order": 6,
+      "id": "charts",
+      "file": "06-charts.png",
+      "headline": "See the trend, not just the number",
+      "caption": "Explore monthly load, exercise progression, consistency and body metrics."
+    },
+    {
+      "order": 7,
+      "id": "records",
+      "file": "07-records.png",
+      "headline": "Keep every personal record",
+      "caption": "See lifetime volume and estimated 1RM records for every exercise."
+    },
+    {
+      "order": 8,
+      "id": "badges",
+      "file": "08-badges.png",
+      "headline": "Celebrate consistency",
+      "caption": "Milestones reward workouts, tonnage, streaks and personal bests."
+    },
+    {
+      "order": 9,
+      "id": "exercises",
+      "file": "09-exercises.png",
+      "headline": "Build from a rich exercise library",
+      "caption": "Search by muscle group and open clear technique guidance and animations."
+    },
+    {
+      "order": 10,
+      "id": "devices",
+      "file": "10-devices.png",
+      "headline": "Train across your devices",
+      "caption": "Manage Apple Watch and Garmin access from one profile."
+    }
+  ]
+}

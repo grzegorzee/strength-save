@@ -12,7 +12,7 @@ Strength Save łączy plan treningu siłowego, dziennik i postępy na jednym kon
 - zapisuj serie, ciężar, powtórzenia, czas i dystans;
 - korzystaj z automatycznych timerów przerw i pracuj offline;
 - przeglądaj historię, rekordy osobiste i trendy treningowe;
-- synchronizuj ukończone treningi i masę ciała z Health Connect, a aktywności ze Stravą;
+- synchronizuj ukończone treningi i masę ciała z Health Connect;
 - używaj kilogramów lub funtów oraz języka polskiego albo angielskiego.
 
 Jedna subskrypcja Strength Save PRO obejmuje każdego obsługiwanego klienta Strength Save. W aplikacji dostępne są warianty miesięczny i roczny. Oferta wprowadzająca jest pokazywana tylko wtedy, gdy Google Play potwierdzi kwalifikację konta i wybranego produktu. Subskrypcja odnawia się automatycznie, dopóki nie anulujesz jej w ustawieniach subskrypcji Google Play.

@@ -1,0 +1,5 @@
+"NSCameraUsageDescription" = "Take a photo for a workout summary image or an optional bug report.";
+"NSHealthShareUsageDescription" = "Strength Save reads your body weight from Apple Health to suggest measurement updates and calculate effective load accurately, for example for assisted pull-ups. You always approve adding the weight manually.";
+"NSHealthUpdateUsageDescription" = "Strength Save saves completed strength and cardio workouts to Apple Health so they count toward your Activity rings and health history.";
+"NSPhotoLibraryAddUsageDescription" = "Save generated images, such as physique comparisons and workout summaries, to your photo library.";
+"NSPhotoLibraryUsageDescription" = "Choose a photo from your library for a physique photo, workout summary image, or optional screenshot in a bug report.";
