@@ -13,19 +13,19 @@
     "checkout": ["ios", "android"]
   },
   "web": {
-    "commit": "0bc40970",
+    "commit": "956b61a0",
     "url": "https://grzegorzee.github.io/strength-save/",
     "state": "not-deployed"
   },
   "functions": {
-    "commit": "28ebcc29",
+    "commit": "956b61a0",
     "project": "fittracker-workouts",
     "state": "deployed"
   },
   "ios": {
     "version": "1.0.0",
-    "build": 133,
-    "state": "testflight-valid-beta-review-approved-superseded-by-unreleased-x71"
+    "build": 134,
+    "state": "source-prepared-awaiting-testflight"
   },
   "android": {
     "version": "1.0.0",
