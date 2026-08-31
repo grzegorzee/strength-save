@@ -31,6 +31,9 @@ Play Store. Wersje marketingowe pozostają
 - Landing ma zweryfikowany katalog **71** publicznych funkcji i **25** planów,
   10 aktualnych screenshotów z fikcyjnego konta oraz zero publicznych obietnic
   Stravy, Garmina i AI. Testy **38/38**, build i responsive smoke są zielone.
+- Android ma signed AAB **1.0.0 (46)**, SHA-256
+  `c3ba127c97551d8a99a4fe30d4b05c474d3ec82a4b1bdc9c8be79433b2d07502`;
+  upload Play Internal i fizyczny smoke pozostają otwarte.
 
 ## Delta X71 — lokalne naprawy przed wydaniem (2026-08-31)
 

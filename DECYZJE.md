@@ -47,6 +47,18 @@ Firestore Rules przechodzą 317/317, Storage Rules 42/42 na JDK 21. Pełny E2E p
 kanoniczne 71 publicznych funkcji, 25 programów i 10 aktualnych ekranów; jego
 testy 38/38, build oraz responsive smoke 320/390/1440 px przechodzą.
 
+Android z tego samego źródła ma signed AAB **1.0.0 (46)**, 22 597 448 B,
+SHA-256 `c3ba127c97551d8a99a4fe30d4b05c474d3ec82a4b1bdc9c8be79433b2d07502`.
+Gradle `bundleRelease` przeszedł 778 zadań. Artefakt czeka na Play Console i
+fizyczny smoke; nie uznajemy testu emulatora za dowód urządzeniowy.
+
+**Rollout artefaktów:** iOS archive i export przeszły, a build **136** został
+przyjęty przez Apple bez błędów (`Delivery UUID
+58ceac5b-c0b3-4ddd-8c10-a798c5ee0ad8`). Ma stan VALID, obie grupy TestFlight,
+angielski opis testów i Beta App Review APPROVED. Web aplikacji oraz landing
+`strengthsave.app` zostały opublikowane i odpowiadają 200. Nie przypinamy jeszcze
+builda do publicznej wersji 1.0 i nie tworzymy submission przed fizycznym smoke.
+
 ### 2026-08-31: X72 — Postępy są dziennikiem wyników, a etykiety nie mogą być skracane
 
 **Kontekst i root cause:** poprzedni ekran Postępów dokładał kolejne kapsuły i

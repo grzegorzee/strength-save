@@ -7,7 +7,7 @@
   "date": "2026-08-31",
   "run_at": "2026-08-31T18:22:00+02:00",
   "base_commit": "5c48f63632b5c4f4b56f6caff12a367d75acdd2a plus lokalna fala X73",
-  "app_code_candidate": "iOS 1.0.0 build 136; upload TestFlight jeszcze niewykonany w chwili audytu",
+  "app_code_candidate": "iOS 1.0.0 build 136 VALID; obie grupy TestFlight; Beta App Review APPROVED",
   "decision": "GO dla zbudowania i dystrybucji TestFlight 136; NO-GO dla Submit for Review do czasu fizycznego smoke i domknięcia metadanych",
   "summary": "Rdzeń aplikacji, Rules, Functions, offline i oba silniki E2E są zielone. Firestore ma recovery, monitoring kosztów działa, publiczna obietnica niedziałającej Stravy została wycofana, konflikty rewizji nie spowodowały utraty danych, a App Store ma aktualny opis, rating 4+ i 10 screenshotów. Pozostałe bramki są urządzeniowe i sklepowe, nie kodowe.",
   "product_findings": {
@@ -27,9 +27,9 @@
       },
       {
         "id": "physical-android-smoke-missing",
-        "problem": "Brak podłączonego fizycznego urządzenia Android dla bieżącego commita.",
+        "problem": "Signed AAB 1.0.0 (46) jest gotowy, ale brak podłączonego fizycznego urządzenia Android.",
         "user_risk": "Health Connect, natywne udostępnianie, offline/reconnect i billing nie mają dowodu urządzeniowego przed Play Store.",
-        "exit": "Zbudować nowy signed AAB z kolejnym versionCode i wykonać smoke na realnym Androidzie."
+        "exit": "Wgrać AAB 46 do Play Internal i wykonać smoke na realnym Androidzie."
       }
     ],
     "yellow": [
@@ -104,7 +104,7 @@
   },
   "app_store_connect": {
     "app": "Strength Save, 6777446137",
-    "candidate_build": "136 pending local release/upload",
+    "candidate_build": "136 VALID; both TestFlight groups; Beta App Review APPROVED",
     "store_version": "1.0 PREPARE_FOR_SUBMISSION; release AFTER_APPROVAL",
     "attached_build": "80; nie zmieniać do czasu VALID build 136",
     "screenshots": "10/10 COMPLETE in APP_IPHONE_67, current 6.9-inch slot",
@@ -115,6 +115,13 @@
     "subscriptions": "monthly and yearly READY_TO_SUBMIT; must accompany first app version",
     "privacy_labels": "manual GUI verification required",
     "privacy_manifest": "present; no tracking declared"
+  },
+  "google_play": {
+    "candidate": "Strength Save 1.0.0 versionCode 46",
+    "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
+    "bytes": 22597448,
+    "sha256": "c3ba127c97551d8a99a4fe30d4b05c474d3ec82a4b1bdc9c8be79433b2d07502",
+    "state": "signed local; awaiting Play Internal upload and physical smoke"
   },
   "landing": {
     "repository": "strengthsave-landing",
@@ -158,7 +165,6 @@
     "physical Android smoke including Health Connect and Play Billing"
   ],
   "required_before_submission": [
-    "Upload build 136 and wait for VALID/TestFlight distribution.",
     "Run physical iOS smoke on exact build 136.",
     "Add App Review phone number and verify privacy labels in the GUI.",
     "Attach build 136 and first monthly/yearly subscriptions to version 1.0.",

@@ -18,7 +18,7 @@ nie jest zgodą na wysłanie do publicznego App Review.
 
 ## Wymagane przed „Submit for Review”
 
-- [ ] Build 136 ma stan VALID i jest przypięty do obu grup TestFlight
+- [x] Build 136 ma stan VALID, obie grupy TestFlight i Beta Review APPROVED
 - [ ] Fizyczny iPhone: login, plan, quick workout, background/resume, timer,
   powiadomienie, Share Sheet, HealthKit, zakup i restore
 - [ ] Sekwencja danych: plan → wyjście → quick workout → powrót do planu →
@@ -30,7 +30,8 @@ nie jest zgodą na wysłanie do publicznego App Review.
 
 ## Android przed publikacją
 
-- [ ] Nowy signed AAB z bieżącego commita i zwiększonym versionCode
+- [x] Signed AAB 1.0.0 (46), SHA-256
+  `c3ba127c97551d8a99a4fe30d4b05c474d3ec82a4b1bdc9c8be79433b2d07502`
 - [ ] Fizyczny smoke Android: login, trening, offline/reconnect, share, Health
   Connect, zakup i restore
 - [ ] Listing i Data Safety zweryfikowane w Play Console
