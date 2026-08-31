@@ -1,4 +1,4 @@
-// T11/X51: akcje PDF/CSV/Kopiuj są w menu Udostępnij, które mieści się w
+// T11/X51/X71: akcje PDF/CSV/Udostępnij podsumowanie są w menu Udostępnij, które mieści się w
 // Podsumowaniu na viewport 390px. T12: CSV nadal otwiera ten sam
 // ExportWorkoutsDialog co Historia/Ustawienia.
 import { test, expect } from '@playwright/test';
@@ -49,9 +49,9 @@ test.describe('Podsumowanie: menu Udostępnij (T11/X51)', () => {
 
     await expect(page.getByRole('menuitem', { name: 'PDF', exact: true })).toBeVisible();
     await expect(page.getByTestId('analytics-export-csv')).toBeVisible();
-    const copyButton = page.getByTestId('analytics-copy');
-    await expect(copyButton).toBeVisible();
-    const box = await copyButton.boundingBox();
+    const shareButton = page.getByTestId('analytics-share-summary');
+    await expect(shareButton).toBeVisible();
+    const box = await shareButton.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(390);

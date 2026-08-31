@@ -34,7 +34,7 @@ beforeEach(() => {
 });
 
 describe('DateRangeField', () => {
-  it('klik triggera otwiera kalendarz, wybór aktualizuje label, Wyczyść zeruje', () => {
+  it('trzyma wybór lokalnie i zatwierdza pełny zakres dopiero przy zamknięciu', () => {
     const onChange = vi.fn();
     render(
       <LanguageProvider>
@@ -48,12 +48,19 @@ describe('DateRangeField', () => {
     expect(screen.getByTestId('date-range-field-calendar')).toBeTruthy();
 
     fireEvent.click(day('2026-08-23'));
+    expect(onChange).not.toHaveBeenCalled();
     fireEvent.click(day('2026-08-31'));
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onChange).toHaveBeenLastCalledWith({ from: '2026-08-23', to: '2026-08-31' });
     expect(trigger.textContent).toContain('23 sie 2026');
     expect(trigger.textContent).toContain('31 sie 2026');
 
+    fireEvent.click(trigger);
     fireEvent.click(screen.getByTestId('date-range-field-clear'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onChange).toHaveBeenLastCalledWith({ from: null, to: null });
     expect(trigger.textContent).toContain('Wybierz zakres dat');
   });

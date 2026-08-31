@@ -4,6 +4,7 @@ import type { User } from 'firebase/auth';
 
 const authHarness = vi.hoisted(() => ({
   listener: null as ((user: User | null) => void) | null,
+  currentUser: null as User | null,
 }));
 
 vi.mock('firebase/auth', () => ({
@@ -27,7 +28,13 @@ vi.mock('firebase/auth', () => ({
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));
 vi.mock('@capacitor-firebase/authentication', () => ({ FirebaseAuthentication: {} }));
-vi.mock('@/lib/firebase', () => ({ auth: {}, googleProvider: {}, appleProvider: {} }));
+vi.mock('@/lib/firebase', () => ({
+  auth: {
+    get currentUser() { return authHarness.currentUser; },
+  },
+  googleProvider: {},
+  appleProvider: {},
+}));
 vi.mock('@/lib/purchases', () => ({
   configurePurchases: vi.fn(),
   logInPurchases: vi.fn(async () => undefined),
@@ -46,8 +53,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 describe('useAuth: izolacja motywu przed pierwszym renderem konta', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
     authHarness.listener = null;
+    authHarness.currentUser = null;
   });
 
   it('czyści cache motywu konta A synchronicznie przed udostępnieniem konta B', () => {
@@ -73,5 +82,33 @@ describe('useAuth: izolacja motywu przed pierwszym renderem konta', () => {
     expect(localStorage.getItem('ss-accent-color')).toBeNull();
     expect(localStorage.getItem('ss-palette-theme-v2')).toBeNull();
     expect(document.documentElement.dataset.palette).toBeUndefined();
+  });
+
+  it('po 3 s wpuszcza wyłącznie użytkownika zachowanego przez Firebase i dalej godzi stan w tle', () => {
+    vi.useFakeTimers();
+    const cachedUser = { uid: 'cached-user' } as User;
+    authHarness.currentUser = cachedUser;
+
+    const { result } = renderHook(() => useAuth());
+    expect(result.current.loading).toBe(true);
+
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.loading).toBe(false);
+    expect(result.current.user).toBe(cachedUser);
+
+    act(() => authHarness.listener?.(null));
+    expect(result.current.user).toBeNull();
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('bez użytkownika Firebase po 3 s pokazuje stan słabej sieci, ale nie omija auth', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useAuth());
+
+    act(() => vi.advanceTimersByTime(3000));
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.user).toBeNull();
+    expect(result.current.slow).toBe(true);
   });
 });

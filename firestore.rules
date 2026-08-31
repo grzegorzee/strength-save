@@ -109,6 +109,14 @@ service cloud.firestore {
                     && (!('preferences' in request.resource.data)
                         || !('paletteTheme' in request.resource.data.preferences)
                         || isValidPaletteTheme(request.resource.data.preferences.paletteTheme))
+                    && (!('preferences' in request.resource.data)
+                        || !('paletteRevision' in request.resource.data.preferences)
+                        || (request.resource.data.preferences.paletteRevision is int
+                            && request.resource.data.preferences.paletteRevision >= 0))
+                    && (!('preferences' in request.resource.data)
+                        || !('paletteMutationId' in request.resource.data.preferences)
+                        || (request.resource.data.preferences.paletteMutationId is string
+                            && request.resource.data.preferences.paletteMutationId.size() <= 100))
                     && (!('notificationPrefs' in request.resource.data) || request.resource.data.notificationPrefs is map)
                     && (!('onboardingCompleted' in request.resource.data) || request.resource.data.onboardingCompleted is bool)
                     && (!('onboarding' in request.resource.data) || request.resource.data.onboarding is map)

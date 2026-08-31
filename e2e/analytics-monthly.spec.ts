@@ -7,7 +7,7 @@ import {
   setE2EWorkouts,
 } from './helpers';
 
-// Z93: karta "Miesiące" w Analityce (zakładka Podsumowanie) — liczba treningów,
+// Z93/X71: karta "Miesiące" w Postępach (zakładka Wykresy) — liczba treningów,
 // łączny czas (z jawnym brakiem pomiaru dla treningów sprzed M32) i tonaż.
 
 const monthKeyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -28,7 +28,7 @@ const workout = (id: string, date: string, over: Record<string, unknown> = {}) =
   ...over,
 });
 
-test('Wyniki są lekkie, a karta Miesiące pozostaje w szczegółach', async ({ page }) => {
+test('Wyniki są lekkie, a karta Miesiące pozostaje w Wykresach', async ({ page }) => {
   await setE2EAuthScenario(page, 'active-admin');
   await blockFirebase(page);
   await setE2EWorkouts(page, [
@@ -45,9 +45,8 @@ test('Wyniki są lekkie, a karta Miesiące pozostaje w szczegółach', async ({ 
   await expect(page.getByText('Miesiące', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Ukończone treningi', { exact: true })).toHaveCount(0);
 
-  await page.getByTestId('progress-more-trigger').click();
-  await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
-  await expect(page).toHaveURL(/tab=details/);
+  await page.getByRole('tab', { name: 'Wykresy' }).click();
+  await expect(page).toHaveURL(/tab=charts/);
 
   await expect(page.getByText('Miesiące', { exact: true })).toBeVisible();
 
@@ -63,7 +62,7 @@ test('Wyniki są lekkie, a karta Miesiące pozostaje w szczegółach', async ({ 
   await page.screenshot({ path: 'tmp/z93-monthly-card.png', fullPage: false });
 });
 
-test('320 px / EN: Wyniki zachowują hierarchię i dostęp do szczegółów bez overflow', async ({ page }) => {
+test('320 px / EN: Wyniki zachowują hierarchię i dostęp do Wykresów bez overflow', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.addInitScript(() => localStorage.setItem('app-language', 'en'));
   await setE2EAuthScenario(page, 'active-admin');
@@ -82,6 +81,7 @@ test('320 px / EN: Wyniki zachowują hierarchię i dostęp do szczegółów bez 
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(hasHorizontalOverflow).toBe(false);
 
-  await page.getByTestId('progress-more-trigger').click();
-  await expect(page.getByRole('menuitem', { name: 'Details' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Charts' }).click();
+  await expect(page.getByTestId('monthly-overview-card')).toBeVisible();
+  await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
 });

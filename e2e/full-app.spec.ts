@@ -354,7 +354,7 @@ test.describe('Analytics Tabs', () => {
     await page.getByTestId('analytics-actions-trigger').click();
     await expect(page.getByRole('menuitem', { name: 'PDF' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'CSV' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Kopiuj' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Udostępnij podsumowanie' })).toBeVisible();
   });
 
   test('charts sub-tabs work', async ({ page }) => {
@@ -1479,16 +1479,15 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
     await expect(page.getByTestId('hybrid-week-strip')).toBeVisible();
     await expect(page.getByTestId('interference-banner')).toHaveCount(0);
 
-    // Główne Wyniki pozostają lekkie; analiza hybrydowa jest w szczegółach.
+    // Główne Wyniki pozostają lekkie; analiza hybrydowa jest w Wykresach.
     await navigateAndWait(page, '/achievements');
     await page.getByRole('tab', { name: 'Wyniki' }).click();
     await expect(page).toHaveURL(/#\/achievements\?view=analytics$/);
     await expect(page.getByTestId('hybrid-load-card')).toHaveCount(0);
     await expect(page.getByTestId('hybrid-week-split')).toHaveCount(0);
 
-    await page.getByTestId('progress-more-trigger').click();
-    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
-    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=details$/);
+    await page.getByRole('tab', { name: 'Wykresy' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=charts$/);
     await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
     await expect(page.getByTestId('hybrid-week-split')).toBeVisible();
   });
@@ -1502,9 +1501,8 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
     await expect(page.getByTestId('hybrid-load-card')).toHaveCount(0);
     await expect(page.getByTestId('hybrid-week-split')).toHaveCount(0);
 
-    await page.getByTestId('progress-more-trigger').click();
-    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
-    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=details$/);
+    await page.getByRole('tab', { name: 'Wykresy' }).click();
+    await expect(page).toHaveURL(/#\/achievements\?view=analytics&tab=charts$/);
     await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
     await expect(page.getByTestId('hybrid-week-split')).toContainText('100%');
   });

@@ -1,4 +1,5 @@
 import { CalendarRange } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RangeCalendar } from '@/components/ui/range-calendar';
@@ -24,6 +25,8 @@ export const DateRangeField = ({
   value, onChange, minDate, maxDate, testId = 'date-range-field',
 }: DateRangeFieldProps) => {
   const { t, lang } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<DateRangeValue>(value);
   const fmt = (iso: string) =>
     formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
   const label = value.from && value.to
@@ -31,9 +34,17 @@ export const DateRangeField = ({
     : value.from
       ? fmt(value.from)
       : t('range.pick');
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setDraft(value);
+    } else if (open && (draft.from !== value.from || draft.to !== value.to)) {
+      onChange(draft);
+    }
+    setOpen(nextOpen);
+  };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -46,8 +57,8 @@ export const DateRangeField = ({
       </PopoverTrigger>
       <PopoverContent className="w-80 p-3" align="start">
         <RangeCalendar
-          value={value}
-          onChange={onChange}
+          value={draft}
+          onChange={setDraft}
           minDate={minDate}
           maxDate={maxDate}
           testId={`${testId}-calendar`}
@@ -57,7 +68,7 @@ export const DateRangeField = ({
           size="sm"
           data-testid={`${testId}-clear`}
           className="mt-1 w-full"
-          onClick={() => onChange({ from: null, to: null })}
+          onClick={() => setDraft({ from: null, to: null })}
         >
           {t('range.clear')}
         </Button>

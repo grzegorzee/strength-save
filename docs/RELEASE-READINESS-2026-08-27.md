@@ -5,6 +5,29 @@ podaje własną proweniencję. Nie jest zgodą na publiczną publikację App Sto
 Play Store. Wersje marketingowe pozostają
 `1.0.0`. Audyt nie przywraca RTK, hooków RTK ani `SessionStart`.
 
+## Delta X71 — lokalne naprawy przed wydaniem (2026-08-31)
+
+- Naprawiono trwałość palet (paleta wygrywa z legacy, wspólny resolver,
+  transakcyjna rewizja między urządzeniami), reminder respektujący `startDate`,
+  pominięcia/przełożenia/status planu, bounded auth po 3 s, overflow dialogu
+  trenera i draft zakresów dat commitowany przy zamknięciu.
+- Postępy mają Tydzień/Miesiąc i pager na Wynikach, porównanie to-date,
+  systemowe udostępnianie z fallbackiem, Miesiące/Obciążenie w Wykresach oraz
+  progresję po ćwiczeniu z całej historii. `tab=details` jest przekierowany.
+- Bramki finalnego kodu: Vitest **3864/3864** (446 plików), Functions **513
+  PASS/12 SKIP**, oba typechecki, lint (0 błędów), build, bundle budget
+  **1 442 738/1 536 000 B**, dist-smoke, offline, no-emoji 276 i iOS preflight
+  są zielone. Świeże E2E: Chromium **305/305**, WebKit **305/305**.
+- Na Homebrew JDK 21 Firestore Rules przechodzą **317/317** (w tym 5 nowych
+  przypadków rewizji/mutation ID palety), a Storage Rules **42/42**. Przed
+  zleceniem release nie wykonano deployu/pushu/bumpu/uploadu. Build iOS 133 oraz
+  Android code 45 nie zawierają X71; następny kandydat wymaga nowych artefaktów
+  i fizycznego QA.
+
+Najświeższy audyt read-only po X70 odnotował WebKit **304/305** w pierwszym
+przebiegu; jedyny asynchroniczny wyścig zliczania kart przeszedł **5/5** w
+izolowanym powtórzeniu i nie potwierdził defektu aplikacji.
+
 ## Delta X70 — palety z realnymi rolami, odduplikowane teksty, buttony (2026-08-28 wieczór)
 
 - Zakres i root cause: wpis X70 w DECYZJE.md (kaskada czterech przyczyn "martwych

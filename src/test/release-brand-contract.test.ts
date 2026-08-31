@@ -52,8 +52,8 @@ describe('Z230 — one Strength Save release and brand contract', () => {
   it('maps the exact release artifact for every surface', () => {
     const train = JSON.parse(read('release/release-train.json')) as Record<string, Record<string, unknown>>;
     expect(train.web.commit).toMatch(/^[0-9a-f]{8}$/);
-    expect(train.ios).toMatchObject({ version: '1.0.0', build: 84 });
-    expect(train.android).toMatchObject({ version: '1.0.0', versionCode: 6 });
+    expect(train.ios).toMatchObject({ version: '1.0.0', build: 133 });
+    expect(train.android).toMatchObject({ version: '1.0.0', versionCode: 45 });
     expect(train.garmin).toMatchObject({ manifestSchemaVersion: 3, targetBinaries: 27 });
     expect(train.entitlement).toMatchObject({ id: 'pro', checkout: ['ios', 'android'] });
   });

@@ -156,9 +156,6 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=details', { replace: true })}>
-              {t('progress.details')}
-            </DropdownMenuItem>
             <DropdownMenuItem className="min-h-11" onSelect={() => navigate('/achievements?view=analytics&tab=weekly', { replace: true })}>
               {t('analytics.tab.weekly')}
             </DropdownMenuItem>

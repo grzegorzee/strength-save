@@ -92,6 +92,16 @@ describe('D3: wykresy jako kafle z deep-linkiem ?chart=', () => {
     expect(screen.queryByText('Łącznie ukończonych')).toBeNull();
     expect(screen.queryByText('Tonaż łączny')).toBeNull();
     expect(screen.queryByText('Progresja ciężarów')).toBeNull();
+    expect(screen.getByTestId('monthly-overview-card')).toBeInTheDocument();
+    expect(screen.getByTestId('hybrid-load-card')).toBeInTheDocument();
+  });
+
+  it('Progresja wybiera ćwiczenie z pełnej historii i nie filtruje po dniach aktualnego planu', () => {
+    renderCharts('/analytics?tab=charts&chart=progression');
+
+    expect(screen.queryByRole('button', { name: 'Wszystkie' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dzień A' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
   it('klik kafla "Tonaż" wchodzi w ?chart=tonnage: tylko wykres tonażu, bez Rza', () => {

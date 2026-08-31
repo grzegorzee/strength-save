@@ -17,7 +17,7 @@ vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
 vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
 
 const firestoreFixture = vi.hoisted(() => ({
-  updateDoc: vi.fn(async () => {}),
+  updateDoc: vi.fn(async (_ref?: unknown, _patch?: unknown) => {}),
   DELETE_SENTINEL: '__DELETE_FIELD__',
 }));
 vi.mock('firebase/firestore', () => ({
@@ -31,6 +31,12 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: vi.fn(async () => ''),
 }));
 vi.mock('@/lib/firebase', () => ({ db: {}, storage: {}, functions: {} }));
+vi.mock('@/lib/palette-preference-cloud', () => ({
+  writePalettePreference: vi.fn(async (_uid: string, patch: Record<string, unknown>) => {
+    await firestoreFixture.updateDoc({}, patch);
+    return 'synced';
+  }),
+}));
 // Krok 14 Runna p.1: Profil używa useTrainingPlan (tryb "nie na 100%") —
 // mock zamiast realnego hooka (częściowy mock firestore nie ma onSnapshot).
 vi.mock('@/hooks/useTrainingPlan', () => ({
@@ -423,10 +429,11 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('199 92% 56%');
     expect(document.documentElement.dataset.accent).toBe('sky');
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
-      expect.anything(), {
+      expect.anything(), expect.objectContaining({
         'preferences.accentColor': 'sky',
         'preferences.paletteTheme': firestoreFixture.DELETE_SENTINEL,
-      },
+        'preferences.paletteRevision': 1,
+      }),
     ));
     // Powrót do limonki zdejmuje nadpisania.
     fireEvent.click(getByTestId('accent-lime'));
@@ -458,7 +465,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(screen.queryByRole('button', { name: 'Zastosuj paletę' })).toBeNull();
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
       expect.anything(),
-      {
+      expect.objectContaining({
         'preferences.accentColor': '#ff6b35',
         'preferences.paletteTheme': {
           version: 2,
@@ -468,7 +475,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
           supportA: '#fbbf24',
           supportB: '#fb7185',
         },
-      },
+        'preferences.paletteRevision': 1,
+      }),
     ));
     expect(JSON.parse(localStorage.getItem('ss-palette-theme-v2') ?? '{}').id).toBe('forge');
     // A3: aktywna karta ma jawny stan aktywności.
@@ -587,10 +595,11 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(document.documentElement.dataset.accent).toBe('custom');
     expect(document.documentElement.style.getPropertyValue('--primary')).toMatch(/^\d+ \d+% \d+%$/);
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
-      expect.anything(), {
+      expect.anything(), expect.objectContaining({
         'preferences.accentColor': '#1e90ff',
         'preferences.paletteTheme': firestoreFixture.DELETE_SENTINEL,
-      },
+        'preferences.paletteRevision': 1,
+      }),
     ));
   });
 

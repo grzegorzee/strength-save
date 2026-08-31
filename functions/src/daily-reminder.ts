@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import { localDayParts } from "./local-time";
+import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
 
 // Codzienne poranne przypomnienie o treningu (push). Spersonalizowane: imię + dzisiejszy focus.
 // Wysyłamy TYLKO gdy: user ma token, nie wyłączył przypomnień, ma dostęp i dziś jest dzień treningowy.
@@ -17,7 +18,14 @@ import { localDayParts } from "./local-time";
 /** Lokalna godzina, o której user dostaje poranny push. */
 export const REMINDER_LOCAL_HOUR = 7;
 
-interface PlanDay { weekday?: string; focus?: string; dayName?: string }
+interface PlanDay { id?: string; weekday?: string; focus?: string; dayName?: string }
+export interface ReminderPlan {
+  days: PlanDay[];
+  startDate?: string;
+  skippedDates?: string[];
+  scheduleOverrides?: ScheduleOverrides;
+  status?: string;
+}
 
 type DeliveryResponse = { success: boolean; error?: { code?: string } };
 
@@ -61,7 +69,8 @@ export interface ReminderUser {
 export interface DailyReminderDeps {
   listTokenRegistrations: () => Promise<Array<{ id: string; userId: string; token: string }>>;
   getUsers: (userIds: string[]) => Promise<Map<string, ReminderUser>>;
-  getPlanDays: (userIds: string[]) => Promise<Map<string, PlanDay[]>>;
+  /** Tablica = zgodność testów/legacy; produkcja zawsze zwraca pełny dokument. */
+  getPlanDays: (userIds: string[]) => Promise<Map<string, PlanDay[] | ReminderPlan>>;
   sendMulticast: (tokens: string[], title: string, body: string) => Promise<{
     successCount: number;
     failureCount: number;
@@ -112,9 +121,16 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
   const processUser = async (uid: string) => {
     const user = users.get(uid);
     if (!user) return;
-    const days = plans.get(uid) ?? [];
+    const rawPlan = plans.get(uid);
+    const plan: ReminderPlan = Array.isArray(rawPlan) ? { days: rawPlan } : (rawPlan ?? { days: [] });
     const local = localDayParts(deps.now, user.timeZone);
-    const todayDay = days.find((d) => d.weekday === local.weekday);
+    if (plan.status === "ended" || plan.skippedDates?.includes(local.dateStr)) return;
+    const todayDay = resolvePlannedDayForDate(
+      local.dateStr,
+      plan.days,
+      plan.scheduleOverrides,
+      plan.startDate,
+    );
     if (!todayDay) return; // dziś dzień wolny — nie przypominamy
 
     candidates += 1;
@@ -211,7 +227,21 @@ export const dailyTrainingReminder = onSchedule(
         const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("training_plans").doc(uid)));
         return new Map(snapshots
           .filter((snap) => snap.exists)
-          .map((snap) => [snap.id, (snap.data()?.days as PlanDay[]) || []]));
+          .map((snap) => {
+            const data = snap.data() ?? {};
+            const rawOverrides = data.scheduleOverrides;
+            return [snap.id, {
+              days: Array.isArray(data.days) ? data.days as PlanDay[] : [],
+              ...(typeof data.startDate === "string" ? { startDate: data.startDate } : {}),
+              ...(Array.isArray(data.skippedDates)
+                ? { skippedDates: data.skippedDates.filter((date): date is string => typeof date === "string") }
+                : {}),
+              ...(rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
+                ? { scheduleOverrides: rawOverrides as ScheduleOverrides }
+                : {}),
+              ...(typeof data.status === "string" ? { status: data.status } : {}),
+            } satisfies ReminderPlan] as [string, ReminderPlan];
+          }));
       },
       sendMulticast: (tokens, title, body) => admin.messaging().sendEachForMulticast({
         tokens,

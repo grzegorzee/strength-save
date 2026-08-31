@@ -24,16 +24,16 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 84,
-    "state": "blocked-app-attest-profile"
+    "build": 133,
+    "state": "testflight-valid-beta-review-approved-superseded-by-unreleased-x71"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 6,
+    "versionCode": 45,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
-    "bytes": 16307381,
-    "sha256": "6269194373192f2f01dcdcd714a755f024c9caffa552a0158bed9ec4372af82d",
-    "state": "signed-local-awaiting-play-internal"
+    "bytes": 22597259,
+    "sha256": "5a481f6312f2b4025904fe5b4c65f27a1deef16cb52265de911161cd110c1c14",
+    "state": "signed-local-awaiting-play-internal-superseded-by-unreleased-x71"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",

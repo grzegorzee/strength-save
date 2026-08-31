@@ -5,6 +5,7 @@
 // deload zostają na telefonie — v2 po wydzieleniu silnika do wspólnego pakietu).
 
 import type { GarminTrackingType } from "./garmin-ingest";
+import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
 
 export interface GarminPlanExercise {
   id: string;
@@ -156,15 +157,8 @@ export interface GarminDayContext {
 }
 
 const NOTE_MAX = 140;
-const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-
-const weekdayOf = (date: string): string => {
-  const [y, m, d] = date.split("-").map(Number);
-  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
-};
-
 /** Przełożenia treningów (spec 2026-08-11): mapa data YYYY-MM-DD -> dayId | null. */
-export type GarminScheduleOverrides = Record<string, string | null>;
+export type GarminScheduleOverrides = ScheduleOverrides;
 
 /**
  * LUSTRZANA kopia kanonicznego resolvera webowego resolvePlannedDay
@@ -183,17 +177,7 @@ export const resolvePlannedGarminDay = (
   scheduleOverrides?: GarminScheduleOverrides | null,
   planStartDate?: string | null,
 ): GarminPlanDay | null => {
-  if (planStartDate && date < planStartDate) return null;
-  if (scheduleOverrides && Object.prototype.hasOwnProperty.call(scheduleOverrides, date)) {
-    const overrideDayId = scheduleOverrides[date];
-    if (overrideDayId === null) return null;
-    if (typeof overrideDayId === "string") {
-      const overridden = planDays.find((d) => d.id === overrideDayId);
-      if (overridden) return overridden;
-    }
-  }
-  const weekday = weekdayOf(date);
-  return planDays.find((d) => d.weekday === weekday) ?? null;
+  return resolvePlannedDayForDate(date, planDays, scheduleOverrides, planStartDate);
 };
 
 const parseRepRange = (setsStr: string): { min: number; max: number } => {

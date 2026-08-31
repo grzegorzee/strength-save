@@ -137,20 +137,16 @@ describe('X50: płaska nawigacja mobilnych Postępów', () => {
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
     fireEvent.click(trigger);
 
-    expect(screen.getByRole('menuitem', { name: 'Szczegóły' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Szczegóły' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Tygodnie' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Odznaki' })).toBeInTheDocument();
   });
 
-  it('Więcej → Szczegóły otwiera wtórne analizy bez zmiany głównej nawigacji', () => {
-    renderPage('/achievements');
+  it('stary deep link Szczegółów nie przywraca usuniętej zakładki w shellu', async () => {
+    renderPage('/achievements?view=analytics&tab=details');
 
-    const trigger = screen.getByTestId('progress-more-trigger');
-    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Szczegóły' }));
-
-    expect(screen.getByTestId('loc').textContent).toContain('view=analytics');
-    expect(screen.getByTestId('loc').textContent).toContain('tab=details');
+    await waitFor(() => expect(screen.getByTestId('analytics-embed')).toBeInTheDocument());
+    expect(screen.getByTestId('progress-view-summary')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('menuitem', { name: 'Szczegóły' })).not.toBeInTheDocument();
   });
 });

@@ -26,9 +26,9 @@ const AuthRedirect = () => {
 };
 
 const AuthenticationGate = () => {
-  const { isAuthenticated, loading, logout } = useAuth();
+  const { isAuthenticated, loading, slow, logout } = useAuth();
 
-  if (loading) return <BootScreen />;
+  if (loading) return <BootScreen slow={slow} onRetry={() => window.location.reload()} />;
 
   if (!isAuthenticated) {
     return (

@@ -80,6 +80,8 @@ const WorkoutHistory = () => {
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'completed' | 'draft'>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [periodDraft, setPeriodDraft] = useState<{ from: string | null; to: string | null }>({ from: null, to: null });
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [onlyPRs, setOnlyPRs] = useState(false);
@@ -552,7 +554,18 @@ const WorkoutHistory = () => {
         <>
           <div className="flex gap-2">
             {/* PERIOD: zakres dat poziomu 1 (filtruje liczniki kafli i LATEST). */}
-            <Popover>
+            <Popover
+              open={periodOpen}
+              onOpenChange={(nextOpen) => {
+                if (nextOpen) {
+                  setPeriodDraft({ from: fromDate || null, to: toDate || null });
+                } else if (periodOpen) {
+                  setFromDate(periodDraft.from ?? '');
+                  setToDate(periodDraft.to ?? '');
+                }
+                setPeriodOpen(nextOpen);
+              }}
+            >
               <PopoverTrigger asChild>
                 <button
                   type="button"
@@ -571,11 +584,8 @@ const WorkoutHistory = () => {
               </PopoverTrigger>
               <PopoverContent className="w-80 p-3" align="start">
                 <RangeCalendar
-                  value={{ from: fromDate || null, to: toDate || null }}
-                  onChange={(next) => {
-                    setFromDate(next.from ?? '');
-                    setToDate(next.to ?? '');
-                  }}
+                  value={periodDraft}
+                  onChange={setPeriodDraft}
                   testId="history-period-calendar"
                 />
                 <Button
@@ -584,8 +594,7 @@ const WorkoutHistory = () => {
                   data-testid="history-period-clear"
                   className="mt-1 w-full"
                   onClick={() => {
-                    setFromDate('');
-                    setToDate('');
+                    setPeriodDraft({ from: null, to: null });
                   }}
                 >
                   {t('range.clear')}

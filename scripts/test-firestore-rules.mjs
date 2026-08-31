@@ -502,6 +502,24 @@ const validPaletteTheme = {
 add('users: PaletteThemeV2 zamkniety obiekt ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), {
   preferences: { accentColor: '#c6ff00', paletteTheme: validPaletteTheme },
 })));
+add('users: rewizja i mutationId palety ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: {
+    accentColor: '#c6ff00', paletteTheme: validPaletteTheme,
+    paletteRevision: 1, paletteMutationId: 'palette-u123-1',
+  },
+})));
+add('users: ujemna rewizja palety DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteRevision: -1, paletteMutationId: 'palette-u123-2' },
+})));
+add('users: niecalkowita rewizja palety DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteRevision: 1.5, paletteMutationId: 'palette-u123-3' },
+})));
+add('users: mutationId palety ponad 100 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteRevision: 2, paletteMutationId: 'x'.repeat(101) },
+})));
+add('users: mutationId palety nie-string DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
+  preferences: { paletteRevision: 2, paletteMutationId: 42 },
+})));
 add('users: PaletteThemeV2 nadmiarowy klucz DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), {
   preferences: { paletteTheme: { ...validPaletteTheme, pixels: [1, 2, 3] } },
 })));

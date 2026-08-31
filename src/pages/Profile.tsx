@@ -19,6 +19,8 @@ import {
   flushPalettePreferenceOutbox,
   readPalettePreferenceOutbox,
 } from '@/lib/palette-preference-outbox';
+import { resolvePalettePreference } from '@/lib/palette-preference-resolver';
+import { writePalettePreference } from '@/lib/palette-preference-cloud';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { cacheAvatarBlob } from '@/lib/avatar-cache';
 import { useUnit } from '@/contexts/UnitContext';
@@ -310,10 +312,13 @@ const Profile = () => {
       setAccentId(pendingPalette.primary);
       return;
     }
-    const palette = profilePaletteSignature ? JSON.parse(profilePaletteSignature) as PaletteThemeV2 : null;
-    const normalizedAccent = profileAccent?.trim() ?? '';
-    const paletteMatchesFallback = !normalizedAccent || normalizedAccent.toLowerCase() === palette?.primary;
-    if (palette && paletteMatchesFallback) {
+    const resolvedTheme = resolvePalettePreference(
+      null,
+      profilePaletteSignature ? JSON.parse(profilePaletteSignature) : null,
+      profileAccent,
+    );
+    if (resolvedTheme.kind === 'palette') {
+      const palette = resolvedTheme.palette;
       // Ack własnego zapisu: paleta z chmury identyczna ze stanem lokalnym —
       // pomiń re-apply. Realna zmiana z innego urządzenia różni się od
       // readStoredPaletteTheme() i nadal się aplikuje.
@@ -323,10 +328,11 @@ const Profile = () => {
       storePaletteTheme(palette);
       setPaletteTheme(palette);
       setAccentId(palette.primary);
-    } else if (normalizedAccent && (normalizedAccent !== readStoredAccentId() || readStoredPaletteTheme())) {
-      selectLegacyAccent(normalizedAccent);
+    } else if (resolvedTheme.kind === 'legacy'
+      && (resolvedTheme.accent !== readStoredAccentId() || readStoredPaletteTheme())) {
+      selectLegacyAccent(resolvedTheme.accent);
       setPaletteTheme(null);
-      setAccentId(normalizedAccent);
+      setAccentId(resolvedTheme.accent);
     }
   }, [profileAccent, profilePaletteSignature, uid]);
   const handleAccent = (id: string) => {
@@ -337,12 +343,14 @@ const Profile = () => {
     persistPreference({
       'preferences.accentColor': id,
       'preferences.paletteTheme': deleteField(),
+      'preferences.paletteRevision': (profile?.preferences?.paletteRevision ?? 0) + 1,
+      'preferences.paletteMutationId': `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     });
   };
   const handlePalette = (palette: PaletteThemeV2) => {
     setPaletteTheme(palette);
     setAccentId(palette.primary);
-    const queued = enqueuePresetPalettePreference(uid, palette);
+    const queued = enqueuePresetPalettePreference(uid, palette, profile?.preferences?.paletteRevision ?? 0);
     if (!queued) {
       persistPreference({
         'preferences.accentColor': palette.primary,
@@ -350,7 +358,21 @@ const Profile = () => {
       });
       return;
     }
-    void flushPalettePreferenceOutbox(uid, (patch) => updateDoc(doc(db, 'users', uid), patch));
+    void flushPalettePreferenceOutbox(uid, (patch, entry) => writePalettePreference(uid, patch, entry))
+      .then((result) => {
+        if (result !== 'stale') return;
+        const cloudTheme = resolvePalettePreference(null, profilePalette, profileAccent);
+        if (cloudTheme.kind === 'palette') {
+          applyPaletteTheme(cloudTheme.palette);
+          storePaletteTheme(cloudTheme.palette);
+          setPaletteTheme(cloudTheme.palette);
+          setAccentId(cloudTheme.palette.primary);
+        } else if (cloudTheme.kind === 'legacy') {
+          selectLegacyAccent(cloudTheme.accent);
+          setPaletteTheme(null);
+          setAccentId(cloudTheme.accent);
+        }
+      });
   };
   const handleSound = (v: boolean) => {
     setSound(v);
@@ -606,9 +628,8 @@ const Profile = () => {
         </div>
       )}
 
-      {/* 3. KOLOR PRZEWODNI: Profil pokazuje tylko bieżący zestaw kolorów.
-          Pełny edytor montuje się po jawnej akcji i zachowuje dotychczasowy
-          preview/cancel/confirm oraz legacy/custom hex. */}
+      {/* 3. KOLOR PRZEWODNI: wybór gotowej palety zapisuje się od razu; legacy
+          i własny hex pozostają dostępne po rozwinięciu „Więcej kolorów”. */}
       <ProfileAccordionSection
         id="accent"
         icon={Palette}

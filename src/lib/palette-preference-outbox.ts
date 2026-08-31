@@ -7,10 +7,12 @@ import {
 const STORAGE_KEY = 'ss-palette-preference-outbox-v1';
 
 export interface PalettePreferenceOutboxEntry {
-  version: 1;
+  version: 2;
   uid: string;
   clientMutationId: string;
   queuedAt: number;
+  /** Rewizja profilu widziana w chwili wyboru; wyższa w chmurze = konflikt. */
+  baseRevision: number;
   palette: PaletteThemeV2;
 }
 
@@ -19,10 +21,15 @@ export interface PalettePreferenceOutboxEntry {
 export type PalettePreferencePatch = {
   'preferences.accentColor': string;
   'preferences.paletteTheme': PaletteThemeV2;
+  'preferences.paletteRevision': number;
+  'preferences.paletteMutationId': string;
 };
 
-type PalettePreferenceWriter = (patch: PalettePreferencePatch) => Promise<unknown>;
-type FlushResult = 'none' | 'pending' | 'synced';
+type PalettePreferenceWriter = (
+  patch: PalettePreferencePatch,
+  entry: PalettePreferenceOutboxEntry,
+) => Promise<unknown | 'synced' | 'stale'>;
+type FlushResult = 'none' | 'pending' | 'synced' | 'stale';
 
 const inFlight = new Map<string, Promise<FlushResult>>();
 
@@ -43,9 +50,16 @@ const parseStoredEntry = (): PalettePreferenceOutboxEntry | null => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<PalettePreferenceOutboxEntry>;
+    const parsed = JSON.parse(raw) as {
+      version?: number;
+      uid?: unknown;
+      clientMutationId?: unknown;
+      queuedAt?: unknown;
+      baseRevision?: unknown;
+      palette?: unknown;
+    };
     const palette = canonicalPreset(parsed.palette);
-    if (parsed.version !== 1
+    if (parsed.version !== 1 && parsed.version !== 2
       || typeof parsed.uid !== 'string'
       || !parsed.uid.trim()
       || typeof parsed.clientMutationId !== 'string'
@@ -56,7 +70,13 @@ const parseStoredEntry = (): PalettePreferenceOutboxEntry | null => {
       localStorage.removeItem(STORAGE_KEY);
       return null;
     }
-    return { ...parsed, uid: parsed.uid.trim(), palette } as PalettePreferenceOutboxEntry;
+    const baseRevision = parsed.version === 2
+      && typeof parsed.baseRevision === 'number'
+      && Number.isSafeInteger(parsed.baseRevision)
+      && parsed.baseRevision >= 0
+      ? parsed.baseRevision
+      : 0;
+    return { ...parsed, version: 2, uid: parsed.uid.trim(), baseRevision, palette } as PalettePreferenceOutboxEntry;
   } catch {
     return null;
   }
@@ -70,15 +90,17 @@ export const readPalettePreferenceOutbox = (uid: string): PalettePreferenceOutbo
 export const enqueuePresetPalettePreference = (
   uid: string,
   value: PaletteThemeV2,
+  baseRevision = 0,
 ): PalettePreferenceOutboxEntry | null => {
   const normalizedUid = uid.trim();
   const palette = canonicalPreset(value);
   if (!normalizedUid || !palette) return null;
   const entry: PalettePreferenceOutboxEntry = {
-    version: 1,
+    version: 2,
     uid: normalizedUid,
     clientMutationId: mutationId(),
     queuedAt: Date.now(),
+    baseRevision: Number.isSafeInteger(baseRevision) && baseRevision >= 0 ? baseRevision : 0,
     palette,
   };
   try {
@@ -119,12 +141,14 @@ export const flushPalettePreferenceOutbox = (
   const operation = (async (): Promise<FlushResult> => {
     let result: FlushResult = 'pending';
     try {
-      await writer({
+      const writerResult = await writer({
         'preferences.accentColor': entry.palette.primary,
         'preferences.paletteTheme': entry.palette,
-      });
+        'preferences.paletteRevision': entry.baseRevision + 1,
+        'preferences.paletteMutationId': entry.clientMutationId,
+      }, entry);
       clearIfCurrent(entry);
-      result = 'synced';
+      result = writerResult === 'stale' ? 'stale' : 'synced';
     } catch {
       result = 'pending';
     } finally {
@@ -133,7 +157,7 @@ export const flushPalettePreferenceOutbox = (
     // Jeżeli user wybrał kolejny preset podczas trwającego zapisu, pierwszy
     // request nie może pozostawić nowszego wyboru bez retry. Ten sam writer i
     // kanoniczny payload sprawiają, że operacja pozostaje idempotentna.
-    if (result === 'synced' && readPalettePreferenceOutbox(normalizedUid)) {
+    if ((result === 'synced' || result === 'stale') && readPalettePreferenceOutbox(normalizedUid)) {
       return flushPalettePreferenceOutbox(normalizedUid, writer);
     }
     return result;

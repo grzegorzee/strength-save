@@ -26,7 +26,7 @@ export const MonthlyOverviewCard = ({ workouts }: { workouts: WorkoutSession[] }
   };
 
   return (
-    <Card>
+    <Card data-testid="monthly-overview-card">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
           <CalendarRange className="h-4 w-4 text-primary" />

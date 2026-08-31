@@ -106,6 +106,9 @@ export interface UserProfile {
     accentColor?: string;
     /** PaletteThemeV2: addytywnie obok accentColor dla nowych klientów. */
     paletteTheme?: PaletteThemeV2;
+    /** Optymistyczna rewizja wyboru palety między urządzeniami. */
+    paletteRevision?: number;
+    paletteMutationId?: string;
     /** F-T3: zapamiętany adres odbiorcy maili z podsumowaniem (np. trener). */
     trainerEmail?: string;
     /** WP-I (X29): imię trenera/odbiorcy — do powitania w mailu i podglądu w Profilu. */

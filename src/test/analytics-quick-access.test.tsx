@@ -8,6 +8,8 @@ import { UnitProvider } from '@/contexts/UnitContext';
 
 const fixtures = vi.hoisted(() => ({
   workouts: [] as Array<Record<string, unknown>>,
+  share: vi.fn(async () => undefined),
+  writeText: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/lib/firebase', () => ({ db: {}, storage: {}, auth: {}, functions: {} }));
@@ -59,6 +61,13 @@ beforeEach(() => {
     id: 'w1', userId: 'u1', dayId: 'day-1', date: new Date().toISOString().slice(0, 10), completed: true,
     exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 60, completed: true }] }],
   }];
+  fixtures.share.mockClear();
+  fixtures.writeText.mockClear();
+  Object.defineProperty(navigator, 'share', { configurable: true, value: fixtures.share });
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: fixtures.writeText },
+  });
 });
 
 describe('niezmiennik samodzielnej trasy Analityki', () => {
@@ -107,24 +116,25 @@ describe('X50: uproszczone mobilne Podsumowanie', () => {
     expect(within(firstView).getByText('Nowe rekordy')).toBeInTheDocument();
   });
 
-  it('domyślne Wyniki nie pokazują listy sesji ani ciężkich analiz', () => {
+  it('domyślne Wyniki pokazują przełącznik Tydzień/Miesiąc, ale nie ciężkie analizy', () => {
     renderAnalytics('/achievements?view=analytics', true);
 
     expect(screen.queryByText('Ukończone treningi')).not.toBeInTheDocument();
     expect(screen.queryByTestId('monthly-overview-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hybrid-load-card')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Miesiąc' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tydzień' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Miesiąc' })).toBeInTheDocument();
   });
 
-  it('wtórne analizy pozostają dostępne przez deep link szczegółów', () => {
+  it('stary deep link szczegółów przekierowuje do Wyników', async () => {
     renderAnalytics('/achievements?view=analytics&tab=details', true);
 
-    expect(screen.getByTestId('monthly-overview-card')).toBeInTheDocument();
-    expect(screen.getByTestId('hybrid-load-card')).toBeInTheDocument();
-    expect(screen.queryByText('Ukończone treningi')).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(screen.getByTestId('loc').textContent).not.toContain('tab=details'));
+    expect(screen.getByTestId('analytics-summary-first-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('monthly-overview-card')).not.toBeInTheDocument();
   });
 
-  it('PDF, CSV i kopiowanie pozostają w menu akcji', () => {
+  it('PDF, CSV i systemowe udostępnianie pozostają w menu akcji', () => {
     renderAnalytics('/achievements?view=analytics', true);
 
     const trigger = screen.getByTestId('analytics-actions-trigger');
@@ -133,6 +143,30 @@ describe('X50: uproszczone mobilne Podsumowanie', () => {
 
     expect(screen.getByRole('menuitem', { name: 'PDF' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'CSV' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Kopiuj' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Udostępnij podsumowanie' })).toBeInTheDocument();
+  });
+
+  it('Udostępnij podsumowanie otwiera natywny share sheet, gdy platforma go wspiera', async () => {
+    renderAnalytics('/achievements?view=analytics', true);
+    const trigger = screen.getByTestId('analytics-actions-trigger');
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Udostępnij podsumowanie' }));
+
+    await vi.waitFor(() => expect(fixtures.share).toHaveBeenCalledWith(expect.objectContaining({
+      title: expect.any(String),
+      text: expect.stringContaining('Frekwencja'),
+    })));
+  });
+
+  it('po technicznej porażce share sheet kopiuje podsumowanie do schowka', async () => {
+    fixtures.share.mockRejectedValueOnce(new Error('share unavailable'));
+    renderAnalytics('/achievements?view=analytics', true);
+    const trigger = screen.getByTestId('analytics-actions-trigger');
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Udostępnij podsumowanie' }));
+
+    await vi.waitFor(() => expect(fixtures.writeText).toHaveBeenCalledWith(expect.stringContaining('Frekwencja')));
   });
 });

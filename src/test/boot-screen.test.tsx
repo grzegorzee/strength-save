@@ -2,15 +2,29 @@ import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BootScreen } from '@/components/BootScreen';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+
+const renderBootScreen = (props?: React.ComponentProps<typeof BootScreen>) => render(
+  <LanguageProvider>
+    <BootScreen {...props} />
+  </LanguageProvider>,
+);
 
 describe('BootScreen', () => {
   it('pokazuje małe logo i cienki pasek indeterminate bez wirującego kółka', () => {
-    const { container } = render(<BootScreen />);
+    const { container } = renderBootScreen();
 
     expect(screen.getByRole('img', { name: 'Strength Save' })).toHaveClass('h-16', 'w-16');
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuetext', 'Loading');
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuetext', 'Loading...');
     expect(container.querySelector('.animate-spin')).toBeNull();
     expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('po przekroczeniu bramki auth pokazuje wyjście i możliwość ponowienia', () => {
+    renderBootScreen({ slow: true, onRetry: () => undefined });
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('jest jedynym loaderem dla auth, profilu, tras i paywalla', () => {

@@ -30,11 +30,13 @@ import { claimStoredThemeOwner } from '@/lib/accent-theme';
 // Z222: flaga sesyjna łączy register_started z profile_created (backend nie
 // sygnalizuje "utworzono" — najbliższy udany sync profilu po rejestracji = created).
 export const FUNNEL_REGISTERED_KEY = 'strength-save:funnel-registered';
+export const AUTH_BOOT_TIMEOUT_MS = 3000;
 
 export const useAuth = () => {
   const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,13 +59,32 @@ export const useAuth = () => {
       return;
     }
 
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (settled) return;
+      const cachedFirebaseUser = auth.currentUser;
+      if (cachedFirebaseUser) {
+        // To użytkownik utrzymywany przez Firebase SDK, nie lokalnie odtworzona
+        // tożsamość. Listener nadal godzi prawdę po powrocie sieci.
+        claimStoredThemeOwner(cachedFirebaseUser.uid);
+        setUser(cachedFirebaseUser);
+        setLoading(false);
+        markStartup('auth-restored');
+      } else {
+        setSlow(true);
+      }
+    }, AUTH_BOOT_TIMEOUT_MS);
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      settled = true;
+      window.clearTimeout(timeoutId);
       // Motyw jest cache'em per konto. Roszczenie właściciela musi zakończyć się
       // synchronicznie przed setUser, aby pierwszy render konta B nigdy nie
       // zobaczył palety ani zaznaczenia pozostawionego przez konto A.
       if (user) claimStoredThemeOwner(user.uid);
       setUser(user);
       setError(null);
+      setSlow(false);
       setLoading(false);
       markStartup('auth-restored');
       // RevenueCat: zwiąż/odwiąż zakupy z kontem (no-op poza natywnym iOS).
@@ -74,7 +95,10 @@ export const useAuth = () => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
@@ -204,6 +228,7 @@ export const useAuth = () => {
   return {
     user,
     loading,
+    slow,
     error,
     isAuthenticated: !!user,
     signInWithGoogle,

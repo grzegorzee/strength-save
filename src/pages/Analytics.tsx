@@ -1,4 +1,4 @@
-import { Suspense, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -20,8 +20,6 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   calculateStreak,
-  getWeekBounds,
-  getMonthBounds,
   calculateTonnage,
   filterWorkoutsByPeriod,
 } from '@/lib/summary-utils';
@@ -31,12 +29,10 @@ import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
-  Trophy, Flame, Copy, Check, Calendar, BarChart3, Share2,
+  Trophy, Flame, Check, Calendar, BarChart3, Share2, ChevronLeft,
   ChevronRight, FileDown, FileSpreadsheet, Loader2, TrendingUp,
 } from 'lucide-react';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
-import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
-import { HybridLoadCard } from '@/components/analytics/HybridLoadCard';
 import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
@@ -47,8 +43,9 @@ import { dateLocale } from '@/i18n';
 import { shareOrDownloadFile } from '@/lib/share-export';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { MeasurementReadError } from '@/components/MeasurementReadError';
+import { getAnalyticsPeriodWindow, type AnalyticsPeriod } from '@/lib/analytics-period';
 
-type AnalyticsTab = 'summary' | 'charts' | 'details' | 'strava' | 'weekly';
+type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
 const ChartsTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsChartsTab'), 'lazy-retry:analytics-charts');
 const WeeklyTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsWeeklyTab'), 'lazy-retry:analytics-weekly');
@@ -58,9 +55,7 @@ const StravaTab = lazyWithRetry(() => import('@/components/strava/StravaTab').th
 // TAB: Podsumowanie
 // ========================
 
-type Period = 'week' | 'month';
-
-const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) => {
+const SummaryTab = () => {
   const { uid, profile } = useCurrentUser();
   const { workouts: liveWorkouts, measurements, measurementError, retryMeasurements, isLoaded: liveLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate } = useTrainingPlan(uid);
@@ -69,20 +64,22 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
   const { t, lang } = useTranslation();
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const navigate = useNavigate();
-  const [period, setPeriod] = useState<Period>('week');
+  const [summaryParams, setSummaryParams] = useSearchParams();
+  const period: AnalyticsPeriod = summaryParams.get('period') === 'month' ? 'month' : 'week';
+  const parsedOffset = Number(summaryParams.get('offset') ?? 0);
+  const periodOffset = Number.isFinite(parsedOffset)
+    ? Math.max(-120, Math.min(0, Math.trunc(parsedOffset)))
+    : 0;
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
 
-  const bounds = useMemo(() => {
-    const now = new Date();
-    return period === 'week' ? getWeekBounds(now) : getMonthBounds(now);
-  }, [period]);
-  const previousBounds = useMemo(() => (
-    period === 'week'
-      ? getWeekBounds(new Date(bounds.start.getTime() - 7 * 24 * 60 * 60 * 1000))
-      : getMonthBounds(new Date(bounds.start.getFullYear(), bounds.start.getMonth() - 1, 1))
-  ), [bounds, period]);
+  const periodWindow = useMemo(
+    () => getAnalyticsPeriodWindow(period, periodOffset),
+    [period, periodOffset],
+  );
+  const bounds = periodWindow.bounds;
+  const previousBounds = periodWindow.comparisonPrevious;
   const boundsStartMs = bounds.start.getTime();
   const rangeFromDate = formatLocalDate(previousBounds.start);
   const rangeToDate = formatLocalDate(bounds.end);
@@ -102,6 +99,11 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
   const currentWorkouts = useMemo(
     () => filterWorkoutsByPeriod(workouts, bounds),
     [bounds, workouts],
+  );
+
+  const currentComparisonWorkouts = useMemo(
+    () => filterWorkoutsByPeriod(workouts, periodWindow.comparisonCurrent),
+    [periodWindow.comparisonCurrent, workouts],
   );
 
   const previousWorkouts = useMemo(
@@ -127,7 +129,7 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
   );
   const frequency = currentWorkouts.length;
 
-  const currentTonnage = calculateTonnage(currentWorkouts);
+  const currentTonnage = calculateTonnage(currentComparisonWorkouts);
   const previousTonnage = calculateTonnage(previousWorkouts);
   const tonnageChange = previousTonnage > 0
     ? Math.round(((currentTonnage - previousTonnage) / previousTonnage) * 100)
@@ -137,8 +139,7 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
   // Chowamy ją, gdy baza porównania jest za słaba: poprzedni okres ma <2 treningi
   // (pojedynczy trening to nie trend) LUB bieżący okres trwa <3 dni (za wcześnie
   // na sensowne porównanie). Docelowa matematyka "to-date" = osobna zmiana.
-  const elapsedDaysInPeriod = Math.floor((Date.now() - bounds.start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-  const showTonnageDelta = tonnageChange !== 0 && previousWorkouts.length >= 2 && elapsedDaysInPeriod >= 3;
+  const showTonnageDelta = tonnageChange !== 0 && previousWorkouts.length >= 2;
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
 
@@ -209,7 +210,29 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
   const latestMeasurement = periodMeasurements[0] || measurements.find(m => m.weight);
   const latestWeight = latestMeasurement?.weight;
 
-  const handleCopy = async () => {
+  const updatePeriod = (nextPeriod: AnalyticsPeriod) => {
+    setSummaryParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set('period', nextPeriod);
+      next.delete('offset');
+      return next;
+    }, { replace: true });
+  };
+  const movePeriod = (delta: -1 | 1) => {
+    setSummaryParams((previous) => {
+      const next = new URLSearchParams(previous);
+      const rawCurrent = Number(next.get('offset') ?? 0);
+      const current = Number.isFinite(rawCurrent)
+        ? Math.max(-120, Math.min(0, Math.trunc(rawCurrent)))
+        : 0;
+      const offset = Math.max(-120, Math.min(0, current + delta));
+      if (offset === 0) next.delete('offset');
+      else next.set('offset', String(offset));
+      return next;
+    }, { replace: true });
+  };
+
+  const handleShareSummary = async () => {
     const periodLabel = period === 'week' ? t('analytics.period.week') : t('analytics.period.month');
     const dateRange = `${bounds.start.toLocaleDateString(dateLocale(lang))} - ${bounds.end.toLocaleDateString(dateLocale(lang))}`;
     const lines = [
@@ -223,10 +246,23 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
     if (periodPRs.length > 0) lines.push(t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') }));
     if (latestWeight) lines.push(t('analytics.copy.weight', { value: Number(toDisplay(latestWeight).toFixed(1)), unit }));
 
-    await navigator.clipboard.writeText(lines.join('\n'));
-    setCopied(true);
-    toast({ title: t('analytics.toast.copied'), description: t('analytics.toast.copiedDesc') });
-    setTimeout(() => setCopied(false), 2000);
+    const text = lines.join('\n');
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: t('analytics.copy.summary', { period: periodLabel }), text });
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast({ title: t('analytics.toast.copied'), description: t('analytics.toast.copiedDesc') });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: t('report.error'), variant: 'destructive' });
+    }
   };
 
   // M20: raport PDF (12 miesięcy) generowany lokalnie; jsPDF+html2canvas to lazy chunk.
@@ -267,14 +303,14 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
       <MeasurementReadError error={measurementError} onRetry={retryMeasurements} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {mode === 'details' && <div className="flex gap-2">
-          <Button aria-pressed={period === 'week'} className={toggleButtonClasses(period === 'week')} variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('week')}>
+        <div className="flex gap-2">
+          <Button aria-pressed={period === 'week'} className={toggleButtonClasses(period === 'week')} variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => updatePeriod('week')}>
             <Calendar className="h-4 w-4 mr-2" />{t('analytics.period.week')}
           </Button>
-          <Button aria-pressed={period === 'month'} className={toggleButtonClasses(period === 'month')} variant={period === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('month')}>
+          <Button aria-pressed={period === 'month'} className={toggleButtonClasses(period === 'month')} variant={period === 'month' ? 'default' : 'outline'} size="sm" onClick={() => updatePeriod('month')}>
             <BarChart3 className="h-4 w-4 mr-2" />{t('analytics.period.month')}
           </Button>
-        </div>}
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="min-h-11" data-testid="analytics-actions-trigger">
@@ -292,19 +328,27 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               {t('exportCsv.analyticsButton')}
             </DropdownMenuItem>
-            <DropdownMenuItem className="min-h-11" onSelect={() => void handleCopy()} data-testid="analytics-copy">
-              {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-              {copied ? t('analytics.copied') : t('analytics.copy')}
+            <DropdownMenuItem className="min-h-11" onSelect={() => void handleShareSummary()} data-testid="analytics-share-summary">
+              {copied ? <Check className="h-4 w-4 mr-2" /> : <Share2 className="h-4 w-4 mr-2" />}
+              {copied ? t('analytics.copied') : t('analytics.shareSummary')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {bounds.start.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })} - {bounds.end.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="ghost" size="icon" aria-label={t('analytics.period.previous')} onClick={() => movePeriod(-1)}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <p className="text-center text-sm text-muted-foreground">
+          {bounds.start.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })} - {bounds.end.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+        <Button variant="ghost" size="icon" aria-label={t('analytics.period.next')} onClick={() => movePeriod(1)} disabled={!periodWindow.canGoNext}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
 
-      {mode === 'overview' && <div className="space-y-3" data-testid="analytics-summary-first-view">
+      <div className="space-y-3" data-testid="analytics-summary-first-view">
         {/* A4 (X70): tint banera tygodnia = kolor wspierający B (dekoracja);
             fallback tokenu = primary, więc bez palety wygląd bez zmian. */}
         <Card className="border-support-b/30 bg-support-b/10" data-testid="analytics-summary-insight">
@@ -343,13 +387,9 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t('analytics.stat.newRecords')}</p>
           </CardContent></Card>
         </div>
-      </div>}
+      </div>
 
-      {/* Pełne analizy są osobnym szczegółem: nie konkurują z odpowiedzią
-          „czy idę do przodu?” na domyślnych Wynikach. */}
-      {mode === 'details' && <>
-        <MonthlyOverviewCard workouts={workouts} />
-        <HybridLoadCard />
+      <>
 
       {/* FIX-B T5: ostatni PR (z Dashboardu) — dom rekordów to Achievements (X36: ?view=records). */}
       {latestPR && (
@@ -400,9 +440,9 @@ const SummaryTab = ({ mode = 'overview' }: { mode?: 'overview' | 'details' }) =>
           </CardContent>
         </Card>
       )}
-      </>}
+      </>
 
-      {mode === 'overview' && currentWorkouts.length === 0 && (
+      {currentWorkouts.length === 0 && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center space-y-3">
             <p className="text-muted-foreground">{period === 'week' ? t('analytics.noWorkouts.week') : t('analytics.noWorkouts.month')}</p>
@@ -468,13 +508,23 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { uid, canUseStrava } = useCurrentUser();
   const { t } = useTranslation();
-  const tabParam = searchParams.get('tab') as AnalyticsTab | null;
+  const rawTabParam = searchParams.get('tab');
+  const tabParam = rawTabParam as AnalyticsTab | null;
   const validTabs: AnalyticsTab[] = canUseStrava
-    ? ['summary', 'charts', 'details', 'strava', 'weekly']
-    : ['summary', 'charts', 'details', 'weekly'];
+    ? ['summary', 'charts', 'strava', 'weekly']
+    : ['summary', 'charts', 'weekly'];
   // Bez parametru ?tab= otwieramy BIEŻĄCE podsumowanie (zgłoszenie 2026-08-13:
   // weekly digest otwierał się na "randomowym" tygodniu z wejścia z Dashboardu).
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
+
+  useEffect(() => {
+    if (rawTabParam !== 'details') return;
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete('tab');
+      return next;
+    }, { replace: true });
+  }, [rawTabParam, setSearchParams]);
 
   return (
     <div className="space-y-4">
@@ -526,10 +576,7 @@ const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
         </TabsList>}
 
         <TabsContent value="summary">
-          <TabBoundary uid={uid}><SummaryTab mode="overview" /></TabBoundary>
-        </TabsContent>
-        <TabsContent value="details">
-          <TabBoundary uid={uid}><SummaryTab mode="details" /></TabBoundary>
+          <TabBoundary uid={uid}><SummaryTab /></TabBoundary>
         </TabsContent>
         <TabsContent value="charts">
           <TabBoundary uid={uid}>

@@ -5,11 +5,52 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-28 (X70b: korekty właściciela po przeglądzie galerii X70)
+**Ostatnia aktualizacja:** 2026-08-31 (X71: naprawy przed wydaniem 1.0)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-31: X71 — trwałe palety, kanoniczny reminder, bounded auth i przebudowane Postępy
+
+**Kontekst i root cause:** produkcyjne konto miało wyłącznie legacy
+`accentColor: rose`; emisje profilu uznawały ten fallback za nowszy od pełnej
+palety i czyściły lokalny wybór. Outbox nie miał rewizji między urządzeniami.
+Poranny reminder wybierał dzień tylko po weekday i ignorował `startDate`,
+przełożenia, pominięcia oraz zakończenie planu. Cold auth miał jedną nieograniczoną
+bramkę sieciową. Historia commitowała pierwszy klik zakresu i zamykała popover.
+Postępy rozdzielały Tydzień/Miesiąc do ukrytych Szczegółów, porównywały niepełny
+okres z pełnym poprzednim i filtrowały progresję według aktualnego planu.
+
+**Decyzja:** zostaje jeden kolor główny aplikacji oraz dwa kolory wspierające o
+zamkniętych rolach (dane i oszczędna dekoracja), nie trzy równorzędne akcenty.
+Pełna poprawna paleta zawsze wygrywa z legacy accentem. Zapis presetów używa
+transakcji, `paletteRevision` i idempotentnego mutation ID; zaległy zapis offline
+nie może nadpisać nowszego wyboru z innego urządzenia. Reminder i Garmin używają
+jednego resolvera dnia planu. Po 3 s auth może wejść wyłącznie na użytkownika
+utrzymywanego przez Firebase SDK; bez takiej tożsamości pokazuje komunikat i retry,
+bez obchodzenia auth. Zakres dat ma lokalny draft i commit przy zamknięciu.
+
+Wyniki są jednym ekranem z Tydzień/Miesiąc, pagerem okresów i porównaniem
+to-date do tego samego fragmentu poprzedniego okresu. Udostępnianie używa
+systemowego share sheetu z fallbackiem do schowka. Stare `tab=details` wraca do
+Wyników; Miesiące i Obciążenie hybrydowe są w Wykresach. Progresja wybiera jedno
+ćwiczenie z całej ukończonej historii, niezależnie od bieżącego planu. Dialog
+trenera łamie długi e-mail bez poziomego overflow.
+
+**Weryfikacja:** finalny Vitest 3864/3864 (446 plików), Functions 513 PASS/12
+SKIP (48 plików + 1 skip) i oba typechecki są zielone. Lint ma 0 błędów i 15
+zastanych warningów Fast Refresh. Build, budżet 1 442 738/1 536 000 B,
+dist-smoke, offline, no-emoji 276, iOS release preflight i `git diff --check`
+przechodzą. Po świeżym Vite/cache Chromium 305/305 i WebKit 305/305; wykryty
+wyścig dwóch natychmiastowych kliknięć w teście został zsynchronizowany z renderem
+i przeszedł dodatkowo 5/5. Na JDK 21 Firestore Rules przechodzą 317/317 (w tym
+5 bezpośrednich przypadków rewizji/mutation ID palety), a Storage Rules 42/42.
+
+Przed zleceniem release nie wykonano deployu, pushu, bumpu ani uploadu. iOS
+1.0.0 build 133 i Android 1.0.0 code 45 są poprawnie oznaczone jako starsze od
+X71. Wydanie X71 wymaga Functions + Firestore Rules, nowego klienta (następny
+iOS build 134) i fizycznego smoke’a; właściciel zlecił rollout 2026-08-31.
 
 ### 2026-08-28: X70b — trzy korekty właściciela po przeglądzie przed/po
 

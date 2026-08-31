@@ -53,6 +53,7 @@ const checkTwoSets = async (page: Page) => {
   // Po kliknięciu przycisk zmienia aria-label na "Odznacz serię" — first()
   // za każdym razem trafia w kolejną nieodhaczoną serię.
   await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
+  await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(1);
   await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
   await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(2);
 

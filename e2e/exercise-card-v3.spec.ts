@@ -371,6 +371,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     // In E2E mode without Firebase, there's no previous data, so badges won't show.
     // We just verify no crash and cards render properly.
     const cards = page.locator('.exercise-card');
+    await expect(cards.first()).toBeVisible({ timeout: 10_000 });
     const count = await cards.count();
     expect(count).toBeGreaterThanOrEqual(1);
 
@@ -410,6 +411,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
 
     // Check if any card has a video play button (Play icon from lucide)
     const cards = page.locator('.exercise-card');
+    await expect(cards.first()).toBeVisible({ timeout: 10_000 });
     const count = await cards.count();
 
     // At least verify no crash — video buttons are optional

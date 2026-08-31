@@ -119,6 +119,43 @@ describe("runDailyReminder (R2-12)", () => {
     expect(result.candidates).toBe(0);
   });
 
+  it("nie wysyla przed startDate planu, nawet gdy zgadza sie weekday", async () => {
+    const deps = makeDeps({
+      getPlanDays: vi.fn(async () => new Map([["u1", {
+        days: [{ id: "push", weekday: "monday", focus: "Push" }],
+        startDate: "2026-07-13",
+      }], ["u2", {
+        days: [{ id: "push", weekday: "monday", focus: "Push" }],
+        startDate: "2026-07-13",
+      }]]) as never),
+    });
+
+    const result = await runDailyReminder(deps);
+
+    expect(deps.sendMulticast).not.toHaveBeenCalled();
+    expect(result.candidates).toBe(0);
+  });
+
+  it("respektuje skippedDates, scheduleOverrides i zakonczony plan", async () => {
+    const deps = makeDeps({
+      getPlanDays: vi.fn(async () => new Map([["u1", {
+        days: [{ id: "push", weekday: "monday", focus: "Push" }],
+        startDate: "2026-06-01",
+        skippedDates: ["2026-07-06"],
+      }], ["u2", {
+        days: [{ id: "push", weekday: "monday", focus: "Push" }],
+        startDate: "2026-06-01",
+        status: "ended",
+        scheduleOverrides: { "2026-07-06": "push" },
+      }]]) as never),
+    });
+
+    const result = await runDailyReminder(deps);
+
+    expect(deps.sendMulticast).not.toHaveBeenCalled();
+    expect(result.candidates).toBe(0);
+  });
+
   // Z146 (X18C): poranny push pomija userów, którzy dziś już trenują / potrenowali.
   it("user z rozpoczetym treningiem na dzis (startedAt) jest POMINIETY", async () => {
     const deps = makeDeps({

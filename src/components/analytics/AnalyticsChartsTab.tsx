@@ -24,7 +24,6 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
-import { localizeDayName } from '@/lib/plan-i18n';
 import {
   calculateStreak,
   calculateLongestStreak,
@@ -42,6 +41,9 @@ import { ArrowLeft, ChevronRight, Dumbbell, Flame, Scale, Timer, TrendingUp, Tro
 import { GroupTile } from '@/components/exercises/GroupTile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
+import { HybridLoadCard } from '@/components/analytics/HybridLoadCard';
 import { getDurationTrend, getSkippedStats } from '@/lib/workout-time-stats';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
@@ -143,7 +145,6 @@ const AnalyticsChartsTab = () => {
       return next;
     });
   };
-  const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');
   // Zakres wykresu tonażu: przy setkach treningów oś X od początku konta robi się
   // nieczytelna. 6M zastępuje usunięty z Postępów TonnageTrendChart (X28 WP-D).
@@ -245,7 +246,7 @@ const AnalyticsChartsTab = () => {
 
   const perExerciseData = useMemo(() => {
     const completedWorkouts = workouts
-      .filter(w => w.completed && w.exercises.length > 0 && (selectedDay === 'all' || w.dayId === selectedDay))
+      .filter(w => w.completed && w.exercises.length > 0)
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date));
     if (completedWorkouts.length === 0) return [];
@@ -285,7 +286,20 @@ const AnalyticsChartsTab = () => {
     return Array.from(byExercise.values())
       .filter(ex => ex.chartData.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [workouts, selectedDay, weightMode, resolver, lang, toDisplay]);
+  }, [workouts, weightMode, resolver, lang, toDisplay]);
+
+  const requestedExerciseId = searchParams.get('exercise');
+  const selectedExerciseId = perExerciseData.some((exercise) => exercise.id === requestedExerciseId)
+    ? requestedExerciseId!
+    : (perExerciseData[0]?.id ?? '');
+  const visibleExerciseData = perExerciseData.filter((exercise) => exercise.id === selectedExerciseId);
+  const selectExercise = (exerciseId: string) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set('exercise', exerciseId);
+      return next;
+    }, { replace: true });
+  };
 
   const dayLabels = [
     t('analytics.day.mon'), t('analytics.day.tue'), t('analytics.day.wed'),
@@ -302,6 +316,9 @@ const AnalyticsChartsTab = () => {
     return (
       <div className="space-y-4">
         <RzaMetricsCard workouts={workouts} />
+
+        <MonthlyOverviewCard workouts={workouts} />
+        <HybridLoadCard />
 
         <div className="grid grid-cols-2 gap-2.5">
           {CHART_MENU.map((item) => (
@@ -516,12 +533,16 @@ const AnalyticsChartsTab = () => {
                 <TrendingUp className="h-5 w-5 text-primary" />{t('analytics.weightProgression')}
               </CardTitle>
               <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
-                <div className="flex gap-1.5 flex-wrap">
-                  <ChipButton variant={selectedDay === 'all' ? 'default' : 'outline'} pressed={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('analytics.allDays')}</ChipButton>
-                  {trainingPlan.map(day => (
-                    <ChipButton key={day.id} variant={selectedDay === day.id ? 'default' : 'outline'} pressed={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>{localizeDayName(day.dayName, lang)}</ChipButton>
-                  ))}
-                </div>
+                <Select value={selectedExerciseId} onValueChange={selectExercise} disabled={perExerciseData.length === 0}>
+                  <SelectTrigger className="min-h-11 min-w-0 flex-1" aria-label={t('analytics.exercisePicker')}>
+                    <SelectValue placeholder={t('analytics.exercisePicker')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {perExerciseData.map((exercise) => (
+                      <SelectItem key={exercise.id} value={exercise.id}>{exercise.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="flex gap-1">
                   <ChipButton variant={weightMode === 'max' ? 'default' : 'outline'} pressed={weightMode === 'max'} className="text-xs" onClick={() => setWeightMode('max')}>{t('analytics.maxWeight')}</ChipButton>
                   <ChipButton variant={weightMode === '1rm' ? 'default' : 'outline'} pressed={weightMode === '1rm'} className="text-xs" onClick={() => setWeightMode('1rm')}>{t('analytics.est1rm')}</ChipButton>
@@ -534,7 +555,7 @@ const AnalyticsChartsTab = () => {
             <p className="text-center text-muted-foreground py-8">{t('analytics.noCompletedToShow')}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {perExerciseData.map(ex => (
+              {visibleExerciseData.map(ex => (
                 <Card key={ex.id}>
                   <CardContent className="pt-4 pb-3 px-4">
                     <p className="text-sm font-medium mb-2 truncate">{ex.name}</p>

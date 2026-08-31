@@ -13,7 +13,9 @@ describe('outbox preferencji gotowej palety', () => {
   });
 
   it('przyjmuje wyłącznie trzy kanoniczne presety 1.0', () => {
-    expect(enqueuePresetPalettePreference('u1', PALETTE_THEMES[1])?.palette.id).toBe('forge');
+    const queued = enqueuePresetPalettePreference('u1', PALETTE_THEMES[1], 7);
+    expect(queued?.palette.id).toBe('forge');
+    expect(queued?.baseRevision).toBe(7);
     expect(enqueuePresetPalettePreference('u1', {
       version: 2,
       id: 'avatar-custom',
@@ -22,6 +24,18 @@ describe('outbox preferencji gotowej palety', () => {
       supportA: '#222222',
       supportB: '#333333',
     })).toBeNull();
+  });
+
+  it('usuwa stary wpis odrzucony przez wyższą rewizję z innego urządzenia', async () => {
+    enqueuePresetPalettePreference('u1', PALETTE_THEMES[0], 2);
+    const writer = vi.fn(async () => 'stale' as const);
+
+    await expect(flushPalettePreferenceOutbox('u1', writer)).resolves.toBe('stale');
+    expect(writer).toHaveBeenCalledWith(
+      expect.objectContaining({ 'preferences.paletteRevision': 3 }),
+      expect.objectContaining({ baseRevision: 2 }),
+    );
+    expect(readPalettePreferenceOutbox('u1')).toBeNull();
   });
 
   it('po porażce zachowuje wpis, a równoległy retry wykonuje jeden idempotentny zapis', async () => {

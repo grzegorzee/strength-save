@@ -5,9 +5,9 @@ type AuditEvidence = {
   checks: {
     vitest: string;
     functions: string;
-    firestore_rules: string;
-    storage_rules: string;
-    full_candidate_e2e: string;
+    firestore_storage_rules: string;
+    chromium_e2e: string;
+    webkit_e2e: string;
   };
 };
 
@@ -18,19 +18,22 @@ const audit = JSON.parse(readFileSync(AUDIT_PATH, 'utf8')) as AuditEvidence;
 const report = readFileSync(REPORT_PATH, 'utf8');
 
 const leadingResult = (value: string) => value.match(/\d+\/\d+/)?.[0] ?? '';
+const passAndSkip = (value: string) => value.match(/\d+/g)?.slice(0, 2) ?? [];
 
 describe('release-readiness uses one canonical evidence snapshot', () => {
   it('current gate summary mirrors the machine-readable audit', () => {
     for (const value of [
       audit.checks.vitest,
-      audit.checks.firestore_rules,
-      audit.checks.storage_rules,
-      audit.checks.full_candidate_e2e,
+      audit.checks.firestore_storage_rules,
+      audit.checks.chromium_e2e,
+      audit.checks.webkit_e2e,
     ]) {
       expect(report).toContain(leadingResult(value));
     }
 
-    expect(report).toContain('Functions: **511 PASS/12 SKIP**');
+    for (const count of passAndSkip(audit.checks.functions)) {
+      expect(report).toContain(count);
+    }
   });
 
   it('does not label superseded X65 evidence as the current candidate', () => {
