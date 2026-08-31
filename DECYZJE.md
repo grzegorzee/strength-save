@@ -53,6 +53,21 @@ Galeria dowodowa jest w `audit/shots/2026-08-31-x72/`. Wersja marketingowa
 pozostaje 1.0.0; następnym kandydatem iOS jest build 135. Fizyczny przegląd
 Postępów i smoke na realnym iPhonie pozostają podpisem właściciela po TestFlight.
 
+**Rollout 2026-08-31:** commit `d431c262` jest na `main`, web został
+opublikowany, a domena produkcyjna zwraca 200 z bundla
+`assets/index-CVNpyrbP.js`. Po świeżym DerivedData iOS Simulator zbudował,
+zainstalował i uruchomił App+Watch. Pierwsza próba użyła uszkodzonego stałego
+cache Swift Package w `/tmp` (brak manifestu Capacitor); izolowany rerun wykazał,
+że root cause był w cache bramki, nie w aplikacji. IPA 1.0.0 (135), SHA-256
+`6c67b55fa593eae821f8a38e632a45a22675eb57295a65ed2fb35181522882c7`,
+zostało wgrane bez błędów (`Delivery UUID
+c8adc9b5-5a2c-44fa-aae7-0ecac03b3f64`). Build ma stan `VALID`, obie grupy
+TestFlight, opis testów i Beta App Review `APPROVED`.
+
+Fizycznego smoke'a nadal nie oznaczamy jako wykonanego: podłączony iPhone jest
+widoczny jako offline, a ADB nie widzi urządzenia z Androidem. Właściciel musi
+sprawdzić dokładny build 135 na realnym telefonie przed publicznym submission.
+
 ### 2026-08-31: X71 — trwałe palety, kanoniczny reminder, bounded auth i przebudowane Postępy
 
 **Kontekst i root cause:** produkcyjne konto miało wyłącznie legacy
