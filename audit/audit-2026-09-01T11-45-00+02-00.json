@@ -5,7 +5,7 @@
   "date": "2026-09-01",
   "run_at": "2026-09-01T11:45:00+02:00",
   "base_commit": "60b89776956ee469be6ad4b53b8564f0fd6b9a20 plus local launch-stabilization changes",
-  "score_scope": "Strength Save 1.0.0 after the September 1 workout-flow stabilization; current native projects are synchronized, but no new signed TestFlight or Play artifact was produced in this run.",
+  "score_scope": "Strength Save 1.0.0 build 137 after the September 1 workout-flow stabilization; the signed iOS candidate is VALID in TestFlight and attached to both tester groups.",
   "scoring_note": "No confirmed red functional defect remains in the changed paths. This is a GO to create the next TestFlight candidate, not permission to submit to App Review: the exact signed candidate still requires a physical-device smoke.",
   "decision": "GO for packaging the next TestFlight candidate; NO-GO for App Store submission until physical iPhone smoke of that exact build and explicit owner approval.",
   "summary": "The reported launch blockers were fixed without adding features. Bodyweight exercises can complete without kilograms, skipped exercises no longer enter saved payloads or summaries, timed exercises accept minutes and seconds without a colon keyboard key, warmup and finish layouts wrap safely, exercise search is recoverable above the iOS keyboard, exercise media has a production CDN fallback, and the app now uses one fixed lime brand theme. Full Chromium, focused WebKit, native iOS simulator and Android build gates are green.",
@@ -14,9 +14,9 @@
     "orange": [
       {
         "id": "exact-ios-candidate-physical-smoke",
-        "problem": "The corrected working tree has not yet been packaged as a new signed TestFlight build and tested on a physical iPhone.",
+        "problem": "Signed TestFlight build 137 is available, but has not yet been tested on a physical iPhone.",
         "user_risk": "Real background suspension, notification sound, haptics, native keyboard behavior, HealthKit, Share Sheet and purchase/restore are not proven for the exact release artifact.",
-        "exit": "Create the next build, install from TestFlight, run the physical checklist including screen-off/resume and weak network, then approve submission."
+        "exit": "Install build 137 from TestFlight, run the physical checklist including screen-off/resume and weak network, then approve submission."
       },
       {
         "id": "physical-android-smoke",
@@ -71,6 +71,7 @@
     "mobile_sync": "passed; 18 Capacitor plugins; dist, iOS and Android index.html SHA-256 identical",
     "ios_simulator": "current synchronized App + Watch build succeeded, installed and launched on iPhone 17 Pro simulator",
     "android_debug": "BUILD SUCCESSFUL; 642 tasks, 33 executed and 609 up-to-date",
+    "testflight_137": "VALID; internal and external groups attached; en-US what-to-test saved; Beta App Review APPROVED",
     "git_diff_check": "passed",
     "functions_and_rules": "unchanged by this client-only stabilization; latest JDK 21 evidence remains Functions 12/12 registration, Firestore 317/317 and Storage 42/42 from the August 31 release audit",
     "ios_physical": "not run",
@@ -93,11 +94,10 @@
     "marketing": "1.0.0",
     "ios_current_project_version": 137,
     "android_version_code": 46,
-    "note": "iOS build number was bumped to 137 for the TestFlight release; marketing version remains 1.0.0."
+    "note": "Build 137 is VALID in TestFlight, attached to both groups and Beta App Review is APPROVED; marketing version remains 1.0.0."
   },
   "required_before_submission": [
-    "Package the corrected working tree as the next TestFlight build.",
-    "Run the physical iPhone checklist on that exact build, including background/resume, weak network, keyboard, notification, share and purchase restore.",
+    "Run the physical iPhone checklist on TestFlight build 137, including background/resume, weak network, keyboard, notification, share and purchase restore.",
     "Run a physical Android smoke before Play production.",
     "Obtain explicit final owner approval before Submit for Review."
   ]

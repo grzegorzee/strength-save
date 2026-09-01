@@ -5596,3 +5596,10 @@ na symulatorze iPhone 17 Pro; Android `assembleDebug` kończy 642/642 zadań. Do
 dystrybucji testowej numer iOS został podniesiony z 136 do 137, przy niezmiennym
 marketingowym `1.0.0`. Przed App Review nadal obowiązuje fizyczny smoke dokładnego
 nowego buildu na iPhonie oraz osobny smoke Androida.
+
+**Dystrybucja:** commit `c866afc9` został wypchnięty na `main`. Produkcyjne
+archiwum App+Watch podpisało się profilem App Store, eksport IPA i upload przeszły
+bez błędów (Delivery UUID `cbe76973-38d3-45ee-a51a-ffefb4e0b3fe`). Build 137 ma
+w App Store Connect stan `VALID`, jest przypięty do grup wewnętrznej i zewnętrznej,
+ma opis `en-US`, a Beta App Review ma stan `APPROVED`. Nie wykonano Submit for
+Review wersji sklepowej; najpierw obowiązuje fizyczny smoke buildu 137.
