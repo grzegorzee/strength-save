@@ -853,7 +853,9 @@ const WorkoutDay = () => {
 
   // Build exercises payload for batchSaveWorkout (reads from refs)
   const buildExercisesPayload = useCallback(() => (
-    Object.entries(exerciseSetsRef.current).map(([exerciseId, sets]) => ({
+    Object.entries(exerciseSetsRef.current)
+      .filter(([exerciseId]) => !skippedExercisesRef.current.includes(exerciseId))
+      .map(([exerciseId, sets]) => ({
       exerciseId,
       sets,
       ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
@@ -2235,7 +2237,11 @@ const WorkoutDay = () => {
     // Ta sama ścieżka co ręczne odhaczenie (handleSetsChange: ref + stan + draft
     // + PR na żywo), żeby IDB i podsumowanie widziały to samo. Źródło: ref, bo
     // jest świeższy od stanu w tym samym kliknięciu.
-    const autoCompletion = autoCompleteFilledSets(exerciseSetsRef.current, (exerciseId) => {
+    const effectiveSets = Object.fromEntries(
+      Object.entries(exerciseSetsRef.current)
+        .filter(([exerciseId]) => !skippedExercisesRef.current.includes(exerciseId)),
+    );
+    const autoCompletion = autoCompleteFilledSets(effectiveSets, (exerciseId) => {
       const name = day.exercises.find((exercise) => exercise.id === exerciseId)?.name ?? exerciseId;
       const tracking = resolveTracking(name);
       // Karta chowa kolumnę KG dla bodyweight niezależnie od trackingu (isBodyweight prop).
@@ -2421,9 +2427,9 @@ const WorkoutDay = () => {
       // E-T1: ta sama deterministyczna ścieżka co widok ukończony (session-prs).
       const effectivePRs = computeSessionPRs({
         sessionId,
-        exerciseSets,
+        exerciseSets: autoCompletion.exerciseSets,
         workouts,
-        dayExercises: day.exercises,
+        dayExercises: day.exercises.filter((exercise) => !skippedExercisesRef.current.includes(exercise.id)),
         resolveIsBodyweight,
         resolveTracking,
         bodyWeightKg: getLatestMeasurement()?.weight ?? null,
@@ -2458,7 +2464,7 @@ const WorkoutDay = () => {
       const sessionForStats = {
         ...currentWorkoutData,
         completed: true,
-        exercises: Object.entries(exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })),
+        exercises: Object.entries(autoCompletion.exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })),
       };
       const statsBefore = {
         completedWorkouts: previousWorkoutsForPR.length,
@@ -2609,8 +2615,11 @@ const WorkoutDay = () => {
 
 
   // Calculate stats from exerciseSets
-  const exerciseCount = Object.keys(exerciseSets).length;
-  const completedSetsCount = Object.values(exerciseSets).reduce(
+  const visibleExerciseSets = Object.fromEntries(
+    Object.entries(exerciseSets).filter(([exerciseId]) => !skippedExercises.includes(exerciseId)),
+  );
+  const exerciseCount = Object.keys(visibleExerciseSets).length;
+  const completedSetsCount = Object.values(visibleExerciseSets).reduce(
     (total, sets) => total + sets.filter(s => s.completed && !s.isWarmup).length,
     0
   );
@@ -2711,10 +2720,14 @@ const WorkoutDay = () => {
 
   // COMPLETED VIEW (not editing)
   if (isCompleted && !isEditing) {
+    const summaryExercises = day.exercises.filter((exercise) => !skippedExercises.includes(exercise.id));
+    const summaryExerciseSets = Object.fromEntries(
+      Object.entries(exerciseSets).filter(([exerciseId]) => !skippedExercises.includes(exerciseId)),
+    );
     // Runna p.1 (spec A1): podsumowanie liczone deterministycznie z danych sesji.
     const completionSummary = computeCompletionSummary({
-      exerciseSets,
-      dayExercises: day.exercises,
+      exerciseSets: summaryExerciseSets,
+      dayExercises: summaryExercises,
       skippedExercises,
       workouts,
       sessionId,
@@ -2737,9 +2750,9 @@ const WorkoutDay = () => {
     // zakończenia. Wcześniej: useState ustawiany tylko w przepływie finish = 0.
     const derivedSessionPRs = sessionId ? computeSessionPRs({
       sessionId,
-      exerciseSets,
+      exerciseSets: summaryExerciseSets,
       workouts,
-      dayExercises: day.exercises,
+      dayExercises: summaryExercises,
       resolveIsBodyweight,
       resolveTracking,
       bodyWeightKg: getLatestMeasurement()?.weight ?? null,
@@ -2753,8 +2766,8 @@ const WorkoutDay = () => {
         : `${pr.exerciseName} ${fmt(pr.newValue)}`);
     // Fala 2 (plan/summary.md par. 2.4-2.5): tonaż per ćwiczenie liczony RAZ —
     // zasila pasek rankingowy listy i split "Gdzie poszedł tonaż".
-    const tonnageByExerciseId = new Map(day.exercises.map((exercise) => {
-      const sets = exerciseSets[exercise.id] || [];
+    const tonnageByExerciseId = new Map(summaryExercises.map((exercise) => {
+      const sets = summaryExerciseSets[exercise.id] || [];
       const tonnageKg = sets
         .filter((s) => s.completed && !s.isWarmup)
         .reduce((sum, s) => sum + s.reps * s.weight, 0);
@@ -2774,7 +2787,7 @@ const WorkoutDay = () => {
     };
     const volumeSplitBuckets = completionSummary.volumeKg > 0
       ? computeVolumeSplit(
-        day.exercises.map((exercise) => ({
+        summaryExercises.map((exercise) => ({
           name: exercise.name,
           tonnageKg: tonnageByExerciseId.get(exercise.id) ?? 0,
         })),
@@ -2785,7 +2798,7 @@ const WorkoutDay = () => {
     const summarySubtitle = [localizeFocus(day.focus, lang), summaryDateLabel]
       .filter(Boolean).join(' · ');
     return (
-      <div className="space-y-6 pb-20">
+      <div className="space-y-6 pb-[calc(var(--mobile-nav-clearance,7rem)+2rem)]">
         {/* Fala 2 (mockup 1a): kwadratowy wstecz + tytuł z datą + Edit w pigułce. */}
         <div className="flex items-center gap-3">
           <Button
@@ -2850,15 +2863,14 @@ const WorkoutDay = () => {
               {t('workout.completion.statTonnage')}
             </span>
           </div>
-          {day.exercises.map((exercise) => {
-            const isSkipped = skippedExercises.includes(exercise.id);
-            const sets = exerciseSets[exercise.id] || [];
+          {summaryExercises.map((exercise) => {
+            const sets = summaryExerciseSets[exercise.id] || [];
             // B-T1: metryki podsumowania z serii roboczych, spójne z nagłówkiem strony.
             const completed = sets.filter(s => s.completed && !s.isWarmup);
             const totalWeight = tonnageByExerciseId.get(exercise.id) ?? 0;
             const isMaxTonnage = totalWeight > 0 && totalWeight === maxExerciseTonnageKg;
-            const incompleteSets = !isSkipped && completed.length < sets.length;
-            const canExpand = !isSkipped && sets.length > 0;
+            const incompleteSets = completed.length < sets.length;
+            const canExpand = sets.length > 0;
             const isExpanded = expandedSummaryIds.has(exercise.id);
             const toggleExpand = () => setExpandedSummaryIds((prev) => {
               const next = new Set(prev);
@@ -2868,7 +2880,7 @@ const WorkoutDay = () => {
             });
 
             return (
-              <div key={exercise.id} className={cn(isSkipped && "opacity-50")}>
+              <div key={exercise.id}>
                 <button
                   type="button"
                   onClick={toggleExpand}
@@ -2876,17 +2888,15 @@ const WorkoutDay = () => {
                   className="flex w-full items-center gap-3 py-2.5 text-left disabled:cursor-default"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                    <div className="flex items-start gap-2">
+                      <span className="min-w-0 flex-1 break-words text-[13.5px] font-medium leading-snug">
                         {localizeExerciseName(exercise.name, lang)}
                       </span>
                       <span className={cn(
                         "shrink-0 font-mono text-[11px]",
                         incompleteSets ? "text-fitness-warning" : "text-muted-foreground/70",
                       )}>
-                        {isSkipped
-                          ? t('dayplan.badgeMissed')
-                          : t('workout.setsProgress', { done: completed.length, total: sets.length })}
+                        {t('workout.setsProgress', { done: completed.length, total: sets.length })}
                       </span>
                     </div>
                     {maxExerciseTonnageKg > 0 && (
@@ -3407,18 +3417,18 @@ const WorkoutDay = () => {
           press-and-hold zawodził na siłowni — drgnięcie palca anulowało hold). */}
       {isWorkoutStarted && !isCompleted && (
         showCompleteConfirm ? (
-          <div className="flex gap-2">
+          <div className="flex flex-col-reverse gap-2">
             <Button
               size="lg"
               variant="outline"
-              className="h-14 flex-1"
+              className="h-12 w-full"
               onClick={() => setShowCompleteConfirm(false)}
             >
               {t('common.cancel')}
             </Button>
             <Button
               size="lg"
-              className="kinetic-primary-button h-14 flex-1 hover:brightness-105"
+              className="kinetic-primary-button min-h-14 w-full whitespace-normal px-4 text-center text-sm leading-tight hover:brightness-105"
               onClick={handleCompleteWorkout}
               disabled={isExplicitSaving}
             >

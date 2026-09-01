@@ -78,20 +78,21 @@ describe('PaletteThemeV2: addytywna migracja i runtime', () => {
     }
   });
 
-  it('pełna paleta przeżywa cold start i nie dotyka kolorów statusowych', () => {
+  it('cold start normalizuje dawną paletę do stałego motywu lime', () => {
     const root = document.documentElement;
     storePaletteTheme(PALETTE_THEMES[1]);
     applyStoredAccent();
 
-    expect(readStoredPaletteTheme()?.id).toBe('forge');
-    expect(localStorage.getItem('ss-accent-color')).toBe('#ff6b35');
-    expect(root.dataset.palette).toBe('forge');
-    expect(root.style.getPropertyValue('--primary')).not.toBe('');
-    expect(root.style.getPropertyValue('--palette-support-a')).not.toBe('');
-    expect(root.style.getPropertyValue('--palette-support-b')).not.toBe('');
-    expect(root.style.getPropertyValue('--chart-1')).toBe(root.style.getPropertyValue('--palette-primary'));
-    expect(root.style.getPropertyValue('--chart-2')).toBe(root.style.getPropertyValue('--palette-support-a'));
-    expect(root.style.getPropertyValue('--chart-3')).toBe(root.style.getPropertyValue('--palette-support-b'));
+    expect(readStoredPaletteTheme()).toBeNull();
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
+    expect(root.dataset.palette).toBeUndefined();
+    expect(root.dataset.accent).toBeUndefined();
+    expect(root.style.getPropertyValue('--primary')).toBe('');
+    expect(root.style.getPropertyValue('--palette-support-a')).toBe('');
+    expect(root.style.getPropertyValue('--palette-support-b')).toBe('');
+    expect(root.style.getPropertyValue('--chart-1')).toBe('');
+    expect(root.style.getPropertyValue('--chart-2')).toBe('');
+    expect(root.style.getPropertyValue('--chart-3')).toBe('');
     expect(root.style.getPropertyValue('--fitness-success')).toBe('');
     expect(root.style.getPropertyValue('--fitness-warning')).toBe('');
     expect(root.style.getPropertyValue('--destructive')).toBe('');

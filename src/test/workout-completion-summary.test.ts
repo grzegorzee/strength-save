@@ -53,6 +53,28 @@ describe('computeCompletionSummary', () => {
     expect(summary.planPct).toBe(75);
   });
 
+  it('pominięte ćwiczenie nie wnosi starych serii ani tonażu do podsumowania', () => {
+    const summary = computeCompletionSummary({
+      exerciseSets: {
+        kept: [set(10, 20)],
+        skipped: [set(10, 86)],
+      },
+      dayExercises: [
+        { id: 'kept', sets: '1 x 10' },
+        { id: 'skipped', sets: '1 x 10' },
+      ],
+      skippedExercises: ['skipped'],
+      workouts: [],
+      sessionId: 's1',
+      dayId: 'adhoc',
+    });
+
+    expect(summary.completedSets).toBe(1);
+    expect(summary.volumeKg).toBe(200);
+    expect(summary.plannedSets).toBe(1);
+    expect(summary.planPct).toBe(100);
+  });
+
   it('bez dnia planu plan i procent są null', () => {
     const summary = computeCompletionSummary({
       exerciseSets: { 'ex-1': [set(8, 100)] },

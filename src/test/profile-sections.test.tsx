@@ -172,12 +172,12 @@ const openMoreColors = () => {
 };
 
 const PROFILE_SECTIONS = [
-  'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
+  'Trening', 'Timer i przerwy',
   'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
   'Konto i pomoc',
 ];
 const COLLAPSIBLE_IDS = [
-  'accent', 'training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account',
+  'training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account',
 ];
 const GROUPED_TARGET_IDS = ['plates', 'trainer', 'backup', 'consents'];
 
@@ -203,10 +203,10 @@ const renderSheet = () =>
   );
 
 describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
-  it('pokazuje najwyżej 8 logicznych grup zamiast 12 równorzędnych decyzji', () => {
+  it('pokazuje 7 logicznych grup bez wycofanej sekcji wyglądu', () => {
     const { container } = renderProfile();
     expect(sectionLabels(container)).toEqual(PROFILE_SECTIONS);
-    expect(container.querySelectorAll('section[data-state]')).toHaveLength(8);
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(7);
   });
 
   it('każda grupa ma kotwicę, a zgrupowane funkcje montują swoje stare kotwice dopiero po otwarciu rodzica', () => {
@@ -236,13 +236,9 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByTestId('plate-inventory-settings')).toBeNull();
     expect(queryByTestId('backup-settings')).toBeNull();
     expect(queryByTestId('consent-marketing-toggle')).toBeNull();
-    // Edytor wyglądu nie dominuje Profilu; pojawia się dopiero po jawnej akcji.
+    // Wersja 1.0 ma jeden motyw: w Profilu nie ma wycofanego edytora wyglądu.
     expect(queryByTestId('accent-swatches')).toBeNull();
-    const appearanceToggle = screen.getByTestId('profile-toggle-accent');
-    expect(appearanceToggle.textContent).toContain('Kolor przewodni aplikacji');
-    expect(appearanceToggle.className).toContain('focus-visible:ring-2');
-    expect(appearanceToggle.className).toContain('touch-manipulation');
-    expect(screen.getByTestId('profile-accent-preview').children).toHaveLength(1);
+    expect(queryByTestId('profile-toggle-accent')).toBeNull();
     COLLAPSIBLE_IDS.forEach((id) => {
       const trigger = screen.getByTestId(`profile-toggle-${id}`);
       expect(trigger.className).toContain('min-h-[50px]');
@@ -419,7 +415,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(within(notif).getAllByText('Powiadomienia')).toHaveLength(1);
   });
 
-  it('F-T2: sekcja Kolor przewodni rozwija edytor na żądanie; wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
+  it.skip('F-T2: historyczna sekcja koloru (usunięta w 1.0)', async () => {
     // Plan I: paleta wg wzoru właściciela — cyan zastąpiony przez sky (#29b6f6).
     const { getByTestId } = renderProfile();
     expect(screen.queryByTestId('accent-swatches')).toBeNull();
@@ -440,7 +436,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
   });
 
-  it('legacy kolory w Profilu mają jeden tab stop, wybór strzałkami i mobilny target', () => {
+  it.skip('legacy kolory w Profilu mają jeden tab stop, wybór strzałkami i mobilny target', () => {
     renderProfile();
     openSection('accent');
     openMoreColors();
@@ -457,7 +453,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
 
   // A2 (X70, decyzja właściciela): tap na kartę zapisuje OD RAZU — bez
   // przycisków Anuluj/Zatwierdź (zmiana kontraktu ze starego preview/confirm).
-  it('PaletteThemeV2: tap na kartę od razu zapisuje pełną paletę i fallback accentColor, bez przycisków preview', async () => {
+  it.skip('PaletteThemeV2: historyczny zapis palety', async () => {
     renderProfile();
     openSection('accent');
     fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
@@ -483,7 +479,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(screen.getByTestId('palette-forge-selected')).toHaveTextContent('Aktywna');
   });
 
-  it('PaletteThemeV2 offline: porażka mirroru zostawia trwały outbox presetu', async () => {
+  it.skip('PaletteThemeV2 offline: historyczny outbox', async () => {
     firestoreFixture.updateDoc.mockRejectedValueOnce(new Error('offline'));
     renderProfile();
     openSection('accent');
@@ -493,7 +489,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(readPalettePreferenceOutbox('u1')?.palette.id).toBe('forge');
   });
 
-  it('A2: zamknięcie i ponowne otwarcie sekcji NICZEGO nie cofa — tapnięta paleta zostaje', async () => {
+  it.skip('A2: historyczne ponowne otwarcie palety', async () => {
     renderProfile();
     openSection('accent');
     fireEvent.click(screen.getByRole('radio', { name: /Forge/ }));
@@ -511,7 +507,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
   // A1 (X70): ack własnego zapisu (świeży OBIEKT o starej/tej samej treści z
   // listenera includeMetadataChanges) nie może cofnąć świeżo wybranej palety;
   // realna zmiana z innego urządzenia nadal się aplikuje. Test SEKWENCJI.
-  it('A1 sekwencja: zatwierdzony Forge przeżywa stary ack z Pulse, a snapshot z Glacier się aplikuje', async () => {
+  it.skip('A1 sekwencja historycznych palet', async () => {
     const baseProfile = { displayName: 'Tester', email: 'tester@example.com', photoURL: null };
     const withPalette = (palette: typeof PALETTE_THEMES[number]) => ({
       ...baseProfile,
@@ -555,7 +551,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
 
   // D1 (X70): legacy siatka + hex za poziomem "Więcej kolorów", domyślnie
   // zwiniętym i niezamontowanym; deep link ?section=accent dalej działa.
-  it('D1: swatche i hex niezamontowane do rozwinięcia "Więcej kolorów"; drugi klik zwija', () => {
+  it.skip('D1: historyczne swatche i hex', () => {
     renderProfile();
     openSection('accent');
     const toggle = screen.getByTestId('accent-more-colors-toggle');
@@ -572,7 +568,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(screen.queryByTestId('accent-swatches')).toBeNull();
   });
 
-  it('D1: deep link ?section=accent rozwija sekcję koloru i przewija do niej', async () => {
+  it.skip('D1: historyczny deep link sekcji koloru', async () => {
     const scrollSpy = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollSpy;
     renderProfile('/profile?section=accent');
@@ -581,7 +577,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(screen.getByTestId('palette-theme-picker')).toBeTruthy();
   });
 
-  it('F-T2b: własny kolor po hex — walidacja i zastosowanie + mirror', async () => {
+  it.skip('F-T2b: historyczny własny kolor po hex', async () => {
     const { getByTestId } = renderProfile();
     openSection('accent');
     openMoreColors();
@@ -631,10 +627,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     const timer = sectionByLabel(container, 'Timer i przerwy');
     ['Timer przerwy', 'Dźwięk timera'].forEach((l) => expect(within(timer).getByLabelText(l)).toBeTruthy());
     expect(within(timer).getByLabelText('Przerwa między seriami')).toBeTruthy();
-    // KOLOR AKCENTU: swatche + custom + hex (testidy e2e) — za "Więcej kolorów" (D1).
-    openMoreColors();
-    ['accent-swatches', 'accent-custom', 'accent-hex-input', 'accent-hex-apply']
-      .forEach((id) => expect(getByTestId(id)).toBeTruthy());
+    // Wycofany edytor wyglądu nie może wrócić do Profilu.
+    expect(screen.queryByTestId('profile-toggle-accent')).toBeNull();
     // KALKULATOR TALERZY: inwentarz (bez własnego nagłówka w karcie).
     expect(within(subsectionById(container, 'plates')).getByLabelText('Sztuk 25')).toBeTruthy();
     // SUBSKRYPCJA (admin → "Pełny dostęp" w wierszu i w środku)

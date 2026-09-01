@@ -1,7 +1,6 @@
-// Plan I (2026-08-20): wybór koloru aplikacji w kroku Welcome onboardingu.
-// Warunki właściciela: bez osobnego kroku, tylko paleta, LIVE PREVIEW od
-// kliknięcia. Niezmiennik (zasada #5): bieg bez dotknięcia kolorów = świeża
-// paleta Pulse i onboarding działa jak dotąd.
+// Decyzja 1.0 (2026-09-01): jeden stały kolor marki, bez wyboru palet.
+// Niezmiennik (zasada #5): dawny zapis palety lub akcentu nie może zmienić
+// motywu ani zepsuć dotychczasowego przepływu onboardingu.
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { advanceWizardToStep6, blockFirebase, expectPageRendered, navigateAndWait, setE2EAuthScenario } from './helpers';
 
@@ -32,32 +31,24 @@ const phoneViewports = [
   { width: 390, height: 844 },
 ] as const;
 
-test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
+test.describe('Onboarding: stały kolor marki', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
     await setE2EAuthScenario(page, 'new-user');
   });
 
-  test('kropki przy pytaniu o imię: klik indigo przebarwia ekran NATYCHMIAST i kolor trzyma się przez kroki wizarda', async ({ page }) => {
+  test('nie pokazuje wyboru palety, a lime trzyma się przez kroki wizarda', async ({ page }) => {
     await navigateAndWait(page, '/');
 
-    // Główna ścieżka pokazuje trzy gotowe palety; dodatkowe kropki są na żądanie.
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
-    await expect(page.getByTestId('palette-theme-picker').getByRole('radio')).toHaveCount(3);
-    await expect(page.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('palette-theme-picker')).toHaveCount(0);
     await expect(page.getByTestId('ob-accent-swatches')).toHaveCount(0);
-    await page.getByTestId('ob-custom-colors-toggle').click();
-    await expect(page.getByTestId('ob-accent-swatches')).toBeVisible();
-    await expect(page.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'false');
-    await expect(page.getByTestId('ob-accent-swatches').getByRole('radio')).toHaveCount(11);
+    await expect(page.getByTestId('ob-custom-colors-toggle')).toHaveCount(0);
+    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('lime');
 
-    // LIVE PREVIEW: klik = natychmiastowa zmiana tokenów + localStorage.
-    await page.getByTestId('ob-accent-indigo').click();
-    expect(await primaryVar(page)).toBe('235 86% 65%');
-    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('indigo');
-
-    // Kolor trzyma się przez kolejne kroki wizarda aż do podglądu planu.
+    // Kolor marki trzyma się przez kolejne kroki wizarda aż do podglądu planu.
     await page.getByTestId('ob-personalization-next').click();
     await page.getByTestId('consent-terms').click();
     await page.getByTestId('consent-privacy').click();
@@ -65,20 +56,20 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
     await page.getByTestId('ob-legal-submit').click();
     // X34: 5A (wybór) -> 6/6 (Start planu) -> "Podgląd planu".
     await advanceWizardToStep6(page);
-    expect(await primaryVar(page)).toBe('235 86% 65%');
+    expect(await primaryVar(page)).toBe('73 97% 56%');
     await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
-    expect(await primaryVar(page)).toBe('235 86% 65%');
+    expect(await primaryVar(page)).toBe('73 97% 56%');
   });
 
-  test('NIEZMIENNIK: bieg bez dotknięcia kolorów = paleta Pulse, Welcome działa jak dotąd', async ({ page }) => {
+  test('NIEZMIENNIK: bieg bez ustawień koloru przechodzi przez Welcome jak dotąd', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
-    await expect(page.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('palette-theme-picker')).toHaveCount(0);
     await expect(page.getByTestId('ob-accent-swatches')).toHaveCount(0);
-    expect(await primaryVar(page)).toBe('73 100% 50%');
-    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('#c6ff00');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ss-palette-theme-v2') ?? 'null')?.id)).toBe('pulse');
+    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('lime');
+    expect(await page.evaluate(() => localStorage.getItem('ss-palette-theme-v2'))).toBeNull();
 
     await page.getByTestId('ob-personalization-next').click();
     await page.getByTestId('consent-terms').click();
@@ -86,8 +77,8 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
     await page.getByTestId('consent-health').click();
     await page.getByTestId('ob-legal-submit').click();
     await expect(page.getByRole('button', { name: 'Następny krok' })).toBeVisible();
-    expect(await primaryVar(page)).toBe('73 100% 50%');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ss-palette-theme-v2') ?? 'null')?.id)).toBe('pulse');
+    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-palette-theme-v2'))).toBeNull();
   });
 
   test('tryb podstawowy przechodzi dalej bez zaznaczenia funkcji zdrowotnych', async ({ page }) => {
@@ -136,10 +127,8 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
   }
 });
 
-test.describe('Po onboardingu: Dashboard w wybranym kolorze (plan I)', () => {
-  test('stan po dokończeniu onboardingu z indigo: Dashboard przebarwiony od splashu', async ({ page }) => {
-    // Onboarding zostawia ss-accent-color w localStorage (+ mirror w profilu);
-    // scenariusz active-user symuluje konto tuż po dokończeniu onboardingu.
+test.describe('Po onboardingu: Dashboard w stałym kolorze marki', () => {
+  test('dawny zapis indigo jest normalizowany do lime już od splashu', async ({ page }) => {
     await blockFirebase(page);
     await page.addInitScript(() => {
       localStorage.setItem('app-language', 'pl');
@@ -148,10 +137,10 @@ test.describe('Po onboardingu: Dashboard w wybranym kolorze (plan I)', () => {
     await setE2EAuthScenario(page, 'active-user');
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
-    expect(await primaryVar(page)).toBe('235 86% 65%');
-    // Ciemny akcent = jasny tekst na CTA (kontrast per luminancja).
+    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('lime');
     expect(await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--primary-foreground').trim(),
-    )).toBe('0 0% 100%');
+    )).toBe('0 0% 6%');
   });
 });

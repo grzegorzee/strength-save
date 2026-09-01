@@ -146,52 +146,19 @@ describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
     expect(screen.queryByTestId('ob-match-next')).toBeNull();
   });
 
-  it('wybrany indigo ląduje w preferences.accentColor przy markOnboardingComplete', async () => {
+  it('wersja 1.0 zapisuje stały motyw lime i nie pokazuje wyboru kolorów', async () => {
     render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
-    fireEvent.click(screen.getByTestId('ob-accent-indigo'));
+    expect(screen.queryByTestId('ob-custom-colors-toggle')).toBeNull();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
     await walkWizardToConfirm();
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+    const calls = updateDoc.mock.calls as unknown as Array<[unknown, Record<string, unknown>]>;
+    const onboardingPatch = calls.find(([, patch]) => patch.onboardingCompleted)?.[1];
+    expect(onboardingPatch).toEqual(expect.objectContaining({
       onboardingCompleted: true,
-      'preferences.accentColor': 'indigo',
+      'preferences.accentColor': 'lime',
     }));
+    expect(onboardingPatch).not.toHaveProperty('preferences.paletteTheme');
     expect(trackTelemetryEvent).toHaveBeenCalledWith('u1', 'onboarding_completed');
-  });
-
-  it('wybrana jednym tapnięciem Glacier zapisuje PaletteThemeV2 oraz primary dla starego klienta', async () => {
-    render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByRole('radio', { name: /Glacier/ }));
-    await walkWizardToConfirm();
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      onboardingCompleted: true,
-      'preferences.accentColor': '#38bdf8',
-      'preferences.paletteTheme': {
-        version: 2,
-        id: 'glacier',
-        source: 'preset',
-        primary: '#38bdf8',
-        supportA: '#818cf8',
-        supportB: '#2dd4bf',
-      },
-    }));
-  });
-
-  it('bieg bez dotknięcia kolorów ma zaznaczone Pulse i zapisuje pełną paletę', async () => {
-    render(withProviders(<Onboarding />));
-    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
-    await walkWizardToConfirm();
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      onboardingCompleted: true,
-      'preferences.accentColor': '#c6ff00',
-      'preferences.paletteTheme': {
-        version: 2,
-        id: 'pulse',
-        source: 'preset',
-        primary: '#c6ff00',
-        supportA: '#22d3ee',
-        supportB: '#a78bfa',
-      },
-    }));
   });
 });
 
@@ -202,20 +169,17 @@ describe('Onboarding: avatar bez analizy kolorów w 1.0', () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.googleusercontent.com/a.jpg' };
     deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
     render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
     expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
     expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
-    expect(localStorage.getItem('ss-accent-color')).toBe('#c6ff00');
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
   });
 
   it('brak photoURL: automat NIE odpala się', async () => {
     render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
     await Promise.resolve();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
   });
 
   it('avatar spoza Google również nie pokazuje CTA analizy kolorów', async () => {
@@ -224,10 +188,9 @@ describe('Onboarding: avatar bez analizy kolorów w 1.0', () => {
       photoURL: 'https://firebasestorage.googleapis.com/v0/b/user-avatar.jpg',
     };
     render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
 
     expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
   });
 });

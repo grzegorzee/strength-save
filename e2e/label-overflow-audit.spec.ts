@@ -145,7 +145,7 @@ for (const language of ['pl', 'en'] as const) {
     issues.push(...await inspectInteractiveLabels(page, '/history#export', language));
 
     await navigateAndWait(page, '/profile');
-    for (const section of ['accent', 'training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account']) {
+    for (const section of ['training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account']) {
       await openProfileSection(page, section);
       issues.push(...await inspectInteractiveLabels(page, `/profile#${section}`, language));
     }

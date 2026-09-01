@@ -50,7 +50,7 @@ describe('PreferenceSync: avatar nie jest wtórnie przetwarzany bez zgody', () =
     await Promise.resolve();
     expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();
-    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
   });
 
   it('accentColor w profilu (nawet limonka) pozostaje nietknięty', async () => {
@@ -61,16 +61,16 @@ describe('PreferenceSync: avatar nie jest wtórnie przetwarzany bez zgody', () =
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
-  it('cloud accent jest stosowany globalnie przed wejściem w Profil', async () => {
+  it('cloud accent nie nadpisuje stałego motywu aplikacji', async () => {
     localStorage.setItem('ss-accent-color', 'rose');
     mockProfile.current = { uid: 'u1', photoURL: '', preferences: { accentColor: 'indigo' } };
 
     render(<PreferenceSync />);
     await Promise.resolve();
 
-    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
-    expect(document.documentElement.dataset.accent).toBe('indigo');
-    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('235 86% 65%');
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
+    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
     const accentWrites = updateDoc.mock.calls
       .map((call) => (call as unknown as [unknown, Record<string, unknown>])[1])
       .filter((patch) => 'preferences.accentColor' in patch);
@@ -101,7 +101,7 @@ describe('PreferenceSync: avatar nie jest wtórnie przetwarzany bez zgody', () =
     render(<PreferenceSync />);
     await Promise.resolve();
 
-    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
     expect(localStorage.getItem('ss-palette-theme-v2')).toBeNull();
     expect(localStorage.getItem('ss-theme-owner-v1')).toBe('user-b');
     expect(document.documentElement.dataset.accent).toBeUndefined();
@@ -116,14 +116,14 @@ describe('PreferenceSync: avatar nie jest wtórnie przetwarzany bez zgody', () =
 
     const view = render(<PreferenceSync />);
     await Promise.resolve();
-    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
 
     mockProfile.uid = 'user-b';
     mockProfile.current = { uid: 'user-b', photoURL: '', preferences: undefined };
     view.rerender(<PreferenceSync />);
     await Promise.resolve();
 
-    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
     expect(localStorage.getItem('ss-theme-owner-v1')).toBe('user-b');
   });
 

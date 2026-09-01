@@ -13,16 +13,6 @@ import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { buildFirstWorkoutSchedule, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
-import { ACCENTS, getAccentById, hasStoredAccent, readStoredAccentId, type AccentTheme } from '@/lib/accent-theme';
-import { PaletteThemePicker } from '@/components/PaletteThemePicker';
-import {
-  PALETTE_THEMES,
-  applyPaletteTheme,
-  readStoredPaletteTheme,
-  selectLegacyAccent,
-  storePaletteTheme,
-  type PaletteThemeV2,
-} from '@/lib/palette-theme';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, hasExactWeekdaySelection, planDaysMismatch, uniqueSortedWeekdays, WEEKDAYS } from '@/lib/plan-cycle-utils';
 import type { OnboardingDraftInput, OnboardingDraftV1 } from '@/lib/onboarding-draft';
@@ -271,67 +261,12 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       : initialDraft?.planSource ? initialDraft.planSource === 'browsed'
         : Boolean(resume?.templateId ?? initialDraft?.templateId));
   const [userName, setUserName] = useState(resume?.name ?? initialDraft?.name ?? initialName ?? '');
-  // Plan I: wybór koloru aplikacji na Welcome (tylko askName = onboarding).
-  // getAccentById normalizuje stare aliasy; live preview = applyAccent od razu.
-  const [initialTheme] = useState(() => {
-    const storedPalette = readStoredPaletteTheme();
-    if (storedPalette) return { palette: storedPalette, persistDefault: false };
-    if (askName && !hasStoredAccent()) {
-      return { palette: PALETTE_THEMES[0] as PaletteThemeV2, persistDefault: true };
-    }
-    return { palette: null, persistDefault: false };
-  });
-  const [accentId, setAccentId] = useState(() => (
-    initialTheme.palette?.primary ?? getAccentById(initialDraft?.accentId ?? readStoredAccentId()).id
-  ));
-  const [paletteTheme, setPaletteTheme] = useState<PaletteThemeV2 | null>(initialTheme.palette);
-  useEffect(() => {
-    if (!initialTheme.persistDefault || !initialTheme.palette) return;
-    const stored = storePaletteTheme(initialTheme.palette);
-    if (stored) applyPaletteTheme(stored);
-  }, [initialTheme]);
-  const pickAccent = (id: string) => {
-    selectLegacyAccent(id);
-    setPaletteTheme(null);
-    setAccentId(id);
-  };
-  const pickPalette = (palette: PaletteThemeV2) => {
-    setPaletteTheme(palette);
-    setAccentId(palette.primary);
-  };
-  const [showCustomColors, setShowCustomColors] = useState(false);
+  // Wersja 1.0: jeden rozpoznawalny motyw, bez ustawień palet. Pole pozostaje
+  // w szkicu tylko dla zgodności danych ze starszymi, niedokończonymi wizardami.
+  const accentId = 'lime';
   const [avatarBroken, setAvatarBroken] = useState(false);
   const greetingName = userName.trim();
   const avatarInitial = (greetingName || accountEmail?.trim() || '').charAt(0).toUpperCase();
-  const renderAccentSwatch = (a: AccentTheme) => (
-    <button
-      key={a.id}
-      type="button"
-      role="radio"
-      aria-checked={accentId === a.id}
-      tabIndex={accentId === a.id || (!ACCENTS.some((accent) => accent.id === accentId) && ACCENTS[0]?.id === a.id) ? 0 : -1}
-      aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
-      data-testid={`ob-accent-${a.id}`}
-      onClick={() => pickAccent(a.id)}
-      onKeyDown={(event) => {
-        if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-        event.preventDefault();
-        const group = event.currentTarget.closest('[role="radiogroup"]');
-        const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
-        if (!radios.length) return;
-        const current = radios.indexOf(event.currentTarget);
-        const next = event.key === 'Home'
-          ? 0
-          : event.key === 'End'
-            ? radios.length - 1
-            : (current + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + radios.length) % radios.length;
-        radios[next]?.focus();
-        radios[next]?.click();
-      }}
-      className={`h-11 w-11 rounded-full transition-transform active:scale-95 ${accentId === a.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
-      style={{ backgroundColor: a.hex }}
-    />
-  );
   // Powrót z podglądu (resume) = zgody były już zaznaczone (i zapisane) przy pierwszym przejściu kroku 1.
   const [consents, setConsents] = useState<ConsentSelection>(
     resume || legalConsentAlreadyRecorded ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,
@@ -664,36 +599,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     placeholder={t('ob.welcome.namePlaceholder')}
                     className="w-full rounded-2xl bg-surface-low px-4 py-3.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary"
                   />
-                  {/* Plan I: kolor aplikacji przy pytaniu o imię — tylko paleta
-                      (custom hex zostaje w Profilu), klik = live preview. */}
-                  <p className="mt-5 mb-2 block text-xs font-medium uppercase tracking-widest text-muted-foreground">{t('ob.welcome.colorQ')}</p>
-                  <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{t('palette.compactDescription')}</p>
-                  <PaletteThemePicker
-                    currentAccentId={accentId}
-                    currentPalette={paletteTheme}
-                    onConfirm={pickPalette}
-                    compact
-                  />
-                  <button
-                    type="button"
-                    data-testid="ob-custom-colors-toggle"
-                    aria-expanded={showCustomColors}
-                    aria-controls="ob-custom-colors"
-                    className="mt-3 min-h-11 w-full rounded-xl border border-muted-foreground px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => setShowCustomColors((visible) => !visible)}
-                  >
-                    {showCustomColors ? t('ob.welcome.customColorsHide') : t('ob.welcome.customColorsShow')}
-                  </button>
-                  {showCustomColors && (
-                    <div id="ob-custom-colors" className="mt-4">
-                      <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                        {t('palette.legacyTitle')}
-                      </p>
-                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('ob.welcome.colorQ')} data-testid="ob-accent-swatches">
-                        {ACCENTS.map(renderAccentSwatch)}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
                 </div>

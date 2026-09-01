@@ -144,7 +144,9 @@ const lockKey = (userId: string, sessionId: string): string => `${userId}::${ses
 // Payload ćwiczeń budowany z draftu (jedyne źródło treści). Przeniesione z martwego
 // modułu sync-center-payload.ts (R2-32) — silnik jest jedynym konsumentem.
 export const buildDraftExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSaveExercise[] => (
-  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({
+  Object.entries(draft.exerciseSets)
+    .filter(([exerciseId]) => !draft.skippedExercises.includes(exerciseId))
+    .map(([exerciseId, sets]) => ({
     exerciseId,
     sets,
     ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),
@@ -154,7 +156,9 @@ export const buildDraftExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSa
 );
 
 export const buildDraftBaseExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSaveExercise[] => (
-  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({
+  Object.entries(draft.exerciseSets)
+    .filter(([exerciseId]) => !draft.skippedExercises.includes(exerciseId))
+    .map(([exerciseId, sets]) => ({
     exerciseId,
     sets,
     ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),

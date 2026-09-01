@@ -228,7 +228,7 @@ describe('PlanWizard Welcome (Z231 + pakiet prawny v2)', () => {
 // Plan I (2026-08-20): wybór koloru aplikacji na Welcome przy pytaniu o imię.
 // Warunki właściciela: bez osobnego kroku, tylko paleta (bez custom hex),
 // live preview od kliknięcia (applyAccent + storeAccentId natychmiast).
-describe('PlanWizard Welcome: wybór koloru (plan I)', () => {
+describe.skip('PlanWizard Welcome: historyczny wybór koloru (usunięty w 1.0)', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
@@ -334,13 +334,23 @@ describe('PlanWizard Welcome: wybór koloru (plan I)', () => {
   });
 });
 
+describe('PlanWizard Welcome: stały motyw 1.0', () => {
+  it('nie pokazuje palet ani dodatkowych kolorów i zachowuje przejście onboardingu', async () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.queryByTestId('ob-custom-colors-toggle')).toBeNull();
+    expect(screen.queryByTestId('ob-accent-swatches')).toBeNull();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    acceptLegalView();
+    await screen.findByRole('button', { name: /Następny krok/ });
+  });
+});
+
 // Kontrakt 1.0: avatar personalizuje powitanie, ale nie jest analizowany.
 // Google, Apple i e-mail dostają ten sam prosty wybór gotowych motywów.
 describe('PlanWizard Welcome: avatar i imię bez analizy zdjęcia w 1.0', () => {
   const photoURL = 'https://lh3.googleusercontent.com/avatar.jpg';
-  const radioOrder = () => Array.from(
-    screen.getByTestId('ob-accent-swatches').querySelectorAll('[role="radio"]'),
-  ).map((el) => el.getAttribute('data-testid'));
   beforeEach(() => {
     vi.clearAllMocks();
     deriveAccentCandidatesFromAvatar.mockResolvedValue([]);
@@ -408,24 +418,19 @@ describe('PlanWizard Welcome: avatar i imię bez analizy zdjęcia w 1.0', () => 
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
-    openCustomColors();
     expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
     expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(radioOrder()).toEqual(ACCENTS.map((a) => `ob-accent-${a.id}`));
-    expect(radioOrder()).toHaveLength(ACCENTS.length);
-    expect(screen.getByRole('radio', { name: /Pulse/ })).toHaveAttribute('aria-checked', 'true');
-    expect(readStoredPaletteTheme()?.id).toBe('pulse');
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
   });
 
-  it('wcześniejszy wybór pozostaje zaznaczony przy avatarze Google', () => {
+  it('wcześniejszy wybór nie wraca do interfejsu przy avatarze Google', () => {
     localStorage.setItem('ss-accent-color', 'indigo');
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
-    openCustomColors();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByTestId('ob-accent-indigo')).toBeNull();
     expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
   });
 

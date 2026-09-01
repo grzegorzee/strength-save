@@ -143,34 +143,68 @@ interface ExerciseCardProps {
   onRestStart?: (exerciseId: string, seconds: number) => void;
 }
 
-// Input czasu mm:ss (Z105): lokalny draft, parse dopiero na blur/Enter —
-// parsowanie per znak psułoby edycję ("1:3" -> 63 -> "1:03").
-const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder, className }: {
+// Czas jako dwa pola numeryczne z trwałym separatorem. iOS-owa klawiatura
+// numeryczna nie ma dwukropka, więc pojedynczy input mm:ss blokował wpisanie 1:15.
+const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, minuteLabel, secondLabel, placeholder, className }: {
   valueSec?: number;
   onCommit: (sec: number) => void;
   disabled?: boolean;
   ariaLabel: string;
+  minuteLabel: string;
+  secondLabel: string;
   placeholder?: string;
   className?: string;
 }) => {
-  const [draft, setDraft] = useState<string | null>(null);
+  const fallbackSec = parseDurationInput(placeholder ?? '') || 0;
+  const currentSec = valueSec ?? fallbackSec;
+  const [minutesDraft, setMinutesDraft] = useState<string | null>(null);
+  const [secondsDraft, setSecondsDraft] = useState<string | null>(null);
+  const minutes = Math.floor(currentSec / 60);
+  const seconds = currentSec % 60;
+  const commit = (nextMinutes: number, nextSeconds: number) => {
+    const safeMinutes = Math.max(0, Math.min(99, Math.floor(nextMinutes || 0)));
+    const safeSeconds = Math.max(0, Math.min(59, Math.floor(nextSeconds || 0)));
+    onCommit(safeMinutes * 60 + safeSeconds);
+  };
   return (
-    <Input
-      type="text"
-      inputMode="numeric"
-      value={draft ?? formatDurationSec(valueSec)}
-      onChange={(e) => setDraft(e.target.value)}
-      onFocus={() => setDraft(formatDurationSec(valueSec))}
-      onBlur={() => {
-        if (draft !== null) onCommit(parseDurationInput(draft));
-        setDraft(null);
-      }}
-      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-      placeholder={placeholder ?? '1:30'}
-      disabled={disabled}
+    <div
+      role="group"
       aria-label={ariaLabel}
-      className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', className)}
-    />
+      className={cn('exercise-card-input flex h-12 min-w-0 items-center justify-center gap-0.5 overflow-hidden px-1', className)}
+    >
+      <input
+        type="text"
+        inputMode="numeric"
+        enterKeyHint="next"
+        value={minutesDraft ?? String(minutes)}
+        onChange={(event) => {
+          const raw = event.target.value.replace(/\D/g, '').slice(0, 2);
+          setMinutesDraft(raw);
+          commit(Number(raw), Number(secondsDraft ?? seconds));
+        }}
+        onBlur={() => setMinutesDraft(null)}
+        disabled={disabled}
+        aria-label={minuteLabel}
+        className="h-10 min-w-0 w-[2.2ch] bg-transparent text-right text-base font-bold tabular-nums outline-none"
+      />
+      <span aria-hidden="true" className="shrink-0 text-base font-bold tabular-nums">:</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        enterKeyHint="done"
+        value={secondsDraft ?? String(seconds).padStart(2, '0')}
+        onChange={(event) => {
+          const raw = event.target.value.replace(/\D/g, '').slice(0, 2);
+          setSecondsDraft(raw);
+          commit(Number(minutesDraft ?? minutes), Number(raw));
+        }}
+        onBlur={() => setSecondsDraft(null)}
+        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+        disabled={disabled}
+        aria-label={secondLabel}
+        className="h-10 min-w-0 w-[2.2ch] bg-transparent text-left text-base font-bold tabular-nums outline-none"
+      />
+    </div>
   );
 };
 
@@ -872,6 +906,8 @@ const ExerciseCardInner = ({
               onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
               disabled={!isEditable}
               ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDuration')}`}
+              minuteLabel={t('card.minutes')}
+              secondLabel={t('card.seconds')}
               placeholder={formatDurationSec(targetSec)}
               className={cn(warmupInputClass, activeInputClass)}
             />
@@ -1157,7 +1193,7 @@ const ExerciseCardInner = ({
           )}
 
           <div className="min-w-0">
-            <h3 className="font-heading text-lg font-bold leading-tight line-clamp-2">{localizedName}</h3>
+            <h3 className="break-words font-heading text-lg font-bold leading-tight">{localizedName}</h3>
             {/* Fala 2 (2026-08-20, mockup 2a): jedna mono linia metadanych.
                 B-T2 bez zmian: estymacja zawsze z widocznym źródłem (formatEst1RMBadge). */}
             <p className="mt-1 font-mono text-[11px] uppercase leading-snug tracking-[0.06em] text-muted-foreground" title={t('card.maxLiftTitle')}>

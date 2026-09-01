@@ -87,6 +87,17 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(phases[2].textContent).toContain('× 15');
   });
 
+  it('długi tytuł ma pełną szerokość, a dawkę pod ćwiczeniem', () => {
+    renderDialog();
+    const firstItem = screen.getAllByTestId('warmup-item')[0];
+    const content = firstItem.querySelector('[data-testid="warmup-item-content"]');
+    const dose = firstItem.querySelector('[data-testid="warmup-item-dose"]');
+
+    expect(content).toHaveClass('min-w-0', 'flex-col');
+    expect(dose?.parentElement).toBe(content);
+    expect(dose).toHaveClass('self-start');
+  });
+
   it('X37: aktywna = pierwsza nieodhaczona; "Dalej" odhacza ją (onToggle z jej kluczem)', () => {
     const onToggle = vi.fn();
     renderDialog({ onToggle, checked: new Set(['warmup.v3.cardioEasy']) });

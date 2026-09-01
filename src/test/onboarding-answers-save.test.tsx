@@ -90,8 +90,6 @@ beforeEach(() => {
 describe('Onboarding: zapis onboardingAnswers przy markOnboardingComplete (WP-O)', () => {
   it('snapshot v2 z kompletem odpowiedzi (rekomendacja, domyślne wartości kreatora)', async () => {
     render(withProviders(<Onboarding />));
-    fireEvent.click(screen.getByTestId('ob-custom-colors-toggle'));
-    fireEvent.click(screen.getByTestId('ob-accent-indigo'));
     await walkWizardToConfirm();
 
     const choice = completeOnboardingPlan.mock.calls[0][0];
@@ -100,7 +98,7 @@ describe('Onboarding: zapis onboardingAnswers przy markOnboardingComplete (WP-O)
       version: ONBOARDING_ANSWERS_VERSION,
       completedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       name: 'Grzegorz',
-      accentColor: 'indigo',
+      accentColor: 'lime',
       level: 'beginner',
       objective: 'build_muscle',
       daysPerWeek: 4,
@@ -154,7 +152,7 @@ describe('Onboarding: zapis onboardingAnswers przy markOnboardingComplete (WP-O)
     expect(lastUpdatePayload()).toMatchObject({
       onboardingCompleted: true,
       trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 4 },
-      'preferences.accentColor': '#c6ff00',
+      'preferences.accentColor': 'lime',
     });
     // Bez undefined w payloadzie (Firestore odrzuca updateDoc z undefined).
     expect(Object.values(lastUpdatePayload()).some((v) => v === undefined)).toBe(false);

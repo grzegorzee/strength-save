@@ -103,6 +103,14 @@ const rowOf = (input: HTMLElement): HTMLElement => {
 
 describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
   describe('niezmienniki: zostają po przebudowie układu', () => {
+    it('pokazuje pełną nazwę ćwiczenia bez obcinania wielokropkiem', () => {
+      const longName = 'Wyciskanie kółka do brzucha z klęku jednorącz';
+      const { card } = renderCard({ exercise: exercise({ name: longName }) });
+      const title = within(card).getByRole('heading', { name: longName });
+      expect(title).not.toHaveClass('truncate', 'line-clamp-2');
+      expect(title).toHaveClass('break-words');
+    });
+
     it('weight_reps: renderuje WSZYSTKIE serie robocze i rozgrzewkowe', () => {
       const sets: SetData[] = [
         workingSet({ isWarmup: true, weight: 20, reps: 10 }),
@@ -133,6 +141,22 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).getAllByLabelText(/Czas/)).toHaveLength(2);
       expect(within(card).getByText('1')).toBeTruthy();
       expect(within(card).getByText('2')).toBeTruthy();
+    });
+
+    it('duration: minuty i sekundy są osobnymi polami, więc iOS nie wymaga dwukropka', () => {
+      const spy = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ durationSec: 45 })],
+        trackingType: 'duration',
+        exercise: exercise({ sets: '1 x 45s' }),
+        onSetsChange: spy,
+      });
+
+      fireEvent.change(within(card).getByLabelText('Minuty'), { target: { value: '1' } });
+      fireEvent.change(within(card).getByLabelText('Sekundy'), { target: { value: '15' } });
+
+      expect(spy.mock.calls.at(-1)?.[1]?.[0]?.durationSec).toBe(75);
+      expect(within(card).getByText(':')).toBeTruthy();
     });
 
     it('odhaczona seria jest odróżnialna od nieodhaczonej (aria-label przełącznika)', () => {

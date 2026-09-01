@@ -1247,6 +1247,7 @@ export const pl = {
   'picker.title': 'Wybierz ćwiczenie',
   'picker.description': 'Szukaj po nazwie albo filtruj po partii mięśniowej.',
   'picker.bodyweight': 'Masa ciała',
+  'picker.dismissKeyboard': 'Ukryj klawiaturę',
 
   // własne ćwiczenia (Z71)
   'custom.section': 'Twoje ćwiczenia',
@@ -1739,6 +1740,8 @@ export const pl = {
   'card.zeroWeightHint': '0 kg = bez obciążenia',
   'card.perSideTargetHint': '{n} na nogę',
   'card.colDuration': 'Czas',
+  'card.minutes': 'Minuty',
+  'card.seconds': 'Sekundy',
   'card.colDistance': 'Dystans',
   'card.colAssist': 'Asysta',
   'card.addSet': 'Dodaj serię',

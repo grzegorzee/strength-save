@@ -35,4 +35,10 @@ describe('buildDraftExercisesPayload', () => {
       { exerciseId: 'ex-2', sets: draft.exerciseSets['ex-2'], rpe: 8 },
     ]);
   });
+
+  it('nie wysyła serii ćwiczenia pominiętego w szybkim treningu', () => {
+    expect(buildDraftExercisesPayload({ ...draft, skippedExercises: ['ex-2'] })).toEqual([
+      { exerciseId: 'ex-1', sets: draft.exerciseSets['ex-1'], notes: 'mocna seria', name: 'Przysiad' },
+    ]);
+  });
 });

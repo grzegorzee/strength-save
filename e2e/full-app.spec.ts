@@ -418,28 +418,21 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     const labels = await page.getByRole('main').locator('h2').evaluateAll((headings) =>
       headings.map((h) => (h.querySelector('[data-section-label]') ?? h).textContent?.trim()));
     expect(labels).toEqual([
-      'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
+      'Trening', 'Timer i przerwy',
       'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
       'Konto i pomoc',
     ]);
-    // Wszystkie sekcje ustawień zwinięte: wygląd pokazuje tylko bieżące kolory,
-    // a ciężki edytor montuje się dopiero po jawnej akcji.
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(8);
-    await expect(page.getByTestId('profile-accent-preview')).toBeVisible();
+    // Wszystkie sekcje ustawień zwinięte; edytor wyglądu został wycofany w 1.0.
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(7);
+    await expect(page.getByTestId('profile-toggle-accent')).toHaveCount(0);
     await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
     await expect(page.getByTestId('device-settings')).toHaveCount(0);
-    await openProfileSection(page, 'accent');
-    // D1 (X70): legacy swatche za dodatkowym poziomem "Więcej kolorów".
-    await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
-    await page.getByTestId('accent-more-colors-toggle').click();
-    await expect(page.getByTestId('accent-swatches')).toBeVisible();
-    await page.getByTestId('profile-toggle-accent').click();
     // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
     await openProfileSection(page, 'timer');
     await expect(page.getByLabel('Timer przerwy')).toBeVisible();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(7);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(6);
     await page.getByTestId('profile-toggle-timer').click();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(8);
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(7);
     // Profil jest główną zakładką: bez dolnego paska i strzałki Wstecz,
     // ze wspólnym avatarem w nagłówku głównych ekranów.
     await expect(page.getByTestId('back-bar')).toHaveCount(0);
@@ -450,12 +443,12 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     await expect(page.getByText('Ustawienia zaawansowane')).toHaveCount(0);
   });
 
-  test('8 grup Profilu mieści się bez poziomego overflow na 320 i 390 px; każdy trigger ma co najmniej 44 px', async ({ page }) => {
+  test('7 grup Profilu mieści się bez poziomego overflow na 320 i 390 px; każdy trigger ma co najmniej 44 px', async ({ page }) => {
     for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
       await navigateAndWait(page, '/profile');
       const triggers = page.locator('section[data-state] > div > h2 > button[data-testid^="profile-toggle-"]');
-      await expect(triggers).toHaveCount(8);
+      await expect(triggers).toHaveCount(7);
       const boxes = await triggers.evaluateAll((buttons) => buttons.map((button) => {
         const rect = button.getBoundingClientRect();
         return { left: rect.left, right: rect.right, height: rect.height };
@@ -1151,9 +1144,10 @@ test.describe('Typy serii (Z105)', () => {
     await dialog.getByText('Plank', { exact: true }).click();
     const plankCard = page.locator('.exercise-card').first();
     await expect(plankCard.getByText('Czas', { exact: true })).toBeVisible();
-    const plankTime = plankCard.getByRole('textbox', { name: /Plank, Set 1, Czas/ });
-    await plankTime.fill('1:30');
-    await plankTime.blur();
+    const plankTime = plankCard.getByRole('group', { name: /Plank, Set 1, Czas/ });
+    await plankTime.getByRole('textbox', { name: /Minuty/ }).fill('1');
+    await plankTime.getByRole('textbox', { name: /Sekundy/ }).fill('30');
+    await plankTime.getByRole('textbox', { name: /Sekundy/ }).blur();
 
     // Spacer farmera: kg + dystans + czas.
     await page.getByTestId('adhoc-add-exercise').click();

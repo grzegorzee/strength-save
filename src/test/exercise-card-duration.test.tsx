@@ -78,8 +78,13 @@ const renderPlank = (props: Partial<Parameters<typeof ExerciseCard>[0]> = {}) =>
   return { ...view, card, onSetsChange, onRestStart };
 };
 
-const timeInput = (card: HTMLElement, set: number): HTMLInputElement =>
-  within(card).getByLabelText(new RegExp(`Plank, Set ${set}, Czas`)) as HTMLInputElement;
+const timeParts = (card: HTMLElement, set: number) => {
+  const group = within(card).getByRole('group', { name: new RegExp(`Plank, Set ${set}, Czas`) });
+  return {
+    minutes: within(group).getByLabelText('Minuty') as HTMLInputElement,
+    seconds: within(group).getByLabelText('Sekundy') as HTMLInputElement,
+  };
+};
 
 const startButton = (card: HTMLElement, set: number): HTMLButtonElement =>
   within(card).getByRole('button', { name: new RegExp(`Start odliczania: Set ${set}`) }) as HTMLButtonElement;
@@ -104,23 +109,27 @@ describe('ExerciseCard duration: cel odliczania jako placeholder pola czasu', ()
   it('bez historii i planu: cel wg poziomu (beginner 0:30, advanced 1:00, brak profilu 0:45)', () => {
     userProfile.current = { trainingProfile: { level: 'beginner' } };
     let { card, unmount } = renderPlank();
-    expect(timeInput(card, 1).placeholder).toBe('0:30');
+    expect(timeParts(card, 1).minutes.value).toBe('0');
+    expect(timeParts(card, 1).seconds.value).toBe('30');
     unmount();
 
     userProfile.current = { trainingProfile: { level: 'advanced' } };
     ({ card, unmount } = renderPlank());
-    expect(timeInput(card, 1).placeholder).toBe('1:00');
+    expect(timeParts(card, 1).minutes.value).toBe('1');
+    expect(timeParts(card, 1).seconds.value).toBe('00');
     unmount();
 
     userProfile.current = null;
     ({ card } = renderPlank());
-    expect(timeInput(card, 1).placeholder).toBe('0:45');
+    expect(timeParts(card, 1).minutes.value).toBe('0');
+    expect(timeParts(card, 1).seconds.value).toBe('45');
   });
 
   it('sekundy z planu ("3 x 45s") wygrywaja z poziomem', () => {
     userProfile.current = { trainingProfile: { level: 'beginner' } };
     const { card } = renderPlank({ exercise: plank({ sets: '3 x 45s' }) });
-    expect(timeInput(card, 1).placeholder).toBe('0:45');
+    expect(timeParts(card, 1).minutes.value).toBe('0');
+    expect(timeParts(card, 1).seconds.value).toBe('45');
   });
 
   it('ostatni wynik serii roboczej wygrywa z planem', () => {
@@ -130,8 +139,8 @@ describe('ExerciseCard duration: cel odliczania jako placeholder pola czasu', ()
       { reps: 0, weight: 0, completed: true, durationSec: 35 },
     ];
     const { card } = renderPlank({ exercise: plank({ sets: '3 x 45s' }), previousSets: previous });
-    expect(timeInput(card, 1).placeholder).toBe('0:40');
-    expect(timeInput(card, 2).placeholder).toBe('0:35');
+    expect(timeParts(card, 1).seconds.value).toBe('40');
+    expect(timeParts(card, 2).seconds.value).toBe('35');
   });
 
   it('przycisk startu ma 44 px i mowi, do jakiego celu odlicza', () => {
@@ -169,7 +178,8 @@ describe('ExerciseCard duration: odliczanie w dol i auto-odhaczenie', () => {
     expect(cancelSetCountdownNotification).toHaveBeenCalled();
     // Odliczanie zniknelo, pole pokazuje zapisany czas.
     expect(within(card).queryByRole('timer')).toBeNull();
-    expect(timeInput(card, 1).value).toBe('0:30');
+    expect(timeParts(card, 1).minutes.value).toBe('0');
+    expect(timeParts(card, 1).seconds.value).toBe('30');
   });
 
   it('stop w trakcie = zapis uplynietego czasu bez odhaczenia i bez przerwy', () => {
@@ -184,7 +194,8 @@ describe('ExerciseCard duration: odliczanie w dol i auto-odhaczenie', () => {
     expect(sets[1]).toMatchObject({ completed: false, durationSec: 12 });
     expect(onRestStart).not.toHaveBeenCalled();
     expect(cancelSetCountdownNotification).toHaveBeenCalled();
-    expect(timeInput(card, 1).value).toBe('0:12');
+    expect(timeParts(card, 1).minutes.value).toBe('0');
+    expect(timeParts(card, 1).seconds.value).toBe('12');
   });
 
   it('cel = wartosc w polu, gdy seria ma juz czas (prefill z poprzedniej sesji)', () => {

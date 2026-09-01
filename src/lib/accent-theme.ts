@@ -401,7 +401,7 @@ export const getCurrentAccent = (): AccentTheme => getAccentById(readStoredAccen
 
 /** Boot: nałóż zapamiętany akcent zanim wyrenderuje się aplikacja. */
 export const applyStoredAccent = (): void => {
-  const palette = readStoredPaletteTheme();
-  if (palette) applyPaletteTheme(palette);
-  else applyAccent(readStoredAccentId());
+  // 1.0: jeden spójny akcent marki. Stare preferencje zostają w chmurze dla
+  // kompatybilności danych, ale nie sterują już wyglądem ani cold startem.
+  selectLegacyAccent(DEFAULT_ACCENT_ID);
 };

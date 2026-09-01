@@ -5564,3 +5564,35 @@ Android debug, iOS Simulator build/install/launch i produkcyjny iOS release
 preflight dla wersji 1.0.0 są zielone. Fizyczne
 `online → force-kill → airplane → avatar`, zerwane odtwarzanie i trening z
 wykrokami `0 kg` pozostają w checkliście właściciela.
+
+### 2026-09-01: stabilizacja 1.0 po realnym szybkim treningu — bez nowych funkcji
+
+**Root cause:** kilka istniejących przepływów miało osobne, niespójne kontrakty.
+Ćwiczenia pominięte znikały z listy, ale nadal trafiały do payloadu i podsumowania;
+Ab Rollout nie był oznaczony jako ćwiczenie z masą ciała; czas planka wymagał
+dwukropka, którego nie ma na numerycznej klawiaturze iOS; długie etykiety używały
+kolumn i truncation; picker sam otwierał klawiaturę bez jawnego wyjścia. Palety
+dokładały zdalny stan i wyścigi do funkcji, która dla 1.0 nie daje proporcjonalnej
+wartości. Brak domyślnego adresu CDN powodował też zniknięcie animacji, gdy build
+nie dostał zmiennej środowiskowej.
+
+**Decyzja:** do wydania 1.0 pozostaje jeden stały motyw lime. Kontrolki palet są
+usunięte z Profilu i onboardingu, a stare zapisy są bezpiecznie normalizowane bez
+migracji danych. Ćwiczenia pominięte są filtrowane w każdym zapisie i wyliczeniu.
+Ćwiczenia z masą ciała nie wymagają kilogramów. Czas jest edytowany jako osobne
+minuty i sekundy ze stałym dwukropkiem. Długie nazwy, rozgrzewka i CTA końca
+treningu zawijają tekst; picker nie wymusza focusu i ma akcję schowania klawiatury.
+Animacje mają publiczny fallback CDN. Plany pływackie świadomie odłożono: właściciel
+zamknął zakres dnia na poprawkach istniejących funkcji i zakazie nowych feature'ów.
+
+**Niezmienniki i weryfikacja:** lista planu nadal jest pełna, a sesja może ją tylko
+rozszerzać; pominięcie nie zapisuje danych; force-quit odtwarza serie 1:1; `1:15`
+planka zapisuje 75 sekund. Vitest: 3866 PASS, 0 FAIL, 16 historycznych testów palet
+SKIP (3882 razem). Chromium E2E 310/310; WebKit 9/9 krytycznych i 27/27 zmienionych
+przepływów. Typecheck, build, budget, dist smoke/offline, no-emoji i lint (0 błędów,
+15 istniejących ostrzeżeń) są zielone. Po `mobile:sync` frontend w `dist`, iOS i
+Androidzie ma identyczny hash. Bieżący App+Watch buduje się, instaluje i uruchamia
+na symulatorze iPhone 17 Pro; Android `assembleDebug` kończy 642/642 zadań. Do
+dystrybucji testowej numer iOS został podniesiony z 136 do 137, przy niezmiennym
+marketingowym `1.0.0`. Przed App Review nadal obowiązuje fizyczny smoke dokładnego
+nowego buildu na iPhonie oraz osobny smoke Androida.

@@ -176,17 +176,18 @@ test.describe('mobile font-scale proxy', () => {
 
       if (coverage.surface === 'profile') {
         await page.goto('./#/profile');
-        const accentLabel = page.getByText(
-          coverage.locale === 'pl' ? 'Kolor przewodni aplikacji' : 'App accent color',
-        );
-        await expect(accentLabel).toBeVisible();
+        const firstSettingsLabel = page.getByText(
+          coverage.locale === 'pl' ? 'Trening' : 'Training',
+          { exact: true },
+        ).first();
+        await expect(firstSettingsLabel).toBeVisible();
         await enableTextScaleProxy(page, coverage.scale);
         const navigation = page.getByRole('navigation', {
           name: coverage.locale === 'pl' ? 'Nawigacja mobilna' : 'Mobile navigation',
         });
         const navigationLabels = navigation.locator('a > span:last-child');
         await expect(navigation).toBeVisible();
-        await expectTextNotClipped(accentLabel);
+        await expectTextNotClipped(firstSettingsLabel);
         await expectTextNotClipped(navigationLabels);
         await expectElementsNotToOverlap(navigationLabels);
       }

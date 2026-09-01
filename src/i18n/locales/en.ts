@@ -1227,6 +1227,7 @@ export const en: Record<keyof typeof pl, string> = {
   'picker.title': 'Pick an exercise',
   'picker.description': 'Search by name or filter by muscle group.',
   'picker.bodyweight': 'Bodyweight',
+  'picker.dismissKeyboard': 'Dismiss keyboard',
 
   'custom.section': 'Your exercises',
   'custom.addButton': 'Add custom exercise',
@@ -1714,6 +1715,8 @@ export const en: Record<keyof typeof pl, string> = {
   'card.zeroWeightHint': '0 kg = bodyweight only',
   'card.perSideTargetHint': '{n} per leg',
   'card.colDuration': 'Time',
+  'card.minutes': 'Minutes',
+  'card.seconds': 'Seconds',
   'card.colDistance': 'Distance',
   'card.colAssist': 'Assist',
   'card.addSet': 'Add set',

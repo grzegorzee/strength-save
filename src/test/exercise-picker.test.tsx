@@ -112,6 +112,20 @@ describe('ExercisePicker (Z69)', () => {
     expect(content.className).toContain('max-h-[calc(100dvh_-_var(--keyboard-inset');
   });
 
+  it('nie otwiera klawiatury automatycznie, a podczas szukania daje jawne schowanie', () => {
+    renderPicker();
+    const search = screen.getByPlaceholderText('Szukaj ćwiczenia...');
+    expect(search).not.toHaveFocus();
+
+    fireEvent.focus(search);
+    expect(screen.getByRole('button', { name: 'Ukryj klawiaturę' })).toBeTruthy();
+    expect(screen.getByTestId('picker-category-grid')).toHaveClass('hidden');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ukryj klawiaturę' }));
+    expect(search).not.toHaveFocus();
+    expect(screen.getByTestId('picker-category-grid')).not.toHaveClass('hidden');
+  });
+
   it('scroll formularza może się skurczyć nad klawiaturą, więc CTA pozostaje osiągalne', () => {
     renderPicker({ onCreateCustomExercise: vi.fn() });
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));

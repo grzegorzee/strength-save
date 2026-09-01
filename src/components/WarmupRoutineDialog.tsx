@@ -111,8 +111,18 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
       )}>
         {checked.has(nameKey) && <Check className="h-4 w-4 text-white" />}
       </div>
-      <span className={cn('flex-1 text-sm', checked.has(nameKey) && 'line-through text-muted-foreground')}>{label}</span>
-      {badge && <Badge variant="outline" className="text-[11px] shrink-0 tabular-nums">{badge}</Badge>}
+      <span data-testid="warmup-item-content" className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className={cn('text-sm leading-snug', checked.has(nameKey) && 'line-through text-muted-foreground')}>{label}</span>
+        {badge && (
+          <Badge
+            variant="outline"
+            data-testid="warmup-item-dose"
+            className="h-6 max-w-full self-start whitespace-normal px-2 text-[11px] leading-tight tabular-nums"
+          >
+            {badge}
+          </Badge>
+        )}
+      </span>
     </button>
   );
 

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { CustomExercise, CustomExerciseInput } from '@/hooks/useCustomExercises';
-import { Search, Dumbbell, Plus, UserPlus, Loader2 } from 'lucide-react';
+import { Search, Dumbbell, Plus, UserPlus, Loader2, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
@@ -54,6 +54,7 @@ export const ExercisePicker = ({
 }: ExercisePickerProps) => {
   const { t, lang } = useTranslation();
   const [search, setSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [category, setCategory] = useState<LibraryExercise['category'] | 'all'>(initialCategory ?? 'all');
   const [picked, setPicked] = useState<LibraryExercise | null>(null);
   const [customForm, setCustomForm] = useState<CustomExerciseInput | null>(null);
@@ -67,6 +68,7 @@ export const ExercisePicker = ({
   useEffect(() => {
     if (!open) return;
     setSearch('');
+    setSearchFocused(false);
     setCategory(initialCategory ?? 'all');
     setPicked(null);
     // Nierozstrzygnięty zapis zachowujemy także po zamknięciu pickera. Dzięki
@@ -190,29 +192,50 @@ export const ExercisePicker = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {/* X28 WP-A: bez max-h w className — tailwind-merge nadpisywał keyboard-aware
           max-h z ui/dialog i góra dialogu wyjeżdżała poza ekran przy klawiaturze. */}
-      <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] flex flex-col gap-0 p-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3">
+      <DialogContent
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className="max-w-lg w-[calc(100vw-1.5rem)] flex flex-col gap-0 p-0 overflow-hidden"
+      >
+        <DialogHeader className={cn('px-5 pt-5', searchFocused ? 'pb-2' : 'pb-3')}>
           <DialogTitle className="font-heading font-bold uppercase tracking-tight">
             {title ?? t('picker.title')}
           </DialogTitle>
-          <DialogDescription>{description ?? t('picker.description')}</DialogDescription>
+          {!searchFocused && <DialogDescription>{description ?? t('picker.description')}</DialogDescription>}
         </DialogHeader>
 
         <div className="px-5 pb-3 space-y-3">
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t('exercises.search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              enterKeyHint="search"
               className="pl-9 h-11 rounded-xl bg-surface-lowest border-0"
-              autoFocus
             />
+            {searchFocused && (
+              <button
+                type="button"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-highest text-muted-foreground"
+                aria-label={t('picker.dismissKeyboard')}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  (document.activeElement as HTMLElement | null)?.blur();
+                  setSearchFocused(false);
+                }}
+              >
+                <ChevronDown className="h-5 w-5" />
+              </button>
+            )}
           </div>
 
           {/* X35a WP-A: 9 kategorii jako siatka 3x3 kompaktowych kafli (wszystkie
               widoczne od razu, bez przewijania w bok). */}
-          <div className="grid grid-cols-3 gap-1.5" data-testid="picker-category-grid">
+          <div className={cn('grid grid-cols-3 gap-1.5', searchFocused && 'hidden')} data-testid="picker-category-grid">
             {(['all', ...Object.keys(categoryLabels)] as (LibraryExercise['category'] | 'all')[]).map((key) => {
               const on = category === key;
               return (
@@ -232,7 +255,7 @@ export const ExercisePicker = ({
           </div>
           {/* X28 WP-A: przycisk NAD scrollowaną listą — widoczny bez scrollowania
               niezależnie od długości listy (wcześniej ginął nad ~200 pozycjami). */}
-          {onCreateCustomExercise && !customForm && (
+          {onCreateCustomExercise && !customForm && !searchFocused && (
             <Button
               variant="outline"
               size="sm"

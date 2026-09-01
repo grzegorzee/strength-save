@@ -79,7 +79,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   // Core
   { name: 'Dead Bug (Robak - Brzuch)', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: 'Technika', content: 'Plecy wciśnięte w podłogę przez cały ruch. Powoli wyprostuj przeciwną rękę i nogę.' }] },
   { name: 'Plank', category: 'core', type: 'isolation', isBodyweight: true, tracking: 'duration', instructions: [{ title: 'Technika', content: 'Ciało proste od głowy do pięt. Brzuch mocno napięty, biodra nie opadają. Oddychaj normalnie.' }] },
-  { name: 'Ab Rollout', category: 'core', type: 'isolation', instructions: [{ title: 'Technika', content: 'Start z kolan. Wyjeżdżaj kółkiem do przodu napinając brzuch. Nie wyginaj pleców w łuk.' }] },
+  { name: 'Ab Rollout', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: 'Technika', content: 'Start z kolan. Wyjeżdżaj kółkiem do przodu napinając brzuch. Nie wyginaj pleców w łuk.' }] },
   { name: 'Unoszenie nóg w zwisie', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: 'Technika', content: 'Zwis na drążku. Unoś kolana do klatki (łatwiej) lub proste nogi (trudniej). Nie huśtaj się.' }] },
   { name: 'Skręty rosyjskie', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: 'Technika', content: 'Siedząc z uniesionymi nogami. Obracaj tułów ze strony na stronę. Kontroluj ruch, nie pędź.' }] },
   { name: 'Modlitewnik (Cable Crunch)', category: 'core', type: 'isolation', instructions: [{ title: 'Technika', content: 'Klęknij przodem do wyciągu. Zginaj tułów siłą brzucha, nie ramion. Łokcie przy uszach.' }] },
@@ -288,7 +288,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: "V-up (Scyzoryk)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "Technika", content: "Unieś tułów i nogi jednocześnie do kształtu V." }] },
   { name: "Nogi do drążka (Toes to Bar)", category: "core", type: "compound", isBodyweight: true, instructions: [{ title: "Technika", content: "Zwis na drążku, unieś proste nogi aż palce dotkną drążka." }] },
   { name: "Unoszenie kolan w zwisie", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "Technika", content: "Zwis na drążku, przyciągnij kolana do klatki ze zwinięciem miednicy." }] },
-  { name: "Wyciskanie kółka do brzucha z klęku jednorącz", category: "core", type: "compound", instructions: [{ title: "Technika", content: "Wytaczaj kółko jedną ręką z klęku, utrzymując napięty brzuch." }] },
+  { name: "Wyciskanie kółka do brzucha z klęku jednorącz", category: "core", type: "compound", isBodyweight: true, instructions: [{ title: "Technika", content: "Wytaczaj kółko jedną ręką z klęku, utrzymując napięty brzuch." }] },
   { name: "Spięcia brzucha na ławce skośnej (Decline Sit-up)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "Technika", content: "Spięcia na ławce głową w dół, kontroluj opadanie tułowia." }] },
   { name: "Modlitewnik klęczący jednostronny (Cable Crunch)", category: "core", type: "isolation", instructions: [{ title: "Technika", content: "Klęczący crunch na wyciągu, zwijaj tułów ku przeciwnemu biodru." }] },
   { name: "Wysoki Woodchopper na wyciągu (z dołu do góry)", category: "core", type: "compound", instructions: [{ title: "Technika", content: "Ukośny ruch z dołu nad przeciwny bark, rotacja z brzucha." }] },

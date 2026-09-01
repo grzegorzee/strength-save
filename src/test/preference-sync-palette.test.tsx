@@ -34,45 +34,47 @@ beforeEach(() => {
   Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
 });
 
-describe('PreferenceSync: PaletteThemeV2 cloud → local', () => {
-  it('stosuje kompletną paletę przed wejściem w Profil i nie robi echo-write', async () => {
+describe('PreferenceSync: stały motyw 1.0', () => {
+  it('ignoruje dawną paletę z chmury, czyści ją lokalnie i nie robi echo-write', async () => {
     profileFixture.current = {
       preferences: { accentColor: '#38bdf8', paletteTheme: PALETTE_THEMES[2] },
     };
     render(<PreferenceSync />);
     await Promise.resolve();
 
-    expect(readStoredPaletteTheme()?.id).toBe('glacier');
-    expect(document.documentElement.dataset.palette).toBe('glacier');
-    expect(document.documentElement.style.getPropertyValue('--palette-support-a')).not.toBe('');
+    expect(readStoredPaletteTheme()).toBeNull();
+    expect(document.documentElement.dataset.palette).toBeUndefined();
+    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(document.documentElement.style.getPropertyValue('--palette-support-a')).toBe('');
     const paletteWrites = updateDoc.mock.calls
       .map((call) => (call as unknown as [unknown, Record<string, unknown>])[1])
       .filter((patch) => 'preferences.paletteTheme' in patch);
     expect(paletteWrites).toHaveLength(0);
   });
 
-  it('brak paletteTheme zachowuje dokładnie legacy accentColor', async () => {
+  it('ignoruje dawny legacy accentColor', async () => {
     profileFixture.current = { preferences: { accentColor: 'indigo' } };
     render(<PreferenceSync />);
     await Promise.resolve();
 
     expect(readStoredPaletteTheme()).toBeNull();
     expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBe('indigo');
+    expect(document.documentElement.dataset.accent).toBeUndefined();
   });
 
-  it('poprawna paleta wygrywa z legacy accentColor i nie jest czyszczona przez emisję profilu', async () => {
+  it('paleta nie wygrywa już ze stałym motywem aplikacji', async () => {
     profileFixture.current = {
       preferences: { accentColor: 'indigo', paletteTheme: PALETTE_THEMES[0] },
     };
     render(<PreferenceSync />);
     await Promise.resolve();
 
-    expect(readStoredPaletteTheme()?.id).toBe('pulse');
-    expect(document.documentElement.dataset.palette).toBe('pulse');
+    expect(readStoredPaletteTheme()).toBeNull();
+    expect(document.documentElement.dataset.palette).toBeUndefined();
+    expect(document.documentElement.dataset.accent).toBeUndefined();
   });
 
-  it('offline outbox przeżywa remount, wygrywa ze starym profilem i synchronizuje się raz po online', async () => {
+  it('historyczny outbox nie zmienia wyglądu ani nie wysyła wycofanej palety', async () => {
     profileFixture.current = {
       preferences: { accentColor: '#38bdf8', paletteTheme: PALETTE_THEMES[2] },
     };
@@ -82,24 +84,21 @@ describe('PreferenceSync: PaletteThemeV2 cloud → local', () => {
 
     const firstRun = render(<PreferenceSync />);
     await Promise.resolve();
-    expect(readStoredPaletteTheme()?.id).toBe('forge');
+    expect(readStoredPaletteTheme()).toBeNull();
+    expect(document.documentElement.dataset.accent).toBeUndefined();
     expect(updateDoc).not.toHaveBeenCalled();
 
     firstRun.unmount();
     const afterKill = render(<PreferenceSync />);
     await Promise.resolve();
-    expect(readStoredPaletteTheme()?.id).toBe('forge');
+    expect(readStoredPaletteTheme()).toBeNull();
     expect(readPalettePreferenceOutbox('u1')?.palette.id).toBe('forge');
 
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     window.dispatchEvent(new Event('online'));
-    await vi.waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      'preferences.accentColor': '#ff6b35',
-      'preferences.paletteTheme': PALETTE_THEMES[1],
-      'preferences.paletteRevision': 1,
-    }));
-    await vi.waitFor(() => expect(readPalettePreferenceOutbox('u1')).toBeNull());
+    await Promise.resolve();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(readPalettePreferenceOutbox('u1')?.palette.id).toBe('forge');
     afterKill.unmount();
   });
 });

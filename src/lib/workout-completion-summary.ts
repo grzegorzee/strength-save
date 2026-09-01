@@ -36,11 +36,13 @@ export const computeCompletionSummary = (args: {
 }): CompletionSummary => {
   const { exerciseSets, dayExercises, skippedExercises = [], workouts, sessionId, dayId } = args;
 
-  const allSets = Object.values(exerciseSets);
+  const skipped = new Set(skippedExercises);
+  const allSets = Object.entries(exerciseSets)
+    .filter(([exerciseId]) => !skipped.has(exerciseId))
+    .map(([, sets]) => sets);
   const volumeKg = allSets.reduce((sum, sets) => sum + workingSetVolume(sets), 0);
   const completedSets = allSets.reduce((sum, sets) => sum + workingSetCount(sets), 0);
 
-  const skipped = new Set(skippedExercises);
   const plannedSets = dayExercises
     ? dayExercises
       .filter((exercise) => !skipped.has(exercise.id))

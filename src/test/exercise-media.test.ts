@@ -18,9 +18,13 @@ describe('exercise media helpers', () => {
 
   // Mapa ANIMATION_FILES jest uzupełniana ręcznie, więc literówka w slugu nie
   // wywoła błędu, tylko po cichu wyłączy animację. Ten test to wyłapuje.
-  it('fails closed when the external media endpoint is not configured', () => {
-    expect(getExerciseAnimationUrl('Przysiad ze sztangą (High Bar)')).toBeNull();
-    expect(getExercisePosterUrl('Przysiad ze sztangą (High Bar)')).toBeNull();
+  it('używa publicznego CDN aplikacji także bez zmiennej środowiskowej', () => {
+    expect(getExerciseAnimationUrl('Przysiad ze sztangą (High Bar)')).toBe(
+      'https://media.gjasionowicz.pl/exercises/przysiad-ze-sztanga-high-bar.mp4',
+    );
+    expect(getExercisePosterUrl('Przysiad ze sztangą (High Bar)')).toBe(
+      'https://media.gjasionowicz.pl/exercises/przysiad-ze-sztanga-high-bar.jpg',
+    );
   });
 
   it('returns a configured CDN URL for exercises that have an animation', () => {

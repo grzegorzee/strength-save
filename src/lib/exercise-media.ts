@@ -12,16 +12,18 @@
  * animacji, funkcja zwraca null i UI pokazuje placeholder + opis.
  */
 
-// Media są dodatkiem, nie warunkiem treningu. Produkcja failuje zamknięta: URL-e
-// powstają tylko po jawnej konfiguracji sprawdzonego endpointu. Dzięki temu
-// wygasły certyfikat albo zawieszona strefa CDN nie zalewa WebView błędami i nie
-// pokazuje niedziałających kontrolek. E2E zachowuje stabilny URL przechwytywany
-// lokalnymi fixtures; nie łączy się z siecią.
-const E2E_CDN_BASE = 'https://media.gjasionowicz.pl/exercises';
+// Media są dodatkiem, nie warunkiem treningu. Publiczny endpoint jest częścią
+// konfiguracji aplikacji, więc brak zmiennej build-time nie może po cichu ukryć
+// całej biblioteki animacji. Błąd pojedynczego pliku nadal obsługuje komponent
+// fallbackiem; E2E przechwytuje stabilny URL i nie łączy się z siecią.
+const DEFAULT_CDN_BASE = 'https://media.gjasionowicz.pl/exercises';
 const configuredCdnBase = String(import.meta.env.VITE_EXERCISE_MEDIA_BASE_URL ?? '')
   .trim()
   .replace(/\/+$/, '');
-const CDN_BASE = configuredCdnBase || (import.meta.env.VITE_E2E_MODE === 'true' ? E2E_CDN_BASE : '');
+// To publiczny, wersjonowany endpoint własnych assetów aplikacji. Build mobilny
+// nie może po cichu zgubić wszystkich animacji tylko dlatego, że sekret/env nie
+// zawiera publicznego URL-a. Zmienna nadal pozwala podmienić endpoint per środowisko.
+const CDN_BASE = configuredCdnBase || DEFAULT_CDN_BASE;
 
 const POLISH_CHARS: Record<string, string> = {
   ą: 'a', ć: 'c', ę: 'e', ł: 'l', ń: 'n', ó: 'o', ś: 's', ź: 'z', ż: 'z',

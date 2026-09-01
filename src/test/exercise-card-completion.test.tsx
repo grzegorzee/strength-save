@@ -105,6 +105,21 @@ describe('ExerciseCard — ręczne ukończenie serii wymaga danych', () => {
     expect(saved[0]).toMatchObject({ reps: 10, weight: 0, completed: true });
   });
 
+  it('Ab Rollout z biblioteki jest bodyweight i nie wymaga pola kg', () => {
+    const { onSetsChange } = renderCard({
+      exercise: exercise('Ab Rollout'),
+      isBodyweight: true,
+      trackingType: 'bodyweight_reps',
+      savedSets: [{ reps: 10, weight: 0, completed: false }],
+    });
+
+    expect(screen.queryByLabelText(/Set 1, kg/i)).toBeNull();
+    clickCheck();
+
+    const saved = onSetsChange.mock.calls.at(-1)?.[1] as SetData[];
+    expect(saved[0]).toMatchObject({ reps: 10, weight: 0, completed: true });
+  });
+
   it('pozwala ukończyć Przysiady wykroczne z powtórzeniami i 0 kg', () => {
     const { onSetsChange } = renderCard({
       exercise: exercise('Przysiady wykroczne'),

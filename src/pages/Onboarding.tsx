@@ -18,8 +18,6 @@ import {
 } from '@/lib/consent-selection';
 import { hasCurrentRequiredConsents } from '@/lib/legal-versions';
 import { recordConsents } from '@/lib/consents-api';
-import { readStoredAccentId } from '@/lib/accent-theme';
-import { readStoredPaletteTheme } from '@/lib/palette-theme';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { restDefaultsDeps } from '@/lib/rest-preferences';
 import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
@@ -138,10 +136,9 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
       // X35b: przerwy polecane dla celu (redukcja 60 s, siła 180 s...), chyba że custom.
       restDefaults: restDefaultsDeps(uid),
       markOnboardingComplete: async (_choice, _days, planStartDate) => {
-        // Plan I: kolor wybrany na Welcome (albo domyślna limonka) do mirroru
-        // cross-device — zawsze jedno pole, czytane w momencie zapisu.
-        const accentColor = readStoredAccentId();
-        const paletteTheme = readStoredPaletteTheme();
+        // Wersja 1.0 ma jeden, stały motyw Strength Save. Nie kopiujemy starych
+        // wyborów palet do nowych kont ani nie uzależniamy wyglądu od cache.
+        const accentColor = 'lime';
         return updateDoc(doc(db, 'users', uid), {
           onboardingCompleted: true,
           // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).
@@ -151,7 +148,6 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
           'onboarding.termsAcceptedAt': new Date().toISOString(),
           trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
           'preferences.accentColor': accentColor,
-          ...(paletteTheme ? { 'preferences.paletteTheme': paletteTheme } : {}),
           // WP-O (X30): trwały snapshot odpowiedzi (v2), pisany RAZ; replan go nie rusza.
           onboardingAnswers: buildOnboardingAnswers(confirmed, { accentColor, startDate: planStartDate }),
           ...(confirmed.name && confirmed.name !== profile?.displayName ? { displayName: confirmed.name } : {}),
