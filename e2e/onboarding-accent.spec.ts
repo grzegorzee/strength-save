@@ -1,6 +1,4 @@
-// Decyzja 1.0 (2026-09-01): jeden stały kolor marki, bez wyboru palet.
-// Niezmiennik (zasada #5): dawny zapis palety lub akcentu nie może zmienić
-// motywu ani zepsuć dotychczasowego przepływu onboardingu.
+// Kontrakt 1.0: jeden wybieralny kolor aplikacji, bez palet wielokolorowych.
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { advanceWizardToStep6, blockFirebase, expectPageRendered, navigateAndWait, setE2EAuthScenario } from './helpers';
 
@@ -31,22 +29,23 @@ const phoneViewports = [
   { width: 390, height: 844 },
 ] as const;
 
-test.describe('Onboarding: stały kolor marki', () => {
+test.describe('Onboarding: pojedynczy kolor bez palet', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
     await setE2EAuthScenario(page, 'new-user');
   });
 
-  test('nie pokazuje wyboru palety, a lime trzyma się przez kroki wizarda', async ({ page }) => {
+  test('wybrany pojedynczy kolor trzyma się przez kroki wizarda', async ({ page }) => {
     await navigateAndWait(page, '/');
 
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
     await expect(page.getByTestId('palette-theme-picker')).toHaveCount(0);
-    await expect(page.getByTestId('ob-accent-swatches')).toHaveCount(0);
+    await expect(page.getByTestId('ob-accent-swatches')).toBeVisible();
     await expect(page.getByTestId('ob-custom-colors-toggle')).toHaveCount(0);
-    expect(await primaryVar(page)).toBe('73 97% 56%');
-    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('lime');
+    await page.getByTestId('ob-accent-indigo').click();
+    expect(await primaryVar(page)).toBe('235 86% 65%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('indigo');
 
     // Kolor marki trzyma się przez kolejne kroki wizarda aż do podglądu planu.
     await page.getByTestId('ob-personalization-next').click();
@@ -56,17 +55,17 @@ test.describe('Onboarding: stały kolor marki', () => {
     await page.getByTestId('ob-legal-submit').click();
     // X34: 5A (wybór) -> 6/6 (Start planu) -> "Podgląd planu".
     await advanceWizardToStep6(page);
-    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await primaryVar(page)).toBe('235 86% 65%');
     await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
-    expect(await primaryVar(page)).toBe('73 97% 56%');
+    expect(await primaryVar(page)).toBe('235 86% 65%');
   });
 
   test('NIEZMIENNIK: bieg bez ustawień koloru przechodzi przez Welcome jak dotąd', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
     await expect(page.getByTestId('palette-theme-picker')).toHaveCount(0);
-    await expect(page.getByTestId('ob-accent-swatches')).toHaveCount(0);
+    await expect(page.getByTestId('ob-accent-swatches')).toBeVisible();
     expect(await primaryVar(page)).toBe('73 97% 56%');
     expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('lime');
     expect(await page.evaluate(() => localStorage.getItem('ss-palette-theme-v2'))).toBeNull();
@@ -127,8 +126,8 @@ test.describe('Onboarding: stały kolor marki', () => {
   }
 });
 
-test.describe('Po onboardingu: Dashboard w stałym kolorze marki', () => {
-  test('dawny zapis indigo jest normalizowany do lime już od splashu', async ({ page }) => {
+test.describe('Po onboardingu: Dashboard zachowuje pojedynczy kolor', () => {
+  test('zapis indigo jest stosowany już od splashu', async ({ page }) => {
     await blockFirebase(page);
     await page.addInitScript(() => {
       localStorage.setItem('app-language', 'pl');
@@ -137,10 +136,10 @@ test.describe('Po onboardingu: Dashboard w stałym kolorze marki', () => {
     await setE2EAuthScenario(page, 'active-user');
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
-    expect(await primaryVar(page)).toBe('73 97% 56%');
-    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('lime');
+    expect(await primaryVar(page)).toBe('235 86% 65%');
+    expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBe('indigo');
     expect(await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--primary-foreground').trim(),
-    )).toBe('0 0% 6%');
+    )).toBe('0 0% 100%');
   });
 });

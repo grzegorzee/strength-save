@@ -9,22 +9,27 @@ const themeState = (page: import('@playwright/test').Page) => page.evaluate(() =
   primary: document.documentElement.style.getPropertyValue('--primary'),
 }));
 
-test.describe('Stały motyw Strength Save 1.0', () => {
+test.describe('Pojedynczy kolor aplikacji bez palet', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
   });
 
-  test('Profil nie pokazuje wycofanych palet ani własnych kolorów', async ({ page }) => {
+  test('Profil pokazuje wybór pojedynczego koloru, ale nie palety', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
-    await expect(page.getByTestId('profile-toggle-accent')).toHaveCount(0);
     await expect(page.getByTestId('palette-theme-picker')).toHaveCount(0);
-    await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
-    await expect(page.getByTestId('accent-hex-input')).toHaveCount(0);
+    await page.getByTestId('profile-toggle-accent').click();
+    await expect(page.getByTestId('accent-swatches')).toBeVisible();
+    await page.getByTestId('accent-indigo').click();
+    expect(await themeState(page)).toMatchObject({
+      accent: 'indigo',
+      palette: null,
+      dataAccent: 'indigo',
+    });
   });
 
-  test('cold start usuwa dawną paletę i dawny akcent, pozostawiając lime', async ({ page }) => {
+  test('cold start usuwa dawną paletę, ale zachowuje pojedynczy akcent', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('ss-accent-color', 'indigo');
       localStorage.setItem('ss-palette-theme-v2', JSON.stringify({
@@ -39,11 +44,11 @@ test.describe('Stały motyw Strength Save 1.0', () => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     expect(await themeState(page)).toEqual({
-      accent: 'lime',
+      accent: 'indigo',
       palette: null,
-      dataAccent: undefined,
+      dataAccent: 'indigo',
       dataPalette: undefined,
-      primary: '',
+      primary: '235 86% 65%',
     });
   });
 });

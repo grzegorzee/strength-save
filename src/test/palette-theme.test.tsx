@@ -78,16 +78,16 @@ describe('PaletteThemeV2: addytywna migracja i runtime', () => {
     }
   });
 
-  it('cold start normalizuje dawną paletę do stałego motywu lime', () => {
+  it('cold start usuwa dawną paletę, ale zachowuje jej primary jako pojedynczy kolor', () => {
     const root = document.documentElement;
     storePaletteTheme(PALETTE_THEMES[1]);
     applyStoredAccent();
 
     expect(readStoredPaletteTheme()).toBeNull();
-    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
+    expect(localStorage.getItem('ss-accent-color')).toBe('#ff6b35');
     expect(root.dataset.palette).toBeUndefined();
-    expect(root.dataset.accent).toBeUndefined();
-    expect(root.style.getPropertyValue('--primary')).toBe('');
+    expect(root.dataset.accent).toBe('custom');
+    expect(root.style.getPropertyValue('--primary')).toBe('16 100% 60%');
     expect(root.style.getPropertyValue('--palette-support-a')).toBe('');
     expect(root.style.getPropertyValue('--palette-support-b')).toBe('');
     expect(root.style.getPropertyValue('--chart-1')).toBe('');

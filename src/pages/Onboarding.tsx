@@ -26,6 +26,7 @@ import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { getAccentById, readStoredAccentId } from '@/lib/accent-theme';
 import {
   clearOnboardingDraft,
   readOnboardingDraft,
@@ -136,9 +137,7 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
       // X35b: przerwy polecane dla celu (redukcja 60 s, siła 180 s...), chyba że custom.
       restDefaults: restDefaultsDeps(uid),
       markOnboardingComplete: async (_choice, _days, planStartDate) => {
-        // Wersja 1.0 ma jeden, stały motyw Strength Save. Nie kopiujemy starych
-        // wyborów palet do nowych kont ani nie uzależniamy wyglądu od cache.
-        const accentColor = 'lime';
+        const accentColor = getAccentById(confirmed.accentId ?? readStoredAccentId()).id;
         return updateDoc(doc(db, 'users', uid), {
           onboardingCompleted: true,
           // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).

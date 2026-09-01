@@ -34,7 +34,7 @@ beforeEach(() => {
   Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
 });
 
-describe('PreferenceSync: stały motyw 1.0', () => {
+describe('PreferenceSync: pojedynczy kolor bez palet', () => {
   it('ignoruje dawną paletę z chmury, czyści ją lokalnie i nie robi echo-write', async () => {
     profileFixture.current = {
       preferences: { accentColor: '#38bdf8', paletteTheme: PALETTE_THEMES[2] },
@@ -44,7 +44,7 @@ describe('PreferenceSync: stały motyw 1.0', () => {
 
     expect(readStoredPaletteTheme()).toBeNull();
     expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(document.documentElement.dataset.accent).toBe('custom');
     expect(document.documentElement.style.getPropertyValue('--palette-support-a')).toBe('');
     const paletteWrites = updateDoc.mock.calls
       .map((call) => (call as unknown as [unknown, Record<string, unknown>])[1])
@@ -52,17 +52,17 @@ describe('PreferenceSync: stały motyw 1.0', () => {
     expect(paletteWrites).toHaveLength(0);
   });
 
-  it('ignoruje dawny legacy accentColor', async () => {
+  it('stosuje pojedynczy accentColor', async () => {
     profileFixture.current = { preferences: { accentColor: 'indigo' } };
     render(<PreferenceSync />);
     await Promise.resolve();
 
     expect(readStoredPaletteTheme()).toBeNull();
     expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(document.documentElement.dataset.accent).toBe('indigo');
   });
 
-  it('paleta nie wygrywa już ze stałym motywem aplikacji', async () => {
+  it('accentColor wygrywa z dawną paletą', async () => {
     profileFixture.current = {
       preferences: { accentColor: 'indigo', paletteTheme: PALETTE_THEMES[0] },
     };
@@ -71,7 +71,7 @@ describe('PreferenceSync: stały motyw 1.0', () => {
 
     expect(readStoredPaletteTheme()).toBeNull();
     expect(document.documentElement.dataset.palette).toBeUndefined();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(document.documentElement.dataset.accent).toBe('indigo');
   });
 
   it('historyczny outbox nie zmienia wyglądu ani nie wysyła wycofanej palety', async () => {
@@ -85,7 +85,7 @@ describe('PreferenceSync: stały motyw 1.0', () => {
     const firstRun = render(<PreferenceSync />);
     await Promise.resolve();
     expect(readStoredPaletteTheme()).toBeNull();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(document.documentElement.dataset.accent).toBe('custom');
     expect(updateDoc).not.toHaveBeenCalled();
 
     firstRun.unmount();

@@ -334,14 +334,17 @@ describe.skip('PlanWizard Welcome: historyczny wybór koloru (usunięty w 1.0)',
   });
 });
 
-describe('PlanWizard Welcome: stały motyw 1.0', () => {
-  it('nie pokazuje palet ani dodatkowych kolorów i zachowuje przejście onboardingu', async () => {
+describe('PlanWizard Welcome: pojedynczy kolor bez palet', () => {
+  it('pokazuje pojedyncze kolory, zapisuje wybór i zachowuje przejście onboardingu', async () => {
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
     expect(screen.queryByTestId('ob-custom-colors-toggle')).toBeNull();
-    expect(screen.queryByTestId('ob-accent-swatches')).toBeNull();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.getByTestId('ob-accent-swatches')).toBeInTheDocument();
+    expect(screen.queryAllByRole('radio')).toHaveLength(11);
+    fireEvent.click(screen.getByTestId('ob-accent-indigo'));
+    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
+    expect(document.documentElement.dataset.accent).toBe('indigo');
     acceptLegalView();
     await screen.findByRole('button', { name: /Następny krok/ });
   });
@@ -421,16 +424,16 @@ describe('PlanWizard Welcome: avatar i imię bez analizy zdjęcia w 1.0', () => 
     expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
     expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryAllByRole('radio')).toHaveLength(11);
   });
 
-  it('wcześniejszy wybór nie wraca do interfejsu przy avatarze Google', () => {
+  it('wcześniejszy wybór wraca do interfejsu przy avatarze Google', () => {
     localStorage.setItem('ss-accent-color', 'indigo');
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('ob-accent-indigo')).toBeNull();
+    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
     expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
   });
 

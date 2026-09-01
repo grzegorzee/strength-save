@@ -17,6 +17,7 @@ import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } f
 import { applyWeekdaysToPlanDays, hasExactWeekdaySelection, planDaysMismatch, uniqueSortedWeekdays, WEEKDAYS } from '@/lib/plan-cycle-utils';
 import type { OnboardingDraftInput, OnboardingDraftV1 } from '@/lib/onboarding-draft';
 import { ANDROID_BACK_EVENT } from '@/components/AndroidBackHandler';
+import { ACCENTS, getAccentById, readStoredAccentId, selectLegacyAccent, type AccentTheme } from '@/lib/accent-theme';
 
 // 'elite' usunięte (Z72): mapowało się na advanced — iluzoryczny wybór. Legacy wartości
 // zapisane w trainingProfile sanityzuje sanitizeWizardLevel.
@@ -42,6 +43,8 @@ export interface PlanWizardChoice {
   daysPerWeek: number;
   templateId?: string;      // undefined = plan własny (PlanBuilder)
   name?: string;            // imię z kroku Welcome (tylko onboarding, askName)
+  /** Jeden kolor przewodni aplikacji wybrany w onboardingu. */
+  accentId?: string;
   /** WP-PLANS-2 (X27): nazwa planu z kroku 5 (default = nazwa szablonu). */
   planName?: string;
   /** WP-O (X30): dni tygodnia wybrane w kroku 4 (jawna odpowiedź onboardingu). */
@@ -261,12 +264,47 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       : initialDraft?.planSource ? initialDraft.planSource === 'browsed'
         : Boolean(resume?.templateId ?? initialDraft?.templateId));
   const [userName, setUserName] = useState(resume?.name ?? initialDraft?.name ?? initialName ?? '');
-  // Wersja 1.0: jeden rozpoznawalny motyw, bez ustawień palet. Pole pozostaje
-  // w szkicu tylko dla zgodności danych ze starszymi, niedokończonymi wizardami.
-  const accentId = 'lime';
+  // Jeden kolor przewodni; wielokolorowe palety pozostają wycofane.
+  const [accentId, setAccentId] = useState(() =>
+    getAccentById(resume?.accentId ?? initialDraft?.accentId ?? readStoredAccentId()).id);
+  const pickAccent = (id: string) => {
+    const applied = selectLegacyAccent(id);
+    setAccentId(applied.id);
+  };
   const [avatarBroken, setAvatarBroken] = useState(false);
   const greetingName = userName.trim();
   const avatarInitial = (greetingName || accountEmail?.trim() || '').charAt(0).toUpperCase();
+  const renderAccentSwatch = (accent: AccentTheme) => (
+    <button
+      key={accent.id}
+      type="button"
+      role="radio"
+      aria-checked={accentId === accent.id}
+      tabIndex={accentId === accent.id ? 0 : -1}
+      aria-label={t(`accent.${accent.id}` as Parameters<typeof t>[0])}
+      data-testid={`ob-accent-${accent.id}`}
+      onClick={() => pickAccent(accent.id)}
+      onKeyDown={(event) => {
+        if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const radios = Array.from(event.currentTarget.closest('[role="radiogroup"]')?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+        if (!radios.length) return;
+        const current = radios.indexOf(event.currentTarget);
+        const next = event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? radios.length - 1
+            : (current + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + radios.length) % radios.length;
+        radios[next]?.focus();
+        radios[next]?.click();
+      }}
+      className={cn(
+        'h-11 w-11 shrink-0 touch-manipulation rounded-full transition-transform active:scale-95',
+        accentId === accent.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+      )}
+      style={{ backgroundColor: accent.hex }}
+    />
+  );
   // Powrót z podglądu (resume) = zgody były już zaznaczone (i zapisane) przy pierwszym przejściu kroku 1.
   const [consents, setConsents] = useState<ConsentSelection>(
     resume || legalConsentAlreadyRecorded ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,
@@ -442,7 +480,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     onConfirm({
       days, durationWeeks, startDate: schedule.startDate, firstWorkoutDate, skippedDates: schedule.skippedDates,
       level, objective, daysPerWeek: days.length, templateId,
-      name: userName.trim() || undefined, planName,
+      name: userName.trim() || undefined, accentId, planName,
       // WP-O (X30): jawne odpowiedzi do snapshotu onboardingAnswers.
       trainingDays,
       recommendedTemplateId: recommended.id,
@@ -599,6 +637,17 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     placeholder={t('ob.welcome.namePlaceholder')}
                     className="w-full rounded-2xl bg-surface-low px-4 py-3.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary"
                   />
+                  <p className="mb-3 mt-5 block text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                    {t('ob.welcome.colorQ')}
+                  </p>
+                  <div
+                    className="flex flex-wrap gap-3"
+                    role="radiogroup"
+                    aria-label={t('ob.welcome.colorQ')}
+                    data-testid="ob-accent-swatches"
+                  >
+                    {ACCENTS.map(renderAccentSwatch)}
+                  </div>
                 </div>
               )}
                 </div>

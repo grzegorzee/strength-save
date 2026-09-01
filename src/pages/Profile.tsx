@@ -3,24 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { deleteField, doc, updateDoc, type DocumentData, type UpdateData } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
-import { ACCENTS, isCustomAccentHex, readStoredAccentId } from '@/lib/accent-theme';
-import { PaletteThemePicker } from '@/components/PaletteThemePicker';
-import {
-  applyPaletteTheme,
-  normalizePaletteThemeV2,
-  readStoredPaletteTheme,
-  selectLegacyAccent,
-  storePaletteTheme,
-  type PaletteThemeV2,
-} from '@/lib/palette-theme';
-import {
-  discardPalettePreferenceOutbox,
-  enqueuePresetPalettePreference,
-  flushPalettePreferenceOutbox,
-  readPalettePreferenceOutbox,
-} from '@/lib/palette-preference-outbox';
-import { resolvePalettePreference } from '@/lib/palette-preference-resolver';
-import { writePalettePreference } from '@/lib/palette-preference-cloud';
+import { ACCENTS, getAccentById, isCustomAccentHex, readStoredAccentId, selectLegacyAccent } from '@/lib/accent-theme';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { cacheAvatarBlob } from '@/lib/avatar-cache';
 import { useUnit } from '@/contexts/UnitContext';
@@ -57,7 +40,7 @@ import {
   Ruler, Shield, Gem, CreditCard, Medal,
   Dumbbell, Watch, Eye, EyeOff, Timer,
   Bell, Database, UserCog,
-  Palette, ChevronDown,
+  Palette,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
@@ -290,89 +273,21 @@ const Profile = () => {
   };
   // F-T2: kolor przewodni — lokalnie od splashu, mirror w profilu (cross-device).
   const [accentId, setAccentId] = useState(readStoredAccentId());
-  const [paletteTheme, setPaletteTheme] = useState<PaletteThemeV2 | null>(readStoredPaletteTheme());
   const [hexInput, setHexInput] = useState('');
-  // D1 (X70): legacy siatka 11 kolorów + własny hex za poziomem "Więcej
-  // kolorów" — domyślnie zwinięty, treść zwinięta NIE jest montowana.
-  const [moreColorsOpen, setMoreColorsOpen] = useState(false);
   const profileAccent = profile?.preferences?.accentColor;
-  const profilePalette = profile?.preferences?.paletteTheme;
-  // A1 (X70): listener profilu (includeMetadataChanges) emituje przy każdym
-  // acku ŚWIEŻY obiekt palety o tej samej treści. Dep na sygnaturze
-  // prymitywnej zamiast tożsamości obiektu — stary ack z niezmienioną paletą
-  // nie odpala efektu i nie cofa świeżo zapisanego wyboru.
-  const normalizedProfilePalette = normalizePaletteThemeV2(profilePalette);
-  const profilePaletteSignature = normalizedProfilePalette ? JSON.stringify(normalizedProfilePalette) : '';
   useEffect(() => {
-    const pendingPalette = readPalettePreferenceOutbox(uid)?.palette;
-    if (pendingPalette) {
-      applyPaletteTheme(pendingPalette);
-      storePaletteTheme(pendingPalette);
-      setPaletteTheme(pendingPalette);
-      setAccentId(pendingPalette.primary);
-      return;
-    }
-    const resolvedTheme = resolvePalettePreference(
-      null,
-      profilePaletteSignature ? JSON.parse(profilePaletteSignature) : null,
-      profileAccent,
-    );
-    if (resolvedTheme.kind === 'palette') {
-      const palette = resolvedTheme.palette;
-      // Ack własnego zapisu: paleta z chmury identyczna ze stanem lokalnym —
-      // pomiń re-apply. Realna zmiana z innego urządzenia różni się od
-      // readStoredPaletteTheme() i nadal się aplikuje.
-      const stored = readStoredPaletteTheme();
-      if (stored && JSON.stringify(stored) === profilePaletteSignature) return;
-      applyPaletteTheme(palette);
-      storePaletteTheme(palette);
-      setPaletteTheme(palette);
-      setAccentId(palette.primary);
-    } else if (resolvedTheme.kind === 'legacy'
-      && (resolvedTheme.accent !== readStoredAccentId() || readStoredPaletteTheme())) {
-      selectLegacyAccent(resolvedTheme.accent);
-      setPaletteTheme(null);
-      setAccentId(resolvedTheme.accent);
-    }
-  }, [profileAccent, profilePaletteSignature, uid]);
+    if (!profileAccent || profileAccent === readStoredAccentId()) return;
+    const applied = selectLegacyAccent(profileAccent);
+    setAccentId(isCustomAccentHex(profileAccent) ? profileAccent.toLowerCase() : applied.id);
+  }, [profileAccent]);
   const handleAccent = (id: string) => {
-    discardPalettePreferenceOutbox(uid);
-    selectLegacyAccent(id);
-    setPaletteTheme(null);
-    setAccentId(id);
+    const applied = selectLegacyAccent(id);
+    const storedId = isCustomAccentHex(id) ? id.toLowerCase() : applied.id;
+    setAccentId(storedId);
     persistPreference({
-      'preferences.accentColor': id,
+      'preferences.accentColor': storedId,
       'preferences.paletteTheme': deleteField(),
-      'preferences.paletteRevision': (profile?.preferences?.paletteRevision ?? 0) + 1,
-      'preferences.paletteMutationId': `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     });
-  };
-  const handlePalette = (palette: PaletteThemeV2) => {
-    setPaletteTheme(palette);
-    setAccentId(palette.primary);
-    const queued = enqueuePresetPalettePreference(uid, palette, profile?.preferences?.paletteRevision ?? 0);
-    if (!queued) {
-      persistPreference({
-        'preferences.accentColor': palette.primary,
-        'preferences.paletteTheme': palette,
-      });
-      return;
-    }
-    void flushPalettePreferenceOutbox(uid, (patch, entry) => writePalettePreference(uid, patch, entry))
-      .then((result) => {
-        if (result !== 'stale') return;
-        const cloudTheme = resolvePalettePreference(null, profilePalette, profileAccent);
-        if (cloudTheme.kind === 'palette') {
-          applyPaletteTheme(cloudTheme.palette);
-          storePaletteTheme(cloudTheme.palette);
-          setPaletteTheme(cloudTheme.palette);
-          setAccentId(cloudTheme.palette.primary);
-        } else if (cloudTheme.kind === 'legacy') {
-          selectLegacyAccent(cloudTheme.accent);
-          setPaletteTheme(null);
-          setAccentId(cloudTheme.accent);
-        }
-      });
   };
   const handleSound = (v: boolean) => {
     setSound(v);
@@ -550,11 +465,7 @@ const Profile = () => {
   };
 
   const initials = (profile?.displayName || profile?.email || '?').slice(0, 2).toUpperCase();
-  const accentPreviewColors = paletteTheme
-    ? [paletteTheme.primary, paletteTheme.supportA, paletteTheme.supportB]
-    : [isCustomAccentHex(accentId)
-        ? accentId
-        : (ACCENTS.find((accent) => accent.id === accentId)?.hex ?? ACCENTS[0].hex)];
+  const accentPreviewColor = isCustomAccentHex(accentId) ? accentId : getAccentById(accentId).hex;
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
@@ -627,6 +538,100 @@ const Profile = () => {
           <SyncCenterCard uid={uid} />
         </div>
       )}
+
+      {/* Jeden kolor przewodni aplikacji. Palety wielokolorowe są wycofane. */}
+      <ProfileAccordionSection
+        id="accent"
+        icon={Palette}
+        label={t('profile.appearance.accent')}
+        value={(
+          <span data-testid="profile-accent-preview" className="flex items-center" aria-hidden="true">
+            <span className="h-4 w-4 rounded-full border border-background" style={{ backgroundColor: accentPreviewColor }} />
+          </span>
+        )}
+        open={isSectionOpen('accent')}
+        onOpenChange={(open) => setSectionOpen('accent', open)}
+      >
+        <div
+          className="grid grid-cols-4 gap-3 sm:grid-cols-6"
+          role="radiogroup"
+          aria-label={t('profile.appearance.accent')}
+          data-testid="accent-swatches"
+        >
+          {ACCENTS.map((accent, index) => (
+            <button
+              key={accent.id}
+              type="button"
+              role="radio"
+              aria-checked={accentId === accent.id}
+              tabIndex={accentId === accent.id || (!ACCENTS.some((item) => item.id === accentId) && index === 0) ? 0 : -1}
+              aria-label={t(`accent.${accent.id}` as Parameters<typeof t>[0])}
+              data-testid={`accent-${accent.id}`}
+              onClick={() => handleAccent(accent.id)}
+              onKeyDown={(event) => {
+                if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const radios = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+                if (!radios.length) return;
+                const current = radios.indexOf(event.currentTarget);
+                const next = event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? radios.length - 1
+                    : (current + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + radios.length) % radios.length;
+                radios[next]?.focus();
+                radios[next]?.click();
+              }}
+              className={cn(
+                'mx-auto h-11 w-11 touch-manipulation rounded-full transition-transform active:scale-95',
+                accentId === accent.id && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+              )}
+              style={{ backgroundColor: accent.hex }}
+            />
+          ))}
+          <label
+            className={cn(
+              'relative mx-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-full',
+              isCustomAccentHex(accentId) && 'ring-2 ring-white ring-offset-2 ring-offset-background',
+            )}
+            aria-label={t('accent.custom')}
+            style={{
+              background: isCustomAccentHex(accentId)
+                ? accentId
+                : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
+            }}
+          >
+            <input
+              type="color"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
+              onChange={(event) => handleAccent(event.target.value)}
+              data-testid="accent-custom-input"
+            />
+          </label>
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          <Input
+            value={hexInput}
+            onChange={(event) => setHexInput(event.target.value.trim())}
+            placeholder="#1e90ff"
+            inputMode="text"
+            autoCapitalize="none"
+            className="h-11 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
+            aria-label={t('profile.appearance.hexLabel')}
+            data-testid="accent-hex-input"
+          />
+          <Button
+            variant="outline"
+            disabled={!isCustomAccentHex(hexInput)}
+            onClick={() => handleAccent(hexInput)}
+            data-testid="accent-hex-apply"
+            className="h-11 rounded-lg border-0 bg-surface-highest px-4"
+          >
+            {t('profile.appearance.hexApply')}
+          </Button>
+        </div>
+      </ProfileAccordionSection>
 
       {/* 4. TRENING (fala 2 → X36): to, co user rusza poza timerem — jednostki,
           blokada wygaszania ekranu (z karty przerw), tryby. */}

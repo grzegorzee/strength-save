@@ -418,21 +418,21 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     const labels = await page.getByRole('main').locator('h2').evaluateAll((headings) =>
       headings.map((h) => (h.querySelector('[data-section-label]') ?? h).textContent?.trim()));
     expect(labels).toEqual([
-      'Trening', 'Timer i przerwy',
+      'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
       'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
       'Konto i pomoc',
     ]);
-    // Wszystkie sekcje ustawień zwinięte; edytor wyglądu został wycofany w 1.0.
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(7);
-    await expect(page.getByTestId('profile-toggle-accent')).toHaveCount(0);
+    // Wszystkie sekcje ustawień zwinięte; pojedynczy kolor pozostaje dostępny.
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(8);
+    await expect(page.getByTestId('profile-toggle-accent')).toBeVisible();
     await expect(page.getByTestId('accent-swatches')).toHaveCount(0);
     await expect(page.getByTestId('device-settings')).toHaveCount(0);
     // Rozwiniecie i zwiniecie jednej sekcji nie rusza pozostalych.
     await openProfileSection(page, 'timer');
     await expect(page.getByLabel('Timer przerwy')).toBeVisible();
-    await expect(page.locator('section[data-state="closed"]')).toHaveCount(6);
-    await page.getByTestId('profile-toggle-timer').click();
     await expect(page.locator('section[data-state="closed"]')).toHaveCount(7);
+    await page.getByTestId('profile-toggle-timer').click();
+    await expect(page.locator('section[data-state="closed"]')).toHaveCount(8);
     // Profil jest główną zakładką: bez dolnego paska i strzałki Wstecz,
     // ze wspólnym avatarem w nagłówku głównych ekranów.
     await expect(page.getByTestId('back-bar')).toHaveCount(0);

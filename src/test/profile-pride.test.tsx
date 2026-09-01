@@ -88,7 +88,8 @@ describe('Profil: tożsamość i ustawienia bez duplikowania postępów', () => 
     const sections = Array.from(container.querySelectorAll('section'));
 
     expect(sections[0]?.id).toBe('profile-identity');
-    expect(sections[1]?.id).toBe('profile-training');
+    expect(sections[1]?.id).toBe('profile-accent');
+    expect(sections[2]?.id).toBe('profile-training');
     expect(container.querySelector('#profile-pride')).toBeNull();
     ['workouts', 'streak', 'tonnage', 'sets'].forEach((key) => {
       expect(screen.queryByTestId(`profile-pride-${key}`)).toBeNull();

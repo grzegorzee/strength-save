@@ -5,6 +5,20 @@ podaje własną proweniencję. Nie jest zgodą na publiczną publikację App Sto
 Play Store. Wersje marketingowe pozostają
 `1.0.0`. Audyt nie przywraca RTK, hooków RTK ani `SessionStart`.
 
+## Delta X74 — pilna korekta selektora koloru, build 138 (2026-09-01)
+
+- Przywrócono wybór jednego koloru przewodniego w Profilu i onboardingu. Usunięte
+  pozostają wyłącznie wielokolorowe palety Pulse/Forge/Glacier.
+- Kolor działa od razu, zapisuje się lokalnie i w `preferences.accentColor`, jest
+  odtwarzany na cold starcie i synchronizowany między urządzeniami. Historyczna
+  paleta jest ignorowana i czyszczona z cache; jej `primary` pozostaje bezpiecznym
+  pojedynczym fallbackiem.
+- Bramki: Vitest **3867/3867** + 16 historycznie pominiętych, typecheck, lint
+  (0 błędów, 15 istniejących ostrzeżeń), build oraz celowane Chromium **9/9** i
+  WebKit **9/9** są zielone. Ostatnia pełna macierz E2E pozostaje **310/310**;
+  backend i Rules są bez zmian, a ostatni dowód JDK 21 to Functions **12/12**,
+  Firestore **317/317** i Storage **42/42**.
+
 ## Delta X73 — kandydat 1.0 build 136 i operacyjna gotowość (2026-08-31)
 
 - Produkcyjny Firestore ma delete protection, 7-dniowy PITR i codzienny backup

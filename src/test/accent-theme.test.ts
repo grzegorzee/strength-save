@@ -102,20 +102,20 @@ describe('accent-theme (F-T2 + plan I)', () => {
     expect(applied.id).toBe(DEFAULT_ACCENT_ID);
   });
 
-  it('boot normalizuje dawny wybór do stałego motywu lime', () => {
+  it('boot zachowuje pojedynczy wybór akcentu', () => {
     storeAccentId('amber');
     expect(readStoredAccentId()).toBe('amber');
     applyStoredAccent();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
-    expect(readStoredAccentId()).toBe('lime');
-    expect(getCurrentAccent().id).toBe('lime');
+    expect(document.documentElement.dataset.accent).toBe('amber');
+    expect(readStoredAccentId()).toBe('amber');
+    expect(getCurrentAccent().id).toBe('amber');
   });
 
-  it('boot ignoruje także zapisany stary alias', () => {
+  it('boot normalizuje zapisany stary alias', () => {
     storeAccentId('cyan');
     applyStoredAccent();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
-    expect(getCurrentAccent().id).toBe('lime');
+    expect(document.documentElement.dataset.accent).toBe('sky');
+    expect(getCurrentAccent().id).toBe('sky');
   });
 
   // Plan I: foreground per luminancja dla WSZYSTKICH akcentów (nie tylko
@@ -185,13 +185,13 @@ describe('accent-theme (F-T2 + plan I)', () => {
     expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 0%');
   });
 
-  it('własny hex może być odczytany przez legacy API, ale boot wraca do lime', () => {
+  it('własny hex przetrwa cold start', () => {
     storeAccentId('#ff0066');
     expect(getCurrentAccent().id).toBe('custom');
     expect(getCurrentAccent().hex).toBe('#ff0066');
     applyStoredAccent();
-    expect(document.documentElement.dataset.accent).toBeUndefined();
-    expect(getCurrentAccent().id).toBe('lime');
+    expect(document.documentElement.dataset.accent).toBe('custom');
+    expect(getCurrentAccent().hex).toBe('#ff0066');
   });
 
   it('niepoprawny hex = fallback do limonki', () => {

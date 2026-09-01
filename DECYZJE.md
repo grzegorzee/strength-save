@@ -5603,3 +5603,22 @@ bez błędów (Delivery UUID `cbe76973-38d3-45ee-a51a-ffefb4e0b3fe`). Build 137 
 w App Store Connect stan `VALID`, jest przypięty do grup wewnętrznej i zewnętrznej,
 ma opis `en-US`, a Beta App Review ma stan `APPROVED`. Nie wykonano Submit for
 Review wersji sklepowej; najpierw obowiązuje fizyczny smoke buildu 137.
+
+### 2026-09-01: X74 — korekta decyzji o kolorach, pojedynczy akcent wraca
+
+**Root cause:** sformułowanie „wywalamy palety, zostaje jeden kolor przewodni”
+zostało błędnie zinterpretowane jako jeden stały kolor marki. Usunięto więc nie
+tylko palety Pulse/Forge/Glacier, ale także istniejący selektor pojedynczego
+akcentu. Była to regresja funkcji i sprzeczność z intencją właściciela.
+
+**Decyzja:** aplikacja nadal pozwala wybrać jeden kolor przewodni spośród 11
+gotowych akcentów, a w Profilu także własny HEX. Usunięte pozostają wyłącznie
+wielokolorowe palety. `preferences.accentColor` jest mirrorem między urządzeniami,
+localStorage zapewnia cold start/offline, a stary `paletteTheme` jest ignorowany
+i czyszczony lokalnie. Zmiana koloru nie dotyka danych treningowych.
+
+**Niezmienniki i weryfikacja:** wybór działa natychmiast, przetrwa restart,
+zachowuje się między ekranami i nie przywraca palet. Test regresji najpierw
+odtworzył wymuszenie lime. Celowane testy komponentowe 31/31, Chromium 9/9 i
+WebKit 9/9 są zielone, również onboarding 320×568. Pełna bramka, build natywny
+i dystrybucja są wykonywane dla iOS build 138; MARKETING_VERSION pozostaje 1.0.0.

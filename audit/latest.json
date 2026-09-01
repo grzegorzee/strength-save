@@ -56,10 +56,10 @@
     ]
   },
   "checks": {
-    "vitest": "3866 passed, 0 failed, 16 intentionally skipped; 3882 total across 1315 suites",
+    "vitest": "3867 passed, 0 failed, 16 intentionally skipped; 3883 total across 448 files",
     "chromium_e2e": "310/310 passed",
     "webkit_critical": "9/9 passed",
-    "webkit_changed_flows": "27/27 passed: fixed theme, onboarding, keyboard dialogs, PL/EN label overflow, force-kill resume and warmup",
+    "webkit_changed_flows": "9/9 passed: single accent selection, palette removal, onboarding, cold start and mobile reachability",
     "label_audit": "PL and EN static, expanded, dialog, onboarding and admin labels passed at mobile widths; release screenshots regenerated",
     "typecheck": "passed",
     "lint": "0 errors, 15 pre-existing warnings",

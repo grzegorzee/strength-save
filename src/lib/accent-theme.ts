@@ -392,7 +392,7 @@ export const applyPaletteTheme = (value: PaletteThemeV2): PaletteThemeV2 | null 
 export const selectLegacyAccent = (id: string): AccentTheme => {
   clearStoredPaletteTheme();
   const accent = applyAccent(id);
-  storeAccentId(id);
+  storeAccentId(isCustomAccentHex(id) ? id.toLowerCase() : accent.id);
   return accent;
 };
 
@@ -401,7 +401,7 @@ export const getCurrentAccent = (): AccentTheme => getAccentById(readStoredAccen
 
 /** Boot: nałóż zapamiętany akcent zanim wyrenderuje się aplikacja. */
 export const applyStoredAccent = (): void => {
-  // 1.0: jeden spójny akcent marki. Stare preferencje zostają w chmurze dla
-  // kompatybilności danych, ale nie sterują już wyglądem ani cold startem.
-  selectLegacyAccent(DEFAULT_ACCENT_ID);
+  // 1.0: zachowujemy jeden wybrany przez usera kolor. Wycofane palety
+  // wielokolorowe nie mogą już sterować wyglądem ani cold startem.
+  selectLegacyAccent(readStoredAccentId());
 };

@@ -146,16 +146,17 @@ describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
     expect(screen.queryByTestId('ob-match-next')).toBeNull();
   });
 
-  it('wersja 1.0 zapisuje stały motyw lime i nie pokazuje wyboru kolorów', async () => {
+  it('zapisuje wybrany pojedynczy kolor i nie pokazuje palet', async () => {
     render(withProviders(<Onboarding />));
     expect(screen.queryByTestId('ob-custom-colors-toggle')).toBeNull();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryAllByRole('radio')).toHaveLength(11);
+    fireEvent.click(screen.getByTestId('ob-accent-indigo'));
     await walkWizardToConfirm();
     const calls = updateDoc.mock.calls as unknown as Array<[unknown, Record<string, unknown>]>;
     const onboardingPatch = calls.find(([, patch]) => patch.onboardingCompleted)?.[1];
     expect(onboardingPatch).toEqual(expect.objectContaining({
       onboardingCompleted: true,
-      'preferences.accentColor': 'lime',
+      'preferences.accentColor': 'indigo',
     }));
     expect(onboardingPatch).not.toHaveProperty('preferences.paletteTheme');
     expect(trackTelemetryEvent).toHaveBeenCalledWith('u1', 'onboarding_completed');
@@ -172,14 +173,14 @@ describe('Onboarding: avatar bez analizy kolorów w 1.0', () => {
     expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
     expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryAllByRole('radio')).toHaveLength(11);
   });
 
   it('brak photoURL: automat NIE odpala się', async () => {
     render(withProviders(<Onboarding />));
     await Promise.resolve();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryAllByRole('radio')).toHaveLength(11);
   });
 
   it('avatar spoza Google również nie pokazuje CTA analizy kolorów', async () => {
@@ -191,6 +192,6 @@ describe('Onboarding: avatar bez analizy kolorów w 1.0', () => {
 
     expect(screen.queryByRole('button', { name: /Dopasuj kolory ze zdjęcia/i })).toBeNull();
     expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryAllByRole('radio')).toHaveLength(11);
   });
 });

@@ -172,12 +172,12 @@ const openMoreColors = () => {
 };
 
 const PROFILE_SECTIONS = [
-  'Trening', 'Timer i przerwy',
+  'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
   'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
   'Konto i pomoc',
 ];
 const COLLAPSIBLE_IDS = [
-  'training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account',
+  'accent', 'training', 'timer', 'devices', 'notifications', 'subscription', 'data', 'account',
 ];
 const GROUPED_TARGET_IDS = ['plates', 'trainer', 'backup', 'consents'];
 
@@ -203,10 +203,10 @@ const renderSheet = () =>
   );
 
 describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
-  it('pokazuje 7 logicznych grup bez wycofanej sekcji wyglądu', () => {
+  it('pokazuje 8 logicznych grup z pojedynczym kolorem aplikacji', () => {
     const { container } = renderProfile();
     expect(sectionLabels(container)).toEqual(PROFILE_SECTIONS);
-    expect(container.querySelectorAll('section[data-state]')).toHaveLength(7);
+    expect(container.querySelectorAll('section[data-state]')).toHaveLength(8);
   });
 
   it('każda grupa ma kotwicę, a zgrupowane funkcje montują swoje stare kotwice dopiero po otwarciu rodzica', () => {
@@ -236,9 +236,9 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByTestId('plate-inventory-settings')).toBeNull();
     expect(queryByTestId('backup-settings')).toBeNull();
     expect(queryByTestId('consent-marketing-toggle')).toBeNull();
-    // Wersja 1.0 ma jeden motyw: w Profilu nie ma wycofanego edytora wyglądu.
+    // Edytor jest zwinięty, więc swatche nie są jeszcze zamontowane.
     expect(queryByTestId('accent-swatches')).toBeNull();
-    expect(queryByTestId('profile-toggle-accent')).toBeNull();
+    expect(queryByTestId('profile-toggle-accent')).toBeTruthy();
     COLLAPSIBLE_IDS.forEach((id) => {
       const trigger = screen.getByTestId(`profile-toggle-${id}`);
       expect(trigger.className).toContain('min-h-[50px]');
@@ -255,6 +255,24 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     openSection('training');
     expect(screen.getByTestId('profile-section-training').getAttribute('data-state')).toBe('closed');
     expect(queryByLabelText('Jednostki: kg')).toBeNull();
+  });
+
+  it('kolor aplikacji: wybór działa od razu, zapisuje mirror i nie przywraca palet', async () => {
+    renderProfile();
+    openSection('accent');
+    expect(screen.queryByTestId('palette-theme-picker')).toBeNull();
+    expect(screen.getByTestId('accent-swatches').querySelectorAll('[role="radio"]')).toHaveLength(11);
+    fireEvent.click(screen.getByTestId('accent-indigo'));
+    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
+    expect(localStorage.getItem('ss-palette-theme-v2')).toBeNull();
+    expect(document.documentElement.dataset.accent).toBe('indigo');
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        'preferences.accentColor': 'indigo',
+        'preferences.paletteTheme': firestoreFixture.DELETE_SENTINEL,
+      }),
+    ));
   });
 
   it('deep link ?section=notifications ROZWIJA sekcję Powiadomienia i przewija do niej', async () => {
@@ -627,8 +645,8 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     const timer = sectionByLabel(container, 'Timer i przerwy');
     ['Timer przerwy', 'Dźwięk timera'].forEach((l) => expect(within(timer).getByLabelText(l)).toBeTruthy());
     expect(within(timer).getByLabelText('Przerwa między seriami')).toBeTruthy();
-    // Wycofany edytor wyglądu nie może wrócić do Profilu.
-    expect(screen.queryByTestId('profile-toggle-accent')).toBeNull();
+    // Pojedynczy kolor pozostaje dostępny, bez palet.
+    expect(screen.getByTestId('profile-toggle-accent')).toBeTruthy();
     // KALKULATOR TALERZY: inwentarz (bez własnego nagłówka w karcie).
     expect(within(subsectionById(container, 'plates')).getByLabelText('Sztuk 25')).toBeTruthy();
     // SUBSKRYPCJA (admin → "Pełny dostęp" w wierszu i w środku)

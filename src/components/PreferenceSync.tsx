@@ -7,7 +7,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { normalizeRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { buildMigratedRestSettings, toRestPreference } from '@/lib/rest-preferences';
 import { setWarmupPromptEnabled } from '@/lib/warmup-prompt';
-import { claimStoredThemeOwner, selectLegacyAccent } from '@/lib/accent-theme';
+import { claimStoredThemeOwner, readStoredAccentId, selectLegacyAccent } from '@/lib/accent-theme';
 
 // Synchronizacja preferencji (jednostki, język, akcent, przerwy, dźwięk) z users/{uid}.preferences.
 // localStorage zostaje cache per urządzenie; chmura jest źródłem prawdy między web i iOS.
@@ -32,7 +32,7 @@ export const PreferenceSync = () => {
     // Kolor musi działać od pierwszego ekranu na świeżym urządzeniu, nie dopiero
     // po wejściu w Profil. Chmura jest źródłem prawdy; zapisujemy też cache,
     // żeby następny cold start/offline wyrenderował ten sam theme przed Reactem.
-    selectLegacyAccent('lime');
+    selectLegacyAccent(prefs?.accentColor ?? readStoredAccentId());
     try {
       if (typeof prefs?.timerSound === 'boolean') localStorage.setItem('timer-sound-enabled', String(prefs.timerSound));
     } catch {
