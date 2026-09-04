@@ -45,7 +45,7 @@ export const pl = {
   'nav.cycles': 'Cykle',
   'nav.settings': 'Ustawienia',
   'nav.back': 'Wstecz',
-  'nav.measurements': 'Pomiary ciała',
+  'nav.measurements': 'Pomiary',
   'empty.startFirstWorkout': 'Zacznij pierwszy trening',
 
   // profil
@@ -1493,6 +1493,8 @@ export const pl = {
   'measurements.editSubtitle': 'Zmień wartości, datę, godzinę lub zdjęcie wpisu.',
   'measurements.editEntry': 'Edytuj wpis',
   'measurements.date': 'Data',
+  'measurements.dateInvalidError': 'Podaj poprawną datę pomiaru.',
+  'measurements.dateFutureError': 'Data pomiaru nie może być z przyszłości.',
   'measurements.time': 'Godzina',
   'measurements.delete': 'Usuń wpis',
   'measurements.deleteConfirmTitle': 'Usunąć wpis pomiaru?',

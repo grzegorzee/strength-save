@@ -457,3 +457,18 @@ All colors MUST be HSL.
     touch-action: manipulation;
   }
 }
+
+/* Dolny pasek ma sześć zakładek (2026-09-04, Pomiary jako zakładka główna).
+   Tailwindowe warianty max-* nie kompilują się przy ekranie desktop-shell (raw),
+   więc progi siedzą tutaj: poniżej 390 px etykiety ciaśniej, poniżej 360 px
+   (iPhone SE 1. gen) zostają same ikony; nazwę dostępną linku niesie aria-label. */
+@media (max-width: 389px) {
+  .mobile-nav-label {
+    letter-spacing: -0.06em;
+  }
+}
+@media (max-width: 359px) {
+  .mobile-nav-label {
+    display: none;
+  }
+}

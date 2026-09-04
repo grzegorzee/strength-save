@@ -2,6 +2,9 @@ import type { TranslationKey } from '@/i18n';
 
 export const MAIN_DESTINATIONS = [
   { id: 'today', path: '/', labelKey: 'nav.today' },
+  // 2026-09-04 (decyzja właściciela): pomiary ciała są zakładką główną zaraz po
+  // treningu, a nie wierszem w Profilu; etykieta krótka, bo pasek ma sześć pozycji.
+  { id: 'measurements', path: '/measurements', labelKey: 'nav.measurements' },
   { id: 'plan', path: '/plan', labelKey: 'nav.plan' },
   { id: 'history', path: '/history', labelKey: 'nav.history' },
   { id: 'progress', path: '/achievements', labelKey: 'nav.progress' },
@@ -19,7 +22,7 @@ export const MAIN_DESTINATION_PATHS: ReadonlySet<string> = new Set(
 );
 
 // Analytics zachowuje dotychczasowy chrome głównego ekranu i deep link,
-// choć nie zajmuje miejsca w pięcioelementowym bottom navie.
+// choć nie zajmuje miejsca w sześcioelementowym bottom navie.
 export const APP_CHROME_ROOT_PATHS: ReadonlySet<string> = new Set([
   ...MAIN_DESTINATION_PATHS,
   '/analytics',

@@ -92,9 +92,26 @@ export function buildBodyCompareHtml(input: BodyCompareShareInput): string {
         : ''}
     </div>`;
 
+  // Strzalka PRZED → PO wylacznie w szablonie classic (wariant do oceny
+  // wlasciciela; accent i photo bez zmian, zeby mial porownanie). Inline SVG,
+  // zero rastrow: html2canvas-pro serializuje <svg> przez XMLSerializer do
+  // data:image/svg+xml i rysuje jak obraz (SVGElementContainer,
+  // node_modules/html2canvas-pro/dist/html2canvas-pro.esm.js:5874-5885).
+  // Budzet square: 2 x 226 + 36 + 2 x 6 = 500 px, wiec padding boczny 20 px
+  // zamiast 28. Story: kolumna (2 komorki + delta) ma 875 px przy 880 px
+  // tresci, strzalka z gapami 4 px dodaje 30 px, wiec padding pionowy 24 px
+  // zamiast 40 (zapas 6 px). PHOTO_BOX bez zmian, zdjecia w kontenerze; dowod
+  // geometrii (pomiar DOM) w e2e body-share-dialog.spec.
+  const withArrow = template === 'classic';
+  const ARROW_LENGTH = 36;
+  const ARROW_GAP = format === 'square' ? 6 : 4;
+  const arrowStyle = `fill="none" stroke="${accentHex}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"`;
+  const arrowRight = `<div style="flex:0 0 ${ARROW_LENGTH}px;height:${photoBox.height}px;display:flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="${ARROW_LENGTH}" height="24" viewBox="0 0 36 24" ${arrowStyle}><path d="M3 12h29"/><path d="M23 4l9 8-9 8"/></svg></div>`;
+  const arrowDown = `<div style="height:${ARROW_LENGTH}px;display:flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="${ARROW_LENGTH}" viewBox="0 0 24 36" ${arrowStyle}><path d="M12 3v29"/><path d="M4 23l8 9 8-9"/></svg></div>`;
+
   const photos = format === 'square'
-    ? `<div style="display:flex;justify-content:center;gap:16px;">${cell(before, 'measurements.photo.before')}${cell(after, 'measurements.photo.after')}</div>`
-    : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;">${cell(before, 'measurements.photo.before')}${cell(after, 'measurements.photo.after')}</div>`;
+    ? `<div style="display:flex;justify-content:center;align-items:flex-start;gap:${withArrow ? ARROW_GAP : 16}px;">${cell(before, 'measurements.photo.before')}${withArrow ? arrowRight : ''}${cell(after, 'measurements.photo.after')}</div>`
+    : `<div style="display:flex;flex-direction:column;align-items:center;gap:${withArrow ? ARROW_GAP : 14}px;">${cell(before, 'measurements.photo.before')}${withArrow ? arrowDown : ''}${cell(after, 'measurements.photo.after')}</div>`;
 
   // Delta tylko gdy OBIE wagi (edge case 1 planu).
   const delta = before.weightKg != null && after.weightKg != null ? after.weightKg - before.weightKg : null;
@@ -119,7 +136,7 @@ export function buildBodyCompareHtml(input: BodyCompareShareInput): string {
       width:${width}px;height:${height}px;position:relative;overflow:hidden;box-sizing:border-box;
       ${background}${cardBorder}
       color:#fff;font-family:system-ui,-apple-system,sans-serif;
-      padding:${format === 'square' ? '22px 28px' : '40px 32px'};display:flex;flex-direction:column;
+      padding:${format === 'square' ? `22px ${withArrow ? 20 : 28}px` : `${withArrow ? 24 : 40}px 32px`};display:flex;flex-direction:column;
     ">
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
         <img src="${appIcon}" style="width:24px;height:24px;border-radius:6px;" />
@@ -349,8 +366,16 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
     { id: 'photo', label: t('measurements.shareTemplate.photo') },
   ];
 
+  // Zrzut wlasciciela 2026-09-04 (iPhone 390 px): "KLASYCZNY" uciety przy prawej
+  // krawedzi pigulki. flex-1 (basis 0) = rowne trzecie po 98.7 px, a etykieta w
+  // 12 px + tracking-wide potrzebowala 104 px; min-w-11 z toggleButtonClasses
+  // wylacza ochrone min-content, wiec chip kurczyl sie pod tekst. flex-auto =
+  // basis z tresci (11 px bez trackingu + px-2: 87 px), wolne miejsce dzielone po
+  // rowno; flex-wrap na rzedzie zawija dopiero, gdy tresc naprawde sie nie miesci
+  // (skalowanie czcionki). Kontrakt: e2e body-share-dialog.spec (pomiar Range vs
+  // wnetrze chipa przy 390/320, PL i EN).
   const chip = (active: boolean) => cn(
-    'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+    'flex-auto whitespace-nowrap rounded-full px-2 py-1.5 text-[11px] font-bold uppercase transition-colors',
     toggleButtonClasses(active),
     active ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
   );
@@ -363,7 +388,7 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
           <DialogDescription>{t('comp.share.subtitle')}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-1.5" data-testid="body-share-format-chips">
+        <div className="flex flex-wrap gap-1.5" data-testid="body-share-format-chips">
           {formats.map(({ id, label }) => (
             <button
               key={id}
@@ -377,7 +402,7 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
           ))}
         </div>
 
-        <div className="flex gap-1.5" data-testid="body-share-template-chips">
+        <div className="flex flex-wrap gap-1.5" data-testid="body-share-template-chips">
           {templates.map(({ id, label }) => (
             <button
               key={id}
@@ -406,8 +431,13 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
               alt={t('comp.share.imageAlt')}
               className="mx-auto max-h-[42vh] w-auto rounded-lg border"
             />
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={handleDownload}>
+            {/* Przy 320 px min-content obu przyciskow (nowrap, ikona) = 261 px > 240 px
+                tresci arkusza; grid DialogContent rozszerzal tor i arkusz dostawal
+                scroll poziomy tnacy prawe chipy. basis 8rem: jedna linia dopiero od
+                264 px tresci (min-content obu = 261 px, wiec bez ucinania), czyli
+                rowne polowy od 360 px; ponizej stos zamiast poza krawedz. */}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="flex-1 basis-32" onClick={handleDownload}>
                 {savedAction === 'download' ? (
                   <Check className="h-4 w-4 mr-2 text-fitness-success" />
                 ) : (
@@ -415,7 +445,7 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
                 )}
                 {savedAction === 'download' ? t('comp.share.saved') : t('comp.share.download')}
               </Button>
-              <Button className="flex-1" onClick={handleShare}>
+              <Button className="flex-1 basis-32" onClick={handleShare}>
                 {savedAction === 'share' ? (
                   <Check className="h-4 w-4 mr-2" />
                 ) : (

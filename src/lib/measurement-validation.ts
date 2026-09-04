@@ -18,12 +18,18 @@ export const validateMeasurement = (
   input: MeasurementValidationInput,
   // WP-D D2: formularz zna zdjęcie tylko jako File (upload PO walidacji),
   // więc deklaruje je flagą; zapisany wpis niesie photoUrl w danych.
-  options?: { hasPhoto?: boolean },
-): { valid: true } | { valid: false; field: string } => {
+  // maxDate (opt-in, ISO): formularz dodawania odrzuca datę z przyszłości.
+  // Hook i edycja istniejącego wpisu nie podają maxDate (kontrakt bez zmian).
+  options?: { hasPhoto?: boolean; maxDate?: string },
+): { valid: true } | { valid: false; field: string; reason?: 'future' } => {
   try {
     parseLocalDate(input.date);
   } catch {
     return { valid: false, field: 'date' };
+  }
+  // ISO YYYY-MM-DD porównuje się leksykograficznie (jak filtry Historii).
+  if (options?.maxDate && input.date > options.maxDate) {
+    return { valid: false, field: 'date', reason: 'future' };
   }
 
   let values = 0;

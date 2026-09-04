@@ -43,15 +43,19 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/exercises');
   });
 
-  test('z Profilu: Pomiary i Admin; Historia/Postępy bez duplikacji dolnej nawigacji', async ({ page }) => {
+  test('Pomiary z dolnej nawigacji; z Profilu Admin; Historia/Postępy/Pomiary bez duplikacji dolnej nawigacji', async ({ page }) => {
+    // 2026-09-04: Pomiary ciała są zakładką główną (po Dzisiaj), nie wierszem w Profilu.
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
+    await page.locator('nav[aria-label="Nawigacja mobilna"]').getByRole('link', { name: 'Pomiary', exact: true }).click();
+    await expectHashRoute(page, '/measurements');
 
+    await navigateAndWait(page, '/profile');
+    await expectPageRendered(page);
     await openProfileSection(page, 'data');
     await expect(page.getByRole('button', { name: 'Historia', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Postępy', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Pomiary ciała', exact: true }).click();
-    await expectHashRoute(page, '/measurements');
+    await expect(page.getByRole('button', { name: /^Pomiary/, exact: false })).toHaveCount(0);
 
     // Admin widoczny, bo scenariusz e2e to active-admin.
     await navigateAndWait(page, '/profile');

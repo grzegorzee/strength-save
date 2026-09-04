@@ -39,7 +39,6 @@ const renderAt = (entries: string[]) =>
           <Route path="/achievements" element={<Probe label="achievements" />} />
           <Route path="/exercises" element={<Probe label="exercises" />} />
           <Route path="/profile" element={<Probe label="profile" />} />
-          <Route path="/measurements" element={<Probe label="measurements" />} />
           <Route path="/cycles" element={<Probe label="cycles" />} />
           <Route path="/plan/edit" element={<Probe label="planEdit" />} />
           <Route path="/admin" element={<Probe label="admin" />} />
@@ -52,7 +51,7 @@ const renderAt = (entries: string[]) =>
   );
 
 describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
-  it.each(['/exercises', '/measurements', '/cycles', '/plan/edit', '/admin', '/exercise/x'])(
+  it.each(['/exercises', '/cycles', '/plan/edit', '/admin', '/exercise/x'])(
     'trasa spoza bottom nav %s: pasek widoczny z etykietą nav.back',
     (path) => {
       renderAt([path]);
@@ -88,8 +87,8 @@ describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
   });
 
   it('tytuł trasy na pasku dla tras z tytułem; szczegóły ćwiczenia bez tytułu (własny nagłówek strony)', () => {
-    const { unmount } = renderAt(['/measurements']);
-    expect(screen.getByTestId('back-bar').textContent).toContain('layout.title.measurements');
+    const { unmount } = renderAt(['/cycles']);
+    expect(screen.getByTestId('back-bar').textContent).toContain('layout.title.cycles');
     unmount();
     renderAt(['/exercise/x']);
     expect(screen.getByTestId('back-bar').textContent).not.toContain('layout.title');
@@ -97,21 +96,21 @@ describe('BackBar: pasek "Wstecz" nad dolną nawigacją (WP-C)', () => {
 
   it('klik = navigate(-1), gdy jest historia (idx > 0)', () => {
     window.history.replaceState({ idx: 1 }, '');
-    renderAt(['/plan', '/measurements']);
-    expect(screen.getByTestId('probe').textContent).toBe('measurements:/measurements');
+    renderAt(['/plan', '/cycles']);
+    expect(screen.getByTestId('probe').textContent).toBe('cycles:/cycles');
     fireEvent.click(screen.getByRole('button', { name: 'nav.back' }));
     expect(screen.getByTestId('probe').textContent).toBe('plan:/plan');
   });
 
   it('klik z deep linka (idx 0) = fallback na Dashboard', () => {
     window.history.replaceState({ idx: 0 }, '');
-    renderAt(['/plan', '/measurements']);
+    renderAt(['/plan', '/cycles']);
     fireEvent.click(screen.getByRole('button', { name: 'nav.back' }));
     expect(screen.getByTestId('probe').textContent).toBe('dashboard:/');
   });
 
   it('gdy pasek widoczny, main ma większą rezerwę dolną (treść nie chowa się pod paskiem)', () => {
-    const { unmount } = renderAt(['/measurements']);
+    const { unmount } = renderAt(['/cycles']);
     const withBar = screen.getByRole('main').className;
     unmount();
     renderAt(['/plan']);

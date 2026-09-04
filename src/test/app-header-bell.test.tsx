@@ -63,7 +63,7 @@ describe('AppHeader: dzwonek na zakładkach głównych (X35c)', () => {
     expect(getByTestId('notification-bell').textContent).toBe('u1');
   });
 
-  it.each(['/exercises', '/measurements', '/cycles', '/plan/edit', '/admin'])('%s: bez dzwonka (trasa poza nav)', (path) => {
+  it.each(['/exercises', '/cycles', '/plan/edit', '/admin'])('%s: bez dzwonka (trasa poza nav)', (path) => {
     const { queryByTestId } = renderAt(path, () => {});
     expect(queryByTestId('notification-bell')).toBeNull();
   });

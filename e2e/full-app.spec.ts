@@ -879,7 +879,7 @@ test.describe('Linki krzyżowe (Z67)', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await navigateAndWait(page, '/');
     await page.getByRole('navigation', { name: 'Nawigacja główna' })
-      .getByRole('link', { name: 'Pomiary ciała' }).click();
+      .getByRole('link', { name: 'Pomiary' }).click();
     await expect(page).toHaveURL(/#\/measurements$/);
   });
 

@@ -27,6 +27,7 @@ interface AppNavigationProps {
 
 const MAIN_DESTINATION_ICONS = {
   today: Home,
+  measurements: Ruler,
   plan: Calendar,
   history: ScrollText,
   progress: Trophy,
@@ -43,14 +44,13 @@ const navItems = [
   ...mainNavItems,
   // Pozostałe — sidebar (desktop)
   { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
-  { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
 ];
 
 // Boczne menu pogrupowane w sekcje (mniej przytłaczające niż płaska lista 9 pozycji).
 const NAV_GROUPS = [
-  { titleKey: 'nav.group.main' as const, paths: ['/', '/plan', '/history', '/exercises'] },
-  { titleKey: 'nav.group.progress' as const, paths: ['/measurements', '/achievements', '/cycles'] },
+  { titleKey: 'nav.group.main' as const, paths: ['/', '/measurements', '/plan', '/history', '/exercises'] },
+  { titleKey: 'nav.group.progress' as const, paths: ['/achievements', '/cycles'] },
   { titleKey: 'nav.group.account' as const, paths: ['/profile'] },
 ];
 
@@ -274,11 +274,12 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
       {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background to-background/0 desktop-shell:hidden" />}
 
       {!hideMobileNav && (
-        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
+        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 flex items-center justify-around rounded-3xl px-1 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
           {mainNavItems.map((item) => (
             <NavLink
               key={`mobile-${item.to}`}
               to={item.to}
+              aria-label={t(item.labelKey)}
               className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {({ isActive }) => (
@@ -291,7 +292,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     <item.icon className="h-5 w-5" />
                   </span>
                   <span className={cn(
-                    "max-w-full break-words text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors",
+                    "max-w-full break-words text-center mobile-nav-label text-[11px] font-bold uppercase leading-tight tracking-normal transition-colors",
                     isActive ? "text-foreground" : "text-muted-foreground"
                   )}>
                     {t(item.labelKey)}

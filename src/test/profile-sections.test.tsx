@@ -653,9 +653,10 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(within(sectionByLabel(container, 'Subskrypcja')).getAllByText('Pełny dostęp').length).toBeGreaterThanOrEqual(1);
     // TWOJE DANE: dojścia, backup i zgody w jednej grupie.
     const dane = sectionByLabel(container, 'Twoje dane');
-    ['Pomiary ciała', 'Rekordy sprzed aplikacji', 'Admin']
+    ['Rekordy sprzed aplikacji', 'Admin']
       .forEach((l) => expect(within(dane).getByText(l)).toBeTruthy());
     expect(within(dane).queryByText('Historia')).toBeNull();
+    expect(within(dane).queryByText('Pomiary')).toBeNull();
     expect(within(dane).queryByText('Postępy')).toBeNull();
     const backup = subsectionById(container, 'backup');
     ['Eksportuj kopię', 'Importuj kopię'].forEach((l) => expect(within(backup).getByText(l)).toBeTruthy());

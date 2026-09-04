@@ -44,7 +44,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nav.cycles': 'Cycles',
   'nav.settings': 'Settings',
   'nav.back': 'Back',
-  'nav.measurements': 'Body measurements',
+  'nav.measurements': 'Body',
   'empty.startFirstWorkout': 'Start your first workout',
 
   'profile.title': 'Profile',
@@ -1471,6 +1471,8 @@ export const en: Record<keyof typeof pl, string> = {
   'measurements.editSubtitle': 'Change the entry values, date, time, or photo.',
   'measurements.editEntry': 'Edit entry',
   'measurements.date': 'Date',
+  'measurements.dateInvalidError': 'Enter a valid measurement date.',
+  'measurements.dateFutureError': 'The measurement date cannot be in the future.',
   'measurements.time': 'Time',
   'measurements.delete': 'Delete entry',
   'measurements.deleteConfirmTitle': 'Delete this measurement?',

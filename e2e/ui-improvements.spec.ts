@@ -26,7 +26,7 @@ test.describe('Navigation', () => {
     expect(joinedLabels).toContain('Historia');
     expect(joinedLabels).toContain('Ćwiczenia');
     expect(joinedLabels).not.toContain('Analityka');
-    expect(joinedLabels).toContain('Pomiary ciała');
+    expect(joinedLabels).toContain('Pomiary');
     // PRO-B T3: /achievements ma wspólny labelKey nav.progress ('Postępy').
     expect(joinedLabels).toContain('Postępy');
     expect(joinedLabels).toContain('Cykle');
@@ -37,7 +37,7 @@ test.describe('Navigation', () => {
     expect(joinedLabels).not.toContain('AI Coach');
   });
 
-  test('mobile has five root links and keeps sidebar-only links out of keyboard focus', async ({ page }) => {
+  test('mobile has six root links and keeps sidebar-only links out of keyboard focus', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
@@ -47,17 +47,16 @@ test.describe('Navigation', () => {
     // 'Nawigacja główna' renderuje się wyłącznie na desktopie (md+).
     await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toHaveCount(0);
     const mobileNavLinks = page.getByRole('navigation', { name: 'Nawigacja mobilna' }).getByRole('link');
-    await expect(mobileNavLinks).toHaveCount(5);
+    await expect(mobileNavLinks).toHaveCount(6);
     await expect(mobileNavLinks.filter({ hasText: 'Profil' })).toHaveAttribute('href', '#/profile');
 
     for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
-      // D-T1/X51: Profil jest piątym rootem i może dostać fokus. Tylko linki
+      // D-T1/X51: Profil jest szóstym rootem (2026-09-04: Pomiary po Dzisiaj) i może dostać fokus. Tylko linki
       // desktopowego sidebara nie istnieją na mobile.
       expect(focusedHref).not.toBe('#/analytics');
       expect(focusedHref).not.toBe('#/exercises');
-      expect(focusedHref).not.toBe('#/measurements');
       expect(focusedHref).not.toBe('#/cycles');
     }
   });

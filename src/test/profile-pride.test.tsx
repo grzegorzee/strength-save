@@ -105,6 +105,8 @@ describe('Profil: tożsamość i ustawienia bez duplikowania postępów', () => 
     const dataSection = screen.getByTestId('profile-section-data');
     expect(within(dataSection).queryByText('Historia')).toBeNull();
     expect(within(dataSection).queryByText('Postępy')).toBeNull();
-    expect(within(dataSection).getByText('Pomiary ciała')).toBeInTheDocument();
+    // 2026-09-04: Pomiary są zakładką główną, więc w Profilu ich nie ma.
+    expect(within(dataSection).queryByText('Pomiary ciała')).toBeNull();
+    expect(within(dataSection).queryByText('Pomiary')).toBeNull();
   });
 });

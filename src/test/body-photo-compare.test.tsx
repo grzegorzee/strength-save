@@ -48,6 +48,32 @@ describe('BodyPhotoCompare (T13b)', () => {
     expect(screen.getByText('Porównanie sylwetki')).toBeTruthy();
   });
 
+  // Zgłoszenie z iPhone'a 390 px: "21 sie 2026" nie mieściło się w triggerze
+  // ("21 sie… ⌄"). Wybrana wartość = krótki format numeryczny, pozycje listy
+  // i podpis pod zdjęciem zostają z pełną datą.
+  it('trigger selektora pokazuje krótką datę numeryczną, podpis pod zdjęciem pełną (PL)', () => {
+    renderCompare([
+      measurement('m-new', '2026-08-21', { weight: 80, photoUrl: 'https://x.test/new.jpg' }),
+      measurement('m-old', '2026-05-12', { weight: 84, photoUrl: 'https://x.test/old.jpg' }),
+    ]);
+
+    expect(screen.getByTestId('body-photo-select-before').textContent).toBe('12.05.2026');
+    expect(screen.getByTestId('body-photo-select-after').textContent).toBe('21.08.2026');
+    expect(screen.getByText(/12 maj 2026/)).toBeTruthy();
+    expect(screen.getByText(/21 sie 2026/)).toBeTruthy();
+  });
+
+  it('trigger selektora: krótki format numeryczny w locale apki (EN)', () => {
+    localStorage.setItem('app-language', 'en');
+    renderCompare([
+      measurement('m-new', '2026-08-21', { weight: 80, photoUrl: 'https://x.test/new.jpg' }),
+      measurement('m-old', '2026-05-12', { weight: 84, photoUrl: 'https://x.test/old.jpg' }),
+    ]);
+
+    expect(screen.getByTestId('body-photo-select-before').textContent).toBe('05/12/2026');
+    expect(screen.getByTestId('body-photo-select-after').textContent).toBe('08/21/2026');
+  });
+
   it('1 zdjecie: hint zamiast porownania', () => {
     renderCompare([
       measurement('m-1', '2026-08-20', { weight: 80, photoUrl: 'https://x.test/only.jpg' }),

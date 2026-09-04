@@ -6,9 +6,10 @@ import {
 } from '@/lib/main-navigation';
 
 describe('centralny kontrakt głównej nawigacji', () => {
-  it('ma dokładnie pięć stabilnych destynacji bez zmiany URL-i', () => {
+  it('ma dokładnie sześć stabilnych destynacji bez zmiany URL-i', () => {
     expect(MAIN_DESTINATIONS.map(({ id, path }) => ({ id, path }))).toEqual([
       { id: 'today', path: '/' },
+      { id: 'measurements', path: '/measurements' },
       { id: 'plan', path: '/plan' },
       { id: 'history', path: '/history' },
       { id: 'progress', path: '/achievements' },
@@ -19,6 +20,7 @@ describe('centralny kontrakt głównej nawigacji', () => {
   it('daje pełne, jawne etykiety w obu językach', () => {
     expect(MAIN_DESTINATIONS.map((item) => translate('pl', item.labelKey))).toEqual([
       'Dzisiaj',
+      'Pomiary',
       'Plan',
       'Historia',
       'Postępy',
@@ -26,6 +28,7 @@ describe('centralny kontrakt głównej nawigacji', () => {
     ]);
     expect(MAIN_DESTINATIONS.map((item) => translate('en', item.labelKey))).toEqual([
       'Today',
+      'Body',
       'Plan',
       'History',
       'Progress',
@@ -33,11 +36,12 @@ describe('centralny kontrakt głównej nawigacji', () => {
     ]);
   });
 
-  it('rozpoznaje wyłącznie rooty pięciu głównych destynacji', () => {
+  it('rozpoznaje wyłącznie rooty sześciu głównych destynacji', () => {
     for (const { path } of MAIN_DESTINATIONS) {
       expect(isMainDestinationPath(path)).toBe(true);
     }
     expect(isMainDestinationPath('/profile')).toBe(true);
+    expect(isMainDestinationPath('/measurements')).toBe(true);
     expect(isMainDestinationPath('/exercises')).toBe(false);
     expect(isMainDestinationPath('/plan/edit')).toBe(false);
   });

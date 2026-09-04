@@ -22,8 +22,8 @@ vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
 
 describe('AppNavigation mobile', () => {
   it.each([
-    ['pl', ['Dzisiaj', 'Plan', 'Historia', 'Postępy', 'Profil']],
-    ['en', ['Today', 'Plan', 'History', 'Progress', 'Profile']],
+    ['pl', ['Dzisiaj', 'Pomiary', 'Plan', 'Historia', 'Postępy', 'Profil']],
+    ['en', ['Today', 'Body', 'Plan', 'History', 'Progress', 'Profile']],
   ] as const)('D-T1: %s renderuje pięć pełnych etykiet bez heurystycznego skracania', (lang, labels) => {
     activeLanguage = lang;
     const { container } = render(<MemoryRouter><AppNavigation /></MemoryRouter>);

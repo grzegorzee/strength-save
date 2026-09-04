@@ -49,6 +49,11 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
 
   const formatDate = (date: string) =>
     formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
+  // Zgłoszenie z iPhone'a 390 px: "21 sie 2026" nie mieściło się w triggerze
+  // selektora ("21 sie… ⌄"). Wybrana wartość = krótki format numeryczny
+  // (21.08.2026); pozycje listy i podpis pod zdjęciem zostają z pełną datą.
+  const formatDateShort = (date: string) =>
+    formatLocalDateLabel(date, dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   if (withPhotos.length === 1) {
     const only = withPhotos[0];
@@ -127,8 +132,12 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
             <div key={col.key} className="space-y-2">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t(col.labelKey)}</p>
               <Select value={col.entry.id} onValueChange={(value) => col.onChange(value)}>
-                <SelectTrigger data-testid={`body-photo-select-${col.key}`}>
-                  <SelectValue />
+                {/* Dwie kolumny: 85 px na tekst przy 360 px, 73 px przy 320 px (iOS 15,
+                    SE 1. gen). text-sm + px-1.5 + tracking-tight mieszczą także EN
+                    (08/21/2026, 72.9 px). Trigger to button, więc 14 px nie wywołuje
+                    zoomu iOS jak w inputach. Strażnik: e2e/body-photo-compare-select.spec.ts */}
+                <SelectTrigger className="px-1.5 text-sm tracking-tight" data-testid={`body-photo-select-${col.key}`}>
+                  <SelectValue>{formatDateShort(col.entry.date)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {withPhotos.map((m) => (

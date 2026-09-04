@@ -32,6 +32,7 @@ const renderAt = (path: string) =>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<div>dashboard</div>} />
+          <Route path="/measurements" element={<div>measurements</div>} />
           <Route path="/plan" element={<div>plan</div>} />
           <Route path="/history" element={<div>history</div>} />
           <Route path="/achievements" element={<div>progress</div>} />

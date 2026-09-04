@@ -5,7 +5,7 @@
 // nativeHttp → getBlob → fetch; na web: fetch → getBlob; potem downscale →
 // podglad → Pobierz/Udostepnij).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import appIcon from '@/assets/app-icon.png';
 import { escapeHtml } from '@/lib/share-html';
 import { formatLocalDateLabel } from '@/lib/utils';
@@ -157,6 +157,55 @@ describe('buildBodyCompareHtml (E2)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Strzalka PRZED → PO (2026-09-04): wariant do oceny wlasciciela, dlatego
+// WYLACZNIE w szablonie classic (accent i photo bez zmian = punkt odniesienia).
+// Inline SVG, bo html2canvas-pro serializuje <svg> do data:image/svg+xml
+// (SVGElementContainer); zadnych plikow rastrowych.
+// ---------------------------------------------------------------------------
+
+describe('buildBodyCompareHtml: strzalka PRZED → PO tylko w classic', () => {
+  it.each(FORMATS)('classic/%s: jeden inline <svg> w kolorze akcentu, bez rastra, miedzy komorkami', (format) => {
+    const html = buildBodyCompareHtml(buildInput({ template: 'classic', format }));
+    expect(html.match(/<svg/g)).toHaveLength(1);
+    expect(html).toContain(`stroke="${ACCENT}"`);
+    expect(html).not.toContain('<image');
+    // Kolejnosc w HTML: zdjecie PRZED → strzalka → zdjecie PO.
+    const before = html.indexOf('data:image/jpeg;base64,BEFORE');
+    const arrow = html.indexOf('<svg');
+    const after = html.indexOf('data:image/jpeg;base64,AFTER');
+    expect(before).toBeLessThan(arrow);
+    expect(arrow).toBeLessThan(after);
+  });
+
+  it('kierunek: square = grot w prawo (viewBox poziomy), story = grot w dol (viewBox pionowy)', () => {
+    expect(buildBodyCompareHtml(buildInput({ template: 'classic', format: 'square' }))).toContain('viewBox="0 0 36 24"');
+    expect(buildBodyCompareHtml(buildInput({ template: 'classic', format: 'story' }))).toContain('viewBox="0 0 24 36"');
+  });
+
+  it('square: strzalka wysrodkowana wzgledem pudelka zdjecia (wysokosc = PHOTO_BOX), nie podpisu', () => {
+    const html = buildBodyCompareHtml(buildInput({ template: 'classic', format: 'square' }));
+    expect(html).toContain('flex:0 0 36px;height:301px;display:flex;align-items:center');
+  });
+
+  it.each(
+    (['accent', 'photo'] as BodyCompareTemplate[]).flatMap((template) => FORMATS.map((format) => ({ template, format }))),
+  )('$template/$format: bez strzalki i bez zmiany paddingu', ({ template, format }) => {
+    const html = buildBodyCompareHtml(buildInput({ template, format }));
+    expect(html).not.toContain('<svg');
+    expect(html).toContain(format === 'square' ? 'padding:22px 28px' : 'padding:40px 32px');
+  });
+
+  it('classic: padding ciasniejszy tylko o budzet strzalki (square 20 px w bok, story 24 px w pion), PHOTO_BOX bez zmian', () => {
+    const square = buildBodyCompareHtml(buildInput({ template: 'classic', format: 'square' }));
+    expect(square).toContain('padding:22px 20px');
+    expect(square).toContain('width:226px;height:301px');
+    const story = buildBodyCompareHtml(buildInput({ template: 'classic', format: 'story' }));
+    expect(story).toContain('padding:24px 32px');
+    expect(story).toContain('width:250px;height:333px');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // E3: przycisk w BodyPhotoCompare + dialog eksportu.
 // Fixtury dokumentow przez canonical-states (stan 'photos-before-after').
 // ---------------------------------------------------------------------------
@@ -274,6 +323,59 @@ describe('BodyPhotoCompare: eksport before/after (E3)', () => {
 
     const element = html2canvasMock.mock.calls.at(-1)?.[0] as HTMLElement;
     expect(element.outerHTML).toContain('share/bg.webp');
+  });
+
+  // Zrzut wlasciciela 2026-09-04 (iPhone 390 px): "KLASYCZNY" uciety przy prawej
+  // krawedzi pigulki (flex-1 = rowne trzecie, 12 px + tracking-wide = 104 px
+  // tresci w 98.7 px chipa; min-w-11 wylaczal ochrone min-content). Kontrakt klas;
+  // pomiar szerokosci tekstu vs chipa robi e2e/body-share-dialog.spec.ts.
+  it('chipy formatu i szablonu: basis z tresci, 11 px bez tracking-wide, nowrap, cel 44 px, rzad zawijalny', async () => {
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    const formatRow = screen.getByTestId('body-share-format-chips');
+    const templateRow = screen.getByTestId('body-share-template-chips');
+    const chips = [
+      ...within(formatRow).getAllByRole('button'),
+      ...within(templateRow).getAllByRole('button'),
+    ];
+    expect(chips.map((chip) => chip.textContent)).toEqual(['1:1', '9:16', 'Klasyczny', 'Akcent', 'Foto']);
+
+    for (const row of [formatRow, templateRow]) {
+      expect(row.className.split(/\s+/)).toContain('flex-wrap');
+    }
+    for (const chip of chips) {
+      const classes = chip.className.split(/\s+/);
+      expect(classes).toEqual(expect.arrayContaining(['flex-auto', 'whitespace-nowrap', 'px-2', 'text-[11px]', 'min-h-11']));
+      expect(classes).not.toContain('flex-1');
+      expect(classes).not.toContain('tracking-wide');
+      expect(classes).not.toContain('text-xs');
+    }
+
+    // Wzorzec kolorow bez zmian: aktywny = pelny akcent + tekst na akcencie,
+    // nieaktywny = surface + muted.
+    const [square, story] = chips;
+    expect(square.getAttribute('aria-pressed')).toBe('true');
+    expect(square.className.split(/\s+/)).toEqual(expect.arrayContaining(['bg-primary', 'text-primary-foreground']));
+    expect(story.className.split(/\s+/)).toEqual(expect.arrayContaining(['bg-surface-highest', 'text-muted-foreground']));
+  });
+
+  // Przy 320 px min-content obu przyciskow (nowrap + ikona) = 261 px > 240 px
+  // tresci arkusza: grid DialogContent rozszerzal tor i arkusz dostawal scroll
+  // poziomy tnacy prawe chipy. Rzad zawijalny + basis 8rem: jedna linia od
+  // 264 px tresci (min-content obu = 261 px), czyli rowne polowy od 360 px,
+  // ponizej stos.
+  it('rzad Pobierz/Udostepnij: flex-wrap + basis 8rem (stos zamiast scrolla poziomego przy 320 px)', async () => {
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    const download = screen.getByRole('button', { name: /Pobierz$/ });
+    const share = screen.getByRole('button', { name: /Udostępnij$/ });
+    expect(download.parentElement).toBe(share.parentElement);
+    expect(download.parentElement?.className.split(/\s+/)).toEqual(expect.arrayContaining(['flex', 'flex-wrap']));
+    for (const button of [download, share]) {
+      expect(button.className.split(/\s+/)).toEqual(expect.arrayContaining(['flex-1', 'basis-32']));
+    }
   });
 
   it('Udostepnij wola navigator.share z plikiem i pokazuje Zapisano', async () => {

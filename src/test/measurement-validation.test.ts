@@ -39,3 +39,28 @@ describe('measurement validation', () => {
     }).valid).toBe(false);
   });
 });
+
+// Data pomiaru przy dodawaniu: formularz przekazuje maxDate (dziś lokalnie).
+// Opcja jest opt-in: hook i dialog edycji (istniejące wpisy) nie zmieniają
+// kontraktu, więc edycja wpisu nigdy nie wpada w pułapkę "data w przyszłości".
+describe('measurement validation — maxDate (data z przyszłości)', () => {
+  it('rejects a date after maxDate with reason=future', () => {
+    expect(validateMeasurement({ date: '2026-09-05', weight: 80 }, { maxDate: '2026-09-04' }))
+      .toEqual({ valid: false, field: 'date', reason: 'future' });
+  });
+
+  it('accepts a date equal to or before maxDate', () => {
+    expect(validateMeasurement({ date: '2026-09-04', weight: 80 }, { maxDate: '2026-09-04' })).toEqual({ valid: true });
+    expect(validateMeasurement({ date: '2025-01-15', weight: 80 }, { maxDate: '2026-09-04' })).toEqual({ valid: true });
+  });
+
+  it('invalid date with maxDate is still field=date without reason=future', () => {
+    const result = validateMeasurement({ date: '', weight: 80 }, { maxDate: '2026-09-04' });
+    expect(result.valid).toBe(false);
+    expect(result).not.toHaveProperty('reason', 'future');
+  });
+
+  it('without maxDate a future date still passes (hook/edit contract unchanged)', () => {
+    expect(validateMeasurement({ date: '2999-01-01', weight: 80 })).toEqual({ valid: true });
+  });
+});

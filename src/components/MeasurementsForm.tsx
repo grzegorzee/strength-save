@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import type { BodyMeasurement } from '@/types';
 import { Camera, Save, User, X } from 'lucide-react';
 import { formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
@@ -11,7 +12,10 @@ import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { validateMeasurement } from '@/lib/measurement-validation';
 import { parseDecimalInput } from '@/lib/decimal-input';
+import { composeRecordedAt, recordedAtToTimeInput } from '@/lib/measurement-time';
 import { PhotoCropDialog } from '@/components/PhotoCropDialog';
+
+type ValidationErrorKey = 'measurements.saveErrorDesc' | 'measurements.dateInvalidError' | 'measurements.dateFutureError';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -37,7 +41,10 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
     calfLeft: latestMeasurement?.calfLeft != null ? String(Number(toDisplayLength(latestMeasurement.calfLeft).toFixed(1))) : '',
     calfRight: latestMeasurement?.calfRight != null ? String(Number(toDisplayLength(latestMeasurement.calfRight).toFixed(1))) : '',
   });
-  const [validationError, setValidationError] = useState(false);
+  // Data pomiaru (migracja starych metryk): domyślnie dziś, nigdy z przyszłości.
+  // Ten sam kontrakt co w dialogu edycji (LocalizedDateInput, ISO YYYY-MM-DD).
+  const [date, setDate] = useState(() => formatLocalDate(new Date()));
+  const [validationError, setValidationError] = useState<ValidationErrorKey | null>(null);
   // T13a: opcjonalne zdjęcie sylwetki — zwykły input file (w WKWebView natywny
   // sheet Aparat/Biblioteka, bez pluginu Capacitor). Upload robi rodzic.
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -58,7 +65,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
   }, [photoFile]);
 
   const handleChange = (field: string, value: string) => {
-    setValidationError(false);
+    setValidationError(null);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -71,8 +78,9 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
       const n = parseDecimalInput(raw);
       return n === null ? Number.NaN : convert(n);
     };
-    const measurement = {
-      date: formatLocalDate(new Date()),
+    const today = formatLocalDate(new Date());
+    const measurement: Omit<BodyMeasurement, 'id' | 'userId'> = {
+      date,
       weight: parseField(formData.weight, fromInput),
       armLeft: parseField(formData.armLeft, fromInputLength),
       armRight: parseField(formData.armRight, fromInputLength),
@@ -86,12 +94,24 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
     };
     // WP-D D2: zdjęcie jest pełnoprawną treścią wpisu — zapis bez pól
     // liczbowych przechodzi, gdy jest fotka (wpis tylko-zdjęcie).
-    if (!validateMeasurement(measurement, { hasPhoto: photoFile !== null }).valid) {
-      setValidationError(true);
+    const validation = validateMeasurement(measurement, { hasPhoto: photoFile !== null, maxDate: today });
+    if (!validation.valid) {
+      setValidationError(
+        validation.field !== 'date'
+          ? 'measurements.saveErrorDesc'
+          : validation.reason === 'future' ? 'measurements.dateFutureError' : 'measurements.dateInvalidError',
+      );
       return;
+    }
+    // Data wsteczna: recordedAt w TYM SAMYM dniu (hook wpisałby Date.now(), czyli
+    // inny dzień niż date). Dziś: bez recordedAt, payload jak dotąd (zegar wpisuje hook).
+    if (date !== today) {
+      const recordedAt = composeRecordedAt(date, recordedAtToTimeInput(Date.now()));
+      if (recordedAt !== undefined) measurement.recordedAt = recordedAt;
     }
     onSave(measurement, photoFile ?? undefined);
     setPhotoFile(null);
+    setDate(today);
   };
 
   const measurementFields = [
@@ -131,7 +151,23 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
         </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* noValidate: przy dacie > max przeglądarka blokowałaby submit własnym
+            dymkiem w języku systemu; komunikat ma dawać walidacja apki (i18n). */}
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="measurementDate" className="text-sm font-medium">
+              {t('measurements.date')}
+            </Label>
+            {/* Wysokość jak Input (h-11, desktop h-10); max = dziś lokalnie. */}
+            <LocalizedDateInput
+              id="measurementDate"
+              value={date}
+              max={formatLocalDate(new Date())}
+              onChange={(e) => { setValidationError(null); setDate(e.target.value); }}
+              className="[&_input]:h-11 [&_span]:h-11 desktop-shell:[&_input]:h-10 desktop-shell:[&_span]:h-10"
+              data-testid="measurement-date"
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {measurementFields.map((field) => (
               <div key={field.key} className="space-y-2">
@@ -189,7 +225,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
               )}
             </div>
           )}
-          {validationError && <p role="alert" className="text-sm text-destructive">{t('measurements.saveErrorDesc')}</p>}
+          {validationError && <p role="alert" className="text-sm text-destructive">{t(validationError)}</p>}
           <Button type="submit" className="w-full" size="lg">
             <Save className="h-4 w-4 mr-2" />
             {t('measurements.saveButton')}

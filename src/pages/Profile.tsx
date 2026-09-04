@@ -38,7 +38,7 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { countCompletedWorkouts } from '@/lib/completed-workouts';
 import {
   Lock, Globe, HelpCircle, Mail, Bug, Info, LogOut, Plus, Loader2,
-  Ruler, Shield, Gem, CreditCard, Medal,
+  Shield, Gem, CreditCard, Medal,
   Dumbbell, Watch, Eye, EyeOff, Timer,
   Bell, Database, UserCog,
   Palette,
@@ -877,7 +877,6 @@ const Profile = () => {
         onOpenChange={(open) => setSectionOpen('data', open)}
       >
         <div className="rounded-2xl bg-surface-container px-3.5 py-1">
-          <SettingRow compact icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
           <SettingRow
             compact
             icon={Medal}
