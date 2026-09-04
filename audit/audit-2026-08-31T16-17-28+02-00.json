@@ -1,0 +1,10 @@
+{
+  "canonical": "audit/latest.json",
+  "created_at": "2026-08-31T16:17:28+02:00",
+  "base_commit": "5c48f63632b5c4f4b56f6caff12a367d75acdd2a",
+  "decision": "NO-GO",
+  "score": 0,
+  "core_quality_score": 9.0,
+  "release_ready": false,
+  "reason": "Snapshot pełnego audytu launch readiness. Szczegółowy, kanoniczny raport znajduje się w audit/latest.json."
+}

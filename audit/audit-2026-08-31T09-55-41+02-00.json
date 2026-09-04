@@ -1,0 +1,134 @@
+{
+  "score": 8.0,
+  "release_ready": false,
+  "score_scope": "ostatnia fala X70/X70b i wspólna warstwa produktu; gotowość operacyjna App Store/Google Play oraz fizyczne QA są raportowane osobno",
+  "mode": "fresh web E2E Chromium + WebKit, visual/code audit, full unit/functions gates, signed iOS/TestFlight verification, Android release bundle verification, read-only App Store Connect review",
+  "date": "2026-08-31",
+  "run_at": "2026-08-31T09:55:41+02:00",
+  "commit": "ffdecc60c6ff71bc182d25dda04e80f465432888",
+  "seeded": true,
+  "summary": "Fala X70/X70b nie wprowadza czerwonej regresji funkcjonalnej. Paleta działa jako jeden dominujący primary i dwa ograniczone kolory wspierające; statusy success/warning/error pozostają semantycznie stałe. Krytyczne sekwencje treningowe, offline, cold resume, force-kill proxy, przerwanie plan -> szybki trening -> powrót -> zakończenie -> sync, onboarding, skala 200% i oba silniki webowe są zielone. Do naprawy pozostaje mylące porównanie tonażu dla niepełnego okresu. Publiczny launch nie jest jeszcze gotowy operacyjnie: App Store 1.0 jest przypięty do builda 80 zamiast 133, nie ma App Review Detail, Google Play nie ma potwierdzonego uploadu code 45, manifest release jest nieaktualny, a finalne scenariusze fizyczne nie mają podpisu.",
+  "palette_decision": {
+    "recommendation": "zostać przy jednym kolorze głównym i dwóch kolorach wspierających o ściśle przypisanych rolach",
+    "primary_role": "CTA, aktywna nawigacja, marka i główny focus",
+    "support_a_role": "dane i pierwsza seria wykresów",
+    "support_b_role": "druga seria danych i oszczędna dekoracja",
+    "guardrail": "nie traktować ich jak trzech równorzędnych akcentów; przed 1.0 nie rozszerzać supportA/supportB na kolejne powierzchnie",
+    "presets": {
+      "pulse": ["#c6ff00", "#22d3ee", "#a78bfa"],
+      "forge": ["#ff6b35", "#fbbf24", "#fb7185"],
+      "glacier": ["#38bdf8", "#818cf8", "#2dd4bf"]
+    }
+  },
+  "blockers_red": [],
+  "orange": [
+    {
+      "id": "partial-period-tonnage-comparison",
+      "problem": "Od 3. dnia okresu Analytics pokazuje procentową zmianę tonażu policzoną z niepełnego bieżącego okresu względem całego poprzedniego okresu.",
+      "evidence": "src/pages/Analytics.tsx:130-141; komentarz w kodzie sam odkłada matematykę to-date na osobną zmianę",
+      "user_risk": "użytkownik może dostać fałszywy sygnał spadku, szczególnie na początku miesiąca",
+      "required_exit": "porównywać ten sam zakres to-date albo ukrywać deltę do zakończenia okresu; dodać test tygodnia i miesiąca dla dni 3, 7 i końca okresu"
+    }
+  ],
+  "yellow": [
+    {
+      "id": "palette-cross-device-outbox-no-version",
+      "problem": "Outbox palety jest trwały per urządzenie, ale nie ma wersji między urządzeniami; starszy wpis offline z urządzenia A może po reconnect nadpisać późniejszy wybór z urządzenia B.",
+      "evidence": "DECYZJE.md:141-147 oraz src/lib/palette-preference-outbox.ts",
+      "user_risk": "rzadkie, odwracalne cofnięcie wyglądu; dane treningowe są nietknięte"
+    },
+    {
+      "id": "webkit-video-card-test-race",
+      "problem": "Jeden test WebKit liczy karty natychmiast po renderze i raz uzyskał 0, mimo że snapshot błędu pokazywał komplet kart i przyciski animacji.",
+      "evidence": "pełny WebKit 304/305; izolowany retry 5/5",
+      "user_risk": "niestabilność bramki CI, bez potwierdzonego defektu produktu"
+    },
+    {
+      "id": "stale-profile-palette-comment",
+      "problem": "Komentarz Profilu nadal obiecuje preview/cancel/confirm pełnego edytora, podczas gdy aktualny wybór palety zapisuje się bezpośrednio.",
+      "evidence": "src/pages/Profile.tsx:609-611",
+      "user_risk": "dług dokumentacyjny dla kolejnej osoby zmieniającej ekran"
+    }
+  ],
+  "release_blockers": [
+    {
+      "id": "physical-device-signoff",
+      "problem": "Brak podpisanego smoke na dokładnym iOS build 133 i Android versionCode 45.",
+      "required_exit": "na fizycznym iPhone i Androidzie wykonać screen-off 2 min -> resume, słabą/zerwaną sieć, notification tap, force-kill recovery, share/export, Apple/Google auth, zakup/restore, VoiceOver/TalkBack i skalę 100/150/200%"
+    },
+    {
+      "id": "app-store-version-not-wired-to-candidate",
+      "problem": "App Store version 1.0 ma PREPARE_FOR_SUBMISSION i nadal wskazuje build 80; build 133 jest VALID/APPROVED tylko w TestFlight. App Review Detail nie istnieje, a listing ma tylko en-US.",
+      "required_exit": "przypiąć build 133, uzupełnić Review Detail/dane kontaktowe i konto demo, sprawdzić privacy/health/age-rating/export compliance, dodać pl-PL jeśli Polska jest rynkiem launchu, wykonać read-back i dopiero wysłać do review"
+    },
+    {
+      "id": "google-play-candidate-not-verified-in-console",
+      "problem": "Lokalny podpisany AAB 1.0.0 code 45 buduje się poprawnie, ale brak dowodu uploadu i przejścia checklisty Play Console.",
+      "required_exit": "wgrać dokładny AAB do Internal Testing, potwierdzić Play App Signing/Integrity, Data safety, Health apps declaration, listing PL/EN i test zakupu/restore; nie publikować produkcyjnie bez osobnej decyzji"
+    },
+    {
+      "id": "release-manifest-stale",
+      "problem": "release/release-train.json nadal opisuje iOS 84 i Android code 6, nie kandydatów 133/45.",
+      "required_exit": "wygenerować i zweryfikować manifest dla commita ffdecc60, IPA 133 i AAB 45 wraz z hashami przed jakimkolwiek submit"
+    },
+    {
+      "id": "external-security-and-operations",
+      "problem": "Repo nadal dokumentuje nierozstrzygniętą rotację wcześniej ujawnionego sekretu Stravy i PendingConfirmation subskrypcji SNS alarmów reputacji SES.",
+      "required_exit": "potwierdzić rotację po stronie Stravy oraz subskrypcję SNS i kontrolowany alarm przed publicznym uruchomieniem integracji/maili"
+    }
+  ],
+  "checks": {
+    "vitest": "3850/3850 passed in 443 files",
+    "targeted_x70_vitest": "138/138 passed in 11 files",
+    "functions": "511 passed, 12 skipped; 48 files passed, 1 skipped",
+    "firestore_storage_rules": "fresh rerun blocked before execution by local JDK 20; project requires JDK 21; last same-candidate evidence from 2026-08-28: Firestore 312/312 and Storage 42/42",
+    "typecheck": "passed",
+    "lint": "0 errors, 15 existing Fast Refresh warnings",
+    "build": "passed",
+    "bundle_budget": "passed; initial JS 1441371 / 1536000 bytes",
+    "dist_smoke": "passed",
+    "dist_offline": "passed",
+    "no_emoji": "275 files passed",
+    "ios_release_preflight": "passed for 1.0.0",
+    "chromium_e2e": "305/305 passed after fresh Vite/cache",
+    "webkit_e2e": "304/305 passed; sole async card-count race passed 5/5 in isolation; no confirmed app failure",
+    "ios_candidate": "IPA 1.0.0 (133), iOS 15 minimum, built with Xcode 26.6 / iOS 26.5 SDK, SHA-256 ce37ab6308ba902d929cf7578689500309188790b78736abc245717e4659e0d4; App Store Connect build VALID, beta review APPROVED, both beta groups attached",
+    "android_candidate": "bundleRelease successful; signed AAB 1.0.0 code 45, target/compile SDK 36, SHA-256 5a481f6312f2b4025904fe5b4c65f27a1deef16cb52265de911161cd110c1c14",
+    "app_store_product": "version 1.0 PREPARE_FOR_SUBMISSION, attached build 80, App Review Detail absent, locale en-US; monthly/yearly subscriptions READY_TO_SUBMIT with 175 territories and configured intro offers",
+    "console_errors_unexpected": 0,
+    "page_errors": 0,
+    "blank_screens": 0,
+    "horizontal_overflow_assertions": "passed in release audit and font-scale matrix"
+  },
+  "native_not_covered": [
+    "physical iOS and Android screen-off/background/resume",
+    "physical interrupted-workout sequence and notification cold-start tap",
+    "physical native Share sheet and Files/FileProvider for JSON, CSV, PDF and PNG",
+    "physical force-kill and restart recovery",
+    "VoiceOver and TalkBack",
+    "Dynamic Type / Android font scale 100/150/200%",
+    "real Google and Apple authentication",
+    "physical HealthKit / Health Connect, haptics and notification sound",
+    "real App Store/Google Play purchase, cancel, failure and restore"
+  ],
+  "top_fixes": [
+    "Naprawić porównanie tonażu na zakres to-date i zamrozić testy tygodniowe/miesięczne.",
+    "Wykonać finalny fizyczny smoke na iOS 133 i Android 45.",
+    "Zaktualizować release manifest i przepiąć App Store 1.0 z builda 80 na 133 wraz z Review Detail.",
+    "Wgrać AAB 45 do Internal Testing i zamknąć checklistę Play Console.",
+    "Po launchu dodać wersjonowanie preferencji palety między urządzeniami; nie rozszerzać teraz roli kolorów wspierających."
+  ],
+  "screenshots": [
+    "audit/shots/2026-08-28/active-user_dashboard.png",
+    "audit/shots/2026-08-28/active-user_plan.png",
+    "audit/shots/2026-08-28/active-user_history.png",
+    "audit/shots/2026-08-28/active-user_progress.png",
+    "audit/shots/2026-08-28/active-user_profile.png",
+    "audit/shots/2026-08-28/active-user_workout.png",
+    "audit/shots/2026-08-28/new-user_onboarding.png",
+    "audit/shots/2026-08-28/active-admin_admin.png",
+    "audit/shots/2026-08-28/landscape_dashboard.png",
+    "audit/shots/2026-08-28/landscape_workout.png",
+    "audit/shots/2026-08-28/landscape_history.png"
+  ]
+}

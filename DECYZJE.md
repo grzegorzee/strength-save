@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-31 (X73: kandydat 1.0, recovery produkcji i listing sklepowy)
+**Ostatnia aktualizacja:** 2026-09-04 (build 139: audyt produktu, Kinetic Precision, stan wdrożenia fali licznika i chronologii)
 
 ---
 
@@ -5730,3 +5730,58 @@ Vitest: 3945 PASS, 16 SKIP, 0 FAIL (453 pliki). Typecheck i produkcyjny build s�
 zielone; lint ma 0 błędów i 15 zastanych ostrzeżeń Fast Refresh. Fizyczny smoke
 na iPhonie — w tym background/resume i sekwencja przerwania sesji — pozostaje
 ostatnią zewnętrzną bramką przed publikacją.
+
+### 2026-09-04: stan wdrożenia fali 3-4 września (licznik 87/86, chronologia, audyty)
+
+**Kontekst:** wpisy z 3 i 4 września opisują decyzje merytoryczne. Ten wpis odpowiada
+na pytanie, co z tej fali jest już wdrożone. Odpowiedź na dziś: **nic**. HEAD pozostaje
+`12a2ce0f`, cała fala (124 zmienione wpisy `git status` poza zrzutami audytu) żyje
+wyłącznie w lokalnym worktree. Nie było commitu, `npm run deploy`, deployu functions ani
+buildu iOS po 137. `audit/latest.json` przywrócono do stanu z 1 września; raport z
+4 września jest w `audit/AUDIT-BUILD-139.md` i `audit/audit-2026-09-04-build139.json`.
+
+**Zmiany autorstwa Claude w tej fali (kod, do wdrożenia razem z resztą):**
+- `functions/src/workout-aggregate.ts`: agregat `schemaVersion: 2` (completed + co
+  najmniej jedna seria robocza, para `local-workout-*`→`workout-*` raz), predykat
+  `needsAggregateRebuild` w triggerze (v1 i brak dokumentu = pełny, idempotentny rebuild
+  bez ręcznego backfillu); testy w `workout-aggregate.test.ts`.
+- `src/lib/completed-workouts.ts` (+ test): jedna domenowa definicja ukończonego
+  treningu używana przez nagłówek, Profil, WorkoutDay, Historię, Dashboard, cykle,
+  eksport, analitykę i weekly digest.
+- `src/hooks/useWorkoutAggregate.ts` (+ `use-workout-aggregate.test.tsx`, RED-proof na
+  HEAD): klient odrzuca v1 i prosi backend o rebuild raz dziennie po sukcesie.
+- `src/pages/WorkoutHistory.tsx`: linia licznika bez filtrów dzieli semantykę z
+  nagłówkiem, `data-testid="history-session-count"` (+ testy w
+  `workout-history-redesign.test.tsx`, `all-time-stats.test.ts`).
+- `src/lib/plan-schedule.ts` / `plan-timeline-order.test.ts`: chronologia timeline
+  (dziś jako hero, przyszłość rosnąco, historia malejąco) — wersja końcowa po integracji
+  przez agenta UI.
+- Read-only: audyt UX 2026-09-03, review diffu, iteracje Kinetic Precision 1-2 z
+  recheckiem, audyt buildu 139, post-fix critique i final check (artefakty w `/tmp/*` i
+  `audit/`), bez zmian w kodzie.
+
+**Bramki na dziś (2026-09-04, worktree):** root typecheck 0 błędów; celowany vitest plików
+Claude 85/85 (7 plików); functions `workout-aggregate` + `weekly-digest-stats` 25/25 i
+`tsc` 0; eslint plików Claude 0. Pełny suite wg wpisu wyżej: 3945 PASS / 0 FAIL.
+
+**Plan wdrożenia (kolejność obowiązkowa, zasada 19):**
+1. Commit fali na `main` (jeden commit per obszar: agregat/licznik, chronologia, UI
+   Kinetic Precision, testy) + push.
+2. **Functions v2 najpierw** (`firebase deploy --only functions`): trigger
+   `onWorkoutWrittenAggregate` i `rebuildWorkoutAggregate` w wersji schematu 2 oraz
+   `weeklyDigest` z tą samą semantyką. Bez tego klient v2 zostanie na lokalnym fallbacku
+   (okno 120 treningów) i będzie codziennie prosił o rebuild, który zapisze v1.
+3. Web `npm run deploy` (gh-pages) po functions; potem iOS: bump
+   `CURRENT_PROJECT_VERSION` 139 → 140 (6 wystąpień), `scripts/release-ios.sh`,
+   `testflight_external.py` (obie grupy). MARKETING_VERSION zostaje 1.0.0.
+4. Po wydaniu: `client_errors` przez 24 h; sprawdzić na koncie QA, że dokument
+   `users/{uid}/aggregates/allTime` ma `schemaVersion: 2` po pierwszym zapisie treningu
+   albo po otwarciu apki, a nagłówek i „Twoje liczby" pokazują tę samą liczbę.
+5. Rollback functions do v1 wymaga rollbacku klienta (inaczej trwały fallback z okna).
+
+**Ryzyka otwarte przed dystrybucją (bez zmian od review 2026-09-03):** przebudowa warstwy
+draftu (`workout-draft-db.ts`, journal v2, remis `mergeDraftRecord` bez OR-owania
+`completedLocally`) wymaga e2e `resume-after-kill`/`warmup-persistence` na świeżym Vite i
+force-quit na iPhonie; parytet klient/backend dla serii bez liczbowego `reps`/`weight`
+(backend pomija, klient liczy) wymaga testu krzyżowego; celebracja „+1" może raz przepaść
+po spadku licznika 87→86.
