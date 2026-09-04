@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-04 (wdrożenie fali licznika, chronologii i Kinetic Precision: functions v2, web, iOS 140)
+**Ostatnia aktualizacja:** 2026-09-04 (Pomiary jako zakładka główna, data pomiaru, arkusz udostępniania ze strzałką: web, iOS 141, AAB v47)
 
 ---
 
@@ -5806,3 +5806,23 @@ po spadku licznika 87→86.
 **Bramki końcowe przed commitem C:** typecheck 0, lint 0 błędów (15 ostrzeżeń zastanych), Vitest 453 plików / 3945 PASS / 16 pominiętych, build, dist-smoke, bundle budget (1441419 < 1536000), no-emoji 276 plików; functions: tsc + 522 testów w predeploy.
 
 **Po wydaniu (właściciel):** `client_errors` przez 24 h; na koncie QA `users/{uid}/aggregates/allTime.schemaVersion === 2` po pierwszym zapisie albo otwarciu apki oraz ta sama liczba w nagłówku i w „Twoje liczby"; fizyczny iPhone: zgaszony ekran w przerwie, force-quit w trakcie treningu (journal v2), 360 px Android: kolumna „Poprz." czytelna.
+
+### 2026-09-04 (popołudnie): Pomiary ciała jako zakładka główna, data pomiaru, arkusz udostępniania ze strzałką (web, iOS 141, AAB v47)
+
+**Zlecenie właściciela (głosówka po buildzie 140):** pomiary ciała wyjąć z Profilu do własnej zakładki „pod kolor przewodni" zaraz po treningu; wybór daty pomiaru (stare metryki, migracje klientów); naprawa przycisków w arkuszu „Udostępnij porównanie" (na zrzucie „KLASYCZNY" ucięty); próba strzałki PRZED → PO na obrazie 1:1 do oceny właściciela; bez pytań, push i build całej aplikacji.
+
+**Co zrobiono (trzy tory, jeden worktree):**
+1. **Zakładka „Pomiary" (Claude):** `MAIN_DESTINATIONS` ma sześć pozycji: Dzisiaj → **Pomiary** → Plan → Historia → Postępy → Profil. `/measurements` jest trasą główną (dzwonek + licznik w headerze, header h1 „Pomiary ciała", bez BackBar), wiersz „Pomiary ciała" zniknął z Profilu (Twoje dane zostają), w sidebarze desktopu Pomiary w grupie głównej. Etykiety paska: `nav.measurements` = „Pomiary" / „Body". Sześć zakładek przy minimum 11 px z kontraktu typografii: etykiety 11 px bez rozstrzelenia, ramka paska `left-2 right-2 px-1` (było `left-3 px-2`, +3 px na link), poniżej 390 px `letter-spacing -0.06em`, poniżej 360 px (iPhone SE 1. gen) same ikony (etykieta `display:none`, nazwa dostępna z `aria-label`; wariant `sr-only` odpadł, bo audyt etykiet przy 320 px liczył go jako ucięty). Reguły w `index.css`, bo warianty `max-[...]` Tailwinda nie kompilują się przy ekranie `desktop-shell` zdefiniowanym jako raw. Pomiar: 390 i 360 px PL/EN wszystkie etykiety w jednej linii (EN „PROGRESS" 54,1 px w 55,7 px przy 360); 320 px ikony. Testy BackBar przepięte z `/measurements` na `/cycles`.
+2. **Data pomiaru (agent B):** `MeasurementsForm` ma pole daty (`LocalizedDateInput`, natywny wybór, `max` = dziś, 44 px / 16 px), walidacja `maxDate` opt-in w `measurement-validation` (data z przyszłości → komunikat), wpis wsteczny dostaje `recordedAt` w wybranym dniu (inaczej hook wpisałby epoch z innego dnia), dzisiejszy payload bajt w bajt jak dotąd, szybkie „Dodaj zdjęcie" bez zmian. Selektory PRZED / PO w porównaniu zdjęć pokazują krótką datę (`21.08.2026` / `08/21/2026`) w 14 px, bo „21 sie 2026" w 16 px nie mieściło się już przy 390 px (86.5 px w 86 px). Testy: 7 (formularz) + 4 (walidacja) + 2 (porównanie) + e2e 6 (PL/EN × 390/360/320).
+3. **Arkusz udostępniania (agent C):** root cause z pomiaru: `flex-1` dawało trzy równe 98,7 px, a „KLASYCZNY" potrzebował 104 px, przy czym `min-w-11` z `toggleButtonClasses` nadpisywało `min-width:auto`, więc chip kurczył się pod tekst; przy 320 px osobno rząd Pobierz/Udostępnij (nowrap + ikony) rozpychał grid dialogu do 309 px i cały arkusz dostawał scroll poziomy. Fix: chipy `flex-auto whitespace-nowrap px-2 text-[11px]` w rzędzie `flex-wrap`, akcje `flex-wrap` + `basis-32` (stos przy 320 px). Po fixie 30/30 chipów w jednej linii, 44 px, bez scrolla. **Strzałka PRZED → PO** tylko w szablonie KLASYCZNY (1:1 pozioma w prawo, 9:16 pionowa w dół), inline SVG w kolorze akcentu (html2canvas-pro serializuje `<svg>` do data URL, zweryfikowane na źródle), AKCENT i FOTO bez strzałki jako punkt odniesienia dla decyzji właściciela. Padding classic zmniejszony (1:1 boczny 28 → 20 px, 9:16 pionowy 40 → 24 px), `PHOTO_BOX` bez zmian. Dowody: `/tmp/strength-save-share-fix/classic-square.png`, `classic-story.png`, `accent-square.png`, pomiary `before-results.json` / `after-results.json`.
+
+**Bramki (finalny snapshot `5479ea41`):** Vitest 454 plików / 3970 PASS / 16 pominiętych; typecheck 0; lint 0 błędów (15 ostrzeżeń zastanych); build (`index-CvMS48Bd.js`); dist-smoke; bundle budget 1441687 < 1536000; no-emoji 276 plików; pełne e2e Chromium 308/16 (13 timeoutów pod obciążeniem, bo typecheck i lint biegły równolegle; wszystkie 16 zielone w izolacji po poprawce audytu etykiet), potem celowane: nawigacja + audyt etykiet + font-scale + nagłówki 34/34, formularz daty i selektory 326 vitest + 6 e2e, arkusz udostępniania 79 vitest + 5 e2e Chromium + 5 WebKit.
+
+**Wydanie:** commit `5479ea41` na `main`; web gh-pages `20caebd4`, live `index-CvMS48Bd.js`; iOS 141 przez `release-ios.sh`: `UPLOAD SUCCEEDED`, VALID po ok. 7 min, obie grupy HTTP 204, whatsNew HTTP 200, Beta App Review `APPROVED` od razu; Android `bundleRelease` (JDK 21) BUILD SUCCESSFUL 53 s, `~/Desktop/strength-save-v47.aab` 22598354 B, SHA-256 `7b43ce703ac6db8a0058a0cd8a41ba5e0741efc0d550beac2797558499ed63c0` (wgranie do Play Console po stronie właściciela). Następne bumpy: iOS 142, versionCode 48.
+
+**Otwarte / do decyzji właściciela:**
+- Czy strzałka zostaje (ocena na buildzie 141: Pomiary → Porównanie sylwetki → Udostępnij → KLASYCZNY). Usunięcie = jeden warunek w builderze.
+- 9:16 KLASYCZNY ma 6 px zapasu pionowego; sprawdzić na fizycznym iPhonie (metryki SF vs headless).
+- Ten sam wzorzec rzędu przycisków przy 320 px prawdopodobnie w `ShareWorkoutDialog` i `CycleShareCard` (poza zakresem).
+- Godzina wpisu wstecznego = godzina wpisania w wybranym dniu (do poprawy w edycji); dialog edycji nadal przyjmuje datę przyszłą (świadomie).
+- Poniżej 360 px pasek pokazuje same ikony (nazwy dla czytników ekranu zostają).
