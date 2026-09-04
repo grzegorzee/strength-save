@@ -237,7 +237,7 @@ try {
   await page.getByPlaceholder('Email').first().fill(email);
   await page.getByPlaceholder(/^(Hasło|Password)$/i).first().fill(password);
   await page.getByRole('button', { name: /Zaloguj przez email|Sign in with email/i }).click();
-  await page.getByRole('heading', { name: /Dzisiaj|Today/ }).waitFor({ timeout: 20_000 });
+  await page.getByRole('main').getByRole('heading', { level: 1 }).waitFor({ timeout: 20_000 });
   await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).waitFor({ timeout: 15_000 });
   result.onlineDashboard = true;
 
@@ -255,7 +255,7 @@ try {
   activePage = offlinePage;
   offlinePage.on('pageerror', (error) => pageErrors.push(error.stack || error.message));
   await offlinePage.goto(`${emulatorUrl}#/`, { waitUntil: 'load', timeout: 30_000 });
-  await offlinePage.getByRole('heading', { name: /Dzisiaj|Today/ }).waitFor({ timeout: 20_000 });
+  await offlinePage.getByRole('main').getByRole('heading', { level: 1 }).waitFor({ timeout: 20_000 });
   result.cachedDashboardOffline = true;
   await offlinePage.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).waitFor({ timeout: 10_000 });
   result.dashboardCtaOffline = true;
