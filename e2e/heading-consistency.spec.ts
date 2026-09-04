@@ -22,6 +22,7 @@ test.describe('jeden tytuł ekranu w mobilnej powłoce', () => {
         name: screen.shell,
         exact: true,
       })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       await expect(page.getByRole('main').getByRole('heading', {
         name: screen.redundant,
         exact: true,

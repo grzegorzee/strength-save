@@ -30,9 +30,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const isDashboard = pathname === '/';
   const contentOwnsPageHeading = title === 'Strength Save'
     || isDashboard
-    || pathname === '/achievements'
     || pathname === '/plan/edit'
-    || pathname === '/exercises'
     || pathname.startsWith('/admin');
   const showBell = APP_CHROME_ROOT_PATHS.has(pathname);
   const showWorkoutCount = APP_CHROME_ROOT_PATHS.has(pathname);

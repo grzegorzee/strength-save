@@ -744,7 +744,7 @@ const ExerciseCardInner = ({
         ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_44px_44px]'
         : isBodyweight
           ? 'grid-cols-[26px_minmax(0,1fr)_1fr_44px_44px]'
-          : 'grid-cols-[24px_minmax(0,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_44px_44px]';
+          : 'grid-cols-[24px_minmax(28px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_44px_44px]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {

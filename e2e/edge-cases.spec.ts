@@ -72,7 +72,7 @@ test.describe('Edge Cases: LocalStorage', () => {
     });
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
     await page.evaluate(() => localStorage.removeItem('fittracker_workout_draft'));
@@ -113,7 +113,7 @@ test.describe('Edge Cases: Multiple Rapid Actions', () => {
       await page.goto(`/#${route}`);
       await page.waitForLoadState('domcontentloaded');
     }
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
   });
 
   test('double-clicking buttons does not cause issues', async ({ page }) => {
@@ -135,7 +135,7 @@ test.describe('Edge Cases: Viewport Extremes', () => {
   test('very narrow viewport (320px) does not crash', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 }); // iPhone 5
     await navigateAndWait(page, '/');
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
   });
@@ -143,7 +143,7 @@ test.describe('Edge Cases: Viewport Extremes', () => {
   test('very wide viewport (2560px) does not break layout', async ({ page }) => {
     await page.setViewportSize({ width: 2560, height: 1440 }); // QHD
     await navigateAndWait(page, '/');
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
   });

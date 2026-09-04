@@ -55,7 +55,7 @@ test.describe('Auth and registration flows', () => {
     await navigateAndWait(page, '/login');
 
     await expect(page).toHaveURL(/#\/$/);
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
   });
 
   test('pending verification user sees email verification gate', async ({ page }) => {

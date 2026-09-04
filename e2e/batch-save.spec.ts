@@ -322,7 +322,7 @@ test.describe('Batch Save Workflow', () => {
     await expect(indicator).toBeVisible();
     await expect(indicator).toHaveAttribute('aria-label', 'Czeka na zapis w chmurze, zapisze się sam');
     await expect(page.getByText('Masz trening rozpoczęty offline')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Otwórz centrum synchronizacji' })).toHaveCount(0);
   });
 
   test('permanent sync error keeps the Sync Center card with an exit on the dashboard', async ({ page }) => {
@@ -369,7 +369,7 @@ test.describe('Batch Save Workflow', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Otwórz centrum synchronizacji' })).toBeVisible();
     await expect(page.getByTestId('cloud-pending-indicator')).toHaveCount(0);
   });
 
@@ -412,7 +412,7 @@ test.describe('Batch Save Workflow', () => {
 
     await page.evaluate(() => { window.location.hash = '#/'; });
     await expect(page.getByTestId('cloud-pending-indicator')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Otwórz centrum synchronizacji' })).toHaveCount(0);
 
     // Sieć wraca: bez klikania trening ląduje w chmurze (mock), draft znika.
     await page.context().setOffline(false);

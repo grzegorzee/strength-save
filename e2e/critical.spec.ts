@@ -10,7 +10,8 @@ test.describe('Critical Routing and Shell', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(
       page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link', { name: 'Dzisiaj' }),
     ).toBeVisible();
@@ -50,7 +51,7 @@ test.describe('Critical Routing and Shell', () => {
     await expectPageRendered(page);
     await expect(page.locator('header').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
     await expect(page.getByText('Aktualny plan')).toBeVisible();
-    await expect(page.getByText(/Closeout i progres cyklu|Brak aktywnego closeoutu cyklu/)).toBeVisible();
+    await expect(page.getByText(/Domknięcie i progres cyklu|Brak aktywnego podsumowania cyklu/)).toBeVisible();
   });
 
   test('admin route either shows admin shell or redirects non-admin users', async ({ page }) => {
@@ -63,7 +64,7 @@ test.describe('Critical Routing and Shell', () => {
       await expect(page.getByText('API eksportu')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Generuj klucz' })).toBeVisible();
     } else {
-      await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+      await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
     }
   });
 });
@@ -115,7 +116,10 @@ test.describe('Critical Interactions', () => {
 
     await navigateAndWait(page, '/history?list=all');
     await expectPageRendered(page);
-    await expect(page.getByRole('button', { name: /^wszystkie$/i })).toBeVisible();
+    // B139-7: chipy statusu są schowane za przyciskiem Filtry, żeby lista sesji
+    // zaczynała się w górnej połowie ekranu; po otwarciu panelu chip jest widoczny.
     await expect(page.getByRole('button', { name: 'Filtry' })).toBeVisible();
+    await page.getByRole('button', { name: 'Filtry' }).click();
+    await expect(page.getByRole('button', { name: /^wszystkie$/i })).toBeVisible();
   });
 });

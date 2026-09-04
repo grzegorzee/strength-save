@@ -26,7 +26,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const firstCard = page.locator('.exercise-card').first();
 
     // Exercise name visible
-    const exerciseName = firstCard.locator('h3');
+    const exerciseName = firstCard.locator('h2');
     await expect(exerciseName).toBeVisible();
     const nameText = await exerciseName.textContent();
     expect(nameText?.length).toBeGreaterThan(0);
@@ -106,7 +106,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
-    const exerciseName = (await firstCard.locator('h3').textContent())?.trim();
+    const exerciseName = (await firstCard.locator('h2').textContent())?.trim();
     expect(exerciseName?.length).toBeGreaterThan(0);
 
     const labels = await firstCard.locator('input.exercise-card-input').evaluateAll((inputs) =>
@@ -404,7 +404,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     // All cards should have their exercise name visible
     for (let i = 0; i < Math.min(count, 3); i++) {
       const card = cards.nth(i);
-      await expect(card.locator('h3')).toBeVisible();
+      await expect(card.locator('h2')).toBeVisible();
     }
   });
 
@@ -423,7 +423,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
       expect(count).toBeGreaterThanOrEqual(1);
 
       // Each card has h3 with exercise name
-      await expect(cards.first().locator('h3')).toBeVisible();
+      await expect(cards.first().locator('h2')).toBeVisible();
 
       // Each card has inputs
       const inputs = cards.first().locator('input.exercise-card-input');

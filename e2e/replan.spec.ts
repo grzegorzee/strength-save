@@ -107,7 +107,7 @@ test.describe('Replan', () => {
     ];
     await page.getByRole('button', { name: /Biblioteka planów/ }).click();
     await expect(page.getByTestId('browse-objective-chips')).toBeVisible();
-    const headings = page.getByRole('heading', { level: 3 });
+    const headings = page.getByRole('heading', { level: 2 });
     const count = await headings.count();
     let pickedName = '';
     for (let i = 0; i < count; i += 1) {
@@ -115,7 +115,7 @@ test.describe('Replan', () => {
       if (!shown.includes(name)) { pickedName = name; break; }
     }
     expect(pickedName).not.toBe('');
-    await page.getByRole('heading', { level: 3, name: pickedName }).click();
+    await page.getByRole('heading', { level: 2, name: pickedName }).click();
 
     const second = page.getByTestId('plan-choice-alternative');
     await expect(second.getByTestId('plan-choice-badge')).toHaveText('Wybrany');

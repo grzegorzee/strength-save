@@ -19,7 +19,7 @@ test.describe('Strava visibility (feature flag)', () => {
     await expect(page.getByText('Strava')).toHaveCount(0);
 
     await navigateAndWait(page, '/');
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible();
+    await expect(page.locator('header').getByText(/^(Dzisiaj|Today)$/)).toBeVisible();
     await expect(page.getByText('Strava')).toHaveCount(0);
   });
 

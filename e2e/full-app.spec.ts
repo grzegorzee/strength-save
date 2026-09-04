@@ -379,6 +379,7 @@ test.describe('Achievements', () => {
     await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
     await expect(page.locator('header').getByRole('heading', { name: 'Postępy' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   });
 });
 
