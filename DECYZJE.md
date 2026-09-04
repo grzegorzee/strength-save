@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-04 (build 139: audyt produktu, Kinetic Precision, stan wdrożenia fali licznika i chronologii)
+**Ostatnia aktualizacja:** 2026-09-04 (wdrożenie fali licznika, chronologii i Kinetic Precision: functions v2, web, iOS 140)
 
 ---
 
@@ -5785,3 +5785,24 @@ draftu (`workout-draft-db.ts`, journal v2, remis `mergeDraftRecord` bez OR-owani
 force-quit na iPhonie; parytet klient/backend dla serii bez liczbowego `reps`/`weight`
 (backend pomija, klient liczy) wymaga testu krzyżowego; celebracja „+1" może raz przepaść
 po spadku licznika 87→86.
+
+### 2026-09-04: wdrożenie fali licznika, chronologii i Kinetic Precision (functions v2, web, iOS 140)
+
+**Co wdrożono (kolejność zasady 19):**
+1. Commity na `main`: `cb3ca032` (kod fali), `8df919ba` (audyty i DECYZJE), `eb3b1084` (bramka e2e: dwie regresje a11y/układu i przepięcie speców, opis niżej).
+2. **Functions v2 najpierw:** `firebase deploy --only functions` na `fittracker-workouts`, 69 aktualizacji, w tym `onWorkoutWrittenAggregate`, `rebuildWorkoutAggregate`, `weeklyDigest`. Deploy trwał ok. 40 min przez „Quota Exceeded" na aktualizacjach (CLI ponawiał, każda funkcja zakończona „Successful update"). Stary klient (build 139) czyta z agregatu tylko `totals.*` i daty `contributions`, więc dokument v2 był dla niego zgodny przez cały czas przejścia.
+3. **Web:** `npm run deploy` (gh-pages), artefakt `index-C3OF0PeM.js` (gh-pages `6a5f502f`).
+4. **iOS 140:** `scripts/release-ios.sh` (build:mobile, dist-smoke, cap sync, archive, upload, `testflight_external.py` obie grupy + Beta App Review). Status: `UPLOAD SUCCEEDED` (Delivery 20131cbd), build VALID po ok. 6 min, obie grupy podpięte (HTTP 204), whatsNew en-US HTTP 200, Beta App Review `APPROVED` od razu. Wewnętrzni testerzy widzą build natychmiast, Robert po propagacji zatwierdzenia.
+
+**Bramka e2e Chromium ujawniła, że fala nie była sprawdzana e2e (sam Vitest był zielony):**
+- Pierwszy pełny bieg (świeży cache Vite): 289 PASS / 24 FAIL; powtórka 24 na rozgrzanym serwerze: 20 deterministycznych, 4 flaki obciążeniowe.
+- 18 z 20 to specy z nieaktualnym kontraktem po świadomych zmianach B139 (tytuł powłoki jako `p` przy własnym h1 ekranu, h2 w karcie ćwiczenia i bibliotece planów, polskie copy „Domknięcie i progres cyklu", „centrum synchronizacji", chipy Historii za przyciskiem Filtry). Specy przepięte na nowy kontrakt, do `critical`, `full-app` i `heading-consistency` dopisany niezmiennik „dokładnie jeden h1 na trasie".
+- **Dwie realne regresje produktu (naprawione chirurgicznie, każda 1 linia):**
+  - `AppHeader`: `contentOwnsPageHeading` obejmował `/exercises` i `/achievements`, a te ekrany nie mają własnego h1 w widoku domyślnym (Biblioteka ma tylko h3 nazw ćwiczeń, w Postępach h1 „Odznaki" jest wyłącznie w podwidoku). Skutek: trasy bez żadnego h1. Usunięte z listy, tytuł headera wraca jako h1. Sonda po poprawce: `/`, `/workout/day-1`, `/history`, `/plan`, `/cycles`, `/achievements`, `/new-plan`, `/profile`, `/plan/edit`, `/admin`, `/exercises` mają dokładnie jeden h1.
+  - `ExerciseCard`: nowa siatka serii `24px minmax(0,1fr) minmax(56px,1.1fr) minmax(44px,1fr) 44px 44px` (44 px cele + kg min 56 px) ściskała kolumnę „Poprz." do **24 px przy 320 px i 20 px przy 360 px** (typowy Android; przed falą ok. 40 px). Własny spec operatora z tej fali wymaga ≥ 28 px przy 320 px i nie był uruchamiany. Poprawka: `minmax(28px,1fr)` na kolumnie „Poprz." (pomiar po zmianie: 320 px → 29 px, 360 px → 31 px, 390 px → 47 px, bez overflow, kg 56 px). Test charakteryzacyjny `exercise-card-layout` dopasowany do nowego szablonu.
+- Drugi pełny bieg po poprawkach (serwer rozgrzany): 306 PASS / 7 FAIL, wszystkie 7 to inne testy niż w pierwszym biegu; 6/7 przechodzi w izolacji (flaki obciążeniowe: ładowanie `main`, `Rozpocznij trening`, font-scale 320 px).
+- **Flaki do naprawy przez właściciela testów (nie blokują wydania, produktowa część przechodzi):** `warmup-prompt-preference.spec.ts:60` przechodzi 1/3: kasowanie storage po `waitForTimeout(250)` ściga się z fire-and-forget flushem draftu (komentarz w teście to przyznaje); `exercise-card-v3.spec.ts:126` (chip Rozgrzewki) przechodzi 2/3 z różnymi asercjami; `warmup-persistence.spec.ts:117` pada tylko pod obciążeniem. Zalecenie: sygnał deterministyczny zamiast `waitForTimeout`, albo discard przez ścieżkę UI.
+
+**Bramki końcowe przed commitem C:** typecheck 0, lint 0 błędów (15 ostrzeżeń zastanych), Vitest 453 plików / 3945 PASS / 16 pominiętych, build, dist-smoke, bundle budget (1441419 < 1536000), no-emoji 276 plików; functions: tsc + 522 testów w predeploy.
+
+**Po wydaniu (właściciel):** `client_errors` przez 24 h; na koncie QA `users/{uid}/aggregates/allTime.schemaVersion === 2` po pierwszym zapisie albo otwarciu apki oraz ta sama liczba w nagłówku i w „Twoje liczby"; fizyczny iPhone: zgaszony ekran w przerwie, force-quit w trakcie treningu (journal v2), 360 px Android: kolumna „Poprz." czytelna.
