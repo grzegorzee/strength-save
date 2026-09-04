@@ -96,7 +96,7 @@ export const WorkoutSettingsSheet = ({ open, onOpenChange }: WorkoutSettingsShee
             label={t('profile.pref.restTimer')}
             right={(
               <Select value={restTimer} onValueChange={handleRestChange}>
-                <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest" aria-label={t('profile.pref.restTimer')}><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-24 border-0 bg-surface-highest" aria-label={t('profile.pref.restTimer')}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {restOptions.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
                 </SelectContent>

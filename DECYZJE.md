@@ -5622,3 +5622,111 @@ zachowuje się między ekranami i nie przywraca palet. Test regresji najpierw
 odtworzył wymuszenie lime. Celowane testy komponentowe 31/31, Chromium 9/9 i
 WebKit 9/9 są zielone, również onboarding 320×568. Pełna bramka, build natywny
 i dystrybucja są wykonywane dla iOS build 138; MARKETING_VERSION pozostaje 1.0.0.
+
+### 2026-09-03: trening na siłowni — rozgrzewka, czytelność, chronologia i jeden licznik
+
+**Root cause:** kilka ekranów miało kontrakty sprzeczne z realnym użyciem jedną
+ręką. Dialog rozgrzewki zamykał się po przypadkowym tapie w overlay, a chip na
+karcie generował rampę z ciężarem zamiast oddać użytkownikowi pustą serię.
+Kolumna kg nie miała gwarantowanego minimum dla wartości dziesiętnych, zaś
+`Metryki` dziedziczyły obrys przeznaczony dla kontrolek wyboru. Edytor planu
+układał nazwę, parametry i cztery akcje w jednym ciasnym wierszu. Cardio używało
+czterech wąskich kolumn, więc polskie nazwy łamały się w środku słowa. Timeline
+Planu stosował regułę „dziś, przyszłe, minione rosnąco”, a nie datę zdarzenia.
+Osobno backendowy agregat v1 liczył każdy dokument `completed: true`, także pusty
+lub zawierający wyłącznie rozgrzewkę; klient część statystyk liczył dopiero po
+ukończonej serii roboczej. To dawało 87 w nagłówku i 86 w szczegółach.
+
+**Decyzja:** tap poza aktywną rozgrzewką już jej nie zamyka; wyjście pozostaje
+jawne przez X lub „Zakończ”. Chip `Rozgrzewka` dodaje dokładnie jeden pusty slot
+W o modelu 0 kg / 0 powtórzeń i nigdy nie kopiuje serii roboczych. Kolumna kg ma
+minimum 56 px, a `Metryki` korzystają z tej samej geometrii co pozostałe chipy,
+bez stałego obrysu. Edytor planu pokazuje pełną nazwę i parametry nad osobnym
+paskiem akcji; widoczny przycisk dodaje jeden dzień jednym tapem. Cardio jest
+mobilnym arkuszem z dwiema szerokimi kolumnami, stałym CTA nad klawiaturą i
+odzyskiwalnym stanem błędu. Plan sortuje wpisy po faktycznej dacie malejąco
+(3, 2, 1), niezależnie od czasu dopisania cardio.
+
+Licznik ma jedną definicję domenową: finalny trening z co najmniej jedną
+ukończoną serią roboczą. Para offline `local-workout-*` → `workout-*` liczy się
+raz, lecz dwa różne szybkie treningi tego samego dnia liczą się osobno; ręczne
+cardio pozostaje osobną aktywnością. Agregat otrzymał `schemaVersion: 2`.
+Klient odrzuca v1 i prosi o idempotentny rebuild, a trigger backendu także robi
+pełną odbudowę przy starej wersji. Nie wykonano żadnego backfillu ani zapisu na
+produkcyjnych danych; przy wydaniu obowiązuje kolejność functions v2 → web/iOS.
+
+**Niezmienniki i weryfikacja:** lista ćwiczeń planu pozostaje kompletna, sesja
+może ją tylko rozszerzać, a zapis draftu po force-quit odtwarza własną W i serie
+robocze 1:1. Pełny Vitest: 3900 PASS, 16 SKIP, 0 FAIL (451 plików). Functions:
+517 PASS, 12 SKIP oraz build TypeScript. Root typecheck, lint (0 błędów, 15
+zastanych ostrzeżeń Fast Refresh), produkcyjny build i `git diff --check` są
+zielone. Celowane Chromium i WebKit przechodzą rozgrzewkę, klawiaturę cardio,
+edycję planu, force-quit/background-resume oraz sekwencję plan → wyjście →
+szybki trening → powrót → zakończenie → sync. Pełny wynik E2E i fizyczny smoke
+iPhone są dopisywane do checklisty kandydata przed dystrybucją.
+
+### 2026-09-03: Kinetic Precision — fundamenty kontrastu i pól dotykowych
+
+**Root cause:** jedna wartość `destructive` pełniła jednocześnie rolę pełnego
+wypełnienia, obrysu i tekstu na subtelnym tle. Nie mogła utrzymać wymaganych
+kontrastów w light i dark mode. Dodatkowo przygaszanie całej zaległej karty przez
+`opacity` obniżało kontrast jej badge'a `POMINIĘTE` do 2,95:1. Bazowy `Input`
+miał na powłoce mobilnej 40 px wysokości, poniżej minimum 44 pt przyjętego dla
+aplikacji używanej jedną ręką.
+
+**Decyzja:** kierunek Kinetic Precision rozdziela semantyczne role czerwieni:
+`--destructive` obsługuje wypełnienie i obrys, `--destructive-text` tekst na
+przezroczystych tintach, a `--destructive-foreground` tekst na pełnym przycisku.
+Nie przygaszamy całych kontenerów statusowych; stan nieaktywny wycisza wyłącznie
+treść drugorzędną. Bazowy `Input` ma `h-11` na powłoce mobilnej i zachowuje
+kompaktowe `h-10` dopiero w `desktop-shell`; tekst pozostaje 16 px, aby iOS nie
+powiększał formularza po focusie.
+
+**Niezmienniki i weryfikacja:** tła statusowe nadal korzystają wyłącznie z
+przezroczystości, aktywne kontrolki nie dziedziczą `opacity`, pola z jawną większą
+wysokością zachowują swój wariant, a żadne źródło danych ani przepływ treningowy
+nie zostały zmienione. Testy kontraktowe najpierw odtworzyły oba problemy. Claude
+Code wykonał po każdej iteracji read-only design-critique w 390×844: zaległy badge
+ma po poprawce 5,67:1, jego ikona 6,33:1, a bazowe pola mają 44 px, font 16 px,
+widoczny focus i zero poziomego scrolla oraz błędów strony. Pełny Vitest: 3933
+PASS, 16 SKIP, 0 FAIL (452 pliki). Typecheck i build są zielone; lint ma 0 błędów
+i 15 zastanych ostrzeżeń Fast Refresh. `git diff --check` przechodzi. Zmiana nie
+dotyka timerów, autosave, scroll restore ani cyklu życia, więc nie wymaga nowego
+scenariusza background/resume. Ten sam zweryfikowany snapshot został wysłany do
+TestFlight jako `1.0.0 (139)`; fizyczny smoke na iPhonie pozostaje bramką przed
+dalszą dystrybucją lub zgłoszeniem wersji sklepowej.
+
+### 2026-09-04: build 139 — pełny audyt produktu i domknięcie Kinetic Precision
+
+**Root cause:** świeży audyt 103 ekranów w 390×844 ujawnił, że fundamenty
+Kinetic Precision nie były jeszcze konsekwentnie przeniesione na wszystkie
+przepływy. Część drugorzędnych akcji i kontrolek timera miała mniej niż 44 px,
+Historia traciła miejsce na metadane i od razu pokazywała ścianę filtrów, kilka
+formularzy używało fontu poniżej 16 px, a copy mieszało polski z żargonem
+technicznym. Dodatkowo średnia treningów była dzielona przez deklarowaną długość
+cyklu zamiast przez czas, który faktycznie upłynął, przyszłe treningi miały
+nielogiczną kolejność, a 404 wypadało poza powłokę aplikacji.
+
+**Decyzja:** utrzymujemy jeden mobilny system Kinetic Precision i migrację
+chirurgiczną, bez jednorazowego restyle'u. Kontrolki interaktywne mają minimum
+44×44 px, pola formularzy na mobile minimum 16 px, focus korzysta ze wspólnego
+ringu, a statusy wyłącznie z przezroczystego tła. Historia rozdziela otwarcie
+sesji od menu, zawija metadane i filtry bez przewijania poziomego (niezmiennik
+X35a) oraz domyślnie chowa panel filtrów. BackBar pozostaje na trasach spoza
+dolnej nawigacji zgodnie z X35b; audytowa sugestia usunięcia go została świadomie
+odrzucona, a sam cel dotykowy powiększono. Copy PL/EN, hierarchia nagłówków,
+chronologia planu i średnia cyklu mają jeden spójny kontrakt. Hipoteza błędu
+`WORKOUT_NOT_FOUND` z deterministycznego mocka nie uzasadnia zmiany synchronizacji
+bez odtworzenia na koncie QA.
+
+**Niezmienniki i weryfikacja:** nie zmieniono wersji aplikacji ani buildu iOS:
+pozostaje `1.0.0 (139)`. Lista ćwiczeń planu nadal jest kompletna, sesja może ją
+tylko rozszerzać, a ekran treningu zachowuje istniejący zapis, timer i recovery.
+Read-only product audit wykonał 103 zrzuty; po poprawkach niezależny design
+critique zamknął 12/12 pozycji B139 bez regresji, a końcowy pomiar zamknął 4/4
+drobnych pozostałości. Przy 390×844: poziomy scroll 0, błędy strony 0, przyciski
+bez nazwy 0, pola poniżej 16 px 0 i tła statusowe bez przezroczystości 0. Pełny
+Vitest: 3945 PASS, 16 SKIP, 0 FAIL (453 pliki). Typecheck i produkcyjny build są
+zielone; lint ma 0 błędów i 15 zastanych ostrzeżeń Fast Refresh. Fizyczny smoke
+na iPhonie — w tym background/resume i sekwencja przerwania sesji — pozostaje
+ostatnią zewnętrzną bramką przed publikacją.

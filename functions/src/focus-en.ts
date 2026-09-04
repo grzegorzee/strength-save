@@ -22,13 +22,36 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   "Wytrzymałość": "Endurance",
   "Kondycja": "Conditioning",
   "Akcesoria": "Accessories",
+  "Jednonóż": "Unilateral",
+  "Detale": "Detail Work",
+  "Płasko": "Flat",
+  "Środek": "Mid",
+  "Szerokie": "Wide",
+  "Uda": "Thighs",
+  "Przysiad": "Squat",
+};
+
+const FOCUS_PHRASE_EN: Record<string, string> = {
+  "Szerokie Plecy": "Back Width",
+  "Tył Uda": "Hamstrings",
+  "Klatka Płasko": "Flat Chest",
+  "Środek Pleców": "Mid Back",
 };
 
 /** Focus dnia po angielsku (tłumaczy znane tokeny, resztę zostawia). */
 export const localizeFocusEn = (focus: string): string => {
   if (!focus) return focus;
   return focus
-    .split(/(\s+)/)
-    .map((tok) => FOCUS_TOKEN_EN[tok] ?? tok)
+    .split(/(\s*\/\s*)/)
+    .map((segment) => {
+      if (/^\s*\/\s*$/.test(segment)) return segment;
+      const trimmed = segment.trim();
+      const phrase = FOCUS_PHRASE_EN[trimmed];
+      if (phrase) return segment.replace(trimmed, phrase);
+      return segment
+        .split(/(\s+)/)
+        .map((token) => FOCUS_TOKEN_EN[token] ?? token)
+        .join("");
+    })
     .join("");
 };

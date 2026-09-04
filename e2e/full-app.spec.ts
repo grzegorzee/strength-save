@@ -443,12 +443,12 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     await expect(page.getByText('Ustawienia zaawansowane')).toHaveCount(0);
   });
 
-  test('7 grup Profilu mieści się bez poziomego overflow na 320 i 390 px; każdy trigger ma co najmniej 44 px', async ({ page }) => {
+  test('8 grup Profilu mieści się bez poziomego overflow na 320 i 390 px; każdy trigger ma co najmniej 44 px', async ({ page }) => {
     for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
       await navigateAndWait(page, '/profile');
       const triggers = page.locator('section[data-state] > div > h2 > button[data-testid^="profile-toggle-"]');
-      await expect(triggers).toHaveCount(7);
+      await expect(triggers).toHaveCount(8);
       const boxes = await triggers.evaluateAll((buttons) => buttons.map((button) => {
         const rect = button.getBoundingClientRect();
         return { left: rect.left, right: rect.right, height: rect.height };
@@ -833,8 +833,18 @@ test.describe('PlanDaysEditor (Z70)', () => {
     await navigateAndWait(page, '/plan/edit');
     await expect(page.getByRole('button', { name: 'Duplikuj dzień' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Usuń dzień' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Dodaj dzień/ })).toBeVisible();
+    await expect(page.getByTestId('add-plan-day')).toBeVisible();
     await expect(page.getByText('Czas trwania planu')).toBeVisible();
+
+    const firstName = page.locator('[data-testid^="exercise-name-"]').first();
+    const firstActions = page.locator('[data-testid^="exercise-actions-"]').first();
+    await expect(firstName).toBeVisible();
+    await expect(firstName).toHaveCSS('white-space', 'normal');
+    const nameBox = await firstName.boundingBox();
+    const actionsBox = await firstActions.boundingBox();
+    expect(nameBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(actionsBox!.y).toBeGreaterThan(nameBox!.y + nameBox!.height);
   });
 });
 
@@ -1240,7 +1250,7 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     await expect(page.getByTestId('plates-visual')).toBeVisible();
   });
 
-  test('generator rozgrzewki %1RM wstawia serie rozgrzewkowe i nie duplikuje się (Z108)', async ({ page }) => {
+  test('Rozgrzewka dodaje jeden pusty slot i nie kopiuje serii roboczej', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     const firstCard = page.locator('.exercise-card').first();
@@ -1249,10 +1259,14 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     // X38 WP-A: start z planu bez domyślnej W; chip widoczny, bo brak serii W.
     await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
     await firstCard.getByTestId('warmup-generate').click();
-    // X37 WP-B: rampa wg sprzętu; pierwsze ćwiczenie to hantle: 50 x8, 75 x3 (2 wiersze W).
-    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(2);
-    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ }).first()).toHaveValue('50');
-    // Po wygenerowaniu (są serie W) chip znika — brak duplikacji.
+    // Feedback 2026-09-03: dokładnie jeden pusty slot 0/0 — użytkownik sam
+    // wybiera ciężar i powtórzenia, a wartości robocze nie są kopiowane.
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(1);
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveValue('');
+    const warmupReps = firstCard.getByRole('spinbutton', { name: /Rozgrzewka W, Powt\./ });
+    await expect(warmupReps).toHaveValue('');
+    await expect(warmupReps).toHaveAttribute('placeholder', '0');
+    // Po dodaniu (jest seria W) chip znika — brak duplikacji.
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
   });
 });
@@ -1358,6 +1372,11 @@ test.describe('Ręczne cardio (Z112)', () => {
 
     // Dodanie: typ Bieżnia + 30 minut (default typ = Treadmill).
     await page.getByTestId('add-cardio-open').click();
+    const cardioDialog = page.getByRole('dialog');
+    await expect(cardioDialog.getByTestId('cardio-type-grid')).toHaveCSS('grid-template-columns', /.+ .+/);
+    await expect(cardioDialog.getByRole('button', { name: 'Pływanie' })).toBeVisible();
+    await expect(cardioDialog.getByRole('button', { name: 'Skakanka' })).toBeVisible();
+    expect(await cardioDialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.getByTestId('cardio-minutes').fill('30');
     await page.getByTestId('cardio-save').click();
 

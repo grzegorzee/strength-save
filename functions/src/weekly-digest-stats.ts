@@ -20,6 +20,7 @@ export interface DigestExercise {
 }
 
 export interface DigestWorkout {
+  id?: string;
   userId?: string;
   completed?: boolean;
   date?: string;
@@ -34,6 +35,30 @@ export const workoutExercises = (w: DigestWorkout | null | undefined): DigestExe
 
 export const exerciseSets = (ex: DigestExercise | null | undefined): DigestSet[] =>
   Array.isArray(ex?.sets) ? ex!.sets! : [];
+
+const canonicalWorkoutSessionId = (sessionId: string): string => (
+  sessionId.startsWith("local-workout-") ? sessionId.slice("local-".length) : sessionId
+);
+
+export const hasCompletedWorkingSet = (workout: DigestWorkout): boolean => (
+  workoutExercises(workout).some((exercise) => (
+    exerciseSets(exercise).some((set) => set?.completed === true && set.isWarmup !== true)
+  ))
+);
+
+/** Ten sam kontrakt co licznik w aplikacji i agregat v2. */
+export const selectCompletedDigestWorkouts = (workouts: DigestWorkout[]): DigestWorkout[] => {
+  const canonical = new Map<string, { workout: DigestWorkout; remote: boolean }>();
+  workouts.forEach((workout, index) => {
+    if (workout.completed !== true || !hasCompletedWorkingSet(workout)) return;
+    const id = typeof workout.id === "string" && workout.id.length > 0 ? workout.id : `__anonymous_${index}`;
+    const key = canonicalWorkoutSessionId(id);
+    const remote = id === key;
+    const existing = canonical.get(key);
+    if (!existing || (remote && !existing.remote)) canonical.set(key, { workout, remote });
+  });
+  return [...canonical.values()].map(({ workout }) => workout);
+};
 
 // Port setTonnage (src/lib/summary-utils.ts:29-36): zwykłe serie reps x weight;
 // serie czasowe/dystansowe z ciężarem wchodzą jako ciężar x 1; rozgrzewki nie liczą się.
@@ -71,7 +96,8 @@ export const computeWeekStats = (workouts: DigestWorkout[]): WeekStats => {
   let durationSec = 0;
   const byExercise = new Map<string, number>();
 
-  workouts.forEach((w) => {
+  const completedWorkouts = selectCompletedDigestWorkouts(workouts);
+  completedWorkouts.forEach((w) => {
     const sessionDuration = typeof w.durationSec === "number" && w.durationSec > 0
       ? w.durationSec
       : (typeof w.completedAt === "number" && typeof w.startedAt === "number" && w.completedAt > w.startedAt
@@ -101,7 +127,7 @@ export const computeWeekStats = (workouts: DigestWorkout[]): WeekStats => {
     .slice(0, 3);
 
   return {
-    sessions: workouts.length,
+    sessions: completedWorkouts.length,
     workingSets,
     reps,
     tonnageKg: Math.round(tonnageKg),
@@ -125,8 +151,7 @@ interface ExerciseBest {
 
 const collectBests = (workouts: DigestWorkout[]): Map<string, ExerciseBest> => {
   const bests = new Map<string, ExerciseBest>();
-  workouts.forEach((w) => {
-    if (w.completed === false) return;
+  selectCompletedDigestWorkouts(workouts).forEach((w) => {
     workoutExercises(w).forEach((ex) => {
       const key = ex.name || ex.exerciseId;
       if (!key) return;

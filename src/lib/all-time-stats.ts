@@ -12,6 +12,7 @@ import type { WorkoutSession } from '@/types';
 import { calculateTonnage, calculateStreakDetails, calculateLongestStreak } from '@/lib/summary-utils';
 import { workoutDurationSec } from '@/lib/monthly-stats';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 export interface AllTimeStats {
   workoutCount: number;
@@ -44,7 +45,7 @@ const EMPTY: AllTimeStats = {
 };
 
 export const buildAllTimeStats = (workouts: WorkoutSession[]): AllTimeStats => {
-  const completed = workouts.filter((w) => w.completed);
+  const completed = selectCompletedWorkouts(workouts);
   if (completed.length === 0) return { ...EMPTY };
 
   let workoutsWithDuration = 0;

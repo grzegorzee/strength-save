@@ -124,7 +124,7 @@ describe('buildDayFromDraft — szybki trening (bez dnia planu)', () => {
   });
 });
 
-import { hasAnyCompletedSet } from '@/lib/workout-day-view';
+import { hasAnyCompletedSet, workoutScrollStorageKey } from '@/lib/workout-day-view';
 
 describe('hasAnyCompletedSet — blokada zapisu pustego treningu (regresja 2026-07-20)', () => {
   it('brak ćwiczeń => false', () => {
@@ -160,8 +160,17 @@ describe('hasAnyCompletedSet — blokada zapisu pustego treningu (regresja 2026-
     expect(hasAnyCompletedSet({ a: [{ reps: 0, weight: 0, distanceM: 100, completed: true }] })).toBe(true);
   });
 
-  it('sama rozgrzewka też się liczy (user coś zrobił)', () => {
-    expect(hasAnyCompletedSet({ a: [{ reps: 12, weight: 20, completed: true, isWarmup: true }] })).toBe(true);
+  it('sama rozgrzewka nie finalizuje treningu i nie tworzy rozjazdu Historia ↔ licznik', () => {
+    expect(hasAnyCompletedSet({ a: [{ reps: 12, weight: 20, completed: true, isWarmup: true }] })).toBe(false);
+  });
+});
+
+describe('workoutScrollStorageKey — izolacja sesji tego samego dnia', () => {
+  it('jest stabilny przez promocję sessionId, ale różny dla planu i quick workout', () => {
+    expect(workoutScrollStorageKey('u1', 'day-1', '2026-09-03'))
+      .toBe('workout-scroll:u1:day-1:2026-09-03');
+    expect(workoutScrollStorageKey('u1', 'day-1', '2026-09-03'))
+      .not.toBe(workoutScrollStorageKey('u1', 'adhoc-123', '2026-09-03'));
   });
 });
 

@@ -1,5 +1,6 @@
 import type { WorkoutSession } from '@/types';
 import { calculateTonnage } from '@/lib/summary-utils';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 // Z92: przegląd miesięcy w Analityce — liczba ukończonych treningów, łączny czas
 // i tonaż per miesiąc. Agregacja z już załadowanych workouts, zero nowych odczytów.
@@ -43,8 +44,7 @@ export const aggregateMonthlyStats = (
 ): MonthlyStat[] => {
   const floor = monthKeyFloor(now, monthsBack);
   const byMonth = new Map<string, MonthlyStat>();
-  for (const workout of workouts) {
-    if (!workout.completed) continue;
+  for (const workout of selectCompletedWorkouts(workouts)) {
     if (typeof workout.date !== 'string' || workout.date.length < 7) continue;
     const monthKey = monthKeyOf(workout.date);
     if (monthKey < floor) continue;

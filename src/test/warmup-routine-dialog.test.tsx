@@ -51,6 +51,21 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
     expect(onToggle).toHaveBeenCalledWith('warmup.v3.armCircles');
   });
 
+  it('przypadkowy tap w przyciemnione tło nie zamyka rozgrzewki; wyjście jest jawne', async () => {
+    const onOpenChange = vi.fn();
+    renderDialog({ onOpenChange });
+    const overlay = document.querySelector('[data-app-overlay]') as HTMLElement;
+    // DismissableLayer podpina listener dokumentu po pierwszym ticku, aby event
+    // otwierający dialog nie został uznany za klik poza nim.
+    await new Promise((resolve) => window.setTimeout(resolve, 1));
+
+    fireEvent.pointerDown(overlay, { pointerType: 'mouse', button: 0 });
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByTestId('warmup-finish')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /zamknij/i })).toBeTruthy();
+  });
+
   it('odhaczenia przychodzą z propsa i przeżywają cykl zamknij/otwórz', () => {
     const checked = new Set(['warmup.v3.armCircles']);
     const { rerender } = renderDialog({ checked });

@@ -70,7 +70,7 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     goToStep5();
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     // Ostatnia karta = najgorsze dopasowanie, na pewno inna niż rekomendacja.
-    const headings = screen.getAllByRole('heading', { level: 3 });
+    const headings = screen.getAllByRole('heading', { level: 2 });
     fireEvent.click(headings[headings.length - 1].closest('button')!);
     previewFromStep5();
 

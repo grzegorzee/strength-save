@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, memo, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, Trophy, Check } from 'lucide-react';
 import {
@@ -59,9 +58,6 @@ import {
 } from '@/lib/set-tracking';
 import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
-import { generateWarmupSets } from '@/lib/warmup-generator';
-import { detectWarmupEquipment } from '@/lib/prestart-warmup';
-import { loadPlateInventory } from '@/lib/plate-calculator';
 import { SetCountdown } from '@/components/SetCountdown';
 import { createSetCountdown, resolveSetCountdownTarget, type SetCountdownRun } from '@/lib/set-countdown';
 
@@ -81,8 +77,8 @@ async function exerciseCompleteHaptic() {
 
 // Z129.2: jeden rozmiar chipa dla całego paska. flex-1 wyrównuje szerokości,
 // zero ramek 1px — granicę robi tło (No-Line Rule, docs/DESIGN.md).
-// Fala 2 (2026-08-20, mockup 2a): h-10, radius 12, tło surface-low.
-const chipClass = 'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors';
+// Minimum 44 pt: kontrolki są używane jedną ręką w ruchu na siłowni.
+const chipClass = 'inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors';
 
 const incompleteSetMessageKey = (tracking: TrackingType): TranslationKey => {
   switch (tracking) {
@@ -185,7 +181,7 @@ const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, minuteLabel, s
         onBlur={() => setMinutesDraft(null)}
         disabled={disabled}
         aria-label={minuteLabel}
-        className="h-10 min-w-0 w-[2.2ch] bg-transparent text-right text-base font-bold tabular-nums outline-none"
+        className="h-10 min-w-0 w-[2.2ch] rounded-md bg-transparent text-right text-base font-bold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
       <span aria-hidden="true" className="shrink-0 text-base font-bold tabular-nums">:</span>
       <input
@@ -202,7 +198,7 @@ const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, minuteLabel, s
         onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
         disabled={disabled}
         aria-label={secondLabel}
-        className="h-10 min-w-0 w-[2.2ch] bg-transparent text-left text-base font-bold tabular-nums outline-none"
+        className="h-10 min-w-0 w-[2.2ch] rounded-md bg-transparent text-left text-base font-bold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
     </div>
   );
@@ -417,8 +413,11 @@ const ExerciseCardInner = ({
     // If confirming an empty set and we have last time's value, adopt it.
     // Indeks serii roboczej pomija rozgrzewkę po obu stronach.
     const workingIndex = sets.slice(0, setIndex).filter((set) => !set.isWarmup).length;
-    const prevForAdopt = turningOn
-      ? (currentSet.isWarmup ? previousSets?.[setIndex] : previousWorkingSet(previousSets, workingIndex))
+    // Rozgrzewka jest świadomie pustym slotem 0/0: user wpisuje ją sam.
+    // Nie wolno mapować jej po indeksie na poprzednią serię, bo poprzednia
+    // sesja mogła nie mieć W i wtedy skopiowalibyśmy serię roboczą.
+    const prevForAdopt = turningOn && !currentSet.isWarmup
+      ? previousWorkingSet(previousSets, workingIndex)
       : undefined;
     let reps = currentSet.reps;
     let weight = currentSet.weight;
@@ -599,25 +598,13 @@ const ExerciseCardInner = ({
     handleSetChange(targetIndex, 'weight', weight);
   };
 
-  // Z108: generator rozgrzewki %1RM od pierwszego ciężaru roboczego. X37 WP-B:
-  // schemat 50/70/85 wg sprzętu (sztanga z gryfem; hantle/maszyna 50% x8, 75% x3),
-  // ten sam co w arkuszu przed startem. X38 WP-A: nowa lista serii nie ma domyślnej
-  // W, więc chip działa też BEZ ciężaru roboczego: wtedy dokłada 1 pustą serię W
-  // na górze (user wpisze sam). Chip zawsze coś robi (zasada 6).
+  // Rozgrzewka w karcie jest intencjonalnym, pustym slotem. Nie zgaduje ciężaru
+  // ani liczby serii na podstawie roboczych: user wpisuje 0/0 po swojemu, a stare
+  // serie robocze pozostają dokładnie bez zmian.
   const handleGenerateWarmup = () => {
-    const workingWeight = sets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
-    // Z134.2: inwentarz idzie do generatora, żeby nie proponował ciężarów,
-    // których na tej siłowni nie da się złożyć.
-    const inventory = loadPlateInventory();
-    const equipment = detectWarmupEquipment(exercise.name, isBodyweight);
-    const generated = workingWeight > 0
-      ? generateWarmupSets(workingWeight, tracking, inventory.barKg, inventory.plates, equipment)
-      : null;
-    const warmupRows: SetData[] = generated && generated.length > 0
-      ? generated
-      : [{ reps: 0, weight: 0, completed: false, isWarmup: true }];
+    const warmupRow: SetData = { reps: 0, weight: 0, completed: false, isWarmup: true };
     hasLocalChanges.current = true;
-    const newSets = [...warmupRows, ...sets.filter((s) => !s.isWarmup)];
+    const newSets = [warmupRow, ...sets.filter((s) => !s.isWarmup)];
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
   };
@@ -742,26 +729,22 @@ const ExerciseCardInner = ({
   // assisted: asysta+powt.). Stare typy — układ nietknięty.
   // Z170: ostatnia kolumna 44px — X ma pełny tap target 44px (h-11 w-11),
   // węższa kolumna kładła go NA checkmarku i tap w ✓ potrafił trafić w usuwanie.
-  // Z196: równy podział 1fr/1fr nie mieścił "122.5" w KG @390 px (50.7 px kolumny,
-  // 26.7 px wnętrza przy px-3; "125" potrzebuje ~29.5 px, "122.5" ~44 px). Kolumny
-  // liczbowe wagi/asysty/dystansu dostają więcej przestrzeni kosztem POWT. (3 cyfry
-  // maks). Nagłówek używa tego samego gridCols — synchronizacja automatyczna.
-  // Naprawa r3 (2026-08-21, sędzia struktury): POWT. z 0.85fr na 1fr (kosztem KG
-  // 1.25fr→1.1fr, wnętrze KG dalej mieści "122.5" przy px-1) — placeholder zakresu
-  // z planu ("10-12", "12-15", 5 znaków) był obcinany do "10-1" na 390 px.
+  // KG ma jawne minimum 56 px: na iPhonie wartości 31.5/122.5 pozostają czytelne,
+  // a elastyczna kolumna POPRZ. oddaje miejsce jako pierwsza. POWT. zachowuje
+  // minimum 44 px na zakresy planu. Nagłówek i wiersze używają tego samego gridu.
   // WP-C (X37): duration dostaje kolumnę 44px na przycisk odliczania obok pola
   // czasu; POPRZ. węższe (0.8fr), pole czasu szersze (1.2fr): na 393 px zostaje
   // ~44/67 px, "1:30" bold 16px mieści się bez przewijania. wdd (3 pola liczbowe)
   // nie ma miejsca na kolejną kolumnę: odliczanie idzie w pasku pod aktywną serią.
   const gridCols = tracking === 'duration'
-    ? 'grid-cols-[26px_minmax(0,0.8fr)_minmax(0,1.2fr)_44px_40px_44px]'
+    ? 'grid-cols-[26px_minmax(0,0.8fr)_minmax(0,1.2fr)_44px_44px_44px]'
     : tracking === 'weight_distance_duration'
-      ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_40px_44px]'
+      ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_44px_44px]'
       : tracking === 'assisted_bodyweight'
-        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_40px_44px]'
+        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_44px_44px]'
         : isBodyweight
-          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
-          : 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_40px_44px]';
+          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_44px_44px]'
+          : 'grid-cols-[24px_minmax(0,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_44px_44px]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {
@@ -936,7 +919,7 @@ const ExerciseCardInner = ({
             data-tour={isActive ? 'set-check' : undefined}
             aria-label={set.completed ? t('card.uncheckSet') : isActive ? `${t('card.checkSet')} ${t('card.activeSetSuffix')}` : t('card.checkSet')}
             className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
+              'flex h-11 w-11 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-surface-low text-muted-foreground/40 hover:text-primary',
@@ -1052,7 +1035,7 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
             className={cn(
-              'exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
+              'exercise-card-input h-12 min-w-0 px-1 text-base font-bold tracking-[-0.02em] focus-visible:ring-0 focus-visible:ring-offset-0',
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
               activeInputClass,
             )}
@@ -1066,13 +1049,13 @@ const ExerciseCardInner = ({
           min={0}
           value={set.reps || ''}
           onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
-          placeholder={isWarmupRow ? '-' : repsPlaceholder}
+          placeholder={isWarmupRow ? '0' : repsPlaceholder}
           disabled={!isEditable}
           aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
           className={cn(
             // Naprawa r1 (2026-08-21): placeholder zakresu ("6-8") mniejszym
             // stopniem — 16px bold klipowało górny kres na 390px.
-            'exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0',
+            'exercise-card-input h-12 min-w-0 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0',
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
             activeInputClass,
           )}
@@ -1086,7 +1069,7 @@ const ExerciseCardInner = ({
             data-tour={isActive ? 'set-check' : undefined}
             aria-label={set.completed ? t('card.uncheckSet') : isActive ? `${t('card.checkSet')} ${t('card.activeSetSuffix')}` : t('card.checkSet')}
             className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
+              'flex h-11 w-11 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-surface-low text-muted-foreground/40 hover:text-primary',
@@ -1193,7 +1176,7 @@ const ExerciseCardInner = ({
           )}
 
           <div className="min-w-0">
-            <h3 className="break-words font-heading text-lg font-bold leading-tight">{localizedName}</h3>
+            <h2 className="break-words font-heading text-lg font-bold leading-tight">{localizedName}</h2>
             {/* Fala 2 (2026-08-20, mockup 2a): jedna mono linia metadanych.
                 B-T2 bez zmian: estymacja zawsze z widocznym źródłem (formatEst1RMBadge). */}
             <p className="mt-1 font-mono text-[11px] uppercase leading-snug tracking-[0.06em] text-muted-foreground" title={t('card.maxLiftTitle')}>
@@ -1261,7 +1244,7 @@ const ExerciseCardInner = ({
             <button
               type="button"
               aria-label={t('card.moreActions')}
-              className="shrink-0 self-start rounded-lg p-2 -mr-1 text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="-mr-2 grid h-11 w-11 shrink-0 place-items-center self-start rounded-lg text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
@@ -1315,7 +1298,7 @@ const ExerciseCardInner = ({
                   <span>{targetBox.label}</span>: {targetBox.value}
                 </p>
                 {targetBox.reason && completedSets === 0 && (
-                  <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">{targetBox.reason}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{targetBox.reason}</p>
                 )}
               </div>
             </div>
@@ -1344,7 +1327,10 @@ const ExerciseCardInner = ({
       )}
 
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
-      <div className="px-4 sm:px-5 pt-4 pb-2">
+      <div
+        className="px-2 pt-4 pb-2 phone:px-4 sm:px-5"
+        data-testid="set-table"
+      >
         {/* Naprawa r1 (2026-08-21): "pierwszy raz" RAZ nad tabelą zamiast
             klipowanego powtórzenia w każdej komórce POPRZ. (Z130 zachowane:
             informacja o braku historii nie znika). */}
@@ -1355,7 +1341,10 @@ const ExerciseCardInner = ({
         )}
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
-          <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
+          <div
+            className={cn("grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
+            data-testid="set-grid-header"
+          >
             <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
             {tracking !== 'weight_distance_duration' && (
               <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
@@ -1384,7 +1373,10 @@ const ExerciseCardInner = ({
             </span>
           </div>
         ) : (
-        <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
+        <div
+          className={cn("grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
+          data-testid="set-grid-header"
+        >
           <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
           <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
           {!isBodyweight && (
@@ -1441,7 +1433,7 @@ const ExerciseCardInner = ({
             <button
               onClick={handleAddSet}
               disabled={atSetLimit}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-surface-low py-3 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-foreground transition-colors hover:bg-surface-high hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+              className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-surface-low px-3 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-foreground transition-colors hover:bg-surface-high hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
             >
               <Plus className="h-4 w-4" />
               {t('card.addSet')}
@@ -1463,14 +1455,13 @@ const ExerciseCardInner = ({
           <div className="flex items-stretch gap-1.5" data-testid="exercise-card-chips">
             {(() => {
               // Z108 / X38 WP-A: chip „Rozgrzewka" pierwszy od lewej, dla weight_reps
-              // gdy w karcie NIE MA żadnej serii W (z ciężarem: rampa; bez: pusty
-              // wiersz W). Po dodaniu znika, usunięcie wszystkich W przywraca go.
+              // gdy w karcie NIE MA żadnej serii W. Zawsze dodaje jeden pusty
+              // wiersz W; po dodaniu znika, usunięcie wszystkich W przywraca go.
               const hasWarmupRows = warmupSets.length > 0;
-              const hasWorkingWeight = workingSets.some((s) => s.weight > 0);
               return tracking === 'weight_reps' && !hasWarmupRows ? (
                 <button
                   onClick={handleGenerateWarmup}
-                  aria-label={hasWorkingWeight ? t('warmupgen.button') : t('warmupgen.addEmpty')}
+                  aria-label={t('warmupgen.addEmpty')}
                   data-testid="warmup-generate"
                   className={cn(chipClass, 'bg-surface-low text-foreground/80 hover:text-foreground')}
                 >
@@ -1499,7 +1490,7 @@ const ExerciseCardInner = ({
                 aria-pressed={showMetrics}
                 className={cn(
                   chipClass,
-                  toggleButtonClasses(showMetrics),
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   showMetrics
                     ? 'bg-primary/10 text-primary'
                     : 'bg-surface-low text-foreground/80 hover:text-foreground',

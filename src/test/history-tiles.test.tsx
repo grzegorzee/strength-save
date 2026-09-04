@@ -188,7 +188,7 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
     expect(screen.getByTestId('history-period')).toBeInTheDocument();
     expect(screen.getByTestId('history-export')).toBeInTheDocument();
     // Poziom 1 bez lupy (design 2a) — wyszukiwarka żyje w pełnej liście.
-    expect(screen.queryByPlaceholderText(/Szukaj po dacie/)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Szukaj sesji/)).not.toBeInTheDocument();
   });
 
   it('chronologia sesji zachowuje komplet akcji w menu ⋯', async () => {
@@ -197,7 +197,7 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
     const rows = within(latest).getAllByTestId('history-session-row');
     expect(rows).toHaveLength(5);
     // Draft w LATEST ma badge.
-    expect(within(latest).getAllByText('draft')).toHaveLength(1);
+    expect(within(latest).getAllByText('szkic')).toHaveLength(1);
 
     // Niezmiennik: komplet akcji wiersza także na poziomie 1.
     const menu = await openRowMenu(rows[0]);
@@ -230,7 +230,7 @@ describe('WP-H H1 — poziom 1: kafle cykli', () => {
   it('link "Wszystkie sesje" prowadzi do pełnej listy z wyszukiwarką i wszystkimi wierszami', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('history-all-sessions-link'));
-    expect(screen.getByPlaceholderText(/Szukaj po dacie/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Szukaj sesji/)).toBeInTheDocument();
     // Kompletność: WSZYSTKIE sesje (5) w pełnej liście.
     expect(screen.getAllByTestId('history-session-row')).toHaveLength(5);
   });
@@ -305,14 +305,14 @@ describe('WP-H H2 — poziom 2: widok cyklu (?cycle=)', () => {
     expect(within(detail).getByTestId('cycle-chip-all')).toHaveTextContent('Wszystkie 3');
     fireEvent.click(within(detail).getByTestId('cycle-chip-drafts'));
     expect(within(detail).getAllByTestId('history-session-row')).toHaveLength(1);
-    expect(within(detail).getAllByText('draft')).toHaveLength(1);
+    expect(within(detail).getAllByText('szkic')).toHaveLength(1);
 
     fireEvent.click(within(detail).getByTestId('cycle-chip-all'));
     fireEvent.click(within(detail).getByTestId('cycle-chip-longest'));
     const rows = within(detail).getAllByTestId('history-session-row');
     expect(rows).toHaveLength(3);
     // Draft bez durationSec ląduje na końcu.
-    expect(within(rows[rows.length - 1]).getByText('draft')).toBeInTheDocument();
+    expect(within(rows[rows.length - 1]).getByText('szkic')).toBeInTheDocument();
   });
 
   it('menu ⋯ cyklu: Porównaj włącza tryb, Wyślij do trenera otwiera dialog historii', async () => {

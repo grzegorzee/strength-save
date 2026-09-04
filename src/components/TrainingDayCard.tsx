@@ -41,6 +41,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
   // Badge NASTĘPNY tylko dla dnia bez innego statusu (zasada 5: stany
   // completed/missed/skipped renderują dokładnie te badge co przed zmianą).
   const showNext = Boolean(isNext) && !isCompleted && !isMissed && !skipped;
+  const isInactive = isMissed || (Boolean(skipped) && !isCompleted);
 
   const dayLabel = trainingDate
     ? displayDayNameForDate(day.dayName, day.weekday, trainingDate, lang)
@@ -56,9 +57,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
     <div
       className={cn(
         "rounded-2xl flex items-stretch overflow-hidden transition-colors duration-200",
-        showNext ? "bg-primary/10" : "bg-surface-container",
-        isMissed && "opacity-60",
-        skipped && !isCompleted && "opacity-50"
+        showNext ? "bg-primary/10" : "bg-surface-container"
       )}
     >
       <button
@@ -72,7 +71,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
             {/* Bez truncate: dlugi focus zawija sie naturalnie zamiast gubic
                 koncowke (utrata informacji vs stan sprzed zmiany tytulu). */}
-            <p className="font-heading font-semibold text-base leading-tight">
+            <p className={cn("font-heading font-semibold text-base leading-tight", isInactive && "text-muted-foreground")}>
               {title}
             </p>
             <p className="text-xs text-muted-foreground">{t('dash.exercisesCount', { n: day.exercises.length })}</p>

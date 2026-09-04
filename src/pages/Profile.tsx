@@ -35,6 +35,7 @@ import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
+import { countCompletedWorkouts } from '@/lib/completed-workouts';
 import {
   Lock, Globe, HelpCircle, Mail, Bug, Info, LogOut, Plus, Loader2,
   Ruler, Shield, Gem, CreditCard, Medal,
@@ -133,7 +134,7 @@ const Profile = () => {
 
   // Z216/Z217: licznik all-time z agregatu; okno recent tylko fallbackiem.
   const aggregate = useWorkoutAggregate(uid);
-  const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
+  const completedCount = aggregate?.totals.workoutCount ?? countCompletedWorkouts(workouts);
 
   const subscriptionInfo = useSubscription();
   const subSummary = summarizeSubscription({
@@ -483,10 +484,12 @@ const Profile = () => {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+              className="absolute -bottom-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-60"
               aria-label={t('profile.aria.changeAvatar')}
             >
-              {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              </span>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
           </div>
@@ -496,7 +499,7 @@ const Profile = () => {
               type="button"
               data-testid="profile-name-edit"
               onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }}
-              className="w-fit max-w-full truncate text-left font-heading text-[22px] font-bold leading-tight tracking-tight"
+              className="inline-flex min-h-11 w-fit max-w-full items-center truncate text-left font-heading text-[22px] font-bold leading-tight tracking-tight"
               aria-label={t('profile.account.edit')}
             >
               {profile?.displayName || t('profile.title')}
@@ -617,7 +620,7 @@ const Profile = () => {
             placeholder="#1e90ff"
             inputMode="text"
             autoCapitalize="none"
-            className="h-11 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-sm"
+            className="h-11 flex-1 rounded-lg border-0 bg-surface-highest font-mono text-base desktop-shell:text-sm"
             aria-label={t('profile.appearance.hexLabel')}
             data-testid="accent-hex-input"
           />
@@ -700,9 +703,9 @@ const Profile = () => {
           onClick={() => setVacOpen(true)}
         />
         <section id="profile-plates" data-testid="profile-subsection-plates" className="scroll-mt-20 border-t border-border/60 pt-4">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t('plates.settingsTitle')}
-          </h3>
+          </h2>
           <PlateInventorySettings />
         </section>
       </ProfileAccordionSection>
@@ -745,9 +748,9 @@ const Profile = () => {
         onOpenChange={(open) => setSectionOpen('devices', open)}
       >
         <section id="profile-trainer" data-testid="profile-subsection-trainer" className="scroll-mt-20 rounded-2xl bg-surface-container px-3.5 py-1">
-          <h3 className="py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t('profile.trainer.title')}
-          </h3>
+          </h2>
         {trainerEmail ? (
           <>
             <SettingRow
@@ -885,15 +888,15 @@ const Profile = () => {
           {isAdmin && <SettingRow compact icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
         </div>
         <section id="profile-backup" data-testid="profile-subsection-backup" className="scroll-mt-20 space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t('settings.backup.title')}
-          </h3>
+          </h2>
           <BackupSettings />
         </section>
         <section id="profile-consents" data-testid="profile-subsection-consents" className="scroll-mt-20 space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t('consent.settingsTitle')}
-          </h3>
+          </h2>
           <ConsentSettings hideTitle />
         </section>
       </ProfileAccordionSection>
@@ -913,7 +916,7 @@ const Profile = () => {
           label={t('profile.app.language')}
           right={(
             <Select value={lang} onValueChange={handleLanguage}>
-              <SelectTrigger className="h-9 w-fit gap-1.5 rounded-lg border-0 bg-surface-highest px-2.5 font-mono text-[11px]" aria-label={t('profile.app.language')}><SelectValue /></SelectTrigger>
+              <SelectTrigger className="min-h-11 w-fit gap-1.5 rounded-lg border-0 bg-surface-highest px-2.5 font-mono text-base desktop-shell:text-sm" aria-label={t('profile.app.language')}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {LANGUAGES.map((language) => (
                   <SelectItem key={language.code} value={language.code}>{language.label}</SelectItem>
@@ -950,7 +953,7 @@ const Profile = () => {
         <button
           type="button"
           onClick={() => { setDeleteConfirmInput(''); setDeleteAccountOpen(true); }}
-          className="w-full text-center text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
+          className="flex min-h-11 w-full items-center justify-center text-center text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
         >
           {t('profile.deleteAccount')}
         </button>
@@ -1045,14 +1048,14 @@ const Profile = () => {
             <a
               href={TERMS_URL}
               target="_blank" rel="noopener noreferrer"
-              className="underline underline-offset-2 text-primary"
+              className="inline-flex min-h-11 items-center px-2 underline underline-offset-2 text-primary"
             >
               {t('paywall.terms')}
             </a>
             <a
               href={PRIVACY_URL}
               target="_blank" rel="noopener noreferrer"
-              className="underline underline-offset-2 text-primary"
+              className="inline-flex min-h-11 items-center px-2 underline underline-offset-2 text-primary"
             >
               {t('paywall.privacy')}
             </a>

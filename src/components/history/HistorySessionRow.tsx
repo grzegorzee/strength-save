@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from 'react';
+import type { MouseEvent } from 'react';
 import { ArrowRightLeft, ChevronDown, ChevronUp, ExternalLink, Mail, MoreHorizontal, StickyNote, Trash2 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -64,17 +64,11 @@ export const HistorySessionRow = ({
   const { unit, toDisplay } = useUnit();
 
   const dateShort = formatLocalDateLabel(workout.date, dateLocale(lang), { day: '2-digit', month: '2-digit' });
+  const weekdayShort = formatLocalDateLabel(workout.date, dateLocale(lang), { weekday: 'short' });
 
   const handleRowActivate = () => {
     if (compareMode) onToggleCompare();
     else onOpen();
-  };
-
-  const handleRowKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleRowActivate();
-    }
   };
 
   const stop = (event: MouseEvent) => event.stopPropagation();
@@ -92,49 +86,51 @@ export const HistorySessionRow = ({
   return (
     <div>
       <div
-        role="button"
-        tabIndex={0}
         data-testid="history-session-row"
-        // Własny aria-label: bez niego accessible name wiersza sklejałby się
-        // z aria-labeli przycisków w środku ("Szczegóły", "Akcje treningu") i
-        // getByRole('button', { name: 'Szczegóły' }) trafiałby w CAŁY wiersz.
-        aria-label={`${t('history.openWorkout')}: ${title}`}
-        onClick={handleRowActivate}
-        onKeyDown={handleRowKeyDown}
         className={cn(
-          'flex items-center gap-2 rounded-lg px-2.5 py-2 text-left',
+          'flex items-stretch rounded-lg text-left',
           highlight
             ? 'bg-primary/10'
             : surface === 'container' ? 'bg-surface-container' : 'bg-surface-low',
           isSelected && 'ring-2 ring-inset ring-primary/50',
         )}
       >
-        <span className="w-9 shrink-0 font-mono text-[11px] tracking-[0.04em] text-muted-foreground tabular-nums">
-          {dateShort}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-medium">{title}</span>
-            {pendingCloud && <CloudPendingIndicator compact className="shrink-0" />}
-            {!workout.completed && (
-              <span className="chip-mono shrink-0 px-2 py-0.5">{t('history.badgeDraft')}</span>
-            )}
-          </div>
-          <p className="flex min-w-0 font-mono text-[11px] text-muted-foreground tabular-nums">
-            <span className="truncate">{metaLead}</span>
-            {meta?.durationLabel && (
-              <span className="shrink-0 whitespace-pre">{` · ${meta.durationLabel}`}</span>
-            )}
-          </p>
-        </div>
-        {(meta?.prCount ?? 0) > 0 && (
-          <span className="chip-mono shrink-0 bg-primary/15 px-1.5 py-0.5 text-primary">
-            {meta?.prCount} PR
+        <button
+          type="button"
+          data-testid="history-session-open"
+          aria-label={`${t('history.openWorkout')}: ${title}`}
+          onClick={handleRowActivate}
+          className="flex min-w-0 flex-1 items-start gap-2 px-2.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <span className="flex w-10 shrink-0 flex-col font-mono text-[11px] tracking-[0.04em] text-muted-foreground tabular-nums">
+            <span className="capitalize">{weekdayShort}</span>
+            <span>{dateShort}</span>
           </span>
-        )}
-        <span className="shrink-0 text-right font-mono text-xs font-semibold tabular-nums">
-          {Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang))} {unit}
-        </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-start gap-1.5">
+              <span data-testid="history-session-title" className="line-clamp-2 min-w-0 flex-1 text-sm font-medium">
+                {focusLabel || title}
+              </span>
+              {pendingCloud && <CloudPendingIndicator compact className="shrink-0" />}
+              {!workout.completed && (
+                <span className="chip-mono shrink-0 px-2 py-0.5">{t('history.badgeDraft')}</span>
+              )}
+            </span>
+            <span data-testid="history-session-meta" className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] text-muted-foreground tabular-nums">
+              <span className="shrink-0 whitespace-nowrap">
+                {metaLead}{meta?.durationLabel ? ` · ${meta.durationLabel}` : ''}
+              </span>
+              <span className="whitespace-nowrap font-semibold text-foreground">
+                {Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang))} {unit}
+              </span>
+              {(meta?.prCount ?? 0) > 0 && (
+                <span className="chip-mono bg-primary/15 px-1.5 py-0.5 text-primary">
+                  {meta?.prCount} PR
+                </span>
+              )}
+            </span>
+          </span>
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -142,7 +138,7 @@ export const HistorySessionRow = ({
               aria-label={t('history.rowActions')}
               data-testid="history-row-menu"
               onClick={stop}
-              className="grid h-11 w-7 shrink-0 place-items-center text-muted-foreground/50"
+              className="grid h-11 w-11 shrink-0 place-items-center self-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>

@@ -12,6 +12,7 @@ import { localizePlanName } from '@/lib/plan-i18n';
 import { formatLocalDateLabel } from '@/lib/utils';
 import { workoutBelongsToExportCycle } from '@/lib/workout-export-range';
 import { dateLocale, type LanguageCode, type TParams, type TranslationKey } from '@/i18n';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 export interface ExportCycleOption {
   id: string;
@@ -59,8 +60,8 @@ const shortDate = (iso: string, lang: LanguageCode, withYear: boolean): string =
 /** Sesje należące do cyklu (ukończone, w zakresie dat cyklu, przynależność jak eksport). */
 export const countCycleWorkouts = (cycle: PlanCycle, workouts: WorkoutSession[], todayISO: string): number => {
   const toDate = cycle.endDate || todayISO;
-  return workouts.filter((workout) => workout.completed
-    && workout.date >= cycle.startDate
+  return selectCompletedWorkouts(workouts).filter((workout) =>
+    workout.date >= cycle.startDate
     && workout.date <= toDate
     && workoutBelongsToExportCycle(workout, cycle.id)).length;
 };

@@ -16,6 +16,7 @@ export default {
     },
     extend: {
       screens: {
+        'phone': '360px',
         // Telefon obrócony do landscape (np. 844×390) nadal używa mobilnej
         // powłoki. Sidebar dopiero gdy jest też sensowna wysokość robocza.
         'desktop-shell': { raw: '(min-width: 768px) and (min-height: 600px)' },
@@ -114,6 +115,13 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary-text))",
           foreground: "hsl(var(--primary-foreground))",
+        },
+        // Tekst błędu ma osobny token od wypełnienia/obrysu. Dzięki temu
+        // text-destructive jest czytelny na tintach /10, a pełny czerwony
+        // przycisk nadal utrzymuje kontrast z text-destructive-foreground.
+        destructive: {
+          DEFAULT: "hsl(var(--destructive-text))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
       },
       borderRadius: {

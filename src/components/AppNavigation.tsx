@@ -279,7 +279,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
             <NavLink
               key={`mobile-${item.to}`}
               to={item.to}
-              className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 py-1"
+              className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {({ isActive }) => (
                 <>

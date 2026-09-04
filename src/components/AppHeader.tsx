@@ -12,6 +12,7 @@ import { useFirebaseWorkoutReads } from '@/hooks/useFirebaseWorkouts';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { APP_CHROME_ROOT_PATHS } from '@/lib/main-navigation';
+import { countCompletedWorkouts } from '@/lib/completed-workouts';
 
 interface AppHeaderProps {
   title: string;
@@ -27,6 +28,12 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   // temu przejście Dzisiaj -> Plan -> Historia nie zmienia znaczenia prawego
   // klastra ani nie zastępuje liczby dopiskiem zależnym od ekranu.
   const isDashboard = pathname === '/';
+  const contentOwnsPageHeading = title === 'Strength Save'
+    || isDashboard
+    || pathname === '/achievements'
+    || pathname === '/plan/edit'
+    || pathname === '/exercises'
+    || pathname.startsWith('/admin');
   const showBell = APP_CHROME_ROOT_PATHS.has(pathname);
   const showWorkoutCount = APP_CHROME_ROOT_PATHS.has(pathname);
   const displayName = profile?.displayName || '';
@@ -37,7 +44,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { workouts, isLoaded } = useFirebaseWorkoutReads(uid, 'none', 'recent');
   const aggregate = useWorkoutAggregate(uid);
   const { isOnline, pendingOps } = useOnlineStatus();
-  const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
+  const completedCount = aggregate?.totals.workoutCount ?? countCompletedWorkouts(workouts);
   const [statsOpen, setStatsOpen] = useState(false);
   const [celebration, setCelebration] = useState(0);
 
@@ -99,7 +106,11 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
           {/* Naprawa r1 (2026-08-21, sędzia struktury): tytuł zawijał się do dwóch
               linii przy 390px (PLAN / TRENINGOWY) — jedna linia jak artboardy
               (15.5px, ls .14em) + truncate jako bezpiecznik. */}
-          <h1 className="min-w-0 truncate whitespace-nowrap text-[15.5px] font-heading font-bold uppercase text-foreground tracking-[0.14em]">{title}</h1>
+          {contentOwnsPageHeading ? (
+            <p className="min-w-0 truncate whitespace-nowrap text-[15.5px] font-heading font-bold uppercase text-foreground tracking-[0.14em]">{title}</p>
+          ) : (
+            <h1 className="min-w-0 truncate whitespace-nowrap text-[15.5px] font-heading font-bold uppercase text-foreground tracking-[0.14em]">{title}</h1>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

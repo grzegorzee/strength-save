@@ -6,6 +6,7 @@ import { getWeekBounds, calculateTonnage, filterWorkoutsByPeriod } from '@/lib/s
 import { detectNewPRs } from '@/lib/pr-utils';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { formatLocalDate, parseLocalDateSafe } from '@/lib/utils';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 // --- Types ---
 
@@ -70,7 +71,8 @@ export function prepareWeeklyData(
   const weekEnd = formatLocalDate(bounds.end);
 
   // Strength workouts
-  const weekWorkouts = filterWorkoutsByPeriod(workouts, bounds);
+  const completedWorkouts = selectCompletedWorkouts(workouts);
+  const weekWorkouts = filterWorkoutsByPeriod(completedWorkouts, bounds);
   const tonnageKg = calculateTonnage(weekWorkouts);
 
   // PRs
@@ -82,8 +84,7 @@ export function prepareWeeklyData(
   }));
   // Bug 51: safe parse — rekord z nienaparsowalną datą wypada z porównania
   // zamiast rzucać RangeError w useMemo zakładki Tygodnie.
-  const historicalWorkouts = workouts.filter(w => {
-    if (!w.completed) return false;
+  const historicalWorkouts = completedWorkouts.filter(w => {
     const d = parseLocalDateSafe(w.date);
     return d !== null && d < bounds.start;
   });

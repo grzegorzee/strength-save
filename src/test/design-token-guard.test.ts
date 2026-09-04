@@ -30,6 +30,61 @@ const ARBITRARY_HEX_UTILITY = /\b(?:bg|text|border|ring|from|via|to|fill|stroke|
 
 const HELPER_CLASSES = ['eyebrow-mono', 'chip-mono', 'accent-ring', 'accent-wash', 'accent-wash-solid'];
 
+type Hsl = readonly [number, number, number];
+type Rgb = readonly [number, number, number];
+
+const tokenBlock = (css: string, selector: ':root' | '.dark') => {
+  const block = css.match(new RegExp(`\\${selector}\\s*\\{([\\s\\S]*?)\\n\\s*\\}`));
+  expect(block, `brak bloku ${selector} w src/index.css`).not.toBeNull();
+  return block![1];
+};
+
+const hslToken = (block: string, token: string): Hsl => {
+  const value = block.match(new RegExp(`--${token}:\\s*([\\d.]+)\\s+([\\d.]+)%\\s+([\\d.]+)%\\s*;`));
+  expect(value, `--${token} musi być liczbowym tokenem HSL`).not.toBeNull();
+  return [Number(value![1]), Number(value![2]), Number(value![3])];
+};
+
+const hslToRgb = ([h, sPercent, lPercent]: Hsl): Rgb => {
+  const s = sPercent / 100;
+  const l = lPercent / 100;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const x = chroma * (1 - Math.abs((h / 60) % 2 - 1));
+  const offset = l - chroma / 2;
+  const [r, g, b] = h < 60
+    ? [chroma, x, 0]
+    : h < 120
+      ? [x, chroma, 0]
+      : h < 180
+        ? [0, chroma, x]
+        : h < 240
+          ? [0, x, chroma]
+          : h < 300
+            ? [x, 0, chroma]
+            : [chroma, 0, x];
+  return [r + offset, g + offset, b + offset];
+};
+
+const relativeLuminance = (rgb: Rgb) => {
+  const linear = rgb.map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+};
+
+const contrastRatio = (first: Rgb, second: Rgb) => {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  return (Math.max(firstLuminance, secondLuminance) + 0.05)
+    / (Math.min(firstLuminance, secondLuminance) + 0.05);
+};
+
+const blend = (foreground: Rgb, background: Rgb, alpha: number): Rgb => [
+  foreground[0] * alpha + background[0] * (1 - alpha),
+  foreground[1] * alpha + background[1] * (1 - alpha),
+  foreground[2] * alpha + background[2] * (1 - alpha),
+];
+
 const walk = (dir: string): string[] =>
   readdirSync(dir).flatMap((f) => {
     const p = join(dir, f);
@@ -85,5 +140,35 @@ describe('straznik tokenow redesignu: zero color-mix i hexow mockupu w zrodlach 
     const existing = new Set(walk('src'));
     const dead = [...ARBITRARY_HEX_ALLOWLIST].filter((p) => !existing.has(p));
     expect(dead).toEqual([]);
+  });
+});
+
+describe('kontrakt semantycznego koloru destructive', () => {
+  const css = readFileSync('src/index.css', 'utf8');
+  const tailwind = readFileSync('tailwind.config.ts', 'utf8');
+
+  it.each([
+    ['light', ':root'] as const,
+    ['dark', '.dark'] as const,
+  ])('%s: tekst, wypełnienie i obrys spełniają własne progi kontrastu', (_scheme, selector) => {
+    const block = tokenBlock(css, selector);
+    const background = hslToRgb(hslToken(block, 'background'));
+    const card = hslToRgb(hslToken(block, 'card'));
+    const fill = hslToRgb(hslToken(block, 'destructive'));
+    const foreground = hslToRgb(hslToken(block, 'destructive-foreground'));
+    const text = hslToRgb(hslToken(block, 'destructive-text'));
+
+    expect(contrastRatio(fill, foreground), 'tekst na pełnym destructive').toBeGreaterThanOrEqual(4.5);
+
+    for (const surface of [background, card]) {
+      const subtleStatusBackground = blend(fill, surface, 0.1);
+      expect(contrastRatio(text, subtleStatusBackground), 'tekst destructive na tle /10').toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(fill, surface), 'obrys destructive na powierzchni').toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('text-destructive korzysta z roli tekstowej, a bg/border z roli wypełnienia', () => {
+    expect(tailwind).toMatch(/textColor:\s*\{[\s\S]*?destructive:\s*\{[\s\S]*?DEFAULT:\s*["']hsl\(var\(--destructive-text\)\)["']/);
+    expect(tailwind).toMatch(/colors:\s*\{[\s\S]*?destructive:\s*\{[\s\S]*?DEFAULT:\s*["']hsl\(var\(--destructive\)\)["']/);
   });
 });

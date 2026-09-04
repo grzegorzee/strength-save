@@ -61,6 +61,32 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(firstCard.getByText('kg')).toBeVisible();
   });
 
+  test('320px: POPRZ. pozostaje czytelne, a 122.5 kg nie powoduje wewnętrznego overflow', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+
+    const firstCard = page.locator('.exercise-card').first();
+    const header = firstCard.getByTestId('set-grid-header');
+    const weightInput = firstCard.locator('input[aria-label*="kg"]').first();
+    await expect(header).toBeVisible();
+    const measurements = await header.evaluate((element) => {
+      const previous = Array.from(element.children).find(child => child.textContent?.trim() === 'Poprz.');
+      const input = element.parentElement?.querySelector('input[aria-label*="kg"]') as HTMLInputElement | null;
+      return {
+        previousWidth: previous?.getBoundingClientRect().width ?? 0,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        inputWidth: input?.getBoundingClientRect().width ?? 0,
+      };
+    });
+
+    expect(measurements.previousWidth).toBeGreaterThanOrEqual(28);
+    expect(measurements.scrollWidth).toBeLessThanOrEqual(measurements.clientWidth);
+    expect(measurements.inputWidth).toBeGreaterThanOrEqual(56);
+    await expect(weightInput).toBeVisible();
+  });
+
   test('set rows have number inputs with exercise-card-input class', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);

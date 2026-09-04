@@ -169,6 +169,28 @@ describe('X50: uproszczone mobilne Podsumowanie', () => {
     })));
   });
 
+  it('liczy w podsumowaniu tylko kanoniczne completed, ale zachowuje dwa różne szybkie treningi', async () => {
+    const base = fixtures.workouts[0];
+    const remote = { ...base, id: 'workout-u1-day-1-2026-09-03' };
+    fixtures.workouts = [
+      { ...remote, id: `local-${remote.id}` },
+      remote,
+      { ...base, id: 'empty', exercises: [] },
+      { ...base, id: 'warmup', exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }] },
+      { ...base, id: 'quick-a', dayId: 'quick-a' },
+      { ...base, id: 'quick-b', dayId: 'quick-b' },
+    ];
+    renderAnalytics('/achievements?view=analytics', true);
+    const trigger = screen.getByTestId('analytics-actions-trigger');
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Udostępnij podsumowanie' }));
+
+    await vi.waitFor(() => expect(fixtures.share).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Frekwencja: 3/'),
+    })));
+  });
+
   it('po technicznej porażce share sheet kopiuje podsumowanie do schowka', async () => {
     fixtures.share.mockRejectedValueOnce(new Error('share unavailable'));
     renderAnalytics('/achievements?view=analytics', true);

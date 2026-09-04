@@ -111,7 +111,7 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
     confirmProfileToStep5();
 
-    const browseCards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!.textContent ?? '');
+    const browseCards = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.closest('button')!.textContent ?? '');
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 3).length);
     for (const card of browseCards()) expect(card).toContain('3×');

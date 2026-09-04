@@ -40,6 +40,13 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   'Wytrzymałość': 'Endurance',
   'Kondycja': 'Conditioning',
   'Akcesoria': 'Accessories',
+  'Jednonóż': 'Unilateral',
+  'Detale': 'Detail Work',
+  'Płasko': 'Flat',
+  'Środek': 'Mid',
+  'Szerokie': 'Wide',
+  'Uda': 'Thighs',
+  'Przysiad': 'Squat',
 };
 
 const WEEKDAY_SHORT_EN: Record<string, string> = {
@@ -51,6 +58,13 @@ const WEEKDAY_SHORT_EN: Record<string, string> = {
 const WEEKDAY_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: WEEKDAY_EN };
 const WEEKDAY_SHORT_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: WEEKDAY_SHORT_EN };
 const FOCUS_TOKEN_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: FOCUS_TOKEN_EN };
+
+const FOCUS_PHRASE_EN: Record<string, string> = {
+  'Szerokie Plecy': 'Back Width',
+  'Tył Uda': 'Hamstrings',
+  'Klatka Płasko': 'Flat Chest',
+  'Środek Pleców': 'Mid Back',
+};
 
 /** Nazwa dnia w języku UI (mapuje kanoniczne polskie nazwy dni; inne zostawia). */
 export const localizeDayName = (name: string, lang: LanguageCode): string => {
@@ -105,8 +119,17 @@ export const localizeFocus = (focus: string, lang: LanguageCode): string => {
   const overlay = FOCUS_TOKEN_OVERLAYS[lang];
   if (!overlay || !focus) return focus;
   return focus
-    .split(/(\s+)/)
-    .map((tok) => overlay[tok] ?? tok)
+    .split(/(\s*\/\s*)/)
+    .map((segment) => {
+      if (/^\s*\/\s*$/.test(segment)) return segment;
+      const trimmed = segment.trim();
+      const phrase = lang === 'en' ? FOCUS_PHRASE_EN[trimmed] : undefined;
+      if (phrase) return segment.replace(trimmed, phrase);
+      return segment
+        .split(/(\s+)/)
+        .map((token) => overlay[token] ?? token)
+        .join('');
+    })
     .join('');
 };
 

@@ -376,7 +376,7 @@ export const PlateInventorySettings = () => {
                 const kg = inventoryUnit === 'lbs' ? lbsToKg(nominal) : nominal;
                 if (kg >= 0 && kg <= 100) setBar(kg);
               }}
-              className="h-9 w-28 text-sm"
+              className="w-28"
             />
           </div>
         </div>
@@ -418,7 +418,7 @@ export const PlateInventorySettings = () => {
                   value={p.count}
                   aria-label={t('plates.countLabel', { weight: String(label(p.weightKg)) })}
                   onChange={(e) => setCount(p.weightKg, e.target.value)}
-                  className="h-9 w-20 text-sm"
+                  className="w-20"
                 />
                 <button
                   type="button"
@@ -445,13 +445,13 @@ export const PlateInventorySettings = () => {
               value={customPlate}
               aria-label={t('plates.customPlate')}
               onChange={(e) => setCustomPlate(e.target.value)}
-              className="h-9 text-sm"
+              className="text-base desktop-shell:text-sm"
             />
           </div>
           <button
             type="button"
             onClick={addPlate}
-            className="h-9 rounded-lg bg-primary px-3 text-xs font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90"
+            className="h-11 rounded-lg bg-primary px-3 text-xs font-bold uppercase tracking-wide text-primary-foreground transition-opacity hover:opacity-90"
           >
             {t('plates.addPlate')}
           </button>

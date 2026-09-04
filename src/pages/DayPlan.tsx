@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Dumbbell, Info, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp, Leaf, Flame, Zap, Timer, Repeat } from 'lucide-react';
@@ -100,18 +100,18 @@ const DayPlan = () => {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success' : 'bg-muted'}`}>
+              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success/15' : 'bg-muted'}`}>
                 {isWorkoutCompleted ? (
-                  <CheckCircle className="h-6 w-6 text-white" />
+                  <CheckCircle className="h-6 w-6 text-fitness-success" />
                 ) : (
                   <Calendar className="h-6 w-6 text-muted-foreground" />
                 )}
               </div>
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
                   <GreetingIcon className="h-5 w-5 text-fitness-warning" />
                   {greeting}!
-                </CardTitle>
+                </h2>
                 <CardDescription className="capitalize">
                   {dayName}, {dateStr}
                 </CardDescription>
@@ -125,14 +125,14 @@ const DayPlan = () => {
                   ? <Dumbbell className="h-9 w-9 text-fitness-success" />
                   : <Leaf className="h-9 w-9 text-muted-foreground" />}
               </div>
-              <h3 className="text-xl font-semibold mb-2">
+              <h2 className="text-xl font-semibold mb-2">
                 {isWorkoutCompleted
                   ? t('dayplan.workoutDoneTitle')
                   : todayStravaActivities.length > 0
                     ? t('dayplan.noStrengthTitle')
                     : t('dayplan.restTitle')
                 }
-              </h3>
+              </h2>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {isWorkoutCompleted
                   ? t('dayplan.workoutDoneDesc', { focus: localizeFocus(todaysTraining?.focus ?? '', lang) })
@@ -146,7 +146,7 @@ const DayPlan = () => {
             {/* Today's Strava activities — shown before tips */}
             {todayStravaActivities.length > 0 && (
               <div className="space-y-2">
-                <h4 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h4>
+                <h3 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h3>
                 {todayStravaActivities.map(activity => (
                   <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
                 ))}
@@ -156,9 +156,9 @@ const DayPlan = () => {
             <div className="grid gap-3 sm:grid-cols-2">
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
-                  <h4 className="font-medium text-sm mb-1">
+                  <h3 className="font-medium text-sm mb-1">
                     {isWorkoutCompleted ? t('dayplan.workoutStats') : t('dayplan.nextTraining')}
-                  </h4>
+                  </h3>
                   <p className="text-muted-foreground text-sm">
                     {isWorkoutCompleted
                       ? t('dayplan.exercisesDone', { n: todaysWorkout?.exercises.length || 0 })
@@ -171,7 +171,7 @@ const DayPlan = () => {
               </Card>
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
-                  <h4 className="font-medium text-sm mb-1">{t('dayplan.tipOfDay')}</h4>
+                  <h3 className="font-medium text-sm mb-1">{t('dayplan.tipOfDay')}</h3>
                   <p className="text-muted-foreground text-sm">
                     {isWorkoutCompleted
                       ? t('dayplan.tipProtein')
@@ -208,10 +208,10 @@ const DayPlan = () => {
                 <Dumbbell className="h-7 w-7" />
               </div>
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
                   <GreetingIcon className="h-5 w-5 text-fitness-warning" />
                   {greeting}! {t('dayplan.todayTraining')}
-                </CardTitle>
+                </h2>
                 <CardDescription className="capitalize">
                   {dayName}, {dateStr}
                 </CardDescription>
@@ -225,7 +225,7 @@ const DayPlan = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4">
-            <h3 className="font-semibold text-lg mb-1">{localizeFocus(todaysTraining.focus, lang)}</h3>
+            <h2 className="font-semibold text-lg mb-1">{localizeFocus(todaysTraining.focus, lang)}</h2>
             <p className="text-muted-foreground text-sm">
               {t('dayplan.exercisesInToday', { n: todaysTraining.exercises.length })}
             </p>
@@ -276,7 +276,7 @@ const DayPlan = () => {
 
           {/* Exercise List Preview */}
           <div className="space-y-2">
-            <h4 className="font-medium text-sm text-muted-foreground">{t('dayplan.todaysExercises')}</h4>
+            <h3 className="font-medium text-sm text-muted-foreground">{t('dayplan.todaysExercises')}</h3>
             <div className="space-y-2">
               {todaysTraining.exercises.map((exercise, index) => (
                 <div
@@ -310,7 +310,7 @@ const DayPlan = () => {
                         type="button"
                         onClick={() => navigate(`/exercise/${slug}`)}
                         aria-label={t('card.details')}
-                        className="shrink-0 p-1 text-muted-foreground/60 hover:text-primary transition-colors"
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:text-primary transition-colors"
                       >
                         <Info className="h-4 w-4" />
                       </button>
@@ -349,7 +349,7 @@ const DayPlan = () => {
           {/* Today's Strava activities */}
           {todayStravaActivities.length > 0 && (
             <div className="space-y-2">
-              <h4 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h4>
+              <h3 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h3>
               {todayStravaActivities.map(activity => (
                 <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
               ))}

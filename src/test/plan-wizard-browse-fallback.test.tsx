@@ -50,7 +50,7 @@ describe('Browse plans: pusta pula dla wybranej liczby dni (X32)', () => {
     fireEvent.click(screen.getByRole('button', { name: `Biblioteka planów na 3 dni (${expectedCount})` }));
     expect(screen.getByTestId('browse-nearest-note').textContent).toBe('Brak planu na 3 dni w tygodniu, pokazujemy najbliższe.');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Najbliższe plany (${expectedCount})`);
-    const cards = screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!);
+    const cards = screen.getAllByRole('heading', { level: 2 }).map((h) => h.closest('button')!);
     expect(cards).toHaveLength(expectedCount);
     for (const card of cards) expect(card.textContent).toMatch(/(2|4)×/);
     expect(screen.getAllByTestId('browse-recommended-badge')).toHaveLength(1);
@@ -61,7 +61,7 @@ describe('Browse plans: pusta pula dla wybranej liczby dni (X32)', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5With3Days();
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
-    const fourDay = screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!).find((c) => c.textContent?.includes('4×'))!;
+    const fourDay = screen.getAllByRole('heading', { level: 2 }).map((h) => h.closest('button')!).find((c) => c.textContent?.includes('4×'))!;
     fireEvent.click(fourDay);
 
     // X33 WP-2: kafel Czestotliwosc zniknal; spojnosc = zaznaczona karta ma 4 dni i brak ostrzezenia.

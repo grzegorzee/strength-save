@@ -107,9 +107,9 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
     >
       <div className={cn(
         'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-        checked.has(nameKey) ? 'bg-fitness-success border-fitness-success' : isActive ? 'border-primary' : 'border-muted-foreground',
+        checked.has(nameKey) ? 'border-fitness-success bg-fitness-success/15' : isActive ? 'border-primary' : 'border-muted-foreground',
       )}>
-        {checked.has(nameKey) && <Check className="h-4 w-4 text-white" />}
+        {checked.has(nameKey) && <Check className="h-4 w-4 text-fitness-success" />}
       </div>
       <span data-testid="warmup-item-content" className="flex min-w-0 flex-1 flex-col gap-1">
         <span className={cn('text-sm leading-snug', checked.has(nameKey) && 'line-through text-muted-foreground')}>{label}</span>
@@ -128,7 +128,13 @@ export const WarmupRoutineDialog = ({ focus, plan, open, onOpenChange, checked, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-md max-h-[85vh] overflow-y-auto"
+        // Na siłowni telefon jest obsługiwany jedną ręką. Tap obok nie może po
+        // cichu schować trwającej rozgrzewki; wyjście pozostaje jawne przez X
+        // albo zawsze widoczny przycisk „Zakończ”.
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flame className="h-5 w-5 text-orange-500" />

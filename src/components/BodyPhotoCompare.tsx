@@ -127,7 +127,7 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
             <div key={col.key} className="space-y-2">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t(col.labelKey)}</p>
               <Select value={col.entry.id} onValueChange={(value) => col.onChange(value)}>
-                <SelectTrigger className="h-9" data-testid={`body-photo-select-${col.key}`}>
+                <SelectTrigger data-testid={`body-photo-select-${col.key}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

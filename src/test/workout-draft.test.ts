@@ -59,4 +59,37 @@ describe('workoutDraft', () => {
     const loaded = workoutDraft.load();
     expect(loaded).toBeNull();
   });
+
+  it('v2 journal przechowuje niezależnie wiele sesji jednego użytkownika', () => {
+    workoutDraft.save(mockDraft, 'user-1');
+    workoutDraft.save({
+      ...mockDraft,
+      sessionId: 'workout-456',
+      dayId: 'adhoc-1',
+      savedAt: mockDraft.savedAt + 1,
+    }, 'user-1');
+
+    expect(workoutDraft.loadAll('user-1').map(draft => draft.sessionId).sort()).toEqual([
+      'workout-123',
+      'workout-456',
+    ]);
+    expect(workoutDraft.loadSession('workout-123', 'user-1')?.dayId).toBe('day-1');
+    expect(workoutDraft.loadSession('workout-456', 'user-1')?.dayId).toBe('adhoc-1');
+  });
+
+  it('clearSession usuwa tylko wskazaną sesję z journalu', () => {
+    workoutDraft.save(mockDraft, 'user-1');
+    workoutDraft.save({ ...mockDraft, sessionId: 'workout-456' }, 'user-1');
+
+    expect(workoutDraft.clearSession('workout-123', 'user-1')).toBe(true);
+
+    expect(workoutDraft.loadSession('workout-123', 'user-1')).toBeNull();
+    expect(workoutDraft.loadSession('workout-456', 'user-1')).not.toBeNull();
+  });
+
+  it('loadAll zachowuje kompatybilność z pojedynczym legacy fallbackiem', () => {
+    localStorage.setItem('fittracker_workout_draft:user-1', JSON.stringify(mockDraft));
+
+    expect(workoutDraft.loadAll('user-1')).toEqual([mockDraft]);
+  });
 });

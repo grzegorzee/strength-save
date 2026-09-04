@@ -257,7 +257,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         return;
       }
       if (conflict.source === 'active') {
-        await workoutDraftDb.clearActiveDraft(uid, sessionId);
+        await workoutDraftDb.discardActiveDraft(uid, sessionId);
       }
       workoutSyncQueue.remove(uid, sessionId);
       setConflicts((current) => {
@@ -319,7 +319,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     setDiscardingSessionIds(prev => [...prev, targetDraft.sessionId]);
     try {
       if (source === 'active') {
-        await workoutDraftDb.clearActiveDraft(uid, targetDraft.sessionId);
+        await workoutDraftDb.discardActiveDraft(uid, targetDraft.sessionId);
         setDrafts(current => current.filter(draft => draft.sessionId !== targetDraft.sessionId));
       }
       workoutSyncQueue.remove(uid, targetDraft.sessionId);

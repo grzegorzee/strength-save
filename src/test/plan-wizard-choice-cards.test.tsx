@@ -136,7 +136,7 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     const shown = new Set([cardName(first), cardName(second)]);
 
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
-    const outside = screen.getAllByRole('heading', { level: 3 }).find((h) => !shown.has(h.textContent ?? ''))!;
+    const outside = screen.getAllByRole('heading', { level: 2 }).find((h) => !shown.has(h.textContent ?? ''))!;
     const outsideName = outside.textContent ?? '';
     fireEvent.click(outside.closest('button')!);
 
@@ -164,22 +164,22 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     expect(chips.map((c) => c.textContent)).toEqual(['Wszystkie', 'Masa', 'Siła', 'Redukcja', 'Atletyka']);
     expect(chips[0].getAttribute('aria-pressed')).toBe('true');
     const pool = planTemplates.filter((t) => t.daysPerWeek === 3);
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(pool.length);
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(pool.length);
 
     fireEvent.click(screen.getByRole('button', { name: 'Siła' }));
     const strength = pool.filter((t) => t.objective === 'peak_strength');
     expect(strength.length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent))
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
       .toEqual(strength.map((t) => localizePlanName(t.id, t.name, 'pl')));
     // Naglowek nadal liczy cala pule dni, nie filtr.
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na 3 dni w tygodniu (${pool.length})`);
 
     // 3 dni: brak szablonu redukcyjnego = komunikat, chipy zostaja (wyjscie ze stanu).
     fireEvent.click(screen.getByRole('button', { name: 'Redukcja' }));
-    expect(screen.queryAllByRole('heading', { level: 3 })).toHaveLength(0);
+    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
     expect(screen.getByTestId('browse-empty-objective')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Wszystkie' }));
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(pool.length);
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(pool.length);
   });
 
   it('niezmiennik: ostrzezenie daysMismatch nie pojawia sie, gdy karty maja liczbe dni z kroku 4', () => {

@@ -185,18 +185,18 @@ beforeEach(() => {
 // Center" Dashboard pokazuje pasywną chmurkę z kropką; karta z CTA zostaje
 // wyłącznie dla wpisów trwałych/konfliktów (stan wymagający decyzji usera).
 describe('WP-C (X38): wskaźnik chmurki zamiast banera sync', () => {
-  it('draft zakończony lokalnie (finalSyncPending) → chmurka, bez "Otwórz Sync Center" i bez "Kontynuuj"', async () => {
+  it('draft zakończony lokalnie (finalSyncPending) → chmurka, bez centrum synchronizacji i bez "Kontynuuj"', async () => {
     draftFixture.draft = { ...provisionalDraft('day-1'), completedLocally: true, finalSyncPending: true, finalizedAt: Date.now() };
     renderDashboard();
 
     await waitFor(() => expect(screen.getByTestId('cloud-pending-indicator')).toBeTruthy());
     expect(screen.getByTestId('cloud-pending-indicator').getAttribute('aria-label')).toBe('Czeka na zapis w chmurze, zapisze się sam');
-    expect(screen.queryByText('Otwórz Sync Center')).toBeNull();
+    expect(screen.queryByText('Otwórz centrum synchronizacji')).toBeNull();
     expect(screen.queryByText('Masz trening zakończony lokalnie')).toBeNull();
     expect(screen.queryByText('Kontynuuj trening')).toBeNull();
   });
 
-  it('wpis trwały w kolejce (permission) → karta z "Otwórz Sync Center" zostaje (zasada 6: wyjście)', async () => {
+  it('wpis trwały w kolejce (permission) → karta z centrum synchronizacji zostaje (zasada 6: wyjście)', async () => {
     draftFixture.queue = [{
       queueId: 'q1', userId: 'u1', sessionId: 'q1', dayId: 'day-1', date: '2026-08-01',
       sessionOrigin: 'remote', dirty: true, finalSyncPending: true, updatedAt: 1, enqueuedAt: 1,
@@ -204,7 +204,7 @@ describe('WP-C (X38): wskaźnik chmurki zamiast banera sync', () => {
     }];
     renderDashboard();
 
-    await waitFor(() => expect(screen.getByText('Otwórz Sync Center')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Otwórz centrum synchronizacji')).toBeTruthy());
     expect(screen.queryByTestId('cloud-pending-indicator')).toBeNull();
   });
 
@@ -254,12 +254,12 @@ describe('Z174: jedna prawda o aktywnej sesji', () => {
 
     const dismiss = await screen.findByRole('button', { name: 'Ukryj komunikat o synchronizacji' });
     fireEvent.click(dismiss);
-    expect(screen.queryByText('Otwórz Sync Center')).toBeNull();
+    expect(screen.queryByText('Otwórz centrum synchronizacji')).toBeNull();
 
     draftFixture.queue = [queued('q2')];
     window.dispatchEvent(new Event('strength-save-workout-sync-state-changed'));
 
-    await waitFor(() => expect(screen.getByText('Otwórz Sync Center')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Otwórz centrum synchronizacji')).toBeTruthy());
   });
 
   it('draft INNEGO dnia planu → baner zachowuje swój przycisk (karta dnia bez CTA)', async () => {

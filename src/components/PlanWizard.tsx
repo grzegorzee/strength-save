@@ -917,7 +917,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   <div className="p-4">
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        <h3 className="truncate font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
+                        <h2 className="truncate font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h2>
                         {tpl.id === recommended.id && (
                           <span data-testid="browse-recommended-badge" className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
                             {t('ob.browse.recommendedBadge')}

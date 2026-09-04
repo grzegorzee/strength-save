@@ -94,6 +94,9 @@ vi.mock('@/hooks/useActivities', () => ({
 vi.mock('@/hooks/usePlanCycles', () => ({
   usePlanCycles: () => ({ cycles: [], isLoaded: true, archiveCurrentPlan: vi.fn(), createActiveCycle: vi.fn() }),
 }));
+vi.mock('@/hooks/useWorkoutAggregate', () => ({
+  useWorkoutAggregate: () => aggregateFixture.value,
+}));
 vi.mock('@/hooks/useWatchPlanPreview', () => ({ useWatchPlanPreview: () => {} }));
 vi.mock('@/components/ProUpsellBanner', () => ({ ProUpsellBanner: () => null }));
 vi.mock('@/lib/workout-draft-db', () => ({
@@ -105,6 +108,18 @@ vi.mock('@/lib/workout-sync-queue', () => ({
 
 const planFixture = vi.hoisted(() => ({ plan: [] as unknown[] }));
 const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
+const aggregateFixture = vi.hoisted(() => ({ value: null as null | {
+  completedDates: string[];
+  totals: {
+    workoutCount: number;
+    totalTonnageKg: number;
+    totalSets: number;
+    totalReps: number;
+    totalDurationSec: number;
+    workoutsWithDuration: number;
+    firstWorkoutDate: string | null;
+  };
+} }));
 
 import Dashboard from '@/pages/Dashboard';
 
@@ -146,6 +161,7 @@ beforeEach(() => {
   navigateSpy.mockClear();
   planFixture.plan = [dayToday()];
   workoutsFixture.workouts = [];
+  aggregateFixture.value = null;
 });
 
 describe('chip streaka w powitaniu (fala 2)', () => {
@@ -161,5 +177,26 @@ describe('chip streaka w powitaniu (fala 2)', () => {
     renderDashboard();
     await waitFor(() => expect(screen.getByTestId('dash-greeting')).toBeTruthy());
     expect(screen.queryByTestId('dash-streak-chip')).toBeNull();
+  });
+
+  it('agregat all-time zachowuje streak mimo braku pełnych ćwiczeń w dokumencie', async () => {
+    const today = dateKey(new Date());
+    aggregateFixture.value = {
+      completedDates: [today, today],
+      totals: {
+        workoutCount: 2,
+        totalTonnageKg: 0,
+        totalSets: 2,
+        totalReps: 10,
+        totalDurationSec: 0,
+        workoutsWithDuration: 0,
+        firstWorkoutDate: today,
+      },
+    };
+
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByTestId('dash-streak-chip')).toBeTruthy());
+    expect(screen.getByTestId('dash-streak-chip').textContent).toContain('1 tyg. serii');
   });
 });

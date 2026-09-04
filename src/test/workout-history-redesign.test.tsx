@@ -139,7 +139,7 @@ describe('WorkoutHistory — pełna lista (?list=all) bez cykli (niezmiennik sta
     expect(screen.queryByTestId('cycle-tile')).not.toBeInTheDocument();
     expect(screen.queryByText(/^Cykl \d/)).not.toBeInTheDocument();
     // Draft ma badge, ukończony nie.
-    expect(screen.getAllByText('draft')).toHaveLength(1);
+    expect(screen.getAllByText('szkic')).toHaveLength(1);
   });
 
   it('menu ⋯ wiersza ma KOMPLET akcji: Otwórz / Szczegóły / Porównaj / Wyślij do trenera / Usuń', async () => {
@@ -173,6 +173,14 @@ describe('WorkoutHistory — pełna lista (?list=all) bez cykli (niezmiennik sta
     expect(duration.className).not.toContain('truncate');
   });
 
+  it('wiersz zachowuje focus i liczbę serii, a menu ma osobny target 44px', () => {
+    renderPage();
+    const row = screen.getAllByTestId('history-session-row')[0];
+    expect(within(row).getByTestId('history-session-title')).not.toHaveClass('truncate');
+    expect(within(row).getByTestId('history-session-meta')).not.toHaveClass('truncate');
+    expect(within(row).getByTestId('history-row-menu')).toHaveClass('w-11');
+  });
+
   it('tonaż w wierszu sesji zawsze pokazuje aktywną jednostkę kg/lbs', () => {
     const kgView = renderPage();
     const kgRow = screen.getAllByTestId('history-session-row')[0];
@@ -190,7 +198,7 @@ describe('WorkoutHistory — pełna lista (?list=all) bez cykli (niezmiennik sta
     const row = screen.getAllByTestId('history-session-row')[0];
     await openRowMenu(row);
     expect(navigateSpy).not.toHaveBeenCalled();
-    fireEvent.click(row);
+    fireEvent.click(within(row).getByTestId('history-session-open'));
     expect(navigateSpy).toHaveBeenCalledWith(
       `/workout/${withDuration.dayId}?date=${withDuration.date}&session=${withDuration.id}`,
     );
@@ -258,31 +266,34 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
 
   it('tryb Porównaj: przycisk włącza tryb, dwa tapnięcia dają kartę porównania, trzecie wypycha najstarsze (FIFO)', () => {
     renderPage();
-    // X35a WP-A#5: "Porównaj" to tryb, nie filtr — osobny przycisk POZA zawijanym rzędem chipów.
+    fireEvent.click(screen.getByRole('button', { name: 'Filtry' }));
+    // "Porównaj" to tryb, nie filtr — osobny przycisk poza rzędem statusów,
+    // ale cały panel wtórny jest zwinięty do czasu jawnego otwarcia.
     const statusChips = screen.getByTestId('history-status-chips');
     expect(statusChips.className).toContain('flex-wrap');
-    expect(statusChips.className).not.toContain('overflow-x');
+    expect(statusChips.className).not.toContain('overflow-x-auto');
     expect(within(statusChips).queryByRole('button', { name: /^porównaj$/i })).toBeNull();
     const compareToggle = screen.getByTestId('history-compare-toggle');
     expect(compareToggle).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(screen.getByRole('button', { name: /^porównaj$/i }));
     expect(compareToggle).toHaveAttribute('aria-pressed', 'true');
     const rows = screen.getAllByTestId('history-session-row');
-    fireEvent.click(rows[0]);
-    fireEvent.click(rows[1]);
+    fireEvent.click(within(rows[0]).getByTestId('history-session-open'));
+    fireEvent.click(within(rows[1]).getByTestId('history-session-open'));
     expect(screen.getByText('Porównanie dwóch sesji')).toBeInTheDocument();
     expect(screen.getByText(`${sortedDesc[0].date} vs ${sortedDesc[1].date}`)).toBeInTheDocument();
     expect(navigateSpy).not.toHaveBeenCalled(); // w trybie porównania tap nie nawiguje
 
-    fireEvent.click(rows[2]); // FIFO wypycha najstarsze zaznaczenie
+    fireEvent.click(within(rows[2]).getByTestId('history-session-open')); // FIFO wypycha najstarsze zaznaczenie
     expect(screen.getByText(`${sortedDesc[1].date} vs ${sortedDesc[2].date}`)).toBeInTheDocument();
   });
 
   it('filtr Drafty zawęża pełną listę i licznik', () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Drafty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Filtry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Szkice' }));
     expect(screen.getAllByTestId('history-session-row')).toHaveLength(1);
-    expect(screen.getAllByText('draft').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('szkic').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1 sesja/i).length).toBeGreaterThan(0);
   });
 
@@ -291,7 +302,8 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
     // Draft filtr przez pełną listę nie jest dostępny na poziomie 1 — symulujemy
     // przez wejście do listy, filtr i powrót (stan filtrów jest współdzielony).
     fireEvent.click(screen.getByTestId('history-all-sessions-link'));
-    fireEvent.click(screen.getByRole('button', { name: 'Drafty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Filtry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Szkice' }));
     fireEvent.click(screen.getByTestId('history-list-back'));
     // Draft żyje w aktywnym cyklu: przeszły cykl i "Poza cyklami" znikają.
     openCycles();
@@ -316,5 +328,37 @@ describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', (
     await waitFor(() => expect(deleteWorkoutEverywhere).toHaveBeenCalledWith('u1', sortedDesc[0].id));
     await waitFor(() => expect(screen.getAllByTestId('history-session-row')).toHaveLength(4));
     expect(screen.queryByText('Porównanie dwóch sesji')).not.toBeInTheDocument();
+  });
+});
+
+// Feedback 2026-09-03 (87 w nagłówku vs 86 w szczegółach): linia licznika
+// Historii bez filtrów dzieli semantykę z AppHeaderem i agregatem backendu:
+// completed + >=1 ukończona seria robocza. Lista NADAL pokazuje każdą sesję.
+describe('WorkoutHistory — linia licznika (?list=all) dzieli semantykę z nagłówkiem', () => {
+  it('completed bez serii roboczej i szkic nie liczą się do sesji, ale wiersze zostają', () => {
+    const base = { userId: 'u1', dayId: 'day-1', completed: true };
+    const workingSet = [{ exerciseId: 'squat', sets: [{ reps: 5, weight: 100, completed: true }] }];
+    fixtures.workouts = [
+      { ...base, id: 'workout-u1-day-1-2026-09-03', date: '2026-09-03', exercises: workingSet },
+      { ...base, id: 'workout-u1-day-1-2026-09-02', date: '2026-09-02', exercises: [] },
+      { ...base, id: 'workout-u1-day-1-2026-09-01', date: '2026-09-01', completed: false, exercises: workingSet },
+    ];
+    renderPage('/history?list=all');
+    expect(screen.getByTestId('history-session-count')).toHaveTextContent(/^1 sesja$/);
+    expect(screen.getAllByTestId('history-session-row')).toHaveLength(3);
+  });
+
+  it('para provisional→remote w oknie listenera liczy się raz', () => {
+    const remoteId = 'workout-u1-day-1-2026-09-03';
+    const session = {
+      userId: 'u1', dayId: 'day-1', date: '2026-09-03', completed: true,
+      exercises: [{ exerciseId: 'squat', sets: [{ reps: 5, weight: 100, completed: true }] }],
+    };
+    fixtures.workouts = [
+      { ...session, id: `local-${remoteId}` },
+      { ...session, id: remoteId },
+    ];
+    renderPage('/history?list=all');
+    expect(screen.getByTestId('history-session-count')).toHaveTextContent(/^1 sesja$/);
   });
 });

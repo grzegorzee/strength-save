@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, computeCycleStats, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildScheduleMove } from '@/lib/schedule-overrides';
 import { parseLocalDate } from '@/lib/utils';
@@ -55,6 +55,8 @@ const workouts: WorkoutSession[] = [
 ];
 
 describe('cycle-insights', () => {
+  afterEach(() => vi.useRealTimers());
+
   it('computes richer cycle stats', () => {
     const stats = computeCycleStats(workouts, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current');
     expect(stats.totalWorkouts).toBe(2);
@@ -62,6 +64,31 @@ describe('cycle-insights', () => {
     expect(stats.missedWorkouts).toBe(2);
     expect(stats.averageTonnagePerWorkout).toBeGreaterThan(0);
     expect(stats.prs.length).toBeGreaterThan(0);
+  });
+
+  it('aktywny cykl liczy średnią na przepracowane tygodnie, nie pełne 12 tygodni', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-10T12:00:00'));
+    const sixWorkouts = Array.from({ length: 6 }, (_, index): WorkoutSession => ({
+      id: `avg-${index}`,
+      userId: 'user-1',
+      dayId: index % 2 === 0 ? 'day-1' : 'day-2',
+      date: `2026-04-${String(1 + index * 5).padStart(2, '0')}`,
+      completed: true,
+      cycleId: 'cycle-current',
+      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 6, weight: 60, completed: true }] }],
+    }));
+
+    const stats = computeCycleStats(
+      sixWorkouts,
+      planDays,
+      '2026-03-30',
+      '2026-06-22',
+      12,
+      'cycle-current',
+    );
+
+    expect(stats.averageWorkoutsPerWeek).toBe(1);
   });
 
   it('totalTonnage pomija serie rozgrzewkowe (spójność z summary-utils i PR-ami)', () => {
@@ -84,6 +111,30 @@ describe('cycle-insights', () => {
     ];
     const stats = computeCycleStats(ws, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current');
     expect(stats.totalTonnage).toBe(360);
+  });
+
+  it('kanonicznie odrzuca completed bez serii roboczej i deduplikuje provisional→remote', () => {
+    const remote: WorkoutSession = {
+      id: 'workout-user-1-day-1-2026-03-30', userId: 'user-1', dayId: 'day-1', date: '2026-03-30',
+      completed: true, cycleId: 'cycle-current',
+      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 6, weight: 60, completed: true }] }],
+    };
+    const stats = computeCycleStats([
+      { ...remote, id: `local-${remote.id}` },
+      remote,
+      { ...remote, id: 'empty', date: '2026-04-01', dayId: 'day-2', exercises: [] },
+      {
+        ...remote,
+        id: 'warmup-only',
+        date: '2026-04-01',
+        dayId: 'day-2',
+        exercises: [{ exerciseId: 'ex-2', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+      },
+    ], planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current');
+
+    expect(stats.totalWorkouts).toBe(1);
+    expect(stats.totalTonnage).toBe(360);
+    expect(stats.averageTonnagePerWorkout).toBe(360);
   });
 
   it('builds recommendation based on current and previous cycle', () => {

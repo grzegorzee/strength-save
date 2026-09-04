@@ -3,8 +3,12 @@ import type { ActiveHealthGrant } from '@/lib/legal-versions';
 import type { ExerciseMetricGrants } from '@/lib/workout-health-fence';
 
 export const LOCAL_STORAGE_WORKOUT_DRAFT_KEY = 'fittracker_workout_draft';
+export const LOCAL_STORAGE_WORKOUT_DRAFT_JOURNAL_KEY = 'fittracker_workout_drafts_v2';
 export const getScopedWorkoutDraftKey = (userId?: string) => (
   userId ? `${LOCAL_STORAGE_WORKOUT_DRAFT_KEY}:${userId}` : LOCAL_STORAGE_WORKOUT_DRAFT_KEY
+);
+export const getScopedWorkoutDraftJournalKey = (userId?: string) => (
+  userId ? `${LOCAL_STORAGE_WORKOUT_DRAFT_JOURNAL_KEY}:${userId}` : LOCAL_STORAGE_WORKOUT_DRAFT_JOURNAL_KEY
 );
 
 export interface WorkoutDraft {
@@ -61,10 +65,71 @@ export interface WorkoutDraft {
   healthSyncPending?: boolean;
 }
 
+interface WorkoutDraftJournal {
+  version: 2;
+  drafts: Record<string, WorkoutDraft>;
+}
+
+const isWorkoutDraft = (value: unknown): value is WorkoutDraft => {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as Partial<WorkoutDraft>;
+  return typeof draft.sessionId === 'string'
+    && draft.sessionId.length > 0
+    && !!draft.exerciseSets
+    && typeof draft.exerciseSets === 'object';
+};
+
+const readLegacyDraft = (userId?: string): WorkoutDraft | null => {
+  const key = getScopedWorkoutDraftKey(userId);
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return isWorkoutDraft(parsed) ? parsed : null;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+};
+
+const readJournal = (userId?: string): WorkoutDraftJournal => {
+  const key = getScopedWorkoutDraftJournalKey(userId);
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { version: 2, drafts: {} };
+    const parsed = JSON.parse(raw) as Partial<WorkoutDraftJournal>;
+    if (parsed.version !== 2 || !parsed.drafts || typeof parsed.drafts !== 'object') {
+      localStorage.removeItem(key);
+      return { version: 2, drafts: {} };
+    }
+    return {
+      version: 2,
+      drafts: Object.fromEntries(
+        Object.entries(parsed.drafts).filter(([, draft]) => isWorkoutDraft(draft)),
+      ),
+    };
+  } catch {
+    localStorage.removeItem(key);
+    return { version: 2, drafts: {} };
+  }
+};
+
+const loadAllDrafts = (userId?: string): WorkoutDraft[] => {
+  const bySession = new Map<string, WorkoutDraft>();
+  const legacy = readLegacyDraft(userId);
+  if (legacy) bySession.set(legacy.sessionId, legacy);
+  Object.values(readJournal(userId).drafts).forEach((draft) => {
+    bySession.set(draft.sessionId, draft);
+  });
+  return [...bySession.values()].sort((a, b) => b.savedAt - a.savedAt);
+};
+
 export const workoutDraft = {
   save(draft: WorkoutDraft, userId?: string): boolean {
     try {
-      localStorage.setItem(getScopedWorkoutDraftKey(userId), JSON.stringify(draft));
+      const journal = readJournal(userId);
+      journal.drafts[draft.sessionId] = draft;
+      localStorage.setItem(getScopedWorkoutDraftJournalKey(userId), JSON.stringify(journal));
       return true;
     } catch {
       return false;
@@ -72,22 +137,42 @@ export const workoutDraft = {
   },
 
   load(userId?: string): WorkoutDraft | null {
-    try {
-      const raw = localStorage.getItem(getScopedWorkoutDraftKey(userId));
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed?.sessionId || !parsed?.exerciseSets) return null;
-      return parsed as WorkoutDraft;
-    } catch {
-      // corrupt data — clear and return null
-      localStorage.removeItem(getScopedWorkoutDraftKey(userId));
-      return null;
-    }
+    return loadAllDrafts(userId)[0] ?? null;
+  },
+
+  loadAll(userId?: string): WorkoutDraft[] {
+    return loadAllDrafts(userId);
+  },
+
+  loadSession(sessionId: string, userId?: string): WorkoutDraft | null {
+    return loadAllDrafts(userId).find(draft => draft.sessionId === sessionId) ?? null;
   },
 
   clear(userId?: string): boolean {
     try {
       localStorage.removeItem(getScopedWorkoutDraftKey(userId));
+      localStorage.removeItem(getScopedWorkoutDraftJournalKey(userId));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  clearSession(sessionId: string, userId?: string): boolean {
+    try {
+      const journalKey = getScopedWorkoutDraftJournalKey(userId);
+      const journal = readJournal(userId);
+      delete journal.drafts[sessionId];
+      if (Object.keys(journal.drafts).length > 0) {
+        localStorage.setItem(journalKey, JSON.stringify(journal));
+      } else {
+        localStorage.removeItem(journalKey);
+      }
+
+      const legacy = readLegacyDraft(userId);
+      if (legacy?.sessionId === sessionId) {
+        localStorage.removeItem(getScopedWorkoutDraftKey(userId));
+      }
       return true;
     } catch {
       return false;
@@ -96,7 +181,7 @@ export const workoutDraft = {
 
   exists(userId?: string): boolean {
     try {
-      return localStorage.getItem(getScopedWorkoutDraftKey(userId)) !== null;
+      return loadAllDrafts(userId).length > 0;
     } catch {
       return false;
     }

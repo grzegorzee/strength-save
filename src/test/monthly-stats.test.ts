@@ -8,7 +8,7 @@ const w = (over: Partial<WorkoutSession>): WorkoutSession => ({
   dayId: 'day-1',
   date: '2026-07-10',
   completed: true,
-  exercises: [],
+  exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 1, weight: 0, completed: true }] }],
   ...over,
 });
 
@@ -88,6 +88,26 @@ describe('aggregateMonthlyStats (Z92)', () => {
       }),
     ], 12, now);
     expect(stats.find(s => s.monthKey === '2026-07')!.totalTonnageKg).toBe(1000);
+  });
+
+  it('stosuje kanoniczny licznik: odrzuca completed bez serii roboczej i deduplikuje provisional→remote', () => {
+    const remote = w({ id: 'workout-u1-day-1-2026-07-01', date: '2026-07-01', durationSec: 600 });
+    const stats = aggregateMonthlyStats([
+      w({ id: `local-${remote.id}`, date: remote.date, durationSec: 600 }),
+      remote,
+      w({ id: 'empty', date: '2026-07-02', exercises: [] }),
+      w({
+        id: 'warmup-only',
+        date: '2026-07-03',
+        exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+      }),
+      w({ id: 'quick-a', dayId: 'quick-a', date: '2026-07-04' }),
+      w({ id: 'quick-b', dayId: 'quick-b', date: '2026-07-04' }),
+    ], 12, now);
+
+    const july = stats.find(s => s.monthKey === '2026-07')!;
+    expect(july.workoutCount).toBe(3);
+    expect(july.workoutsWithDuration).toBe(1);
   });
 });
 

@@ -77,9 +77,13 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await expect(page.getByText(/Włączysz ją w Profilu > Trening/).first()).toBeVisible();
     expect(await page.evaluate((key) => localStorage.getItem(key), WARMUP_PROMPT_KEY)).toBe('false');
 
-    // Nowa sesja (draft skasowany): start prosto do treningu.
+    // Najpierw odmontuj aktywny WorkoutDay i pozwól jego fire-and-forget flushowi
+    // się zakończyć. Kasowanie storage na aktywnym ekranie nie symuluje discardu:
+    // pagehide zgodnie z kontraktem trwałości natychmiast odtworzyłby draft.
+    await navigateAndWait(page, '/plan');
+    await page.waitForTimeout(250);
     await clearWorkoutDraftDb(page, E2E_UID);
-    await page.reload();
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await startButton(page).click();
     await expectSessionStarted(page);
@@ -105,10 +109,11 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await startButton(page).click();
     await expectSessionStarted(page);
     await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
-    // Koniec sesji testowej: draft skasowany PRZED wyjściem ze strony (autozapis
-    // przy odmontowaniu odtworzyłby go i powrót wznowiłby sesję zamiast startu).
+    // Nową sesję symulujemy dopiero po zakończeniu flushu przy odmontowaniu.
+    await navigateAndWait(page, '/plan');
+    await page.waitForTimeout(250);
     await clearWorkoutDraftDb(page, E2E_UID);
-    await page.reload();
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await expect(startButton(page)).toBeVisible();
 
@@ -160,6 +165,11 @@ test.describe('Rozgrzewka w szybkim treningu (X38 WP-B)', () => {
     await expect(sheet.getByTestId('prestart-skip')).toBeVisible();
     await expect(sheet.getByTestId('prestart-never')).toBeVisible();
     await expect(sheet).not.toContainText(/rampuj/i);
+
+    // Na siłowni przypadkowy tap w przyciemnione tło nie może schować decyzji
+    // i zostawić usera bez informacji, gdzie wrócić do rozgrzewki.
+    await page.locator('[data-app-overlay][data-state="open"]').click({ position: { x: 4, y: 4 }, force: true });
+    await expect(sheet).toBeVisible();
 
     await sheet.getByTestId('prestart-skip').click();
     await expect(sheet).toHaveCount(0);

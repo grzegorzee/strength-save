@@ -1,4 +1,4 @@
-import { Calendar, Dumbbell, Trophy, TrendingUp } from 'lucide-react';
+import { Calendar, Dumbbell, Percent, Trophy, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
@@ -31,6 +31,7 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
   const { t, lang } = useTranslation();
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
+  const focusSummary = cycle.days.map(d => localizeFocus(d.focus, lang)).filter(Boolean).join(', ');
 
   return (
     <Card
@@ -62,8 +63,12 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 flex-wrap">
           <span>{t('cycles.daysPerWeek', { n: cycle.days.length })}</span>
-          <span>·</span>
-          <span>{cycle.days.map(d => localizeFocus(d.focus, lang)).join(', ')}</span>
+          {focusSummary && (
+            <>
+              <span>·</span>
+              <span>{focusSummary}</span>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-4 gap-2">
@@ -90,7 +95,7 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
-              <span className="text-xs">%</span>
+              <Percent className="h-3.5 w-3.5 text-primary" />
             </div>
             <p className="text-sm font-bold">{cycle.stats.completionRate}%</p>
             <p className="text-[11px] text-muted-foreground">{t('cycles.attendance')}</p>

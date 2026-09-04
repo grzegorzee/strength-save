@@ -33,7 +33,8 @@ import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { calculateStreakDetails, calculateTonnage, getWeekBounds } from '@/lib/summary-utils';
+import { isCompletedWorkout, selectCompletedWorkouts } from '@/lib/completed-workouts';
+import { calculateStreakDetails, calculateTonnage, getWeekBounds, streakDetailsFromDates } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate, type ScheduledTrainingDay } from '@/lib/plan-schedule';
@@ -204,13 +205,10 @@ const Dashboard = () => {
   // okno recent 120 przycinałoby długie serie; fallback z okna dla kont bez agregatu.
   const streakDetails = useMemo(() => {
     if (aggregate) {
-      const dateWorkouts = aggregate.completedDates.map((date, i) => ({
-        id: `agg-${i}`, userId: uid, dayId: '', date, completed: true, exercises: [],
-      }));
-      return calculateStreakDetails(dateWorkouts as typeof workouts);
+      return streakDetailsFromDates(aggregate.completedDates);
     }
-    return calculateStreakDetails(workouts);
-  }, [aggregate, workouts, uid]);
+    return calculateStreakDetails(selectCompletedWorkouts(workouts));
+  }, [aggregate, workouts]);
   const streak = streakDetails.streak;
   // Tarcza uratowała poprzedni tydzień — pokaż to userowi, żeby wiedział, że seria wisi na włosku.
   const visibleCycles = useMemo(() => cycles
@@ -425,7 +423,7 @@ const Dashboard = () => {
       // Z173: guard daty jak w WorkoutDay — cross-day fallback tylko dla przeszłości.
       today: todayKey,
     });
-    if (todayWorkout?.completed) {
+    if (isCompletedWorkout(todayWorkout)) {
       return {
         type: 'completed' as const,
         day,
@@ -450,7 +448,7 @@ const Dashboard = () => {
   // WP-A (X27): daty z ukończoną sesją (TYLKO completed === true) — guard
   // przełożeń na obu poziomach: disabled targety w sheecie + silnik mutacji.
   const completedWorkoutDates = useMemo(
-    () => new Set(workouts.filter((w) => w.completed).map((w) => w.date)),
+    () => new Set(selectCompletedWorkouts(workouts).map((w) => w.date)),
     [workouts],
   );
   const openReschedule = (fromDateISO: string, dayId: string) => {
@@ -505,7 +503,7 @@ const Dashboard = () => {
       <div className="flex items-center justify-center">
         <button
           type="button"
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="-mx-2 inline-flex min-h-11 items-center px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           onClick={() => openReschedule(entry.dateKey, entry.day.id)}
         >
           {t('reschedule.action')}
@@ -1120,14 +1118,14 @@ const Dashboard = () => {
           <div className="flex items-center justify-center gap-6">
             <button
               type="button"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="-mx-2 inline-flex min-h-11 items-center px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               onClick={() => navigate('/day')}
             >
               {t('dash.details')}
             </button>
             <button
               type="button"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="-mx-2 inline-flex min-h-11 items-center px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               onClick={() => openReschedule(todayTraining.dateStr, todayTraining.dayId)}
             >
               {t('reschedule.action')}

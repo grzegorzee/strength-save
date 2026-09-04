@@ -93,4 +93,15 @@ test.describe('mobilna klawiatura nie zasłania CTA', () => {
     await expectReachableAboveKeyboard(page, sheet.getByRole('button', { name: /Ustaw w serii/i }));
     await page.screenshot({ path: 'audit/shots/2026-08-27/keyboard-plate-calculator.png', fullPage: false });
   });
+
+  test('cardio: przewijana treść i Zapisz wpis pozostają nad klawiaturą', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByTestId('add-cardio-open').click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByTestId('cardio-minutes').fill('30');
+    await simulateKeyboard(page);
+
+    await expectReachableAboveKeyboard(page, dialog.getByTestId('cardio-save'));
+    await expect(dialog.locator('.min-h-0.overflow-y-auto')).toHaveCSS('overflow-y', 'auto');
+  });
 });

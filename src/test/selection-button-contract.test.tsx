@@ -66,12 +66,18 @@ describe('selection button visual contract', () => {
     ['components/PlanChoiceCard.tsx', 1, 1],
     ['components/PlanWizard.tsx', 2, 2],
     ['components/ReducedModeDialog.tsx', 2, 2],
-    ['components/ExerciseCard.tsx', 1, 1],
   ])('%s routes every selection state through the outline helper', (relativePath, helperCount, pressedCount) => {
     const source = readFileSync(join(process.cwd(), 'src', relativePath), 'utf8');
 
     expect(source.match(/toggleButtonClasses\(/g)?.length ?? 0).toBeGreaterThanOrEqual(helperCount);
     expect(source.match(/aria-pressed=/g)?.length ?? 0).toBeGreaterThanOrEqual(pressedCount);
+  });
+
+  it('keeps the compact Metrics control keyboard-visible without changing its chip geometry', () => {
+    const source = readFileSync(join(process.cwd(), 'src/components/ExerciseCard.tsx'), 'utf8');
+
+    expect(source).toContain('aria-pressed={showMetrics}');
+    expect(source).toContain("'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'");
   });
 
   it('keeps calendar days visually quiet but keyboard-visible', () => {

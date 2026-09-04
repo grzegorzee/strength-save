@@ -69,11 +69,11 @@ export const ConsentCheckboxes = ({ value, onChange, showMarketing = true, disab
     <div className="space-y-2">
       <ConsentRow checked={value.terms} onToggle={() => toggle('terms')} testId="consent-terms" disabled={disabled}>
         {t('consent.termsPrefix')}{' '}
-        <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-primary">{t('consent.termsLink')}</a>.
+        <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center px-1 underline underline-offset-2 text-primary">{t('consent.termsLink')}</a>.
       </ConsentRow>
       <ConsentRow checked={value.privacy} onToggle={() => toggle('privacy')} testId="consent-privacy" disabled={disabled}>
         {t('consent.privacyPrefix')}{' '}
-        <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-primary">{t('consent.privacyLink')}</a>.
+        <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center px-1 underline underline-offset-2 text-primary">{t('consent.privacyLink')}</a>.
       </ConsentRow>
       <ConsentRow checked={value.health} onToggle={() => toggle('health')} testId="consent-health" disabled={disabled}>
         {t('consent.health')}

@@ -43,6 +43,7 @@ import { shareOrDownloadFile } from '@/lib/share-export';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { MeasurementReadError } from '@/components/MeasurementReadError';
 import { getAnalyticsPeriodWindow, type AnalyticsPeriod } from '@/lib/analytics-period';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 type AnalyticsTab = 'summary' | 'charts' | 'strava';
 
@@ -90,7 +91,7 @@ const SummaryTab = () => {
   const workouts = useMemo(() => {
     const byId = new Map(liveWorkouts.map(workout => [workout.id, workout]));
     periodRangeWorkouts.forEach(workout => byId.set(workout.id, workout));
-    return Array.from(byId.values());
+    return selectCompletedWorkouts(Array.from(byId.values()));
   }, [liveWorkouts, periodRangeWorkouts]);
   const isLoaded = liveLoaded && rangeLoaded;
 
@@ -430,7 +431,18 @@ const SummaryTab = () => {
 
       {/* Świeżość PR zostaje tu, ale dom rekordów to Achievements (Z79) — klik prowadzi tam. */}
       {periodPRs.length > 0 && (
-        <Card className="cursor-pointer hover:border-primary/30 transition-all duration-200" onClick={() => navigate('/achievements?view=records')}>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-label={period === 'week' ? t('analytics.newPRs.week') : t('analytics.newPRs.month')}
+          className="cursor-pointer hover:border-primary/30 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          onClick={() => navigate('/achievements?view=records')}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            navigate('/achievements?view=records');
+          }}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between gap-2 text-base">
               <span className="flex items-center gap-2">

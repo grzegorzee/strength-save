@@ -160,7 +160,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
             type="button"
             onClick={() => dismissHit(hit)}
             aria-label={t('common.cancel')}
-            className="shrink-0 opacity-70 transition-opacity hover:opacity-100"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg opacity-70 transition-opacity hover:opacity-100"
             data-testid="interference-dismiss"
           >
             <X className="h-3.5 w-3.5" />

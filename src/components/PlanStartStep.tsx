@@ -203,7 +203,7 @@ export const PlanStartStep = ({
               el.style.height = '0px';
               el.style.height = `${el.scrollHeight}px`;
             }}
-            className="mt-1 w-full resize-none overflow-hidden border-b border-transparent bg-transparent font-heading text-xl font-bold leading-tight text-primary outline-none focus:border-primary/40"
+            className="mt-1 min-h-11 w-full resize-none overflow-hidden rounded-md border-b border-transparent bg-transparent font-heading text-xl font-bold leading-tight text-primary outline-none focus:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       </div>

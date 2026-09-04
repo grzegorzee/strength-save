@@ -9,7 +9,7 @@ import type { PlanCycle } from '@/types/cycles';
 // WP-PLANS-1 (X27, Task P2) + X35b (decyzja właściciela pkt 4): sekcja Plan na
 // stronie Cykle ma TRZY przyciski, każdy z własnym potwierdzeniem:
 // "Zakończ plan" / "Zakończ plan i ułóż nowy" (nawiguje do /new-plan) /
-// "Onboarding od nowa" (dawny Reset planu z /settings). Edge 4: aktywny
+// "Ustaw plan od nowa" (dawny Reset planu z /settings). Edge 4: aktywny
 // draft dnia planowego blokuje każdą z akcji komunikatem.
 
 const navigateSpy = vi.hoisted(() => vi.fn());
@@ -168,7 +168,7 @@ describe('X35b: sekcja Plan na stronie Cykle (3 przyciski z potwierdzeniem)', ()
     const section = screen.getByTestId('cycles-plan-section');
     expect(within(section).getByTestId('cycles-end-plan').textContent).toContain('Zakończ plan');
     expect(within(section).getByTestId('cycles-end-plan-new').textContent).toContain('Zakończ plan i ułóż nowy');
-    expect(within(section).getByTestId('cycles-reset-onboarding').textContent).toContain('Onboarding od nowa');
+    expect(within(section).getByTestId('cycles-reset-onboarding').textContent).toContain('Ustaw plan od nowa');
     // Żaden przycisk nie działa bez potwierdzenia.
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
@@ -191,9 +191,9 @@ describe('X35b: sekcja Plan na stronie Cykle (3 przyciski z potwierdzeniem)', ()
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/new-plan?fromCycle=archived-1'));
   });
 
-  it('"Onboarding od nowa" → potwierdzenie → zamyka aktywne cykle i resetuje onboarding (bez endPlan)', async () => {
+  it('"Ustaw plan od nowa" → potwierdzenie → zamyka aktywne cykle i resetuje onboarding (bez endPlan)', async () => {
     renderCycles();
-    await openAndConfirm('cycles-reset-onboarding', /Zacząć onboarding od nowa\?/, 'Onboarding od nowa');
+    await openAndConfirm('cycles-reset-onboarding', /Ustawić plan od nowa\?/, 'Ustaw plan od nowa');
 
     await waitFor(() => expect(updateDocSpy).toHaveBeenCalledWith(
       { col: 'users', id: 'u1' },

@@ -98,10 +98,17 @@ export const seedSetsFromSession = (sets: SetData[]): SetData[] =>
     completed: set.completed ?? false,
   }));
 
-/** Czy trening ma cokolwiek do zapisania (>=1 odhaczona seria robocza lub rozgrzewkowa). */
+/** Stabilny przez promocję provisional→remote, ale izolowany między planem i
+ * szybkim treningiem tego samego dnia. */
+export const workoutScrollStorageKey = (userId: string, dayId: string, date: string): string => (
+  `workout-scroll:${userId}:${dayId}:${date}`
+);
+
+/** Czy trening ma cokolwiek do zapisania (>=1 odhaczona seria robocza z wynikiem). */
 export const hasAnyCompletedSet = (exerciseSets: Record<string, SetData[]>): boolean =>
   Object.values(exerciseSets).some((sets) => sets.some((set) => (
     set.completed
+    && !set.isWarmup
     && (
       set.reps > 0
       || (set.durationSec ?? 0) > 0

@@ -83,4 +83,25 @@ describe('buildLocalWeeklySummaries (Z78)', () => {
 
     expect(summaries[0].stats.prs[0].exerciseName).toBe('Wyciskanie sztangi na ławce płaskiej');
   });
+
+  it('kanonicznie odrzuca puste/warmup-only, deduplikuje sync i zachowuje dwa szybkie treningi jednego dnia', () => {
+    const remote = session('workout-u1-day-1-2026-06-30', '2026-06-30', 80);
+    const warmupOnly: WorkoutSession = {
+      ...session('warmup-only', '2026-06-30', 20),
+      exercises: [{ exerciseId: 'ex-1-1', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+    };
+    const empty = { ...session('empty', '2026-06-30', 0), exercises: [] };
+    const summaries = buildLocalWeeklySummaries([
+      { ...remote, id: `local-${remote.id}` },
+      remote,
+      warmupOnly,
+      empty,
+      { ...session('quick-a', '2026-06-30', 40), dayId: 'quick-a' },
+      { ...session('quick-b', '2026-06-30', 50), dayId: 'quick-b' },
+    ], [], [], now);
+
+    expect(summaries[0].stats.workoutCount).toBe(3);
+    expect(summaries[0].stats.tonnageKg).toBe(1700);
+    expect(summaries[0].stats.totalTimeMinutes).toBe(180);
+  });
 });

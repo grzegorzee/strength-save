@@ -41,7 +41,7 @@ const goToStep5AsFatLoss = (days: number) => {
 const openBrowse = () => fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
 const goToBrowseAsFatLoss3Days = () => { goToStep5AsFatLoss(3); openBrowse(); };
 
-const cards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!);
+const cards = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.closest('button')!);
 // X33 WP-2: kafel "Częstotliwość" zniknął; liczba dni z kroku 4 = nagłówek 5A (X34),
 // a liczba dni szablonu = meta zaznaczonej karty ("{weeks} tyg. · {days} dni · ...").
 const headingLine = () => screen.getByRole('heading', { level: 1 }).textContent ?? '';
@@ -61,7 +61,7 @@ describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () =
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToBrowseAsFatLoss3Days();
 
-    const headings = screen.getAllByRole('heading', { level: 3 });
+    const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings[0].textContent).toBe('Siła Fundamentalna'); // tpl-strength-5x5 (PL): 3 dni, beginner
     expect(screen.getAllByTestId('browse-recommended-badge')).toHaveLength(1);
     expect(screen.getByTestId('browse-recommended-badge').textContent).toBe('Polecany');

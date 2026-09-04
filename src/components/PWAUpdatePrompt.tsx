@@ -50,7 +50,7 @@ export const PWAUpdatePrompt = () => {
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 z-[60] w-[min(26rem,calc(100vw-2rem))] border-fitness-warning/60 bg-fitness-warning shadow-lg dark:bg-fitness-warning/10">
+    <Card className="fixed bottom-4 right-4 z-[60] w-[min(26rem,calc(100vw-2rem))] border-fitness-warning/60 bg-fitness-warning/10 shadow-lg">
       <CardContent className="flex items-start gap-3 p-4">
         <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-fitness-warning dark:text-fitness-warning" />
         <div className="min-w-0 flex-1">

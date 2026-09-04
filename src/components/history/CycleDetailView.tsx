@@ -137,7 +137,7 @@ export const CycleDetailView = ({
           aria-label={t('history.backToHistory')}
           data-testid="cycle-back"
           onClick={onBack}
-          className="grid h-9 w-9 place-items-center rounded-[11px] bg-surface-high text-foreground/80"
+          className="grid h-11 w-11 place-items-center rounded-[11px] bg-surface-high text-foreground/80"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
@@ -147,7 +147,7 @@ export const CycleDetailView = ({
               type="button"
               aria-label={t('history.cycleMenu')}
               data-testid="cycle-menu"
-              className="grid h-9 w-9 place-items-center rounded-[11px] bg-surface-high text-foreground/80"
+              className="grid h-11 w-11 place-items-center rounded-[11px] bg-surface-high text-foreground/80"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
@@ -205,7 +205,7 @@ export const CycleDetailView = ({
             data-testid={`cycle-chip-${item.id}`}
             onClick={item.onClick}
             className={cn(
-              'touch-manipulation select-none whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
+              'min-h-11 min-w-11 touch-manipulation select-none whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               item.active ? 'bg-accent text-accent-foreground' : 'bg-surface-highest text-muted-foreground',
             )}
           >
@@ -276,7 +276,7 @@ export const CycleDetailView = ({
         type="button"
         data-testid="cycle-all-sessions"
         onClick={onAllSessions}
-        className="w-full py-1 text-center text-sm font-semibold text-primary"
+        className="min-h-11 w-full py-1 text-center text-sm font-semibold text-primary"
       >
         {t('history.allSessions', { n: filtered.length })}
       </button>

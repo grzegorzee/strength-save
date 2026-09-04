@@ -6,6 +6,7 @@ import {
   compareWeeks,
   computeWeekStats,
   detectWeekPRs,
+  selectCompletedDigestWorkouts,
   type DigestWorkout,
 } from "./weekly-digest-stats";
 import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-digest-html";
@@ -178,14 +179,14 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
   const processUser = async (user: DigestUser & { email: string }) => {
     processed += 1;
     try {
-      const workouts = workoutsByUser.get(user.uid) ?? [];
+      const workouts = selectCompletedDigestWorkouts(workoutsByUser.get(user.uid) ?? []);
       if (workouts.length === 0) {
         return;
       }
 
       const lang = userLang(user);
       const unit = userUnit(user);
-      const history = historyByUser.get(user.uid) ?? [];
+      const history = selectCompletedDigestWorkouts(historyByUser.get(user.uid) ?? []);
       const prevWeek = history.filter((w) => (w.date ?? "") >= prevStartStr && (w.date ?? "") <= prevEndStr);
 
       const stats = computeWeekStats(workouts);
@@ -320,7 +321,7 @@ export function buildWeeklyDigestDeps(
         .where("date", ">=", startStr)
         .where("date", "<=", endStr)
         .get();
-      return snapshot.docs.map((doc) => doc.data() as DigestWorkout);
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as DigestWorkout));
     },
     queryWorkoutHistory: async (beforeStr) => {
       // Koszt świadomy (Z160): pełne dokumenty CAŁEJ historii ukończonych treningów.
@@ -330,7 +331,7 @@ export function buildWeeklyDigestDeps(
         .where("completed", "==", true)
         .where("date", "<", beforeStr)
         .get();
-      return snapshot.docs.map((doc) => doc.data() as DigestWorkout);
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as DigestWorkout));
     },
     queryStravaActivities: async (startStr, endStr) => {
       const snapshot = await db.collection("strava_activities")

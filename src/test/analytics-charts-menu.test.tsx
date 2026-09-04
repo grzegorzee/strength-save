@@ -145,6 +145,30 @@ describe('D3: wykresy jako kafle z deep-linkiem ?chart=', () => {
     expect(screen.getByText('Łącznie ukończonych')).toBeInTheDocument();
     expect(screen.queryByText('Tonaż łączny')).toBeNull();
   });
+
+  it('wykres Treningi pokazuje kanoniczny licznik bez pustych sesji i dubla sync', () => {
+    const base = fixtures.state.workouts[0];
+    const remote = { ...base, id: 'workout-canonical-user-1-day-a-2026-08-20' };
+    fixtures.state = {
+      ...fixtures.state,
+      workouts: [
+        { ...remote, id: `local-${remote.id}` },
+        remote,
+        { ...base, id: 'empty', exercises: [] },
+        {
+          ...base,
+          id: 'warmup-only',
+          exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+        },
+        { ...base, id: 'quick-a', dayId: 'quick-a' },
+        { ...base, id: 'quick-b', dayId: 'quick-b' },
+      ],
+    };
+
+    renderCharts('/analytics?tab=charts&chart=workouts');
+
+    expect(screen.getByText('Łącznie ukończonych').previousElementSibling).toHaveTextContent('3');
+  });
 });
 
 describe('D4: tygodnie w nowym stylu — zwarta lista', () => {

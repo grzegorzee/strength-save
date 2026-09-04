@@ -5,8 +5,10 @@ import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildPreStartWarmup, shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
 import { isWarmupPromptEnabled } from '@/lib/warmup-prompt';
+import { formatWorkoutStartedDescription } from '@/lib/workout-start-toast';
 import { persistWarmupPrompt } from '@/lib/warmup-prompt-sync';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
+import { countCompletedWorkouts, selectCompletedWorkouts } from '@/lib/completed-workouts';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
 import { computeMilestones, diffMilestones } from '@/lib/achievements-utils';
@@ -72,7 +74,7 @@ import { LivePRCelebration, type LivePRCelebrationData } from '@/components/Live
 import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise, supportsZeroWeight } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
-import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
+import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats, workoutScrollStorageKey } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -529,7 +531,7 @@ const WorkoutDay = () => {
     });
   }, [day, exerciseSets, resolveIsBodyweight, trainingLevel]);
   const completedWorkoutsCount = workoutAggregate?.totals.workoutCount
-    ?? workouts.filter((w) => w.completed).length;
+    ?? countCompletedWorkouts(workouts);
 
   useEffect(() => {
     daySnapshotRef.current = day
@@ -1251,6 +1253,9 @@ const WorkoutDay = () => {
     });
 
     if (hydration.clearDraft && currentPageDraft) {
+      // Ref musi zniknąć synchronicznie: unmount w tej samej klatce nie może
+      // ponownie zapisać właśnie odrzuconego szkicu z nieaktualnego renderu.
+      activeDraftRef.current = null;
       void workoutDraftDb.clearActiveDraft(uid, currentPageDraft.sessionId);
       setActiveDraft(null);
     }
@@ -1286,13 +1291,13 @@ const WorkoutDay = () => {
       // Z47: po hydracji przewiń do ostatnio dotykanego ćwiczenia — ale świeża
       // zapisana pozycja scrolla ma pierwszeństwo (scroll-restore niżej).
       const lastTouched = currentPageDraft.lastTouchedExerciseId;
-      const scrollGuardKey = uid ? `${uid}:${targetDate}` : null;
+      const scrollGuardKey = uid && dayId ? workoutScrollStorageKey(uid, dayId, targetDate) : null;
       if (lastTouched && !currentPageDraft.completedLocally && scrollGuardKey
         && lastTouchedScrollDone.current !== scrollGuardKey) {
         lastTouchedScrollDone.current = scrollGuardKey;
         const hasSavedScroll = (() => {
           try {
-            const raw = localStorage.getItem(`workout-scroll:${scrollGuardKey}`);
+            const raw = localStorage.getItem(scrollGuardKey);
             if (!raw) return false;
             const { y, t: savedAt } = JSON.parse(raw) as { y: number; t: number };
             return typeof y === 'number' && y > 0 && Date.now() - savedAt <= 15 * 60 * 1000;
@@ -1518,9 +1523,9 @@ const WorkoutDay = () => {
   // Flush local draft and try best-effort sync when app goes to background.
   // Przy okazji zapisujemy pozycję scrolla — iOS WKWebView potrafi przeładować stronę w tle,
   // co bez tego cofa ekran na sam początek listy ćwiczeń.
-  // Klucz per user+data (NIE per sessionId): promocja provisional→remote zmienia sessionId
-  // w trakcie treningu i zapis pod starym kluczem stawał się nieodnajdywalny.
-  const scrollStorageKey = uid ? `workout-scroll:${uid}:${targetDate}` : null;
+  // Klucz per user+dayId+data (NIE per sessionId): promocja provisional→remote
+  // zmienia sessionId, a dayId izoluje plan od quick workout tego samego dnia.
+  const scrollStorageKey = uid && dayId ? workoutScrollStorageKey(uid, dayId, targetDate) : null;
   useEffect(() => {
     const saveScroll = () => {
       if (!sessionId || !scrollStorageKey) return;
@@ -1598,15 +1603,16 @@ const WorkoutDay = () => {
     if (initialY !== null) restoreWithRetry(initialY);
 
     // Powrót z tła bez remountu: iOS potrafi wyzerować scroll mimo żywej strony.
-    const handleVisible = () => {
-      if (document.visibilityState !== 'visible') return;
+    // Native używa appStateChange; visibilitychange jest tylko webowym fallbackiem.
+    const handleActive = (isActive: boolean) => {
+      if (!isActive) return;
       const y = readSavedY();
       if (y !== null && y > 200 && window.scrollY < 100) restoreWithRetry(y);
     };
-    document.addEventListener('visibilitychange', handleVisible);
+    const removeAppStateListener = addAppStateListener(handleActive);
     return () => {
       timeouts.forEach(clearTimeout);
-      document.removeEventListener('visibilitychange', handleVisible);
+      removeAppStateListener();
     };
   }, [sessionId, workoutsLoaded, isCompleted, scrollStorageKey]);
 
@@ -1824,7 +1830,10 @@ const WorkoutDay = () => {
         if (!result.provisional) {
           toast({
             title: t('workout.toast.startedTitle'),
-            description: `${sessionDayName(startSnapshot.day)} - ${localizeFocus(startSnapshot.day.focus, lang)}`,
+            description: formatWorkoutStartedDescription(
+              sessionDayName(startSnapshot.day),
+              localizeFocus(startSnapshot.day.focus, lang),
+            ),
           });
         }
       }
@@ -1863,7 +1872,7 @@ const WorkoutDay = () => {
   // Runna p.1 (spec A4): baza do PR na żywo — poprzednie UKOŃCZONE sesje bez
   // bieżącej; ref, żeby handleSetsChange (useCallback) widział świeże dane.
   const livePRSourceWorkouts = useMemo(
-    () => workouts.filter(w => w.completed && w.id !== sessionId),
+    () => selectCompletedWorkouts(workouts.filter(w => w.id !== sessionId)),
     [workouts, sessionId],
   );
   const livePRSourceRef = useRef(livePRSourceWorkouts);
@@ -2202,9 +2211,15 @@ const WorkoutDay = () => {
   const handleDiscardLocalDraft = async () => {
     const targetSessionId = currentPageDraft?.sessionId ?? sessionId;
     if (!targetSessionId) return;
+    const draftBeingDiscarded = activeDraftRef.current?.sessionId === targetSessionId
+      ? activeDraftRef.current
+      : null;
+    // Unmount/visibilitychange w trakcie await nie może zapisać ponownie szkicu,
+    // którego user właśnie świadomie usuwa. Na błędzie ref przywracamy.
+    if (draftBeingDiscarded) activeDraftRef.current = null;
 
     try {
-      await workoutDraftDb.clearActiveDraft(uid, targetSessionId);
+      await workoutDraftDb.discardActiveDraft(uid, targetSessionId);
       workoutSyncQueue.remove(uid, targetSessionId);
       if (activeDraftRef.current?.sessionId === targetSessionId) {
         activeDraftRef.current = null;
@@ -2220,6 +2235,7 @@ const WorkoutDay = () => {
       });
       navigate('/');
     } catch {
+      if (draftBeingDiscarded) activeDraftRef.current = draftBeingDiscarded;
       toast({
         title: t('strava.toastDiscardFailTitle'),
         description: t('strava.tryAgainShortly'),
@@ -2286,7 +2302,7 @@ const WorkoutDay = () => {
     const completionOrdinal = completionCelebration?.sessionId === sessionId
       ? completionCelebration.ordinal
       : (workoutAggregate?.totals.workoutCount
-        ?? workouts.filter(w => w.completed && w.id !== sessionId).length) + 1;
+        ?? countCompletedWorkouts(workouts.filter(w => w.id !== sessionId))) + 1;
     const markCompletionCelebration = () => {
       const milestone = workoutMilestoneFor(completionOrdinal);
       const celebrate = milestone !== null && !hasCelebrated(milestone.n);
@@ -2410,7 +2426,7 @@ const WorkoutDay = () => {
     // Z83: natywna prośba o ocenę po kamieniach ukończonych treningów (5., 15., 30. ...),
     // max raz na 60 dni. Fire-and-forget — system i tak sam decyduje, czy pokazać dialog.
     if (Capacitor.isNativePlatform()) {
-      const completedCount = workouts.filter(w => w.completed && w.id !== sessionId).length + 1;
+      const completedCount = countCompletedWorkouts(workouts.filter(w => w.id !== sessionId)) + 1;
       const nowMs = Date.now();
       if (shouldRequestReview(completedCount, readLastReviewPromptAt(), nowMs)) {
         markReviewPromptShown(nowMs);
@@ -2423,7 +2439,7 @@ const WorkoutDay = () => {
     if (currentWorkoutData && day && sessionId) {
       // Kamienie milowe (niżej) liczą się względem wszystkich pozostałych
       // ukończonych treningów — bez filtra chronologicznego PR-ów.
-      const previousWorkoutsForPR = workouts.filter(w => w.id !== sessionId && w.completed);
+      const previousWorkoutsForPR = selectCompletedWorkouts(workouts.filter(w => w.id !== sessionId));
       // E-T1: ta sama deterministyczna ścieżka co widok ukończony (session-prs).
       const effectivePRs = computeSessionPRs({
         sessionId,
@@ -2805,6 +2821,7 @@ const WorkoutDay = () => {
             variant="ghost"
             size="icon"
             onClick={() => navigate(-1)}
+            aria-label={t('comp.header.back')}
             className="h-10 w-10 shrink-0 rounded-2xl bg-surface-container"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -3121,7 +3138,7 @@ const WorkoutDay = () => {
             value={dayNotes}
             onChange={e => setDayNotes(e.target.value)}
             placeholder={t('workout.dayNotePlaceholder')}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-[60px] w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 desktop-shell:text-sm"
           />
         </div>
 
@@ -3149,7 +3166,7 @@ const WorkoutDay = () => {
       {/* Fala 2 (2026-08-20, mockup exercise-card 2a): header wstecz · tytuł ·
           rozgrzewka + badge Saved (AutoSaveIndicator przeniesiony z fixed). */}
       <div className="grid grid-cols-[40px_1fr_auto] items-center gap-3 pt-[env(safe-area-inset-top)]">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-10 w-10 rounded-2xl bg-surface-container">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label={t('comp.header.back')} className="h-10 w-10 rounded-2xl bg-surface-container">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 text-center">
@@ -3197,7 +3214,11 @@ const WorkoutDay = () => {
           X38 WP-B: w szybkim treningu arkusz otwiera się PO autostarcie (sesja
           już istnieje), więc akcje nie startują sesji drugi raz. */}
       <Dialog open={preStartOpen} onOpenChange={setPreStartOpen}>
-        <DialogContent className="max-w-sm" data-testid="prestart-sheet">
+        <DialogContent
+          className="max-w-sm"
+          data-testid="prestart-sheet"
+          onInteractOutside={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="font-heading uppercase">{t('warmup.prestart.title')}</DialogTitle>
             <DialogDescription>{t('warmup.prestart.desc', { n: preStartPlan.estMinutes })}</DialogDescription>
@@ -3406,7 +3427,7 @@ const WorkoutDay = () => {
             value={dayNotes}
             onChange={e => handleDayNotesChange(e.target.value)}
             placeholder={t('workout.dayNotePlaceholder')}
-            className="min-h-[74px] w-full resize-none rounded-2xl bg-surface-low px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-[74px] w-full resize-none rounded-2xl bg-surface-low px-4 py-3 text-base placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 desktop-shell:text-sm"
           />
         </div>
       )}

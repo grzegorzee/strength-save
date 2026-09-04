@@ -107,7 +107,7 @@ const ExerciseDetail = () => {
               navigate('/exercises');
             }
           }}
-          className="absolute left-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full bg-surface/70 backdrop-blur-md"
+          className="absolute left-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-surface/70 backdrop-blur-md"
           aria-label={t('common.back')}
         >
           <ArrowLeft className="h-5 w-5" />

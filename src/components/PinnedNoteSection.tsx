@@ -58,13 +58,13 @@ export const PinnedNoteSection = ({ exerciseName, pinnedNote, onSave, className,
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
           <Pin className="h-3 w-3" />
           {t('notes.pinnedTitle')}
-          <span className="font-semibold normal-case tracking-normal text-muted-foreground/60">{t('notes.pinnedAlways')}</span>
+          <span className="font-semibold normal-case tracking-normal text-muted-foreground">{t('notes.pinnedAlways')}</span>
         </span>
         {onSave && !isEditing && (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+            className="-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
             data-testid="pinned-note-edit"
           >
             {hasNote ? t('common.edit') : t('notes.pinnedAdd')}

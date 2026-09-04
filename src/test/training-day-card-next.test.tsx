@@ -112,6 +112,21 @@ describe('TrainingDayCard — wariant NASTĘPNY (fala 2)', () => {
     }
   });
 
+  it('zaległy i pominięty dzień wyciszają treść, ale nie przygaszają statusu ani aktywnych kontrolek', () => {
+    for (const props of [{ trainingDate: pastDate() }, { skipped: true }] as const) {
+      const { container, unmount } = render(
+        <TrainingDayCard day={day} onClick={() => {}} onToggleSkip={() => {}} {...props} />,
+      );
+      const card = container.firstElementChild as HTMLElement;
+      const title = screen.getByText('Push');
+
+      expect(card.className).not.toMatch(/\bopacity-(?:50|60)\b/);
+      expect(title.className).toContain('text-muted-foreground');
+      expect(screen.getByRole('button', { name: 'card.moreActions' }).className).not.toMatch(/\bopacity-/);
+      unmount();
+    }
+  });
+
   it('niezmiennik badge: completed dziś = badgeToday, completed wcześniej = badgeCompleted', () => {
     const todayStr = formatLocalDate(new Date());
     const { unmount } = render(

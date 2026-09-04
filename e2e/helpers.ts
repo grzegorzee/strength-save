@@ -91,7 +91,11 @@ export const readWorkoutDraftDb = async (page: Page, userId: string, sessionId?:
         const getAllRequest = store.getAll();
         getAllRequest.onsuccess = () => {
           const drafts = (Array.isArray(getAllRequest.result) ? getAllRequest.result : [])
-            .filter((draft: { userId?: string }) => draft.userId === draftUserId)
+            .filter((draft: { userId?: string; sessionId?: string; dayId?: string; date?: string }) =>
+              draft.userId === draftUserId
+              && typeof draft.sessionId === 'string'
+              && typeof draft.dayId === 'string'
+              && typeof draft.date === 'string')
             .sort((a: { updatedAt?: number }, b: { updatedAt?: number }) => Number(b.updatedAt ?? 0) - Number(a.updatedAt ?? 0));
           resolve(drafts[0] ?? null);
         };
@@ -122,11 +126,12 @@ export const clearWorkoutDraftDb = async (page: Page, userId: string, sessionId?
         if (draftSessionId) {
           store.delete(`${draftUserId}::${draftSessionId}`);
         } else {
-          const getAllRequest = store.getAll();
+          const getAllRequest = store.getAllKeys();
           getAllRequest.onsuccess = () => {
             (Array.isArray(getAllRequest.result) ? getAllRequest.result : [])
-              .filter((draft: { userId?: string; sessionId?: string }) => draft.userId === draftUserId && draft.sessionId)
-              .forEach((draft: { sessionId?: string }) => store.delete(`${draftUserId}::${draft.sessionId}`));
+              .map(String)
+              .filter(key => key.startsWith(`${draftUserId}::`))
+              .forEach(key => store.delete(key));
           };
           getAllRequest.onerror = () => reject(getAllRequest.error);
         }
@@ -141,8 +146,14 @@ export const clearWorkoutDraftDb = async (page: Page, userId: string, sessionId?
     // Cleanup testowy musi usuwać obie warstwy tak samo jak clearActiveDraft,
     // inaczej reload prawidłowo odtworzy „skasowaną” sesję z fallbacku.
     const fallbackKey = `fittracker_workout_draft:${draftUserId}`;
+    const journalKey = `fittracker_workout_drafts_v2:${draftUserId}`;
+    const promotionTombstonePrefix = `fittracker_promoted:${draftUserId}:`;
     if (!draftSessionId) {
       localStorage.removeItem(fallbackKey);
+      localStorage.removeItem(journalKey);
+      Object.keys(localStorage)
+        .filter(key => key.startsWith(promotionTombstonePrefix))
+        .forEach(key => localStorage.removeItem(key));
     } else {
       try {
         const raw = localStorage.getItem(fallbackKey);
@@ -152,6 +163,25 @@ export const clearWorkoutDraftDb = async (page: Page, userId: string, sessionId?
       } catch {
         localStorage.removeItem(fallbackKey);
       }
+      try {
+        const raw = localStorage.getItem(journalKey);
+        if (raw) {
+          const journal = JSON.parse(raw) as { drafts?: Record<string, unknown> };
+          if (journal.drafts && typeof journal.drafts === 'object') {
+            delete journal.drafts[draftSessionId];
+            if (Object.keys(journal.drafts).length > 0) {
+              localStorage.setItem(journalKey, JSON.stringify(journal));
+            } else {
+              localStorage.removeItem(journalKey);
+            }
+          } else {
+            localStorage.removeItem(journalKey);
+          }
+        }
+      } catch {
+        localStorage.removeItem(journalKey);
+      }
+      localStorage.removeItem(`${promotionTombstonePrefix}${draftSessionId}`);
     }
   }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, dbVersion: WORKOUT_DRAFT_DB_VERSION, userId, sessionId });
 };

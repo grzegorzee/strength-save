@@ -390,7 +390,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).queryByText(/Łopatki ściągnięte/)).toBeNull();
     });
 
-    it('Z196: pola serii mają px-1, a kolumna KG jest szersza niż POWT. (mieści "122.5")', () => {
+    it('pola serii mają px-1/min-w-0, a kolumna KG ma jawne minimum na wartość dziesiętną', () => {
       const { card } = renderCard({ savedSets: [workingSet({ weight: 122.5, reps: 8 })] });
 
       // px-1 zamiast dziedziczonego px-3 z bazowego Input (24 px poziomego paddingu
@@ -398,13 +398,17 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const weightInput = within(card).getAllByLabelText(/Set 1, kg/)[0] as HTMLElement;
       const repsInput = within(card).getAllByLabelText(/Set 1, Powt\./)[0] as HTMLElement;
       expect(weightInput.className).toContain('px-1');
+      expect(weightInput.className).toContain('min-w-0');
       expect(repsInput.className).toContain('px-1');
 
-      // Kolumny weight_reps: PREV 0.9fr | KG 1.1fr | POWT 1fr (naprawa r3: POWT.
-      // musi mieścić 5-znakowy placeholder zakresu "10-12"); nagłówek używa
-      // tego samego szablonu gridCols, więc wystarczy sprawdzić wszystkie gridy wierszy.
+      // Na wąskim iPhonie PREV może się skurczyć, ale KG zachowuje co najmniej 56 px,
+      // więc 31.5/122.5 nie nachodzi na sąsiednie kolumny. Bazowy padding/gap jest
+      // ciaśniejszy do 359 px, aby POPRZ. nie zapadało się do zera na ekranie 320 px.
+      expect(within(card).getByTestId('set-table').className).toContain('px-2');
+      expect(within(card).getByTestId('set-grid-header').className).toContain('gap-1');
+      expect(within(card).getByTestId('set-grid-header').className).toContain('phone:gap-2');
       const grids = Array.from(card.querySelectorAll('div.grid'));
-      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_40px_44px]'));
+      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[24px_minmax(0,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_44px_44px]'));
       // Nagłówek + wiersz serii — minimum 2 gridy z nowym szablonem.
       expect(withTemplate.length).toBeGreaterThanOrEqual(2);
     });
@@ -690,7 +694,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).queryByTestId('warmup-generate')).toBeNull();
     });
 
-    it('z ciężarem: chip wstawia rampę wg sprzętu (sztanga) przed serie robocze', () => {
+    it('z ciężarem roboczym nadal wstawia dokładnie 1 pustą W 0/0 i nie kopiuje serii', () => {
       const spy = vi.fn();
       const { card } = renderCard({
         savedSets: [workingSet({ weight: 100, reps: 5 }), workingSet({ weight: 100, reps: 5 })],
@@ -700,14 +704,50 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
 
       const emitted = spy.mock.calls.at(-1)?.[1] as SetData[];
       const warmups = emitted.filter((s) => s.isWarmup);
-      expect(warmups.length).toBeGreaterThanOrEqual(2);
-      expect(warmups.every((s) => s.weight > 0 && s.weight < 100)).toBe(true);
-      // Rampa na górze, robocze bez zmian na dole.
-      expect(emitted.slice(0, warmups.length).every((s) => s.isWarmup)).toBe(true);
-      expect(emitted.slice(warmups.length)).toEqual([
+      expect(warmups).toEqual([{ reps: 0, weight: 0, completed: false, isWarmup: true }]);
+      expect(within(card).getByLabelText(/Rozgrzewka W, Powt\./)).toHaveAttribute('placeholder', '0');
+      // Pusta W na górze, serie robocze bez zmian na dole.
+      expect(emitted.slice(1)).toEqual([
         workingSet({ weight: 100, reps: 5 }),
         workingSet({ weight: 100, reps: 5 }),
       ]);
+      expect(within(card).queryByLabelText(/Wygeneruj rozgrzewkę/i)).toBeNull();
+    });
+
+    it('Metryki mają ten sam wymiar i no-line treatment co pozostałe chipy', () => {
+      const { card } = renderCard({ savedSets: [workingSet()], onMetricsChange: vi.fn() });
+      const metrics = within(card).getByRole('button', { name: 'Metryki' });
+      expect(metrics).toHaveClass('min-h-11', 'rounded-xl');
+      expect(metrics).not.toHaveClass('border');
+    });
+
+    it('pusta W 0/0 nie daje się odhaczyć i nie emituje ukończonej serii', () => {
+      const spy = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 })],
+        onSetsChange: spy,
+      });
+
+      fireEvent.click(within(card).getAllByRole('button', { name: /Zaznacz serię jako zrobioną/i })[0]);
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(within(card).getByRole('alert')).toBeTruthy();
+    });
+
+    it('pusta W nie przejmuje pierwszej serii roboczej z poprzedniego treningu', () => {
+      const spy = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 })],
+        previousSets: [workingSet({ weight: 57.5, reps: 10, completed: true })],
+        onSetsChange: spy,
+      });
+
+      fireEvent.click(within(card).getAllByRole('button', { name: /Zaznacz serię jako zrobioną/i })[0]);
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(within(card).getByLabelText(/Rozgrzewka W, kg/)).not.toHaveValue(57.5);
+      expect(within(card).getByLabelText(/Rozgrzewka W, Powt\./)).not.toHaveValue(10);
+      expect(within(card).getByRole('alert')).toBeTruthy();
     });
 
     it('chip ukryty, gdy jest choć jedna W (nawet pusta); wraca po usunięciu wszystkich W', () => {

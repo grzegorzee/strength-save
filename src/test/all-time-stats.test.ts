@@ -155,7 +155,7 @@ describe('odporność na niepełne dane treningu (crash 2026-07-20)', () => {
   it('trening bez pola exercises nie wywraca liczenia', () => {
     const broken = { id: 'x', userId: 'u', dayId: 'd', date: '2026-07-01', completed: true } as unknown as WorkoutSession;
     expect(() => buildAllTimeStats([broken])).not.toThrow();
-    expect(buildAllTimeStats([broken]).workoutCount).toBe(1);
+    expect(buildAllTimeStats([broken]).workoutCount).toBe(0);
   });
 
   it('ćwiczenie bez pola sets nie wywraca liczenia', () => {
@@ -178,7 +178,41 @@ describe('odporność na niepełne dane treningu (crash 2026-07-20)', () => {
     const broken = { id: 'x', userId: 'u', dayId: 'd', date: '2026-07-02', completed: true } as unknown as WorkoutSession;
     const ok = withSets('w1', '2026-07-01', [set({ weight: 100, reps: 5, completed: true })]);
     const s = buildAllTimeStats([broken, ok]);
-    expect(s.workoutCount).toBe(2);
+    expect(s.workoutCount).toBe(1);
     expect(s.totalTonnageKg).toBe(500);
+  });
+});
+
+// Feedback 2026-09-03: 87 w nagłówku (agregat v1: każdy completed) vs 86 w
+// szczegółach. Jedna definicja: completed + >=1 ukończona seria robocza,
+// para provisional→remote liczona raz. Ten moduł zasila „Twoje liczby".
+describe('jedna semantyka ukończonego treningu (nagłówek = szczegóły)', () => {
+  it('completed bez serii roboczej (pusty albo sama rozgrzewka) nie liczy się do treningów', () => {
+    const s = buildAllTimeStats([
+      withSets('w1', '2026-07-01', [set({ weight: 100, reps: 5, completed: true })]),
+      withSets('empty', '2026-07-02', [set({ weight: 100, reps: 5 })]),
+      withSets('warmup', '2026-07-03', [set({ isWarmup: true, weight: 20, reps: 10, completed: true })]),
+    ]);
+    expect(s.workoutCount).toBe(1);
+    expect(s.totalTonnageKg).toBe(500);
+    expect(s.totalSets).toBe(1);
+  });
+
+  it('para provisional→remote w jednym snapshotcie nie podwaja licznika ani tonażu', () => {
+    const remote = withSets('workout-u1-day-1-2026-07-01', '2026-07-01', [set({ weight: 100, reps: 5, completed: true })]);
+    const provisional: WorkoutSession = { ...remote, id: `local-${remote.id}` };
+    const s = buildAllTimeStats([provisional, remote]);
+    expect(s.workoutCount).toBe(1);
+    expect(s.totalTonnageKg).toBe(500);
+    expect(s.totalSets).toBe(1);
+  });
+
+  it('dwa szybkie treningi tego samego dnia liczą się osobno', () => {
+    const s = buildAllTimeStats([
+      withSets('workout-u1-adhoc-2026-07-01-1000-2026-07-01', '2026-07-01', [set({ weight: 100, reps: 5, completed: true })], { dayId: 'adhoc-2026-07-01-1000' }),
+      withSets('workout-u1-adhoc-2026-07-01-2000-2026-07-01', '2026-07-01', [set({ weight: 50, reps: 5, completed: true })], { dayId: 'adhoc-2026-07-01-2000' }),
+    ]);
+    expect(s.workoutCount).toBe(2);
+    expect(s.totalTonnageKg).toBe(750);
   });
 });

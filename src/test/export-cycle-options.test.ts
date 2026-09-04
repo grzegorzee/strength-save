@@ -47,6 +47,29 @@ describe('buildExportCycleOptions', () => {
     expect(options[0].workoutCount).toBe(inCycle.length + 1);
   });
 
+  it('licznik aktywnego cyklu używa kanonicznych completed: bez pustych/warmup-only i bez dubla sync', () => {
+    const { state } = optionsFor('history-multi-cycle');
+    const active = state.cycles.find((c) => c.status === 'active')!;
+    const source = state.workouts.find((w) => w.cycleId === active.id && w.completed)!;
+    const remote = { ...source, id: 'workout-u1-active-2026-08-20', date: '2026-08-20' };
+    const empty = { ...source, id: 'empty', date: '2026-08-19', exercises: [] };
+    const warmupOnly = {
+      ...source,
+      id: 'warmup-only',
+      date: '2026-08-18',
+      exercises: [{ exerciseId: 'warm', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+    };
+    const options = buildExportCycleOptions({
+      cycles: [active],
+      workouts: [{ ...remote, id: `local-${remote.id}` }, remote, empty, warmupOnly],
+      todayISO: TODAY,
+      lang: 'pl',
+      t,
+    });
+
+    expect(options[0].workoutCount).toBe(1);
+  });
+
   it('filtr widoczności: cykl techniczny i pusty completed nie wchodzą; brak cykli = brak domyślnego', () => {
     const { state } = optionsFor('history-multi-cycle');
     const cycles = state.cycles.map((c) => (c.status === 'active'

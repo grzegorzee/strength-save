@@ -223,7 +223,7 @@ describe('WP-PLANS-1: /cycles przy planStatus=ended', () => {
   it('kontrola: przy planStatus=active baner rekomendacji i przycisk końca planu są widoczne', () => {
     renderPage(<Cycles />);
 
-    expect(screen.getByText(/Closeout i progres cyklu/)).toBeTruthy();
+    expect(screen.getByText(/Domknięcie i progres cyklu/)).toBeTruthy();
     expect(screen.getByTestId('cycles-end-plan')).toBeTruthy();
   });
 
@@ -232,7 +232,7 @@ describe('WP-PLANS-1: /cycles przy planStatus=ended', () => {
 
     renderPage(<Cycles />);
 
-    expect(screen.queryByText(/Closeout i progres cyklu/)).toBeNull();
+    expect(screen.queryByText(/Domknięcie i progres cyklu/)).toBeNull();
     expect(screen.queryByTestId('cycles-end-plan')).toBeNull();
   });
 });

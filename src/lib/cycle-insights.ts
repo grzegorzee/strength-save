@@ -6,6 +6,7 @@ import { calculate1RM, detectNewPRs } from '@/lib/pr-utils';
 import { resolvePlannedDay, type ScheduleOverrides } from '@/lib/plan-schedule';
 import { addCalendarDays, calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { translate, type LanguageCode } from '@/i18n';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 export interface CycleRecommendation {
   title: string;
@@ -103,8 +104,9 @@ export const computeCycleStats = (
   const expectedSlotKeys = new Set(
     expectedSessions.map((session) => `${session.date}:${session.dayId}`),
   );
-  const eligibleWorkouts = workouts.filter((workout) => {
-    if (!workout.completed || workout.date < startDate || workout.date > effectiveEndStr) return false;
+  const completedWorkouts = selectCompletedWorkouts(workouts);
+  const eligibleWorkouts = completedWorkouts.filter((workout) => {
+    if (workout.date < startDate || workout.date > effectiveEndStr) return false;
     if (!cycleId) return !workout.cycleId;
     if (workout.cycleId === cycleId) return true;
     // Ukończony orphan może potwierdzić obecność tylko w dokładnym slocie planu.
@@ -164,7 +166,7 @@ export const computeCycleStats = (
   // najlepszy wynik z CAŁEJ historii sprzed tego treningu (nie top-N najmocniejszych ćwiczeń cyklu).
   const prExerciseIds = new Set<string>();
   for (const w of cycleWorkouts) {
-    const before = workouts.filter((x) => x.completed && x.date < w.date);
+    const before = completedWorkouts.filter((x) => x.date < w.date);
     for (const pr of detectNewPRs(w, before, exerciseNames)) {
       prExerciseIds.add(pr.exerciseId);
     }
@@ -209,6 +211,8 @@ export const computeCycleStats = (
   const orphanWorkoutCount = cycleId
     ? cycleWorkouts.filter((workout) => !workout.cycleId).length
     : 0;
+  const elapsedDays = Math.max(1, calendarDayDiff(startDate, effectiveEndStr) + 1);
+  const elapsedWeeks = Math.max(1, Math.min(durationWeeks, Math.ceil(elapsedDays / 7)));
 
   return {
     totalWorkouts,
@@ -217,7 +221,7 @@ export const computeCycleStats = (
     completionRate,
     expectedWorkouts,
     missedWorkouts,
-    averageWorkoutsPerWeek: durationWeeks > 0 ? Math.round((totalWorkouts / durationWeeks) * 10) / 10 : 0,
+    averageWorkoutsPerWeek: durationWeeks > 0 ? Math.round((totalWorkouts / elapsedWeeks) * 10) / 10 : 0,
     averageTonnagePerWorkout: totalWorkouts > 0 ? Math.round(totalTonnage / totalWorkouts) : 0,
     orphanWorkoutCount,
     duplicateWorkoutsIgnored: Math.max(0, eligibleWorkouts.length - cycleWorkouts.length),

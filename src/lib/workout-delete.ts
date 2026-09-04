@@ -40,7 +40,7 @@ export const deleteWorkoutEverywhere = async (
 
     // Ślady lokalne kasujemy zawsze — nawet gdy dokumentu w chmurze już nie było.
     try {
-      await workoutDraftDb.clearActiveDraft(userId, workoutId);
+      await workoutDraftDb.discardActiveDraft(userId, workoutId);
     } catch { /* brak szkicu = nie ma czego czyścić */ }
     try {
       workoutSyncQueue.remove(userId, workoutId);

@@ -66,6 +66,10 @@ const config: CapacitorConfig = {
       // bottom bary WorkoutDay (reguła 5). Klawiaturę kompensują same dialogi
       // przez CSS var --keyboard-inset (keyboard-inset.ts).
       resize: 'none',
+      // Capacitor 8.0.4+: obszar odsłaniany za klawiaturą bierze kolor z DOM,
+      // więc natywny arkusz cardio nie dostaje jasnej/czarnej szczeliny przy
+      // animacji klawiatury i zachowuje tło aktualnego motywu.
+      autoBackdropColor: 'dom',
     },
   },
 };

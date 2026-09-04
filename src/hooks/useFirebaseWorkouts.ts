@@ -52,6 +52,7 @@ import {
 } from '@/lib/workout-backup-v3';
 import { createWorkoutV2SaveAdapter } from '@/lib/workout-sync-v2';
 import { restoreWorkoutBackupV3Item } from '@/lib/workout-restore-v3';
+import { countCompletedWorkouts, selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -334,12 +335,12 @@ export const useFirebaseWorkoutActions = (
   // Dashboard i Osiągnięcia pokazywały inną liczbę niż raport PDF i podsumowania —
   // rozgrzewka zawyżała sumę. Jedno źródło prawdy: calculateTonnage (reguła Z106).
   const getTotalWeight = useCallback(
-    () => calculateTonnage(workouts.filter((w) => w.completed)),
+    () => calculateTonnage(selectCompletedWorkouts(workouts)),
     [workouts],
   );
 
   const getCompletedWorkoutsCount = useCallback(() => {
-    return workouts.filter(w => w.completed).length;
+    return countCompletedWorkouts(workouts);
   }, [workouts]);
 
   // Eksport nie może opierać się na oknie listenera (500 treningów / 365

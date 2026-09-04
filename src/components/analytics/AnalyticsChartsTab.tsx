@@ -48,6 +48,7 @@ import { getDurationTrend, getSkippedStats } from '@/lib/workout-time-stats';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import type { LanguageCode, TranslationKey } from '@/i18n';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 type ChartsSubTab = 'workouts' | 'tonnage' | 'weight' | 'streak' | 'progression';
 type WeightMode = 'max' | '1rm';
@@ -118,6 +119,7 @@ const AnalyticsChartsTab = () => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
+  const completedWorkouts = useMemo(() => selectCompletedWorkouts(workouts), [workouts]);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
@@ -151,7 +153,7 @@ const AnalyticsChartsTab = () => {
   const [tonnageRange, setTonnageRange] = useState<'8w' | '12w' | '6m' | 'all'>('12w');
 
   const workoutsData = useMemo(() => {
-    const completed = workouts.filter(w => w.completed);
+    const completed = completedWorkouts;
     const now = new Date();
     const weeks: { label: string; count: number }[] = [];
     for (let i = 11; i >= 0; i--) {
@@ -165,7 +167,7 @@ const AnalyticsChartsTab = () => {
     const avgPerWeek = weeks.length > 0 ? (weeks.reduce((s, w) => s + w.count, 0) / weeks.length).toFixed(1) : '0';
     const bestWeek = Math.max(...weeks.map(w => w.count), 0);
     return { weeks, totalCompleted, avgPerWeek, bestWeek };
-  }, [workouts, t]);
+  }, [completedWorkouts, t]);
 
   const tonnageData = useMemo(() => {
     const rangeCutoff = (() => {
@@ -178,8 +180,7 @@ const AnalyticsChartsTab = () => {
       d.setDate(d.getDate() - (tonnageRange === '8w' ? 8 : 12) * 7);
       return d;
     })();
-    const completed = workouts
-      .filter(w => w.completed)
+    const completed = completedWorkouts
       .filter(w => !rangeCutoff || parseLocalDate(w.date) >= rangeCutoff)
       .slice()
       .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
@@ -199,7 +200,7 @@ const AnalyticsChartsTab = () => {
       trend = `${Number(change) >= 0 ? '+' : ''}${change}%`;
     }
     return { chartData, totalTonnage, avgPerWorkout, trend };
-  }, [workouts, lang, toDisplay, tonnageRange]);
+  }, [completedWorkouts, lang, toDisplay, tonnageRange]);
 
   const weightData = useMemo(() => {
     const withWeight = measurements
@@ -217,7 +218,7 @@ const AnalyticsChartsTab = () => {
   }, [measurements, lang, unit, toDisplay]);
 
   const streakData = useMemo(() => {
-    const completed = workouts.filter(w => w.completed);
+    const completed = completedWorkouts;
     const completedDates = new Set(completed.map(w => w.date));
     const now = new Date();
     const { start: currentWeekStart } = getWeekBounds(now);
@@ -236,24 +237,24 @@ const AnalyticsChartsTab = () => {
         days.push({ date: dateStr, dayOfWeek, weekIndex: week, hasWorkout: !isFuture && completedDates.has(dateStr), isPlanned: !isFuture && isPlanned });
       }
     }
-    const streak = calculateStreak(workouts);
-    const longestStreak = calculateLongestStreak(workouts);
+    const streak = calculateStreak(completedWorkouts);
+    const longestStreak = calculateLongestStreak(completedWorkouts);
     const plannedCount = days.filter(d => d.isPlanned).length;
     const completedCount = days.filter(d => d.hasWorkout).length;
     const attendance = plannedCount > 0 ? Math.round((completedCount / plannedCount) * 100) : 0;
     return { days, streak, longestStreak, attendance };
-  }, [trainingPlan, workouts]);
+  }, [trainingPlan, completedWorkouts]);
 
   const perExerciseData = useMemo(() => {
-    const completedWorkouts = workouts
-      .filter(w => w.completed && w.exercises.length > 0)
+    const completed = completedWorkouts
+      .filter(w => w.exercises.length > 0)
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date));
-    if (completedWorkouts.length === 0) return [];
+    if (completed.length === 0) return [];
 
     const byExercise = new Map<string, { id: string; name: string; chartData: { date: string; value: number }[]; isBodyweight: boolean }>();
 
-    completedWorkouts.forEach(w => {
+    completed.forEach(w => {
       w.exercises.forEach(ex => {
         const name = byExercise.get(ex.exerciseId)?.name ?? resolver.resolveExerciseName(w, ex.exerciseId);
         const workingSets = ex.sets.filter(s => !s.isWarmup && s.completed);
@@ -286,7 +287,7 @@ const AnalyticsChartsTab = () => {
     return Array.from(byExercise.values())
       .filter(ex => ex.chartData.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [workouts, weightMode, resolver, lang, toDisplay]);
+  }, [completedWorkouts, weightMode, resolver, lang, toDisplay]);
 
   const requestedExerciseId = searchParams.get('exercise');
   const selectedExerciseId = perExerciseData.some((exercise) => exercise.id === requestedExerciseId)

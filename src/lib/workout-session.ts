@@ -14,6 +14,13 @@ export const isProvisionalWorkoutSessionId = (sessionId: string): boolean => (
   sessionId.startsWith(`${PROVISIONAL_WORKOUT_SESSION_PREFIX}-`)
 );
 
+/** Tożsamość nie zmienia się przy promocji offline provisional → remote. */
+export const canonicalWorkoutSessionId = (sessionId: string): string => (
+  isProvisionalWorkoutSessionId(sessionId)
+    ? sessionId.slice('local-'.length)
+    : sessionId
+);
+
 export const createProvisionalWorkoutSession = (
   userId: string,
   dayId: string,

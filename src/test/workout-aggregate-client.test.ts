@@ -5,7 +5,7 @@ import { sanitizeAggregateTotals, sanitizeAggregate } from '@/lib/workout-aggreg
 // agregatu daje null, a Dashboard liczy wtedy po staremu z okna listenera.
 
 const validDoc = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   totals: {
     workoutCount: 540,
     totalTonnageKg: 374400,
@@ -39,6 +39,10 @@ describe('Z217 — sanitizeAggregateTotals', () => {
 });
 
 describe('Z216 — sanitizeAggregate (daty wkładów pod streak)', () => {
+  it('odrzuca agregat v1 z dawną semantyką completed-only', () => {
+    expect(sanitizeAggregate({ ...validDoc, schemaVersion: 1 })).toBeNull();
+  });
+
   it('wyciąga daty ukończonych treningów z mapy wkładów', () => {
     const result = sanitizeAggregate({
       ...validDoc,
@@ -56,6 +60,18 @@ describe('Z216 — sanitizeAggregate (daty wkładów pod streak)', () => {
     const result = sanitizeAggregate(validDoc);
     expect(result?.completedDates).toEqual([]);
     expect(result?.totals.totalTonnageKg).toBe(374400);
+  });
+
+  it('daty pary provisional→remote nie podwajają streaku', () => {
+    const remote = 'workout-u-day-1-2026-08-01';
+    const result = sanitizeAggregate({
+      ...validDoc,
+      contributions: {
+        [`local-${remote}`]: { d: '2026-08-01', t: 100, s: 1, r: 5, dur: null },
+        [remote]: { d: '2026-08-01', t: 100, s: 1, r: 5, dur: null },
+      },
+    });
+    expect(result?.completedDates).toEqual(['2026-08-01']);
   });
 
   it('uszkodzone totals = null (fallback lokalny, bez połowicznych stanów)', () => {

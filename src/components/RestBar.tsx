@@ -146,21 +146,21 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
       <button
         type="button"
         onClick={() => onAdjust(-15)}
-        className="flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-surface-high"
+        className="min-h-11 min-w-11 flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-surface-high"
       >
         -15
       </button>
       <button
         type="button"
         onClick={() => onAdjust(15)}
-        className="flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-surface-high"
+        className="min-h-11 min-w-11 flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-surface-high"
       >
         +15
       </button>
       <button
         type="button"
         onClick={handleSkip}
-        className="flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold transition-colors hover:bg-surface-high"
+        className="min-h-11 flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold transition-colors hover:bg-surface-high"
       >
         {t('rest.bar.skip')}
       </button>
@@ -186,7 +186,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
             onClick={onOpenSettings}
             aria-label={t('rest.bar.openSettings')}
             data-testid="rest-bar-settings"
-            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
           >
             <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
               {t('rest.bar.title')}
@@ -215,14 +215,14 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
             onClick={() => setExpanded(true)}
             aria-label={t('rest.bar.expand')}
             data-testid="rest-bar-expand"
-            className="shrink-0 rounded-full bg-surface-highest p-2 text-muted-foreground transition-colors hover:text-foreground"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface-highest text-muted-foreground transition-colors hover:text-foreground"
           >
             <Maximize2 className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             onClick={handleSkip}
-            className="chip-mono shrink-0 font-bold text-foreground"
+            className="chip-mono min-h-11 shrink-0 px-3 font-bold text-foreground"
           >
             {t('rest.bar.skip')}
           </button>
@@ -241,7 +241,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
             type="button"
             onClick={() => setExpanded(false)}
             aria-label={t('rest.bar.collapse')}
-            className="absolute right-5 top-[calc(1.25rem+env(safe-area-inset-top))] rounded-full bg-muted/60 p-2.5"
+            className="absolute right-5 top-[calc(1.25rem+env(safe-area-inset-top))] grid h-11 w-11 place-items-center rounded-full bg-muted/60"
           >
             <X className="h-5 w-5" />
           </button>

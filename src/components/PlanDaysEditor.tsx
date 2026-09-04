@@ -17,6 +17,7 @@ import { WEEKDAYS } from '@/lib/plan-cycle-utils';
 import { addPlanDay, removePlanDay, duplicatePlanDay, setPlanDayWeekday, setPlanDayFocus, MAX_PLAN_DAYS } from '@/lib/plan-day-edit';
 import { MAX_PLAN_WEEKS, MIN_PLAN_WEEKS } from '@/lib/training-plan-save';
 import { ArrowUp, ArrowDown, Copy, Trash2, Replace, Plus, Minus, Pencil, Check, X } from 'lucide-react';
+import type { TranslationKey } from '@/i18n';
 
 // FIX-C: edycja serii bez wpisywania "×" z klawiatury — format "N × reps"
 // rozbijany na stepper liczby serii + pole powtórzeń; inne formaty (np. "AMRAP")
@@ -41,6 +42,14 @@ export interface PlanDaysEditorProps {
 }
 
 const DURATIONS = [8, 10, 12, 16];
+
+const exerciseCountKey = (count: number): TranslationKey => (
+  count === 1
+    ? 'planbuilder.exerciseCountOne'
+    : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20))
+      ? 'planbuilder.exerciseCountFew'
+      : 'planbuilder.exerciseCountMany'
+);
 
 const revealField = (element: HTMLElement) => {
   element.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -170,10 +179,15 @@ export const PlanDaysEditor = ({
       {days.map((day, i) => {
         const taken = new Set(days.filter(d => d.id !== day.id).map(d => d.weekday));
         return (
-          <Card key={day.id}>
-            <CardHeader className="pb-2">
+          <Card key={day.id} className="overflow-hidden border-outline-variant/50 bg-surface-container shadow-none">
+            <CardHeader className="p-4 pb-3">
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base">{t('planbuilder.day', { n: i + 1 })}</CardTitle>
+                <div className="min-w-0">
+                  <CardTitle className="font-heading text-lg leading-tight">{t('planbuilder.day', { n: i + 1 })}</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(exerciseCountKey(day.exercises.length), { n: day.exercises.length })}
+                  </p>
+                </div>
                 <div className="flex items-center gap-0.5">
                   <Button
                     variant="ghost"
@@ -197,7 +211,7 @@ export const PlanDaysEditor = ({
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4 p-4 pt-0">
               <div className="flex flex-wrap gap-1.5">
                 {WEEKDAYS.map(w => {
                   const selected = day.weekday === w.value;
@@ -229,19 +243,25 @@ export const PlanDaysEditor = ({
                 onBlur={e => {
                   if (e.target.value !== day.focus) onDaysChange(setPlanDayFocus(days, day.id, e.target.value));
                 }}
-                className="min-h-11 text-sm"
+                className="min-h-11"
               />
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {day.exercises.map((exercise, idx) => (
-                  <div key={exercise.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
-                    <Badge variant="secondary" className="h-7 w-7 rounded flex items-center justify-center text-xs shrink-0">
-                      {idx + 1}
-                    </Badge>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{localizeExerciseName(exercise.name, lang)}</p>
-                      {editingSets?.dayId === day.id && editingSets?.exerciseId === exercise.id ? (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <div key={exercise.id} className="overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-low">
+                    <div className="flex items-start gap-3 p-3">
+                      <Badge variant="secondary" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs">
+                        {idx + 1}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          data-testid={`exercise-name-${exercise.id}`}
+                          className="whitespace-normal break-words font-heading text-base font-semibold leading-snug"
+                        >
+                          {localizeExerciseName(exercise.name, lang)}
+                        </p>
+                        {editingSets?.dayId === day.id && editingSets?.exerciseId === exercise.id ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {editingSets.count !== null ? (
                             <>
                               <div className="flex items-center rounded-lg border border-input bg-background">
@@ -305,23 +325,29 @@ export const PlanDaysEditor = ({
                           <Button variant="ghost" size="icon" className="min-h-11 min-w-11" data-testid="sets-cancel" aria-label={t('common.cancel')} onClick={() => setEditingSets(null)}>
                             <X className="h-4 w-4" />
                           </Button>
-                        </div>
-                      ) : (
-                        <button
-                          data-testid={`edit-sets-${exercise.id}`}
-                          className="mt-0.5 flex min-h-11 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                          onClick={() => startEditingSets(day.id, exercise.id, exercise.sets)}
-                        >
-                          {exercise.sets}
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            data-testid={`edit-sets-${exercise.id}`}
+                            className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border border-outline-variant/60 bg-surface-lowest px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-highest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={t('daysedit.editPrescription', { prescription: exercise.sets })}
+                            onClick={() => startEditingSets(day.id, exercise.id, exercise.sets)}
+                          >
+                            <span className="tabular-nums">{exercise.sets}</span>
+                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div
+                      data-testid={`exercise-actions-${exercise.id}`}
+                      className="grid grid-cols-4 border-t border-outline-variant/40 bg-surface-lowest/60"
+                    >
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="min-h-11 min-w-11"
+                        className="min-h-11 w-full rounded-none"
                         disabled={idx === 0}
                         aria-label={t('daysedit.moveUp')}
                         onClick={() => onMoveExercise(day.id, exercise.id, 'up')}
@@ -331,7 +357,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="min-h-11 min-w-11"
+                        className="min-h-11 w-full rounded-none"
                         disabled={idx === day.exercises.length - 1}
                         aria-label={t('daysedit.moveDown')}
                         onClick={() => onMoveExercise(day.id, exercise.id, 'down')}
@@ -341,7 +367,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="min-h-11 min-w-11"
+                        className="min-h-11 w-full rounded-none"
                         aria-label={t('planeditor.swapExercise')}
                         onClick={() => setSwapDialog({ dayId: day.id, exerciseId: exercise.id, exerciseName: exercise.name })}
                       >
@@ -350,7 +376,7 @@ export const PlanDaysEditor = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="min-h-11 min-w-11 text-destructive hover:text-destructive"
+                        className="min-h-11 w-full rounded-none text-destructive hover:text-destructive"
                         aria-label={t('daysedit.removeExercise')}
                         onClick={() => onRemoveExercise(day.id, exercise.id)}
                       >
@@ -376,7 +402,8 @@ export const PlanDaysEditor = ({
 
       <Button
         variant="outline"
-        className="w-full"
+        data-testid="add-plan-day"
+        className="min-h-14 w-full rounded-xl border-primary/60 bg-primary/10 font-heading text-base font-semibold text-primary hover:bg-primary/15"
         onClick={() => onDaysChange(addPlanDay(days))}
         disabled={days.length >= MAX_PLAN_DAYS}
       >

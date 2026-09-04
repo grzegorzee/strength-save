@@ -61,8 +61,24 @@ describe("computeWeekStats", () => {
 
     const stats = computeWeekStats(broken);
 
-    expect(stats.sessions).toBe(3);
+    expect(stats.sessions).toBe(1);
     expect(stats.tonnageKg).toBe(1280);
+  });
+
+  it("odrzuca warmup-only i deduplikuje provisional→remote, ale nie dwa quick workouts", () => {
+    const remote = workout({ id: "workout-123", date: "2026-07-21" });
+    const provisional = workout({ id: "local-workout-123", date: "2026-07-21" });
+    const warmupOnly = workout({
+      id: "warmup-only",
+      exercises: [{ name: "A", sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+    });
+    const quickA = workout({ id: "workout-quick-a", date: "2026-07-22" });
+    const quickB = workout({ id: "workout-quick-b", date: "2026-07-22" });
+
+    const stats = computeWeekStats([provisional, remote, warmupOnly, quickA, quickB]);
+
+    expect(stats.sessions).toBe(3);
+    expect(stats.workingSets).toBe(6);
   });
 
   it("top 3 ćwiczenia wg tonażu", () => {

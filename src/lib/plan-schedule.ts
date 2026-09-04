@@ -236,13 +236,17 @@ export const countRemainingWorkouts = (params: {
   return total;
 };
 
-// T9 (feedback 2026-08-20): kolejność timeline "od najbliższego" w tygodniu
-// zawierającym dziś — dziś pierwszy, potem przyszłe rosnąco, minione dni na
-// dole (też rosnąco). Klucze = daty ISO (porównanie stringów = chronologia).
-export const orderTimelineDayKeys = (dayKeys: string[], todayISO: string): string[] => {
-  const upcoming = dayKeys.filter((key) => key >= todayISO).sort();
-  const past = dayKeys.filter((key) => key < todayISO).sort();
-  return [...upcoming, ...past];
+// Feedback 2026-09-03: wpisy historyczne idą od najnowszego do najstarszego,
+// więc ręcznie dopisane wczorajsze cardio trafia między dziś i przedwczoraj.
+// W bieżącym tygodniu dziś zostaje hero na górze; dopiero pod nim pokazujemy
+// najbliższe przyszłe dni, potem historię malejąco.
+export const orderTimelineDayKeys = (dayKeys: string[], todayISO?: string): string[] => {
+  const keys = [...dayKeys];
+  if (!todayISO) return keys.sort((a, b) => b.localeCompare(a));
+  const today = keys.filter(key => key === todayISO);
+  const future = keys.filter(key => key > todayISO).sort((a, b) => a.localeCompare(b));
+  const past = keys.filter(key => key < todayISO).sort((a, b) => b.localeCompare(a));
+  return [...today, ...future, ...past];
 };
 
 // T17 (feedback 2026-08-20): procent postępu planu z TRENINGÓW, nie z numeru

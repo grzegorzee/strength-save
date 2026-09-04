@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey, workoutDraft } from '@/lib/workout-draft';
+import {
+  LOCAL_STORAGE_WORKOUT_DRAFT_KEY,
+  getScopedWorkoutDraftJournalKey,
+  workoutDraft,
+} from '@/lib/workout-draft';
 import {
   __resetWorkoutDraftDbConnectionForTests,
   DraftSaveTotalFailure,
@@ -304,6 +308,24 @@ describe('workoutDraftDb', () => {
     });
   });
 
+  it('saveActiveDraft zapisuje journal synchronicznie zanim zablokowany IDB odpowie', async () => {
+    const blocked = blockNextPut();
+    const save = workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 9,
+      dayNotes: 'ostatni tap przed force quit',
+    });
+
+    expect(workoutDraft.loadSession(baseDraft.sessionId, 'user-1')).toMatchObject({
+      version: 9,
+      dayNotes: 'ostatni tap przed force quit',
+    });
+
+    await blocked.started;
+    blocked.release();
+    await save;
+  });
+
   it('Z175: zapis z niższą wersją NIE nadpisuje żywego draftu pod tym samym kluczem', async () => {
     await workoutDraftDb.saveActiveDraft({
       ...baseDraft,
@@ -405,6 +427,98 @@ describe('workoutDraftDb', () => {
     expect(second?.dayId).toBe('day-2');
   });
 
+  it('journal zachowuje plan i szybki trening, a clear usuwa tylko wskazaną sesję', async () => {
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: 'workout-quick-456',
+      remoteSessionId: 'workout-quick-456',
+      dayId: 'adhoc-1',
+      updatedAt: 300,
+    });
+
+    await workoutDraftDb.clearActiveDraft('user-1', baseDraft.sessionId);
+
+    expect(workoutDraft.loadSession(baseDraft.sessionId, 'user-1')).toBeNull();
+    expect(workoutDraft.loadSession('workout-quick-456', 'user-1')).not.toBeNull();
+    expect((await workoutDraftDb.listDrafts('user-1')).map(draft => draft.sessionId)).toEqual([
+      'workout-quick-456',
+    ]);
+  });
+
+  it('fallback-only sesja jest widoczna przy zdrowym IDB we wszystkich odczytach', async () => {
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    workoutDraft.save({
+      sessionId: 'workout-fallback-only',
+      dayId: 'day-fallback',
+      date: baseDraft.date,
+      cycleId: baseDraft.cycleId,
+      sessionOrigin: 'remote',
+      remoteSessionId: 'workout-fallback-only',
+      exerciseSets: baseDraft.exerciseSets,
+      exerciseNotes: baseDraft.exerciseNotes,
+      exerciseMetrics: baseDraft.exerciseMetrics,
+      dayNotes: baseDraft.dayNotes,
+      skippedExercises: baseDraft.skippedExercises,
+      savedAt: 900,
+      version: 8,
+    }, 'user-1');
+
+    expect((await workoutDraftDb.listDrafts('user-1')).map(draft => draft.sessionId).sort()).toEqual([
+      'workout-123',
+      'workout-fallback-only',
+    ]);
+    expect(await workoutDraftDb.loadDraft('user-1', 'workout-fallback-only')).toMatchObject({
+      sessionId: 'workout-fallback-only',
+      version: 8,
+    });
+    expect(await workoutDraftDb.loadDraftForDay('user-1', 'day-fallback', baseDraft.date)).toMatchObject({
+      sessionId: 'workout-fallback-only',
+    });
+    expect((await workoutDraftDb.loadActiveDraft('user-1'))?.sessionId).toBe('workout-fallback-only');
+  });
+
+  it('merge per sesja wybiera version, potem updatedAt, a przy pełnym remisie journal syncu', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5, updatedAt: 500, dayNotes: 'IDB' });
+
+    workoutDraft.save({
+      ...baseDraft,
+      savedAt: 100,
+      version: 6,
+      dayNotes: 'fallback wyższa wersja',
+    }, 'user-1');
+    expect((await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId))?.dayNotes)
+      .toBe('fallback wyższa wersja');
+
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 7, updatedAt: 700, dayNotes: 'IDB remis' });
+    workoutDraft.save({
+      ...baseDraft,
+      savedAt: 700,
+      version: 7,
+      dayNotes: 'fallback remis',
+    }, 'user-1');
+    expect((await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId))?.dayNotes).toBe('fallback remis');
+  });
+
+  it('pełny remis nie cofa finalizacji zapisanej w IDB, gdy mirror journalu zawiódł', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      completedLocally: true,
+      finalSyncPending: true,
+    });
+    workoutDraft.save({
+      ...baseDraft,
+      savedAt: baseDraft.updatedAt,
+      completedLocally: false,
+      finalSyncPending: false,
+    }, 'user-1');
+
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toMatchObject({
+      completedLocally: true,
+      finalSyncPending: true,
+    });
+  });
+
   it('markDraftSynced clears dirty flag and sets timestamp', async () => {
     await workoutDraftDb.saveActiveDraft(baseDraft);
     await workoutDraftDb.markDraftSynced('user-1', 999, baseDraft.version);
@@ -429,6 +543,80 @@ describe('workoutDraftDb', () => {
     const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
     expect(loaded?.pendingWriteId).toBeUndefined();
     expect(loaded?.pendingWriteVersion).toBeUndefined();
+  });
+
+  it('setPendingWrite i ACK są mirrorowane do journalu na wypadek utraty IDB', async () => {
+    const healthyFactory = window.indexedDB;
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    await workoutDraftDb.setPendingWrite('user-1', baseDraft.sessionId, {
+      writeId: 'write-after-lost-ack',
+      version: baseDraft.version,
+    });
+
+    __resetWorkoutDraftDbConnectionForTests();
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toMatchObject({
+      pendingWriteId: 'write-after-lost-ack',
+      pendingWriteVersion: baseDraft.version,
+    });
+
+    await workoutDraftDb.markDraftSynced('user-1', 999, baseDraft.version, baseDraft.sessionId, { revision: 3 });
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toMatchObject({
+      dirty: false,
+      cloudRevision: 3,
+      lastFirebaseSyncAt: 999,
+    });
+    expect((await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId))?.pendingWriteId).toBeUndefined();
+
+    // Po powrocie starego IDB journal z ACK wygrywa także przy tej samej
+    // version/updatedAt i naprawia rekord bez ponownego oznaczania dirty.
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: healthyFactory,
+    });
+    __resetWorkoutDraftDbConnectionForTests();
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toMatchObject({
+      dirty: false,
+      cloudRevision: 3,
+      lastFirebaseSyncAt: 999,
+    });
+    expect((await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId))?.pendingWriteId).toBeUndefined();
+  });
+
+  it('runUpdate scala nowszy journal z IDB i nie cofa treści ani final flags', async () => {
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    workoutDraft.save({
+      ...baseDraft,
+      savedAt: 300,
+      version: 2,
+      dayNotes: 'nowsza notatka z journalu',
+      completedLocally: true,
+      finalSyncPending: true,
+    }, 'user-1');
+
+    await workoutDraftDb.setPendingWrite('user-1', baseDraft.sessionId, {
+      writeId: 'final-write',
+      version: 2,
+    });
+
+    __resetWorkoutDraftDbConnectionForTests();
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toMatchObject({
+      version: 2,
+      dayNotes: 'nowsza notatka z journalu',
+      completedLocally: true,
+      finalSyncPending: true,
+      pendingWriteId: 'final-write',
+    });
   });
 
   it('does not clear a newer local draft when an older cloud ACK arrives', async () => {
@@ -588,6 +776,56 @@ describe('workoutDraftDb', () => {
     expect(drafts[0].cloudUpdatedAt).toBe(500);
   });
 
+  it('świadomy discard po promocji pozwala rozpocząć nową sesję o tym samym provisional ID', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+
+    // UI może nadal znać provisional ID, mimo że AutoSync wypromował rekord.
+    await workoutDraftDb.discardActiveDraft('user-1', provisionalId);
+    __resetWorkoutDraftDbConnectionForTests();
+    expect(await workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBeNull();
+    expect(await workoutDraftDb.loadDraft('user-1', remoteId)).toBeNull();
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 1,
+      dayNotes: 'nowy trening tego samego dnia',
+    });
+    expect(await workoutDraftDb.loadDraft('user-1', provisionalId)).toMatchObject({
+      sessionId: provisionalId,
+      dayNotes: 'nowy trening tego samego dnia',
+    });
+  });
+
+  it('świadomy discard działa w trybie fallback-only bez IndexedDB', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+
+    await workoutDraftDb.discardActiveDraft('user-1', provisionalId);
+
+    expect(await workoutDraftDb.loadDraft('user-1', provisionalId)).toBeNull();
+  });
+
   it('utrata localStorage tombstone po promocji nie wskrzesza provisional draftu', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';
@@ -686,6 +924,44 @@ describe('workoutDraftDb', () => {
     expect(drafts[0].dayNotes).toBe('zapis wyscigowy w oknie promocji');
     const orphan = await workoutDraftDb.loadDraft('user-1', provisionalId);
     expect(orphan).toBeNull();
+  });
+
+  it('promocja przenosi journal na remote i nie zostawia zombie provisional', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+
+    expect(workoutDraft.loadSession(provisionalId, 'user-1')).toBeNull();
+    expect(workoutDraft.loadSession(remoteId, 'user-1')).toMatchObject({
+      sessionId: remoteId,
+      sessionOrigin: 'remote',
+      remoteSessionId: remoteId,
+    });
+  });
+
+  it('promocja przenosi journal synchronicznie przed pierwszym await', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+
+    const promotion = workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+
+    expect(workoutDraft.loadSession(provisionalId, 'user-1')).toBeNull();
+    expect(workoutDraft.loadSession(remoteId, 'user-1')?.sessionOrigin).toBe('remote');
+    await promotion;
   });
 
   it('wyścig promocji nie wskrzesza provisional, gdy zapis localStorage tombstone rzuca quota error', async () => {
@@ -879,12 +1155,51 @@ describe('workoutDraftDb', () => {
     expect(loaded).toBeNull();
   });
 
+  it('clearActiveDraft bez sessionId usuwa tylko aktywną sesję z połączonego IDB+journal', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, updatedAt: 200 });
+    workoutDraft.save({
+      sessionId: 'workout-quick-active',
+      dayId: 'adhoc-1',
+      date: baseDraft.date,
+      exerciseSets: baseDraft.exerciseSets,
+      exerciseNotes: {},
+      dayNotes: 'fallback-only quick',
+      skippedExercises: [],
+      savedAt: 900,
+      version: 2,
+    }, 'user-1');
+
+    await workoutDraftDb.clearActiveDraft('user-1');
+
+    expect(await workoutDraftDb.loadDraft('user-1', 'workout-quick-active')).toBeNull();
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).not.toBeNull();
+  });
+
   it('clearActiveDraftIfVersion kasuje przy równej lub starszej wersji (R2-03)', async () => {
     await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 4 });
 
     const cleared = await workoutDraftDb.clearActiveDraftIfVersion('user-1', baseDraft.sessionId, 4);
 
     expect(cleared).toBe(true);
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toBeNull();
+  });
+
+  it('awaria kasowania journalu nie usuwa jedynej kopii IDB ani nie zgłasza fałszywego sukcesu', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 4 });
+    const journalKey = getScopedWorkoutDraftJournalKey('user-1');
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const removeSpy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === journalKey) throw new DOMException('storage unavailable', 'InvalidStateError');
+      return originalRemoveItem.call(this, key);
+    });
+
+    await expect(workoutDraftDb.clearActiveDraftIfVersion('user-1', baseDraft.sessionId, 4))
+      .rejects.toThrow('LOCAL_STORAGE_CLEAR_FAILED');
+    removeSpy.mockRestore();
+
+    // Po recovery rekord nadal jest osiągalny i cleanup można bezpiecznie ponowić.
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).not.toBeNull();
+    expect(await workoutDraftDb.clearActiveDraftIfVersion('user-1', baseDraft.sessionId, 4)).toBe(true);
     expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toBeNull();
   });
 
@@ -936,7 +1251,7 @@ describe('workoutDraftDb', () => {
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
 
     expect(loaded?.sessionId).toBe(baseDraft.sessionId);
-    expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
+    expect(localStorage.getItem(getScopedWorkoutDraftJournalKey('user-1'))).not.toBeNull();
   });
 
   it('fallback po restarcie zachowuje tożsamość i intencję finalnego syncu', async () => {
@@ -1089,6 +1404,22 @@ describe('workoutDraftDb', () => {
 
     expect(workoutDraft.load('user-1')).toBeNull();
     expect(await workoutDraftDb.loadActiveDraft('user-1')).toBeNull();
+  });
+
+  it('clearActiveDraft czeka na rozpoczęty save tej samej sesji i nie pozwala mu wskrzesić draftu', async () => {
+    const gate = blockNextPut();
+    const save = workoutDraftDb.saveActiveDraft(baseDraft);
+    await gate.started;
+
+    const clear = workoutDraftDb.clearActiveDraft('user-1', baseDraft.sessionId);
+    let clearFinished = false;
+    void clear.then(() => { clearFinished = true; });
+    await Promise.resolve();
+    expect(clearFinished).toBe(false);
+
+    gate.release();
+    await Promise.all([save, clear]);
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toBeNull();
   });
 
   it('migrateFromLocalStorage pomija i usuwa drafty starsze niż 48h', async () => {

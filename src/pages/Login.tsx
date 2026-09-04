@@ -266,11 +266,11 @@ const Login = ({ mode = 'login' }: LoginProps) => {
               </div>
               <p className="pt-2 text-xs text-center text-muted-foreground">
                 {t('login.legalPrefix')}{' '}
-                <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center px-1 underline underline-offset-2">
                   {t('paywall.terms')}
                 </a>{' '}
                 {t('login.legalAnd')}{' '}
-                <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center px-1 underline underline-offset-2">
                   {t('paywall.privacy')}
                 </a>
               </p>

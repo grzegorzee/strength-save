@@ -38,6 +38,7 @@ import { buildDayLoadMap, findNextPlannedDate } from '@/lib/plan-day-load';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
+import { selectCompletedWorkouts } from '@/lib/completed-workouts';
 import type { LanguageCode } from '@/i18n';
 import {
   DropdownMenu,
@@ -297,19 +298,19 @@ const TrainingPlan = () => {
     [unifiedActivities, stravaConnection.connected],
   );
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
+  const completedWorkouts = useMemo(() => selectCompletedWorkouts(workouts), [workouts]);
 
   // Bug 51: safe parse nad surowymi rekordami — jedna semantycznie niemożliwa
   // data ('2026-02-30' przechodzi regex guardu) nie może położyć route'a planu.
-  const completedDates = workouts
-    .filter(w => w.completed)
+  const completedDates = completedWorkouts
     .map(w => parseLocalDateSafe(w.date))
     .filter((d): d is Date => d !== null);
 
   // WP-A (X27): te same daty jako zbiór ISO — guard przełożeń (disabled targety
   // w sheecie + silnik mutacji); gate na ikonie karty (:648) zostaje bez zmian.
   const completedDateKeys = useMemo(
-    () => new Set(workouts.filter(w => w.completed).map(w => w.date)),
-    [workouts],
+    () => new Set(completedWorkouts.map(w => w.date)),
+    [completedWorkouts],
   );
 
   const stravaDates = useMemo(() =>
@@ -347,8 +348,8 @@ const TrainingPlan = () => {
   // T17: te same liczby co kafle Ukończone/Pozostało (hoisting bez zmiany
   // parametrów) napędzają też procent postępu.
   const completedInPlan = useMemo(
-    () => workouts.filter(w => w.completed && (!planStartDate || w.date >= planStartDate)).length,
-    [workouts, planStartDate],
+    () => completedWorkouts.filter(w => !planStartDate || w.date >= planStartDate).length,
+    [completedWorkouts, planStartDate],
   );
   const remainingWorkouts = useMemo(
     () => (planStartDate ? countRemainingWorkouts({
@@ -356,12 +357,12 @@ const TrainingPlan = () => {
       today: new Date(),
       planStartDate: parseLocalDate(planStartDate),
       durationWeeks: planDurationWeeks,
-      completedDates: new Set(workouts.filter(w => w.completed).map(w => w.date)),
+      completedDates: new Set(completedWorkouts.map(w => w.date)),
       skippedDates,
       isDateBlocked: vacation ? (key) => isVacationActive(vacation, key) : undefined,
       overrides: scheduleOverrides,
     }) : 0),
-    [trainingPlan, planStartDate, planDurationWeeks, workouts, skippedDates, vacation, scheduleOverrides],
+    [trainingPlan, planStartDate, planDurationWeeks, completedWorkouts, skippedDates, vacation, scheduleOverrides],
   );
   const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;
@@ -628,7 +629,7 @@ const TrainingPlan = () => {
           {planStarted && displayWeek !== actualCurrentWeek && (
             <button
               onClick={() => setSelectedDate(new Date())}
-              className="text-[11px] text-primary underline underline-offset-2 font-medium whitespace-nowrap"
+              className="inline-flex min-h-11 items-center whitespace-nowrap px-2 text-[11px] font-medium text-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t('trainingplan.currentWeek')}
             </button>
@@ -688,8 +689,8 @@ const TrainingPlan = () => {
 
               const weekStartStr = formatLocalDate(selectedWeekStart);
               const weekEndStr = formatLocalDate(selectedWeekEnd);
-              workouts
-                .filter(w => w.completed && w.date >= weekStartStr && w.date <= weekEndStr)
+              completedWorkouts
+                .filter(w => w.date >= weekStartStr && w.date <= weekEndStr)
                 .filter(w => !items.some(item => item.type === 'training' && item.dateStr === w.date))
                 .forEach(workout => {
                   items.push({ type: 'workout', workout, dateStr: workout.date });
@@ -710,14 +711,12 @@ const TrainingPlan = () => {
                 groupedByDate.set(item.dateStr, existing);
               });
 
-              // T9: tydzień zawierający dziś pokazuje dni od najbliższego (dziś
-              // pierwszy, minione na dole); tygodnie przyszłe i historyczne
-              // zostają chronologicznie (tam rosnąco = od najbliższego).
-              const todayDayMs = startOfLocalDay(new Date()).getTime();
-              const weekContainsToday = selectedWeekStartMs <= todayDayMs && todayDayMs <= selectedWeekEndMs;
-              const orderedDayKeys = weekContainsToday
-                ? orderTimelineDayKeys(Array.from(groupedByDate.keys()), todayISOForVacation)
-                : Array.from(groupedByDate.keys());
+              // Jedna chronologia dla planu, wykonanych treningów i cardio:
+              // faktyczna data malejąco, niezależnie od czasu dopisania wpisu.
+              const orderedDayKeys = orderTimelineDayKeys(
+                Array.from(groupedByDate.keys()),
+                todayISOForVacation,
+              );
 
               return orderedDayKeys.map((dateStr) => {
                 const dayItems = groupedByDate.get(dateStr)!;
@@ -741,7 +740,7 @@ const TrainingPlan = () => {
                         data-testid={`plan-day-header-${dateStr}`}
                         className={cn(
                           'text-[11px] font-bold uppercase tracking-wider',
-                          dateStr === todayISOForVacation ? 'text-primary' : 'text-muted-foreground/70',
+                          dateStr === todayISOForVacation ? 'text-primary' : 'text-muted-foreground',
                         )}
                       >
                         <span className="capitalize sm:hidden">{dayName.short}</span>

@@ -46,6 +46,28 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     await blockFirebase(page);
   });
 
+  test('przypadkowy tap poza dialogiem nie ukrywa aktywnej rozgrzewki', async ({ page }) => {
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
+    await expectPageRendered(page);
+    await clearWorkoutDraftDb(page, E2E_UID);
+    await page.reload();
+    await expectPageRendered(page);
+
+    await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    await page.getByTestId('prestart-yes').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    // Punkt przy lewym górnym rogu overlayu jest poza kartą dialogu. Na realnym
+    // iPhonie taki niedokładny tap jedną ręką nie może zgubić flow rozgrzewki.
+    await page.locator('[data-app-overlay]').click({ position: { x: 4, y: 4 } });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByTestId('warmup-finish')).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Zamknij okno' }).click();
+    await clearWorkoutDraftDb(page, E2E_UID);
+  });
+
   test('odhacz 3 → zamknij → otwórz → wyjdź na Dashboard → wróć: odhaczenia SĄ', async ({ page }) => {
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
@@ -108,6 +130,9 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     // Dashboard świadomie auto-wznawia aktywny draft; Plan reprezentuje jawne
     // wyjście użytkownika i naprawdę odmontowuje ekran sesji przed cleanupem.
     await navigateAndWait(page, '/plan');
+    // Cleanup unmountu zapisuje fire-and-forget. Poczekaj na jego transakcję,
+    // dopiero potem zasymuluj świadome usunięcie draftu.
+    await page.waitForTimeout(250);
     await clearWorkoutDraftDb(page, E2E_UID);
     // Cold reload usuwa pamięć komponentu i oczekujące callbacki poprzedniej
     // sesji; następny ekran musi odbudować stan wyłącznie z trwałych warstw.

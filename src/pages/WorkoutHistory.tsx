@@ -50,6 +50,7 @@ import {
 import { useUnit } from '@/contexts/UnitContext';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
+import { countCompletedWorkouts, selectCompletedWorkouts } from '@/lib/completed-workouts';
 
 // WP-H (X28), design-history-tiles.md: Historia v2.
 // Poziom 1 (bez paramów): chronologia sesji + wtórne, zwijane kafle cykli
@@ -275,15 +276,19 @@ const WorkoutHistory = () => {
   // Tonaż w linii licznika: bez filtrów agregat all-time (backend), inaczej suma
   // z załadowanej przefiltrowanej listy. Nigdy dane zmyślone.
   const summaryTonnageKg = useMemo(() => {
-    if (!filtersActive && aggregate) return aggregate.totals.totalTonnageKg;
-    return calculateTonnage(filteredWorkouts);
+    if (filtersActive) return calculateTonnage(filteredWorkouts);
+    if (aggregate) return aggregate.totals.totalTonnageKg;
+    // Fallback bez agregatu = ta sama semantyka co backend (ukończone treningi
+    // z serią roboczą, para provisional→remote raz), nie zawartość okna.
+    return calculateTonnage(selectCompletedWorkouts(filteredWorkouts));
   }, [aggregate, filteredWorkouts, filtersActive]);
 
-  // Licznik nagłówka = realna liczba sesji: bez filtrów agregat all-time,
-  // z filtrami długość przefiltrowanej listy.
-  const headerSessionCount = !filtersActive && aggregate
-    ? aggregate.totals.workoutCount
-    : filteredWorkouts.length;
+  // Licznik nagłówka = realna liczba sesji: bez filtrów agregat all-time
+  // (albo lokalny odpowiednik tej samej semantyki), z filtrami długość
+  // przefiltrowanej listy.
+  const headerSessionCount = filtersActive
+    ? filteredWorkouts.length
+    : (aggregate?.totals.workoutCount ?? countCompletedWorkouts(filteredWorkouts));
 
   // ── Widoki: chronologia + cykle (default) / ?cycle= / ?list=all ───────────
   const rawCycleParam = searchParams.get('cycle');
@@ -541,8 +546,9 @@ const WorkoutHistory = () => {
           <button
             type="button"
             aria-label={t('history.filters')}
+            aria-expanded={filtersOpen}
             onClick={() => setFiltersOpen((prev) => !prev)}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <SlidersHorizontal className="h-4 w-4" />
           </button>
@@ -785,7 +791,7 @@ const WorkoutHistory = () => {
               aria-label={t('history.backToHistory')}
               data-testid="history-list-back"
               onClick={openTilesView}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-surface-high text-foreground/80"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-surface-high text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ChevronRight className="h-4 w-4 rotate-180" />
             </button>
@@ -805,44 +811,43 @@ const WorkoutHistory = () => {
               />
             </div>
 
-            {/* Status — chipy zawijane, wszystkie widoczne (X35a WP-A). */}
-            <div className="flex flex-wrap gap-2" data-testid="history-status-chips">
-              <Chip className="touch-manipulation select-none" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
-              <Chip className="touch-manipulation select-none" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
-              <Chip className="touch-manipulation select-none" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
-              <Chip className="touch-manipulation select-none" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
-            </div>
+            {filtersOpen && (
+              <div className="space-y-2 rounded-2xl bg-surface-low p-3" data-testid="history-filter-panel">
+                {/* Filtry są schowane za przyciskiem, a po otwarciu pozostają wszystkie
+                    widoczne bez poziomego przewijania (niezmiennik X35a). */}
+                <div className="flex flex-wrap gap-2 pb-1" data-testid="history-status-chips">
+                  <Chip className="touch-manipulation select-none" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
+                  <Chip className="touch-manipulation select-none" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
+                  <Chip className="touch-manipulation select-none" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
+                  <Chip className="touch-manipulation select-none" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
+                </div>
 
-            {/* Dzień planu — chipy zawijane (X35a WP-A). */}
-            {trainingPlan.length > 0 && (
-              <div className="flex flex-wrap gap-2" data-testid="history-day-chips">
-                <Chip className="touch-manipulation select-none" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
-                {trainingPlan.map(day => (
-                  <Chip key={day.id} className="touch-manipulation select-none" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
-                    {localizeDayName(day.dayName, lang)}
-                  </Chip>
-                ))}
-              </div>
-            )}
+                {trainingPlan.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pb-1" data-testid="history-day-chips">
+                    <Chip className="touch-manipulation select-none" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
+                    {trainingPlan.map(day => (
+                      <Chip key={day.id} className="touch-manipulation select-none" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
+                        {localizeDayName(day.dayName, lang)}
+                      </Chip>
+                    ))}
+                  </div>
+                )}
 
-            {/* X35a WP-A#5: "Porównaj" to TRYB, nie filtr — osobny przycisk poza rzędem chipów. */}
-            <button
-              type="button"
-              aria-pressed={compareMode}
-              data-testid="history-compare-toggle"
-              onClick={() => setCompareMode((prev) => !prev)}
-              className={cn(
-                'inline-flex touch-manipulation select-none items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
-                toggleButtonClasses(compareMode),
-                compareMode ? 'bg-accent text-accent-foreground' : 'bg-transparent text-foreground/80',
-              )}
-            >
-              <ArrowRightLeft className="h-3.5 w-3.5" />
-              {t('history.compare')}
-            </button>
+                <button
+                  type="button"
+                  aria-pressed={compareMode}
+                  data-testid="history-compare-toggle"
+                  onClick={() => setCompareMode((prev) => !prev)}
+                  className={cn(
+                    'inline-flex touch-manipulation select-none items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] transition-colors',
+                    toggleButtonClasses(compareMode),
+                    compareMode ? 'bg-accent text-accent-foreground' : 'bg-transparent text-foreground/80',
+                  )}
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  {t('history.compare')}
+                </button>
 
-            {/* Zakres dat — T20.5: kalendarz booking-style; zwijany pod ikoną filtrów */}
-            {(filtersOpen || fromDate !== '' || toDate !== '') && (
               <DateRangeField
                 value={{ from: fromDate || null, to: toDate || null }}
                 onChange={(next) => {
@@ -851,6 +856,7 @@ const WorkoutHistory = () => {
                 }}
                 testId="history-date-range"
               />
+              </div>
             )}
 
             {(compareMode || compareIds.length > 0) && (
@@ -862,7 +868,7 @@ const WorkoutHistory = () => {
 
           {/* Linia licznika: sesje + tonaż (bez filtrów = agregat backendowy). */}
           <div className="flex items-baseline justify-between gap-3">
-            <span className="eyebrow-mono text-muted-foreground">
+            <span className="eyebrow-mono text-muted-foreground" data-testid="history-session-count">
               {headerSessionCount} {sessionWord(headerSessionCount)}
             </span>
             <span className="eyebrow-mono text-muted-foreground">

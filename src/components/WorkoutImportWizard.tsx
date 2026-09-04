@@ -303,11 +303,12 @@ export const WorkoutImportWizard = () => {
                   <p className="mt-1 text-fitness-warning">{t('import.unmappedWarning', { n: stillUnmapped.length })}</p>
                 )}
               </div>
-              <label className="flex items-start gap-2 text-sm">
+              <label className="flex min-h-11 items-center gap-3 text-sm">
                 <Checkbox
                   checked={confirmChecked}
                   onCheckedChange={(checked) => setConfirmChecked(checked === true)}
                   data-testid="import-confirm-checkbox"
+                  className="h-5 w-5"
                 />
                 <span>{t('import.confirmCheckbox')}</span>
               </label>

@@ -26,7 +26,7 @@ export const SeasonFilter = ({
   return (
   <div className="flex gap-2">
     <Select value={String(selectedYear)} onValueChange={(v) => onYearChange(Number(v))}>
-      <SelectTrigger className="w-[100px] h-9">
+      <SelectTrigger className="w-[100px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -36,7 +36,7 @@ export const SeasonFilter = ({
       </SelectContent>
     </Select>
     <Select value={String(selectedMonth)} onValueChange={(v) => onMonthChange(v === 'all' ? 'all' : Number(v))}>
-      <SelectTrigger className="w-[140px] h-9">
+      <SelectTrigger className="w-[140px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

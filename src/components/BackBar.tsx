@@ -25,7 +25,7 @@ export const BackBar = ({ onBack, title }: BackBarProps) => {
       <button
         type="button"
         onClick={onBack}
-        className="flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-bold text-foreground transition-transform active:scale-95"
+        className="flex h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-bold text-foreground transition-transform active:scale-95"
       >
         <ArrowLeft className="h-4 w-4" />
         {t('nav.back')}

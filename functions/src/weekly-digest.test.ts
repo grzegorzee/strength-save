@@ -110,6 +110,28 @@ describe("runWeeklyDigest (R2-10)", () => {
     expect(deps.sendEmail).not.toHaveBeenCalled();
   });
 
+  it("pusty lub warmup-only completed nie wysyła maila ani zdarzenia", async () => {
+    const writeUserEvent = vi.fn(async () => undefined);
+    const deps = makeDeps(
+      [{ uid: "u1", email: "a@b.c", status: "active" }],
+      {
+        writeUserEvent,
+        queryCompletedWorkouts: vi.fn(async () => [{
+          id: "empty",
+          userId: "u1",
+          completed: true,
+          date: "2026-06-23",
+          exercises: [{ sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+        }]),
+      },
+    );
+
+    await runWeeklyDigest(deps);
+
+    expect(deps.sendEmail).not.toHaveBeenCalled();
+    expect(writeUserEvent).not.toHaveBeenCalled();
+  });
+
   it("liczba kwerend workouts/strava NIE zależy od liczby userów (po 1 kwerendzie zbiorczej)", async () => {
     const users: DigestUser[] = Array.from({ length: 50 }, (_, i) => ({
       uid: `u${i}`,

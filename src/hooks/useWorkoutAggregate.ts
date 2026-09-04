@@ -5,20 +5,36 @@ import { db, functions } from '@/lib/firebase';
 import { sanitizeAggregate, type AllTimeAggregate } from '@/lib/workout-aggregate-client';
 
 // Z216: lazy backfill — user sprzed wdrożenia agregatu nie ma dokumentu, dopóki
-// nie zapisze treningu (trigger). Jedno wywołanie rebuildu dziennie per uid
-// (guard localStorage) domyka lukę bez spamowania backendu.
-const BACKFILL_GUARD_KEY = 'strength-save:aggregate-backfill-v1';
+// nie zapisze treningu (trigger). Sukces zapisujemy raz dziennie per uid;
+// nieudana próba nie blokuje retry po kolejnym snapshotcie/otwarciu ekranu.
+const BACKFILL_GUARD_KEY = 'strength-save:aggregate-backfill-v2';
+const backfillsInFlight = new Set<string>();
 
-const shouldRequestBackfill = (userId: string): boolean => {
+const backfillSucceededToday = (userId: string): boolean => {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const raw = localStorage.getItem(BACKFILL_GUARD_KEY);
-    if (raw === `${userId}:${today}`) return false;
-    localStorage.setItem(BACKFILL_GUARD_KEY, `${userId}:${today}`);
-    return true;
+    return localStorage.getItem(BACKFILL_GUARD_KEY) === `${userId}:${today}`;
   } catch {
-    return false; // brak localStorage = nie ryzykujemy pętli wywołań
+    return false;
   }
+};
+
+const markBackfillSucceeded = (userId: string): void => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(BACKFILL_GUARD_KEY, `${userId}:${today}`);
+  } catch {
+    // In-flight guard nadal zapobiega równoległym wywołaniom bez localStorage.
+  }
+};
+
+const requestBackfill = (userId: string): void => {
+  if (backfillsInFlight.has(userId) || backfillSucceededToday(userId)) return;
+  backfillsInFlight.add(userId);
+  void httpsCallable(functions, 'rebuildWorkoutAggregate')({})
+    .then(() => markBackfillSucceeded(userId))
+    .catch(() => undefined)
+    .finally(() => backfillsInFlight.delete(userId));
 };
 
 // Z217: agregat all-time dla kafli Dashboardu. Jeden mały dokument zamiast
@@ -36,13 +52,14 @@ export const useWorkoutAggregate = (userId: string): AllTimeAggregate | null => 
       (snapshot) => {
         if (!snapshot.exists()) {
           setAggregate(null);
-          if (!snapshot.metadata.fromCache && shouldRequestBackfill(userId)) {
-            // Best-effort: po sukcesie snapshot przyjdzie sam; błąd = zostaje fallback.
-            void httpsCallable(functions, 'rebuildWorkoutAggregate')({}).catch(() => undefined);
-          }
+          if (!snapshot.metadata.fromCache) requestBackfill(userId);
           return;
         }
-        setAggregate(sanitizeAggregate(snapshot.data()));
+        const next = sanitizeAggregate(snapshot.data());
+        setAggregate(next);
+        // Stary schemaVersion ma inną definicję ukończonego treningu. Tak jak
+        // brak dokumentu wymaga bezpiecznego, idempotentnego rebuildu v2.
+        if (next === null && !snapshot.metadata.fromCache) requestBackfill(userId);
       },
       () => setAggregate(null), // odczyt bez uprawnień/offline: fallback lokalny
     );

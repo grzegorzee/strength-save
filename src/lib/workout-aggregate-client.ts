@@ -3,6 +3,10 @@
 // Uszkodzony/nieznany kształt => null => bezpieczny fallback na lokalne
 // obliczenia z okna listenera (dokładnie dzisiejsze zachowanie).
 
+import { canonicalWorkoutSessionId } from '@/lib/workout-session';
+
+export const WORKOUT_AGGREGATE_SCHEMA_VERSION = 2;
+
 export interface AllTimeAggregateTotals {
   workoutCount: number;
   totalTonnageKg: number;
@@ -51,12 +55,20 @@ export const sanitizeAggregateTotals = (data: unknown): AllTimeAggregateTotals |
 };
 
 export const sanitizeAggregate = (data: unknown): AllTimeAggregate | null => {
+  if ((data as { schemaVersion?: unknown } | null)?.schemaVersion !== WORKOUT_AGGREGATE_SCHEMA_VERSION) {
+    return null;
+  }
   const totals = sanitizeAggregateTotals(data);
   if (totals === null) return null;
   const contributions = (data as { contributions?: unknown }).contributions;
   const completedDates: string[] = [];
   if (typeof contributions === 'object' && contributions !== null) {
-    for (const value of Object.values(contributions as Record<string, unknown>)) {
+    const canonical = new Map<string, unknown>();
+    for (const [sessionId, value] of Object.entries(contributions as Record<string, unknown>)) {
+      const key = canonicalWorkoutSessionId(sessionId);
+      if (!canonical.has(key) || sessionId === key) canonical.set(key, value);
+    }
+    for (const value of canonical.values()) {
       const d = (value as { d?: unknown } | null)?.d;
       if (typeof d === 'string' && d.length === 10) completedDates.push(d);
     }

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 describe('mobile touch-target baseline', () => {
@@ -45,5 +46,15 @@ describe('mobile touch-target baseline', () => {
       'data-[state=active]:before:bg-background',
     );
     expect(tab).not.toHaveClass('data-[state=active]:bg-background');
+  });
+
+  it('Input has a 44 px mobile field while preserving the compact desktop density', () => {
+    render(<Input aria-label="Ciężar" />);
+
+    expect(screen.getByRole('textbox', { name: 'Ciężar' })).toHaveClass(
+      'h-11',
+      'desktop-shell:h-10',
+      'text-base',
+    );
   });
 });

@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { TrainingDay } from '@/data/trainingPlan';
+import type { WorkoutSession } from '@/types';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 
@@ -45,7 +46,7 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
-    workouts: [],
+    workouts: workoutsFixture.workouts,
     getLatestWorkout: () => null,
     isLoaded: true,
     error: null,
@@ -90,6 +91,7 @@ vi.mock('@/hooks/usePlanCycles', () => ({
 
 const planFixture = vi.hoisted(() => ({ plan: [] as unknown[], planStartDate: '' }));
 const activitiesFixture = vi.hoisted(() => ({ activities: [] as unknown[] }));
+const workoutsFixture = vi.hoisted(() => ({ workouts: [] as WorkoutSession[] }));
 
 import TrainingPlan from '@/pages/TrainingPlan';
 
@@ -132,6 +134,7 @@ beforeEach(() => {
     id: 'act-1', userId: 'u1', stravaId: 0, name: 'Spacer', type: 'Walk',
     date: formatLocalDate(new Date()), movingTime: 1800, averageHeartrate: 120, source: 'manual',
   }];
+  workoutsFixture.workouts = [];
 });
 
 describe('kolejność sekcji zakładki Plan (T9)', () => {
@@ -190,5 +193,64 @@ describe('kolejność sekcji zakładki Plan (T9)', () => {
     const todayEl = screen.getByTestId(`add-cardio-day-${todayKey}`);
     const yesterdayEl = screen.getByTestId(`add-cardio-day-${yesterdayKey}`);
     expect(todayEl.compareDocumentPosition(yesterdayEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('ręcznie dopisane cardio układa według daty malejąco, nie kolejności zapisu', async () => {
+    const weekStart = getStartOfPlanWeek(new Date());
+    const dateAt = (offset: number) => {
+      const date = new Date(weekStart);
+      date.setDate(date.getDate() + offset);
+      return formatLocalDate(date);
+    };
+    const oldest = dateAt(0);
+    const middle = dateAt(2);
+    const latest = dateAt(4);
+    const activity = (id: string, date: string) => ({
+      id, userId: 'u1', stravaId: 0, name: 'Pływanie', type: 'Swim',
+      date, movingTime: 1800, source: 'manual',
+    });
+    // Kolejność utworzenia celowo 5 → 1 → 3 dzień tygodnia.
+    activitiesFixture.activities = [
+      activity('latest', latest),
+      activity('oldest', oldest),
+      activity('middle', middle),
+    ];
+
+    renderPlan();
+    await waitFor(() => expect(screen.getByTestId(`plan-day-header-${latest}`)).toBeTruthy());
+
+    const latestHeader = screen.getByTestId(`plan-day-header-${latest}`);
+    const middleHeader = screen.getByTestId(`plan-day-header-${middle}`);
+    const oldestHeader = screen.getByTestId(`plan-day-header-${oldest}`);
+    expect(latestHeader.compareDocumentPosition(middleHeader) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(middleHeader.compareDocumentPosition(oldestHeader) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('postęp i timeline Planu liczą tylko kanoniczne ukończone treningi', async () => {
+    const today = formatLocalDate(new Date());
+    const remote: WorkoutSession = {
+      id: `workout-u1-day-1-${today}`,
+      userId: 'u1',
+      dayId: 'day-1',
+      date: today,
+      completed: true,
+      exercises: [{ exerciseId: 'ex-day-1', sets: [{ reps: 5, weight: 60, completed: true }] }],
+    };
+    workoutsFixture.workouts = [
+      { ...remote, id: `local-${remote.id}` },
+      remote,
+      { ...remote, id: 'empty', dayId: 'empty', exercises: [] },
+      {
+        ...remote,
+        id: 'warmup-only',
+        dayId: 'warmup-only',
+        exercises: [{ exerciseId: 'warm', sets: [{ reps: 10, weight: 20, completed: true, isWarmup: true }] }],
+      },
+    ];
+
+    renderPlan();
+
+    await waitFor(() => expect(screen.getByText(/1 zrobione/)).toBeTruthy());
+    expect(screen.queryByText(/4 zrobione/)).toBeNull();
   });
 });

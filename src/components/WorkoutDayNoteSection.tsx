@@ -52,14 +52,14 @@ export const WorkoutDayNoteSection = ({ dateISO, dayNote, onSave, showFutureHint
           <StickyNote className="h-3 w-3" />
           {t('daynote.title')}
           {showFutureHint && (
-            <span className="font-semibold normal-case tracking-normal text-muted-foreground/60">{t('daynote.futureHint')}</span>
+            <span className="font-semibold normal-case tracking-normal text-muted-foreground">{t('daynote.futureHint')}</span>
           )}
         </span>
         {onSave && !isEditing && (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+            className="-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
             data-testid="workout-day-note-edit"
           >
             {hasNote ? t('common.edit') : t('daynote.add')}

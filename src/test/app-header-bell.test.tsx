@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
@@ -13,8 +13,9 @@ vi.mock('@/contexts/LanguageContext', () => ({
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({ uid: 'u1', profile: { displayName: 'Test User' } }),
 }));
+const workoutReadsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
-  useFirebaseWorkoutReads: () => ({ workouts: [], isLoaded: true }),
+  useFirebaseWorkoutReads: () => ({ workouts: workoutReadsFixture.workouts, isLoaded: true }),
 }));
 vi.mock('@/hooks/useWorkoutAggregate', () => ({ useWorkoutAggregate: () => null }));
 vi.mock('@/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => ({ isOnline: true, pendingOps: 0 }) }));
@@ -33,7 +34,21 @@ const renderAt = (path: string, onBack?: () => void) => render(
 
 const ROOT_TABS = MAIN_DESTINATIONS.map((item) => item.path);
 
+beforeEach(() => {
+  workoutReadsFixture.workouts = [];
+});
+
 describe('AppHeader: dzwonek na zakładkach głównych (X35c)', () => {
+  it('renders the chrome title as a label, not a competing page h1', () => {
+    const view = renderAt('/');
+    expect(view.getByText('Tytuł').tagName).toBe('P');
+    expect(view.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
+  it('remains the page h1 when the routed screen has no own heading', () => {
+    expect(renderAt('/plan').getByRole('heading', { level: 1 })).toHaveTextContent('Tytuł');
+  });
+
   it('avatar zachowuje wizualne 36 px wewnątrz celu dotykowego 44 px', () => {
     const avatar = renderAt('/').getByTestId('header-avatar');
     expect(avatar).toHaveClass('h-11', 'w-11');
@@ -70,5 +85,21 @@ describe('AppHeader: dzwonek na zakładkach głównych (X35c)', () => {
 
   it('nie dubluje licznika na trasach poza główną nawigacją', () => {
     expect(renderAt('/exercises', () => {}).queryByTestId('header-workout-count')).toBeNull();
+  });
+
+  it('fallback liczy tylko finalny trening z serią roboczą', () => {
+    const base = {
+      userId: 'u1', dayId: 'day-1', date: '2026-09-03', completed: true,
+    };
+    workoutReadsFixture.workouts = [
+      { ...base, id: 'empty-completed', exercises: [] },
+      { ...base, id: 'interrupted', completed: false, exercises: [] },
+      {
+        ...base,
+        id: 'workout-u1-day-1-2026-09-03',
+        exercises: [{ exerciseId: 'squat', sets: [{ reps: 5, weight: 100, completed: true }] }],
+      },
+    ];
+    expect(renderAt('/').getByTestId('header-workout-count')).toHaveTextContent('1');
   });
 });

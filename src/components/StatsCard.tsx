@@ -22,8 +22,8 @@ export const StatsCard = ({
   const iconColors = {
     default: 'bg-secondary text-secondary-foreground',
     primary: 'bg-primary text-primary-foreground',
-    success: 'bg-fitness-success text-white',
-    warning: 'bg-fitness-warning text-white',
+    success: 'bg-fitness-success/15 text-fitness-success',
+    warning: 'bg-fitness-warning/15 text-fitness-warning',
   };
 
   const valueColors = {
