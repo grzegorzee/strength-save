@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-04 (Pomiary jako zakładka główna, data pomiaru, arkusz udostępniania ze strzałką: web, iOS 141, AAB v47)
+**Ostatnia aktualizacja:** 2026-09-06 (korekta: Pomiary ciała pod kolorem przewodnim w Profilu, pasek z pięcioma zakładkami: web, iOS 142, AAB v48)
 
 ---
 
@@ -5826,3 +5826,17 @@ po spadku licznika 87→86.
 - Ten sam wzorzec rzędu przycisków przy 320 px prawdopodobnie w `ShareWorkoutDialog` i `CycleShareCard` (poza zakresem).
 - Godzina wpisu wstecznego = godzina wpisania w wybranym dniu (do poprawy w edycji); dialog edycji nadal przyjmuje datę przyszłą (świadomie).
 - Poniżej 360 px pasek pokazuje same ikony (nazwy dla czytników ekranu zostają).
+
+### 2026-09-06: korekta po buildzie 141: Pomiary ciała pod kolorem przewodnim w Profilu, pasek wraca do pięciu zakładek (web, iOS 142, AAB v48)
+
+**Root cause pomyłki:** zlecenie głosowe „pomiary w profilu wywal na zewnątrz [...] pod kolor przewodni aplikacji [...] nowa zakładka" zrozumiałem jako nową zakładkę dolnego paska. Właściciel miał na myśli osobną pozycję W PROFILU, bezpośrednio pod sekcją „Kolor przewodni aplikacji" (poza zwijaną grupą „Twoje dane"). Sześć zakładek na pasku „wygląda jak kupa" (cytat). Lekcja: „zakładka" w Profilu = pozycja listy sekcji; przy słowach „pod [nazwa sekcji]" chodzi o miejsce w liście, nie o kolorystykę.
+
+**Zmiany (commit `15f97b77`):**
+- Dolny pasek: `main-navigation.ts`, `AppNavigation.tsx`, `index.css` i testy nawigacji przywrócone do stanu sprzed fali (pięć zakładek, etykiety 11 px `tracking-wide`, ramka `left-3 px-2`); `nav.measurements` = „Pomiary ciała" / „Body measurements". `/measurements` znów jest trasą podrzędną (pasek Wstecz, bez dzwonka).
+- Profil: `ProfileLinkSection` (w pliku `ProfileAccordionSection.tsx`): ten sam wiersz co sekcja zwijana (ikona, etykieta 13,5 px, min 50 px), zamiast „ptaszka" strzałka w prawo, klik = `/measurements`; `data-testid="profile-link-measurements"`, kotwica `#profile-measurements`. Kolejność: tożsamość → Kolor przewodni → **Pomiary ciała** → Trening → … Wiersz w „Twoje dane" nie wraca.
+- Testy: `profile-pride` (kolejność sekcji, brak wiersza w danych, obecność pozycji), `profile-sections` (lista h2), e2e `mobile-nav-reachability` (wejście z pozycji Profilu), e2e `full-app` (kolejność sekcji). Nawigacyjne specy i testy wróciły do oryginału.
+- Bez zmian z fali 141: data pomiaru, selektory PRZED/PO, arkusz udostępniania ze strzałką w szablonie KLASYCZNY.
+
+**Bramki (snapshot `15f97b77`):** Vitest 454 plików / 3969 PASS / 16 pominiętych; typecheck 0; lint 0 błędów; build (`index-DJvaH9tZ.js`); dist-smoke; bundle budget; no-emoji; celowane e2e: nawigacja, audyt etykiet, nagłówki, krytyczne, reachability 38/38, Profil i pomiary 26/26 (po dopisaniu pozycji do kolejności sekcji).
+
+**Wydanie:** web gh-pages, live `index-DJvaH9tZ.js`; iOS 142: `UPLOAD SUCCEEDED`, VALID, obie grupy HTTP 204, whatsNew HTTP 200, Beta App Review `APPROVED`; Android `bundleRelease` BUILD SUCCESSFUL, `~/Desktop/strength-save-v48.aab` 22598459 B, SHA-256 `00b9a16b8cfd266115e88a14aad37ea6f7b1f173e2877241799bf5b91abca771` (v47 z paskiem sześciu zakładek NIE wgrywać). Następne bumpy: iOS 143, versionCode 49.
