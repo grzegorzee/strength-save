@@ -89,7 +89,9 @@ describe('Profil: tożsamość i ustawienia bez duplikowania postępów', () => 
 
     expect(sections[0]?.id).toBe('profile-identity');
     expect(sections[1]?.id).toBe('profile-accent');
-    expect(sections[2]?.id).toBe('profile-training');
+    // 2026-09-06: Pomiary ciała bezpośrednio pod kolorem przewodnim (decyzja właściciela).
+    expect(sections[2]?.id).toBe('profile-measurements');
+    expect(sections[3]?.id).toBe('profile-training');
     expect(container.querySelector('#profile-pride')).toBeNull();
     ['workouts', 'streak', 'tonnage', 'sets'].forEach((key) => {
       expect(screen.queryByTestId(`profile-pride-${key}`)).toBeNull();
@@ -105,8 +107,10 @@ describe('Profil: tożsamość i ustawienia bez duplikowania postępów', () => 
     const dataSection = screen.getByTestId('profile-section-data');
     expect(within(dataSection).queryByText('Historia')).toBeNull();
     expect(within(dataSection).queryByText('Postępy')).toBeNull();
-    // 2026-09-04: Pomiary są zakładką główną, więc w Profilu ich nie ma.
+    // Pomiary ciała nie są wierszem w Twoje dane (osobna pozycja Profilu pod kolorem).
     expect(within(dataSection).queryByText('Pomiary ciała')).toBeNull();
     expect(within(dataSection).queryByText('Pomiary')).toBeNull();
+    // 2026-09-06: Pomiary ciała to osobna pozycja Profilu pod kolorem przewodnim.
+    expect(screen.getByTestId('profile-link-measurements')).toHaveTextContent('Pomiary ciała');
   });
 });

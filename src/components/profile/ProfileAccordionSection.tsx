@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
@@ -72,5 +72,37 @@ export const ProfileAccordionSection = ({
           : <div className="space-y-3">{children}</div>}
       </CollapsibleContent>
     </Collapsible>
+  </section>
+);
+
+interface ProfileLinkSectionProps {
+  id: string;
+  label: string;
+  icon?: ComponentType<{ className?: string }>;
+  onClick: () => void;
+}
+
+/**
+ * 2026-09-06 (decyzja właściciela po buildzie 141): pozycja Profilu, która
+ * prowadzi do osobnego ekranu (Pomiary ciała) zamiast się rozwijać. Ten sam
+ * wiersz co sekcja zwijana, żeby lista Profilu była jednolita; zamiast
+ * „ptaszka" strzałka w prawo.
+ */
+export const ProfileLinkSection = ({ id, label, icon: Icon, onClick }: ProfileLinkSectionProps) => (
+  <section id={`profile-${id}`} data-testid={`profile-section-${id}`} className="scroll-mt-20">
+    <h2 className="m-0">
+      <button
+        type="button"
+        data-testid={`profile-link-${id}`}
+        onClick={onClick}
+        className="flex min-h-[50px] w-full touch-manipulation items-center gap-3 rounded-2xl bg-surface-low px-3.5 py-2 text-left transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      >
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        <span data-section-label className="min-w-0 flex-1 whitespace-normal break-words text-[13.5px] font-semibold leading-snug">
+          {label}
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+      </button>
+    </h2>
   </section>
 );

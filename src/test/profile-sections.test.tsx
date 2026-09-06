@@ -171,8 +171,9 @@ const openMoreColors = () => {
   fireEvent.click(screen.getByTestId('accent-more-colors-toggle'));
 };
 
+// 2026-09-06: Pomiary ciała to pozycja (link) bezpośrednio pod kolorem przewodnim.
 const PROFILE_SECTIONS = [
-  'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
+  'Kolor przewodni aplikacji', 'Pomiary ciała', 'Trening', 'Timer i przerwy',
   'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
   'Konto i pomoc',
 ];
@@ -203,7 +204,7 @@ const renderSheet = () =>
   );
 
 describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
-  it('pokazuje 8 logicznych grup z pojedynczym kolorem aplikacji', () => {
+  it('pokazuje 8 zwijanych grup z pojedynczym kolorem aplikacji i pozycję Pomiary ciała pod kolorem', () => {
     const { container } = renderProfile();
     expect(sectionLabels(container)).toEqual(PROFILE_SECTIONS);
     expect(container.querySelectorAll('section[data-state]')).toHaveLength(8);

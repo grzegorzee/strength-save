@@ -45,7 +45,7 @@ export const pl = {
   'nav.cycles': 'Cykle',
   'nav.settings': 'Ustawienia',
   'nav.back': 'Wstecz',
-  'nav.measurements': 'Pomiary',
+  'nav.measurements': 'Pomiary ciała',
   'empty.startFirstWorkout': 'Zacznij pierwszy trening',
 
   // profil

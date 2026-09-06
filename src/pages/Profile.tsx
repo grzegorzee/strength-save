@@ -29,7 +29,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { ProfileAccordionSection } from '@/components/profile/ProfileAccordionSection';
+import { ProfileAccordionSection, ProfileLinkSection } from '@/components/profile/ProfileAccordionSection';
 import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
@@ -38,7 +38,7 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { countCompletedWorkouts } from '@/lib/completed-workouts';
 import {
   Lock, Globe, HelpCircle, Mail, Bug, Info, LogOut, Plus, Loader2,
-  Shield, Gem, CreditCard, Medal,
+  Ruler, Shield, Gem, CreditCard, Medal,
   Dumbbell, Watch, Eye, EyeOff, Timer,
   Bell, Database, UserCog,
   Palette,
@@ -635,6 +635,15 @@ const Profile = () => {
           </Button>
         </div>
       </ProfileAccordionSection>
+
+      {/* Pomiary ciała (2026-09-06, decyzja właściciela): osobna pozycja Profilu
+          bezpośrednio pod kolorem przewodnim, nie wiersz w „Twoje dane". */}
+      <ProfileLinkSection
+        id="measurements"
+        icon={Ruler}
+        label={t('nav.measurements')}
+        onClick={() => navigate('/measurements')}
+      />
 
       {/* 4. TRENING (fala 2 → X36): to, co user rusza poza timerem — jednostki,
           blokada wygaszania ekranu (z karty przerw), tryby. */}

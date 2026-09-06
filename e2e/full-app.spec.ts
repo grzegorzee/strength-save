@@ -419,7 +419,8 @@ test.describe('Settings (X35b: sekcje w Profilu)', () => {
     const labels = await page.getByRole('main').locator('h2').evaluateAll((headings) =>
       headings.map((h) => (h.querySelector('[data-section-label]') ?? h).textContent?.trim()));
     expect(labels).toEqual([
-      'Kolor przewodni aplikacji', 'Trening', 'Timer i przerwy',
+      // 2026-09-06: Pomiary ciała to pozycja Profilu bezpośrednio pod kolorem przewodnim.
+      'Kolor przewodni aplikacji', 'Pomiary ciała', 'Trening', 'Timer i przerwy',
       'Urządzenia i połączenia', 'Powiadomienia', 'Subskrypcja', 'Twoje dane',
       'Konto i pomoc',
     ]);
@@ -879,7 +880,7 @@ test.describe('Linki krzyżowe (Z67)', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await navigateAndWait(page, '/');
     await page.getByRole('navigation', { name: 'Nawigacja główna' })
-      .getByRole('link', { name: 'Pomiary' }).click();
+      .getByRole('link', { name: 'Pomiary ciała' }).click();
     await expect(page).toHaveURL(/#\/measurements$/);
   });
 

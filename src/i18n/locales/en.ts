@@ -44,7 +44,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nav.cycles': 'Cycles',
   'nav.settings': 'Settings',
   'nav.back': 'Back',
-  'nav.measurements': 'Body',
+  'nav.measurements': 'Body measurements',
   'empty.startFirstWorkout': 'Start your first workout',
 
   'profile.title': 'Profile',
