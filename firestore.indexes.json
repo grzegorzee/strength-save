@@ -185,6 +185,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "deletion_operations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "purgeAfter",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

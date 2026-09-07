@@ -7,6 +7,7 @@ export interface GarminSubscriptionDoc {
 }
 
 export interface GarminEntitlementProfile {
+  deletionPending?: unknown;
   role?: unknown;
   status?: unknown;
   access?: { enabled?: unknown } | null;
@@ -92,6 +93,7 @@ export function resolveGarminEntitlement(
   now = Date.now(),
 ): GarminEntitlementResult {
   if (!profile) return result(false, "none", null, "missing");
+  if (profile.deletionPending) return result(false, "none", null, "inactive-profile");
   const profileActive = (profile.status === undefined || profile.status === "active")
     && profile.access?.enabled !== false;
   if (!profileActive) return result(false, "none", null, "inactive-profile");

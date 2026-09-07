@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { LEGAL_VERSIONS } from '../../src/lib/legal-versions';
+import { dashboardGreeting, installEmulatorAppCheck } from './app-check';
+
+test.beforeEach(async ({ page }) => installEmulatorAppCheck(page));
 
 // A-T5: prawdziwy useAuth + UserProvider + persistent Firestore cache.
 // Ten plik działa wyłącznie w e2e:emulator (VITE_E2E_MODE nie jest ustawione).
@@ -52,8 +56,8 @@ const seedProfile = async (uid: string, email: string, status: 'active' | 'suspe
     registration: { source: 'email' },
     notifications: { welcomeSentAt: new Date().toISOString() },
     consents: {
-      termsVersion: '2.0', privacyVersion: '2.0', healthGranted: true,
-      healthVersion: '1.0', marketingGranted: false, marketingVersion: '1.0',
+      termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy,
+      healthGranted: false, marketingGranted: false,
     },
   };
   const fields = Object.fromEntries(Object.entries(profile).map(([key, value]) => [key, toFirestoreValue(value)]));
@@ -70,11 +74,10 @@ const seedProfile = async (uid: string, email: string, status: 'active' | 'suspe
 
 const login = async (page: Page, email: string) => {
   await page.goto('./#/login');
-  await page.getByRole('tab', { name: /Email \+ (hasło|password)/i }).click();
-  const panel = page.getByRole('tabpanel', { name: /Email \+ (hasło|password)/i });
-  await panel.getByPlaceholder('Email').fill(email);
-  await panel.getByPlaceholder(/Hasło|Password/i, { exact: true }).fill(PASSWORD);
-  await panel.getByRole('button', { name: /Zaloguj przez email|Sign in with email/i }).click();
+  await page.getByRole('button', { name: 'Kontynuuj z emailem' }).click();
+  await page.getByPlaceholder('Email').first().fill(email);
+  await page.getByPlaceholder('Hasło', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Zaloguj przez email' }).click();
 };
 
 const blockAllBackend = async (page: Page) => {
@@ -89,13 +92,13 @@ test.describe('UserProvider offline cache bez bypassu E2E', () => {
     const uid = await createAuthUser(email);
     await seedProfile(uid, email, 'active');
     await login(page, email);
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15_000 });
+    await expect(dashboardGreeting(page)).toBeVisible({ timeout: 15_000 });
     expect(await page.evaluate(() => localStorage.getItem('fittracker_e2e_auth_state'))).toBeNull();
 
     await blockAllBackend(page);
     await page.reload();
 
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15_000 });
+    await expect(dashboardGreeting(page)).toBeVisible({ timeout: 15_000 });
   });
 
   test('cached suspended pozostaje fail-closed po odcięciu backendu', async ({ page }) => {
@@ -109,7 +112,7 @@ test.describe('UserProvider offline cache bez bypassu E2E', () => {
     await page.reload();
 
     await expect(page.getByRole('heading', { name: /Konto jest zawieszone|Account suspended/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toHaveCount(0);
+    await expect(dashboardGreeting(page)).toHaveCount(0);
   });
 
   test('auth bez cached profilu nie dostaje dostępu, gdy sync callable jest offline', async ({ page }) => {
@@ -120,6 +123,6 @@ test.describe('UserProvider offline cache bez bypassu E2E', () => {
     await login(page, email);
 
     await expect(page.getByRole('heading', { name: /Nie udało się wczytać profilu|Profile could not load/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toHaveCount(0);
+    await expect(dashboardGreeting(page)).toHaveCount(0);
   });
 });

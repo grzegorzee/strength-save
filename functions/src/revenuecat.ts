@@ -2,7 +2,9 @@ import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { readRevenueCatSubscription, reconcileRevenueCatTransfer } from "./revenuecat-transfer";
 
 // Webhook RevenueCat → users/{uid}.subscription (źródło prawdy entitlementu w Firestore).
 // appUserID w RC = uid Firebase (Purchases.logIn w apce), więc event.app_user_id wskazuje
@@ -10,10 +12,13 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // skonfigurowanemu w RC dashboard (Integrations → Webhooks) i w Firebase Secrets.
 
 const webhookAuth = defineSecret("REVENUECAT_WEBHOOK_AUTH");
+const serverApiKey = defineSecret("REVENUECAT_SERVER_API_KEY");
 
 const USERS_COLLECTION = "users";
 
 interface RcEvent {
+  transferred_from?: string[];
+  transferred_to?: string[];
   id?: string;
   type?: string;
   app_user_id?: string;
@@ -61,7 +66,7 @@ export interface SubscriptionWrite {
   /** Klucz pominięty (BILLING_ISSUE bez dat) = zapis merge zachowuje dotychczasową wartość. */
   expiresAt?: string | null;
   productId: string | null;
-  willRenew: boolean;
+  willRenew?: boolean;
   updatedAt: string;
   eventId: string | null;
   eventTimestamp: number;
@@ -95,7 +100,6 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
     case "RENEWAL":
     case "UNCANCELLATION":
     case "PRODUCT_CHANGE":
-    case "TRANSFER":
       return { ...base, status: "active", willRenew: true };
     case "CANCELLATION":
       // Anulowanie odnowienia — dostęp zostaje do końca okresu.
@@ -115,6 +119,9 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
     }
     case "EXPIRATION":
       return { ...base, tier: "none", status: "expired", willRenew: false };
+    case "SUBSCRIPTION_EXTENDED":
+      // Store postpones the expiry, independently of the autorenew preference.
+      return { ...base, status: "active" };
     default:
       return null; // TEST, SUBSCRIBER_ALIAS itd. — bez zmiany stanu
   }
@@ -175,41 +182,14 @@ export const resolveEventTarget = (
     // storeSubscription nigdy nie trzyma comp, więc gating to czysty dedupe/stale.
     return shouldApplySubscriptionEvent(currentStore, next, now) ? "store" : "skip";
   }
-  return shouldApplySubscriptionEvent(current, next, now) ? "subscription" : "skip";
+  const effectiveCurrent = current?.tier === "comp" && currentStore ? currentStore : current;
+  return shouldApplySubscriptionEvent(effectiveCurrent, next, now) ? "subscription" : "skip";
 };
 
-export const revenuecatWebhook = onRequest(
-  { secrets: [webhookAuth], region: "us-central1", cors: false },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).send("Method Not Allowed");
-      return;
-    }
-    if (!secretsMatch(req.headers.authorization, webhookAuth.value())) {
-      logger.warn("[revenuecat] Odrzucony webhook: zły Authorization header");
-      res.status(401).send("Unauthorized");
-      return;
-    }
-
-    const event = (req.body?.event ?? {}) as RcEvent;
-    const uid = resolveUid(event);
-    if (!uid) {
-      logger.info(`[revenuecat] Event ${event.type} bez uid (anonimowy) — pomijam`);
-      res.status(200).json({ ok: true, skipped: "no-uid" });
-      return;
-    }
-
-    const subscription = mapEventToSubscription(event, new Date().toISOString());
-    if (!subscription) {
-      logger.info(`[revenuecat] Event ${event.type} bez wpływu na stan — pomijam`);
-      res.status(200).json({ ok: true, skipped: "event-type" });
-      return;
-    }
-
-    try {
+async function applySubscriptionWrite(uid: string, subscription: SubscriptionWrite): Promise<string> {
       const db = admin.firestore();
       const userRef = db.collection(USERS_COLLECTION).doc(uid);
-      const result = await db.runTransaction(async (transaction) => {
+      return db.runTransaction(async (transaction) => {
         const snap = await transaction.get(userRef);
         if (!snap.exists) return "no-user";
         const current = snap.data()?.subscription as { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
@@ -225,10 +205,58 @@ export const revenuecatWebhook = onRequest(
         transaction.set(userRef, {
           subscription,
           // Bug 7 (X30): subscription znów sklepowe — cień grantu do kasacji.
-          storeSubscription: admin.firestore.FieldValue.delete(),
+          storeSubscription: FieldValue.delete(),
         }, { merge: true });
         return "applied";
       });
+}
+
+export const revenuecatWebhook = onRequest(
+  { secrets: [webhookAuth, serverApiKey], region: "us-central1", cors: false },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+    if (!secretsMatch(req.headers.authorization, webhookAuth.value())) {
+      logger.warn("[revenuecat] Odrzucony webhook: zły Authorization header");
+      res.status(401).send("Unauthorized");
+      return;
+    }
+
+    const event = (req.body?.event ?? {}) as RcEvent;
+    if (event.type === "TRANSFER") {
+      try {
+        const reconciled = await reconcileRevenueCatTransfer(event, {
+          read: uid => readRevenueCatSubscription(uid, serverApiKey.value(), event),
+          write: async (uid, state) => {
+            const result = await applySubscriptionWrite(uid, state);
+            if (result === "no-user" && shouldRetryMissingUser(state)) throw new Error("RC_USER_NOT_READY");
+          },
+        });
+        res.status(200).json({ ok: true, reconciled });
+      } catch {
+        logger.error("[revenuecat] Transfer reconciliation failed; retry required");
+        res.status(503).json({ ok: false, retry: "transfer-reconciliation" });
+      }
+      return;
+    }
+    const uid = resolveUid(event);
+    if (!uid) {
+      logger.info(`[revenuecat] Event ${event.type} bez uid (anonimowy) — pomijam`);
+      res.status(200).json({ ok: true, skipped: "no-uid" });
+      return;
+    }
+
+    const subscription = mapEventToSubscription(event, new Date().toISOString());
+    if (!subscription) {
+      logger.info(`[revenuecat] Event ${event.type} bez wpływu na stan — pomijam`);
+      res.status(200).json({ ok: true, skipped: "event-type" });
+      return;
+    }
+
+    try {
+      const result = await applySubscriptionWrite(uid, subscription);
       if (result !== "applied" && result !== "applied-store") {
         // Bug 23 (X30): 200 = doręczone na zawsze; zgubiony INITIAL_PURCHASE/RENEWAL
         // zostawiał płacącego usera bez mirroru na web/Garmin do następnego eventu.

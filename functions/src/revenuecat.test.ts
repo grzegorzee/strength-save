@@ -190,6 +190,22 @@ describe("resolveEventTarget (bug 7)", () => {
     expect(resolveEventTarget({ tier: "yearly", eventId: "rw-1" }, undefined, renewal(), nowMs)).toBe("skip");
     expect(resolveEventTarget({ tier: "yearly", eventTimestamp: 10_000 }, undefined, renewal(), nowMs)).toBe("skip");
   });
+
+  it("expired comp still fences stale events against the preserved store subscription", () => {
+    expect(resolveEventTarget(
+      { tier: "comp", expiresAt: "2026-08-01T00:00:00.000Z" },
+      { tier: "yearly", eventTimestamp: 10_000 },
+      renewal(), nowMs,
+    )).toBe("skip");
+  });
+});
+
+it("subscription extension updates expiry without inventing renewal preference", () => {
+  const extended = mapEventToSubscription({
+    type: "SUBSCRIPTION_EXTENDED", product_id: "strengthsave_pro_monthly", expiration_at_ms: EXP_MS,
+  }, NOW);
+  expect(extended).toMatchObject({ status: "active", expiresAt: "2026-07-11T12:00:00.000Z" });
+  expect(extended).not.toHaveProperty("willRenew");
 });
 
 // Bug 23 (X30): webhook nie może potwierdzić 200 eventu, którego nie zapisał.

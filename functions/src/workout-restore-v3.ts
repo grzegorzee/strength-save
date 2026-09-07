@@ -11,6 +11,9 @@ const HEALTH_FIELDS = ["rpe", "pain", "quality"] as const;
 
 export interface WorkoutRestoreV3Input {
   v: typeof WORKOUT_RESTORE_V3_PROTOCOL;
+  // Intended destination account, independent of the owner exported in a backup.
+  // Optional at the raw input type boundary; execute requires an exact auth match.
+  expectedOwnerUid?: string;
   restoreId: string;
   workout: Record<string, unknown>;
   health?: {
@@ -412,6 +415,9 @@ export async function executeWorkoutRestoreV3(
   rawInput: WorkoutRestoreV3Input,
   deps: WorkoutRestoreV3Deps,
 ): Promise<WorkoutRestoreV3Result> {
+  // An auth change during App Check/native bootstrap must not silently import
+  // the previous account's operation under the new token. Validate before I/O.
+  if (!isRecord(rawInput) || rawInput.expectedOwnerUid !== uid) fail("RESTORE_OWNER_CHANGED");
   const input = parseWorkoutRestoreV3Input(rawInput);
   const plan = await deps.commit(uid, input, (workout, health, profile, owner, now) => (
     buildWorkoutRestoreV3Plan(workout, health, profile, owner, input, now)
@@ -449,7 +455,7 @@ const firestoreDeps: WorkoutRestoreV3Deps = {
 
 const mapHttpsError = (error: unknown): never => {
   const code = error instanceof WorkoutRestoreV3Error ? error.code : "INTERNAL";
-  if (code === "ACCESS_DENIED") throw new HttpsError("permission-denied", code);
+  if (code === "ACCESS_DENIED" || code === "RESTORE_OWNER_CHANGED") throw new HttpsError("permission-denied", code);
   if (code === "HEALTH_GRANT_REQUIRED") throw new HttpsError("failed-precondition", code);
   if (code === "WORKOUT_RESTORE_CONFLICT") throw new HttpsError("already-exists", code);
   if (code === "INVALID_RESTORE_PAYLOAD") throw new HttpsError("invalid-argument", code);

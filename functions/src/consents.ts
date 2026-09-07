@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   CONSENT_ACTIONS,
   CONSENT_DOC_VERSION,
@@ -270,11 +271,17 @@ export const recordConsent = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
   const uid = request.auth.uid;
+  // New clients bind consent to the account that displayed the statement.
+  // Keep absent bindings compatible with released clients, but never apply an
+  // explicit intention for A under B's token after an account change.
+  if (request.data?.expectedOwnerUid !== undefined && request.data.expectedOwnerUid !== uid) {
+    throw new HttpsError("permission-denied", "CONSENT_OWNER_CHANGED");
+  }
   const payload = parseConsentPayload(request.data);
   const ip = extractClientIp(request.rawRequest ?? {});
 
   const db = admin.firestore();
-  const createdAt = admin.firestore.FieldValue.serverTimestamp();
+  const createdAt = FieldValue.serverTimestamp();
   const userRef = db.collection(USERS_COLLECTION).doc(uid);
   const consentWrites = payload.entries.map((entry) => ({
     entry,

@@ -2,7 +2,7 @@
 // treningu zwracał PERMISSION_DENIED i blokował rozpoczęcie pierwszego treningu nowego planu.
 // Uruchom: npm run test:rules  (wymaga JDK 21 + firebase-tools)
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { Timestamp, collection, deleteDoc, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 
 const env = await initializeTestEnvironment({
@@ -608,9 +608,10 @@ const importedWorkout = {
   completed: true, dayName: 'Import test', importBatchId: 'abc123',
   exercises: [{ exerciseId: 'imported-ex-1', name: 'Plank', sets: [{ reps: 0, weight: 0, completed: true, durationSec: 90 }] }],
 };
-add('workouts: create importowanego z importBatchId ALLOWED (Z110)', true, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-1'), importedWorkout)));
+add('workouts: direct nonempty import requires restore v3', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-1'), importedWorkout)));
 add('workouts: import z cudzym userId DENIED (Z110)', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-2'), { ...importedWorkout, id: 'imported-abc123-2', userId: OTHER_UID })));
 add('workouts: importBatchId nie-string DENIED (Z110)', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-3'), { ...importedWorkout, id: 'imported-abc123-3', importBatchId: 42 })));
+await seedDoc('workouts', 'imported-abc123-1', importedWorkout);
 add('workouts: delete wlasnego importowanego ALLOWED (cofniecie importu, Z110)', true, await ok(() => deleteDoc(doc(db, 'workouts', 'imported-abc123-1'))));
 
 // === Progresja programowa (Z119): pole progression w training_plans ===
@@ -794,6 +795,33 @@ add('email_log: write usera DENIED (G-T1)', false, await ok(() => setDoc(doc(db,
 add('email_events: read admina ALLOWED (G-T1)', true, await ok(() => getDoc(doc(adminDb, 'email_events', 'msg-1-Delivery-1755684005000'))));
 add('email_events: read usera DENIED (G-T1)', false, await ok(() => getDoc(doc(db, 'email_events', 'msg-1-Delivery-1755684005000'))));
 add('email_events: write klienta DENIED (pisze tylko webhook) (G-T1)', false, await ok(() => setDoc(doc(db, 'email_events', 'msg-2-Send-1'), emailEventDoc)));
+
+// New sessions bootstrap empty; all exercise payloads use the attested callable.
+await env.clearFirestore();
+await seedUser({ enabled: true });
+add('raw health workout creation without consent is denied', false, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), { ...newWorkout, exercises: [{ exerciseId: 'squat', rpe: 8, sets: [] }] })));
+add('empty bootstrap remains allowed', true, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
+add('raw RPE update after empty bootstrap is denied', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { exercises: [{ exerciseId: 'squat', rpe: 8, sets: [] }] })));
+add('base-only session note update stays allowed', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { notes: 'Keep training' })));
+const deleteWorkoutPair = (clientDb, workoutId) => {
+  const batch = writeBatch(clientDb);
+  batch.delete(doc(clientDb, 'workouts', workoutId));
+  batch.delete(doc(clientDb, 'workout_health_v2', workoutId));
+  return batch.commit();
+};
+add('delete workout without health sidecar succeeds atomically', true, await ok(() => deleteWorkoutPair(db, WORKOUT_ID)));
+add('retry delete after both documents disappeared succeeds', true, await ok(() => deleteWorkoutPair(db, WORKOUT_ID)));
+await seedDoc('workouts', WORKOUT_ID, { ...newWorkout, userId: OTHER_UID });
+add('cross-owner batch deletion remains denied', false, await ok(() => deleteWorkoutPair(db, WORKOUT_ID)));
+
+// Launch: a valid but already-issued ID token cannot write after self deletion.
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await env.withSecurityRulesDisabled(async ctx => {
+  await updateDoc(doc(ctx.firestore(), 'users', UID), { deletionPending: { requestedAt: '2026-09-06' } });
+});
+add('closing account cannot create workout despite active legacy status', false, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
+add('closing account cannot update profile preferences', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'Changed' })));
 
 await env.cleanup();
 

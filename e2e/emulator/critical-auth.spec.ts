@@ -1,4 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
+import { LEGAL_VERSIONS } from '../../src/lib/legal-versions';
+import { dashboardGreeting, installEmulatorAppCheck } from './app-check';
+
+test.beforeEach(async ({ page }) => installEmulatorAppCheck(page));
 
 // Krytyczny flow na realnym Auth + Firestore + Functions (emulatory,
 // prawdziwe firestore.rules i produkcyjny callable syncUserProfile):
@@ -119,6 +123,7 @@ test.describe('Emulator critical: auth + rules', () => {
       role: 'user',
       status: 'active',
       onboardingCompleted: true,
+      consents: { termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy },
       access: { enabled: true },
       registration: { source: 'email' },
       notifications: { welcomeSentAt: new Date().toISOString() },
@@ -126,8 +131,8 @@ test.describe('Emulator critical: auth + rules', () => {
 
     await loginThroughUi(page, email);
 
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony/i)).toBeVisible();
+    await expect(dashboardGreeting(page)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /Rozpocznij trening|Otwórz sesję|Zobacz trening/ }).first()).toBeVisible();
   });
 
   test('pending_verification user trafia na bramkę weryfikacji, nie na dashboard', async ({ page }) => {
@@ -147,7 +152,7 @@ test.describe('Emulator critical: auth + rules', () => {
     await loginThroughUi(page, email);
 
     await expect(page.getByText('Potwierdź adres email')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toHaveCount(0);
+    await expect(dashboardGreeting(page)).toHaveCount(0);
   });
 
   test('start treningu zapisuje sesję przez realne Firestore Rules', async ({ page }) => {
@@ -166,6 +171,7 @@ test.describe('Emulator critical: auth + rules', () => {
     await seedUserProfile(uid, {
       uid, email, displayName: 'E2E Workout', role: 'user', status: 'active',
       onboardingCompleted: true, access: { enabled: true }, registration: { source: 'email' },
+      consents: { termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy },
       notifications: { welcomeSentAt: new Date().toISOString() },
     });
     await seedDoc(`training_plans/${uid}`, { days, durationWeeks: 12, startDate: today, updatedAt: new Date().toISOString() });
@@ -175,9 +181,14 @@ test.describe('Emulator critical: auth + rules', () => {
     });
 
     await loginThroughUi(page, email);
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
+    await expect(dashboardGreeting(page)).toBeVisible({ timeout: 15000 });
     await page.goto(`./#/workout/${dayId}?date=${today}&autostart=true`);
     await expect(page.getByText('Trening rozpoczęty!', { exact: true })).toBeVisible({ timeout: 15000 });
+    // A fresh planned phone start offers warmup after persisting the draft.
+    // Dismiss through the actual UI before proceeding; retain the default preference.
+    await expect(page.getByTestId('prestart-sheet')).toBeVisible();
+    await page.getByTestId('prestart-skip').click();
+    await expect(page.getByTestId('prestart-sheet')).toBeHidden();
 
     const workoutId = `workout-${uid}-${dayId}-${today}`;
     await expect.poll(async () => JSON.stringify((await readDoc(`workouts/${workoutId}`))?.fields ?? {}), {

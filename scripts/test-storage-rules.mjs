@@ -151,6 +151,15 @@ add('body photos v2: withdraw blocks update', false, await ok(() => uploadBytes(
 add('body photos v2: owner can read after withdraw', true, await ok(() => getBytes(ref(ownStorage, withdrawnPhotoPath))));
 add('body photos v2: owner can delete after withdraw', true, await ok(() => deleteObject(ref(ownStorage, withdrawnPhotoPath))));
 
+await env.withSecurityRulesDisabled(async ctx => {
+  await setDoc(doc(ctx.firestore(), 'users', UID), {
+    deletionPending: { requestedAt: '2026-09-06' },
+    consents: { healthGranted: true, healthVersion: '1.1', healthGrantId: activeGrantId },
+  });
+});
+add('closing account cannot upload avatar with existing ID token', false, await ok(() => uploadBytes(ref(ownStorage, avatarPath), jpeg, { contentType: 'image/jpeg' })));
+add('closing account cannot upload health photo with existing ID token', false, await ok(() => uploadBytes(ref(ownStorage, `body-photos/${UID}/${activeGrantId}/closed.jpg`), image, { contentType: 'image/jpeg' })));
+
 let failed = 0;
 for (const test of cases) {
   const pass = test.pass === test.expected;

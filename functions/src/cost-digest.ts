@@ -1,6 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { GoogleAuth } from "google-auth-library";
 
 // Z222: dzienny raport kosztów chmury. Metryki Firestore/Functions z Cloud
@@ -138,7 +139,7 @@ export const dailyCostDigest = onSchedule(
       writeReport: async (reportDate, dailyReport) => {
         await admin.firestore().collection("admin_cost_daily").doc(reportDate).set({
           ...dailyReport,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         });
       },
     });

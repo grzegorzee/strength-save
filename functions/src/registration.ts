@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { Timestamp } from "firebase-admin/firestore";
 import {
   type Lang,
@@ -63,6 +64,7 @@ interface UserProfileDoc {
   lastLogin?: string;
   access?: { enabled?: boolean };
   status?: UserStatus;
+  deletionPending?: unknown;
   auth?: {
     primaryProvider?: AuthProvider;
   };
@@ -388,9 +390,13 @@ export const syncUserProfile = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async
   const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
   const snap = await userRef.get();
   const current = snap.exists ? snap.data() as UserProfileDoc : null;
+  if (current?.deletionPending) throw new HttpsError("permission-denied", "ACCOUNT_DELETION_PENDING");
   const timestamp = nowIso();
 
   if (!current) {
+    if ((await getDb().collection(DELETION_OPERATIONS_COLLECTION).doc(uid).get()).exists) {
+      throw new HttpsError("permission-denied", "ACCOUNT_DELETION_PENDING");
+    }
     // Flaga admina registrationOpen=false zamyka tworzenie nowych kont
     // (kill switch m.in. na nadużycie budżetu AI przez masowe konta Google/Apple).
     const flags = await readFeatureFlags(getDb());
@@ -783,7 +789,7 @@ export async function registerPushTokenForUser(uid: string, token: string, devic
     if (typeof previousOwner === "string" && previousOwner !== uid) {
       // Wyczyść poprzedni format od razu przy reassign, aby stary owner nie dostał push.
       transaction.set(db.collection(USERS_COLLECTION).doc(previousOwner), {
-        fcmTokens: admin.firestore.FieldValue.arrayRemove(token),
+        fcmTokens: FieldValue.arrayRemove(token),
       }, { merge: true });
     }
     transaction.set(tokenRef, {
@@ -813,7 +819,7 @@ export async function unregisterPushTokenForUser(uid: string, token: string): Pr
     if (existing.data()?.userId === uid) transaction.delete(tokenRef);
     // Kompatybilność z klientem przed migracją; nie wpływa na registry jako source of truth.
     transaction.set(db.collection(USERS_COLLECTION).doc(uid), {
-      fcmTokens: admin.firestore.FieldValue.arrayRemove(token),
+      fcmTokens: FieldValue.arrayRemove(token),
     }, { merge: true });
   });
 }
@@ -1363,7 +1369,14 @@ export async function processDeletionOperation(uid: string, deps: DeletionOperat
   const db = getDb();
   const operationRef = db.collection(DELETION_OPERATIONS_COLLECTION).doc(uid);
   const startedAt = nowIso();
-  await operationRef.set({ state: "running", startedAt, updatedAt: startedAt }, { merge: true });
+  const claimed = await db.runTransaction(async (transaction) => {
+    const current = (await transaction.get(operationRef)).data();
+    if (current?.state === "completed") return false;
+    if (current?.state === "running" && !isStaleDeletionRun(current, Date.now())) return false;
+    transaction.set(operationRef, { state: "running", startedAt, updatedAt: startedAt }, { merge: true });
+    return true;
+  });
+  if (!claimed) return {};
 
   try {
     const deletedCounts = await purgeUserData(uid, deps);
@@ -1377,14 +1390,14 @@ export async function processDeletionOperation(uid: string, deps: DeletionOperat
     // WP-B (X27): recursiveDelete zamiast płaskiego delete() — dokument usera ma
     // subkolekcje (users/{uid}/aggregates/*), które płaskie kasowanie zostawiało.
     await db.recursiveDelete(db.collection(USERS_COLLECTION).doc(uid));
-    await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso(), deletedCounts }, { merge: true });
+    await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso(), deletedCounts, purgeAfter: FieldValue.delete() }, { merge: true });
     return deletedCounts;
   } catch (error) {
     await operationRef.set({
       state: "failed",
       updatedAt: nowIso(),
       lastError: error instanceof Error ? error.message.slice(0, 500) : "unknown",
-      attempts: admin.firestore.FieldValue.increment(1),
+      attempts: FieldValue.increment(1),
     }, { merge: true });
     throw error;
   }
@@ -1421,29 +1434,50 @@ export const isScheduledDeletionDue = (
   && typeof operation.purgeAfter === "string"
   && operation.purgeAfter <= nowIsoString;
 
+export const DELETION_RUN_LEASE_MS = 10 * 60 * 1000;
+
+export function isStaleDeletionRun(operation: { startedAt?: unknown }, now: number): boolean {
+  const startedAt = typeof operation.startedAt === "string" ? Date.parse(operation.startedAt) : NaN;
+  return !Number.isFinite(startedAt) || startedAt <= now - DELETION_RUN_LEASE_MS;
+}
+
 export async function scheduleSelfDeletion(uid: string): Promise<string> {
-  const timestamp = nowIso();
-  const purgeAfter = computePurgeAfter(Date.now());
-  // Najpierw zapis operacji (idempotentny), potem kasowanie Auth: gdyby deleteUser
-  // padł, user może ponowić (token ID żyje do wygaśnięcia), a cron i tak nie
-  // wykona purge przed purgeAfter.
-  await getDb().collection(DELETION_OPERATIONS_COLLECTION).doc(uid).set({
-    uid,
-    state: "scheduled",
-    requestedAt: timestamp,
-    requestedBy: uid,
-    updatedAt: timestamp,
-    purgeAfter,
-    attempts: 0,
-  }, { merge: true });
-  await getDb().collection(USERS_COLLECTION).doc(uid).set({
-    deletionPending: { requestedAt: timestamp, requestedBy: uid, purgeAfter },
-  }, { merge: true });
+  const db = getDb();
+  const operationRef = db.collection(DELETION_OPERATIONS_COLLECTION).doc(uid);
+  const userRef = db.collection(USERS_COLLECTION).doc(uid);
+  const purgeAfter = await db.runTransaction(async (transaction) => {
+    const operation = (await transaction.get(operationRef)).data();
+    const profile = (await transaction.get(userRef)).data();
+    if (operation?.state === "completed") throw new HttpsError("failed-precondition", "ACCOUNT_ALREADY_DELETED");
+    const timestamp = nowIso();
+    const deadline = typeof operation?.purgeAfter === "string" ? operation.purgeAfter : computePurgeAfter(Date.now());
+    const requestedAt = typeof operation?.requestedAt === "string" ? operation.requestedAt : timestamp;
+    // The grace window and original preferences survive retries and support recovery.
+    transaction.set(operationRef, {
+      uid, state: "scheduled", requestedAt, requestedBy: uid, updatedAt: timestamp,
+      purgeAfter: deadline, attempts: operation?.attempts ?? 0, closurePending: true,
+      ...(!operation?.recoveryProfile ? { recoveryProfile: {
+        status: profile?.status ?? "active", access: profile?.access ?? {},
+      } } : {}),
+    }, { merge: true });
+    transaction.set(userRef, {
+      deletionPending: { requestedAt, requestedBy: uid, purgeAfter: deadline },
+      status: "deleted", access: { enabled: false }, stravaConnected: false,
+    }, { merge: true });
+    return deadline;
+  });
+  // Independent tokens must stop immediately, while workout history stays recoverable.
+  for (const collection of ["device_pair_codes", "device_tokens", "device_statuses"]) {
+    await deleteCollectionByField(collection, "uid", uid);
+  }
+  await deleteCollectionByField(FCM_TOKEN_REGISTRATIONS_COLLECTION, "userId", uid);
+  await db.collection("strava_connections").doc(uid).delete();
   try {
     await admin.auth().deleteUser(uid);
   } catch (error) {
     if (errorCodeOf(error) !== "auth/user-not-found") throw error;
   }
+  await operationRef.set({ authDeletedAt: nowIso(), closurePending: false }, { merge: true });
   return purgeAfter;
 }
 
@@ -1552,7 +1586,7 @@ export const adminRevokeSubscription = onCall(async (request) => {
     // zachowany w storeSubscription; bez niego wraca 'none' jak dotąd.
     transaction.set(userRef, {
       subscription: { ...restoreRevokedSubscription(snap.data()?.storeSubscription), updatedAt: nowIso() },
-      storeSubscription: admin.firestore.FieldValue.delete(),
+      storeSubscription: FieldValue.delete(),
     }, { merge: true });
   });
 
@@ -1619,29 +1653,51 @@ export const deleteOwnAccount = onCall({ secrets: [...SES_EMAIL_SECRETS] }, asyn
 // Co 60 min (nie 5): usunięcia biegną synchronicznie w adminDeleteUser/deleteOwnAccount,
 // cron to tylko naprawa po crashu — dokończenie do 1 h później jest OK (GDPR bez zmian),
 // a 8640 inwokacji/mies. spada do ~720 (R2-09).
-export const resumeDeletionOperations = onSchedule("every 60 minutes", async () => {
-  const pending = await getDb().collection(DELETION_OPERATIONS_COLLECTION)
-    .where("state", "in", ["pending", "failed"]).limit(25).get();
-  for (const operation of pending.docs) {
-    try {
-      await processDeletionOperation(operation.id);
-    } catch (error) {
-      console.error("Deletion operation retry failed", { uidHash: sanitizedIdentifierHash(operation.id), error });
+export async function resumeDeletionOperationsCore(deps: DeletionOperationDeps = {}): Promise<void> {
+  const operations = getDb().collection(DELETION_OPERATIONS_COLLECTION);
+  // Filter after paging, never after a single limited page: completed legacy
+  // documents and fresh leases cannot starve eligible operations behind them.
+  const visit = async (
+    query: FirebaseFirestore.Query,
+    eligible: (data: FirebaseFirestore.DocumentData) => boolean,
+    run: (id: string) => Promise<unknown>,
+  ) => {
+    let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    let processed = 0;
+    while (processed < 25) {
+      const page = await (cursor ? query.startAfter(cursor) : query).limit(25).get();
+      if (page.empty) return;
+      cursor = page.docs[page.docs.length - 1];
+      for (const operation of page.docs) {
+        if (!eligible(operation.data())) continue;
+        processed++;
+        try { await run(operation.id); }
+        catch (error) { console.error("Deletion retry failed", { uidHash: sanitizedIdentifierHash(operation.id), error }); }
+        if (processed >= 25) return;
+      }
+      if (page.size < 25) return;
     }
-  }
+  };
+  await visit(
+    operations.where("state", "in", ["pending", "failed", "running"]),
+    data => data.state !== "running" || isStaleDeletionRun(data, Date.now()),
+    uid => processDeletionOperation(uid, deps),
+  );
+  // A transient Auth/device cleanup failure must not leave a closed account
+  // authenticated for its whole 30-day retention period.
+  await visit(
+    operations.where("closurePending", "==", true),
+    data => data.state === "scheduled",
+    uid => scheduleSelfDeletion(uid),
+  );
+  const now = nowIso();
+  await visit(
+    operations.where("state", "==", "scheduled").where("purgeAfter", "<=", now),
+    data => isScheduledDeletionDue(data, now),
+    uid => processDeletionOperation(uid, deps),
+  );
+}
 
-  // Z238: purge zaplanowany po karencji. Zapytanie tylko po purgeAfter (pole mają
-  // wyłącznie operacje scheduled — bez composite indexu, lekcja X13); filtr state
-  // w kodzie na wypadek doców przejściowych.
-  const nowIsoString = nowIso();
-  const due = await getDb().collection(DELETION_OPERATIONS_COLLECTION)
-    .where("purgeAfter", "<=", nowIsoString).limit(25).get();
-  for (const operation of due.docs) {
-    if (!isScheduledDeletionDue(operation.data(), nowIsoString)) continue;
-    try {
-      await processDeletionOperation(operation.id);
-    } catch (error) {
-      console.error("Scheduled deletion purge failed", { uidHash: sanitizedIdentifierHash(operation.id), error });
-    }
-  }
+export const resumeDeletionOperations = onSchedule({ schedule: "every 60 minutes", timeoutSeconds: 540 }, async () => {
+  await resumeDeletionOperationsCore();
 });

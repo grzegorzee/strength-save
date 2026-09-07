@@ -130,6 +130,11 @@ describe("hasCallableAppAccess", () => {
     expect(hasCallableAppAccess(undefined)).toBe(false);
   });
 
+  it("deletion fence takes precedence over legacy active access and admin privilege", () => {
+    expect(hasCallableAppAccess({ status: "active", access: { enabled: true }, deletionPending: { requestedAt: "now" } })).toBe(false);
+    expect(hasCallableAppAccess({ role: "admin", deletionPending: { requestedAt: "now" } })).toBe(false);
+  });
+
   it("treats missing status as active — symetria z firestore.rules (#2)", () => {
     // Konta Google/legacy bez pola status: reguły pozwalają na zapis treningu,
     // callable (AI/Strava) musi traktować je tak samo, byle dokument profilu istniał.

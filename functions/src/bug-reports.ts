@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { FieldPath, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { hasCallableAppAccess } from "./security";
 import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail, type SesEmailResult } from "./ses-email";
 import { writeEmailLog } from "./email-log";
@@ -317,7 +318,7 @@ export const createBugReport = onCall(
             category: input.category,
             message: input.message,
             context: input.context,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
           });
         }
         return;
@@ -336,7 +337,7 @@ export const createBugReport = onCall(
         throw new HttpsError("resource-exhausted", retryAfter);
       }
 
-      transaction.set(rateRef, { ...nextRate, userId: uid, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      transaction.set(rateRef, { ...nextRate, userId: uid, updatedAt: FieldValue.serverTimestamp() });
       transaction.create(reportRef, {
         userId: uid,
         reporterEmail,
@@ -346,9 +347,9 @@ export const createBugReport = onCall(
         context: input.context,
         status: "awaiting_upload",
         uploadPath: input.uploadPath,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromMillis(bugReportExpiresAt(Date.now())),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(bugReportExpiresAt(Date.now())),
       });
     });
 
@@ -471,7 +472,7 @@ export const finalizeBugReport = onCall(
       await deleteOrphanScreenshot(expectedPath);
     }
 
-    const finalizedAt = admin.firestore.FieldValue.serverTimestamp();
+    const finalizedAt = FieldValue.serverTimestamp();
     let shouldSendEmail = false;
     await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(reportRef);
@@ -501,7 +502,7 @@ export const finalizeBugReport = onCall(
             status: "accepted",
             transport: result.transport,
             ...(result.sesMessageId ? { sesMessageId: result.sesMessageId } : {}),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
           },
         });
       } catch (error) {
@@ -512,7 +513,7 @@ export const finalizeBugReport = onCall(
         await reportRef.update({
           emailDelivery: {
             status: "failed",
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
             error: "delivery_failed",
           },
         });
@@ -539,7 +540,7 @@ export const adminUpdateBugReport = onCall(
       if (!canTransitionBugReportStatus(currentStatus, input.status)) {
         throw new HttpsError("failed-precondition", "Bug report status transition is not allowed.");
       }
-      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+      const timestamp = FieldValue.serverTimestamp();
       const update: Record<string, unknown> = {
         status: input.status,
         handledBy: adminUid,
@@ -587,10 +588,10 @@ const cleanupStaleAwaitingPage = async (
   let deleted = 0;
   for (const document of snapshot.docs) {
     const data = document.data();
-    const createdAt = data.createdAt instanceof admin.firestore.Timestamp
+    const createdAt = data.createdAt instanceof Timestamp
       ? data.createdAt.toMillis()
       : NaN;
-    const expiresAt = data.expiresAt instanceof admin.firestore.Timestamp
+    const expiresAt = data.expiresAt instanceof Timestamp
       ? data.expiresAt.toMillis()
       : NaN;
     const shouldDelete = mode === "expired"
@@ -621,7 +622,7 @@ export const cleanupStaleBugReports = onSchedule(
     let expiredCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
     for (let page = 0; page < maxPages; page += 1) {
       let query = admin.firestore().collection(BUG_REPORTS_COLLECTION)
-        .where("expiresAt", "<=", admin.firestore.Timestamp.fromMillis(nowMs))
+        .where("expiresAt", "<=", Timestamp.fromMillis(nowMs))
         .orderBy("expiresAt")
         .limit(pageSize);
       if (expiredCursor) query = query.startAfter(expiredCursor);
@@ -636,7 +637,7 @@ export const cleanupStaleBugReports = onSchedule(
     for (let page = 0; page < maxPages; page += 1) {
       let query = admin.firestore().collection(BUG_REPORTS_COLLECTION)
         .where("status", "==", "awaiting_upload")
-        .orderBy(admin.firestore.FieldPath.documentId())
+        .orderBy(FieldPath.documentId())
         .limit(pageSize);
       if (awaitingCursor) query = query.startAfter(awaitingCursor);
       const snapshot = await query.get();

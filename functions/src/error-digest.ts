@@ -1,6 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { SES_EMAIL_SECRETS, sendSesEmail } from "./ses-email";
 
 // WP-G (X27), zasada 11 CLAUDE.md: crash ma znalezc SYSTEM, nie user na
@@ -155,7 +156,7 @@ export const buildErrorDigestDeps = (
       batch.set(ref, {
         code,
         lastSeenAt: stampMs,
-        totalCount: admin.firestore.FieldValue.increment(count),
+        totalCount: FieldValue.increment(count),
       }, { merge: true });
       // firstSeenAt tylko przy pierwszym zapisie (merge nie nadpisze istniejacego).
       batch.set(ref, { firstSeenAt: stampMs }, { mergeFields: ["firstSeenAt"] });

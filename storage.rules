@@ -3,9 +3,15 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    function accountNotClosing(userId) {
+      let path = /databases/(default)/documents/users/$(userId);
+      return !firestore.exists(path) || !('deletionPending' in firestore.get(path).data);
+    }
+
     function awaitingBugReport(reportId, userId) {
       let report = firestore.get(/databases/(default)/documents/bug_reports/$(reportId));
       return firestore.exists(/databases/(default)/documents/bug_reports/$(reportId))
+             && accountNotClosing(userId)
              && report.data.userId == userId
              && report.data.status == 'awaiting_upload'
              && report.data.uploadPath == 'bug-reports/' + userId + '/' + reportId + '/screenshot.jpg';
@@ -15,6 +21,7 @@ service firebase.storage {
       let userPath = /databases/(default)/documents/users/$(userId);
       let user = firestore.get(userPath);
       return firestore.exists(userPath)
+             && accountNotClosing(userId)
              && user.data.keys().hasAll(['consents'])
              && user.data.consents is map
              && user.data.consents.keys().hasAll(['healthGranted', 'healthVersion', 'healthGrantId'])
@@ -30,6 +37,7 @@ service firebase.storage {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null
                             && request.auth.uid == userId
+                            && accountNotClosing(userId)
                             && request.resource.size < 5 * 1024 * 1024
                             && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null && request.auth.uid == userId;

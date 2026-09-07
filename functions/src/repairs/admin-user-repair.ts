@@ -1,6 +1,7 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 import {
   dedupeWorkoutsOperations,
   mergeCyclesOperations,
@@ -114,7 +115,7 @@ export const adminUserRepair = onCall(async (request) => {
 
   const db = admin.firestore();
   const nowIso = new Date().toISOString();
-  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const expiresAt = Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
   const result = await runAdminUserRepair({
     getUserRole: async (uid) => (await db.collection("users").doc(uid).get()).data()?.role as string | undefined,

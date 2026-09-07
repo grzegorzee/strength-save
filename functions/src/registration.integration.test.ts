@@ -15,6 +15,8 @@ import {
   createWaitlistEntryCore,
   fcmTokenRegistrationDocId,
   processDeletionOperation,
+  resumeDeletionOperationsCore,
+  scheduleSelfDeletion,
   pendingSubscriptionGrantId,
   requestEmailVerificationCode,
   registerPushTokenForUser,
@@ -62,6 +64,9 @@ const collectionsToClean = [
   "bug_reports",
   "bug_report_rate_limits",
   "pending_subscription_grants",
+  "device_tokens",
+  "device_statuses",
+  "device_pair_codes",
 ];
 
 const callableRequest = <T>(input: {
@@ -382,6 +387,54 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       expect(admin.firestore().collection("strava_connections").doc(uid).get()).resolves.toMatchObject({ exists: false }),
     ]);
     expect((await admin.firestore().collection("deletion_operations").doc(uid).get()).data()?.state).toBe("completed");
+  });
+
+  it("purges due accounts after a full page of completed operations and recovers stale running", async () => {
+    const db = admin.firestore();
+    for (let i = 0; i < 25; i++) {
+      await db.collection("deletion_operations").doc(`completed-${i}`).set({ state: "completed", purgeAfter: "2020-01-01" });
+    }
+    await db.collection("deletion_operations").doc("due-account").set({ state: "scheduled", purgeAfter: "2021-01-01" });
+    await db.collection("deletion_operations").doc("interrupted-account").set({ state: "running", startedAt: "2020-01-01" });
+    await db.collection("deletion_operations").doc("live-account").set({ state: "running", startedAt: new Date().toISOString() });
+    await db.collection("users").doc("due-account").set({ status: "deleted" });
+    await db.collection("users").doc("interrupted-account").set({ status: "deleted" });
+
+    await resumeDeletionOperationsCore({ deleteAvatarFiles: async () => undefined });
+
+    expect((await db.collection("deletion_operations").doc("due-account").get()).data()?.state).toBe("completed");
+    expect((await db.collection("deletion_operations").doc("interrupted-account").get()).data()?.state).toBe("completed");
+    expect((await db.collection("deletion_operations").doc("live-account").get()).data()?.state).toBe("running");
+  });
+
+  it("self deletion immediately closes access/devices and retry preserves the original grace period", async () => {
+    const uid = "self-delete";
+    const db = admin.firestore();
+    await admin.auth().createUser({ uid, email: "self-delete@example.com" });
+    await db.collection("users").doc(uid).set({ status: "active", access: { enabled: true }, stravaConnected: true });
+    await db.collection("device_tokens").doc("watch-token").set({ uid });
+    await db.collection("fcm_token_registrations").doc("push-token").set({ userId: uid });
+    await db.collection("strava_connections").doc(uid).set({ accessToken: "mock-token" });
+
+    const purgeAfter = await scheduleSelfDeletion(uid);
+    const operation = db.collection("deletion_operations").doc(uid);
+    const originalPurgeAfter = new Date(Date.parse(purgeAfter) - 1000).toISOString();
+    await operation.update({ purgeAfter: originalPurgeAfter });
+    expect(await scheduleSelfDeletion(uid)).toBe(originalPurgeAfter);
+    expect((await db.collection("users").doc(uid).get()).data()).toMatchObject({ status: "deleted", access: { enabled: false }, stravaConnected: false });
+    expect((await db.collection("device_tokens").where("uid", "==", uid).get()).empty).toBe(true);
+    expect((await db.collection("fcm_token_registrations").where("userId", "==", uid).get()).empty).toBe(true);
+    expect((await db.collection("strava_connections").doc(uid).get()).exists).toBe(false);
+    expect((await operation.get()).data()?.state).toBe("scheduled");
+    await expectAuthMissing(uid);
+  });
+
+  it("a still-valid ID token cannot recreate a profile after completed deletion", async () => {
+    await admin.firestore().collection("deletion_operations").doc("deleted-user").set({ state: "completed" });
+    await expect(syncUserProfile.run(callableRequest({
+      uid: "deleted-user", email: "deleted-user@example.com", appId: STRENGTH_SAVE_IOS_APP_CHECK_ID, data: { language: "pl" },
+    }))).rejects.toMatchObject({ code: "permission-denied" });
+    expect((await admin.firestore().collection("users").doc("deleted-user").get()).exists).toBe(false);
   });
 
   it("creates bug reports idempotently and does not count a retry twice", async () => {

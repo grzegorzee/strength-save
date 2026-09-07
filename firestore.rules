@@ -21,6 +21,7 @@ service cloud.firestore {
       return request.auth != null
              && request.auth.uid == userId
              && exists(/databases/$(database)/documents/users/$(userId))
+             && !('deletionPending' in get(/databases/$(database)/documents/users/$(userId)).data)
              // Brak pola status (konta z logowania Google / sprzed hardeningu) = traktuj jak aktywny.
              // Jawnie nieaktywni (pending_verification, suspended) nadal zablokowani.
              && (
@@ -88,6 +89,7 @@ service cloud.firestore {
       // Typy wartości (Z41): walidacja na merged dokumencie — pole obecne musi mieć
       // właściwy typ, brak pola jest OK (lekcja ef8b8d5/880cb9e).
       allow update: if request.auth != null && request.auth.uid == userId
+                    && !('deletionPending' in resource.data)
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                       'displayName', 'photoURL', 'language', 'preferences',
                       'notificationPrefs', 'onboardingCompleted', 'onboarding',
@@ -230,13 +232,20 @@ service cloud.firestore {
       // rozpocząć treningu (resource.data.userId na nieistniejącym dokumencie to błąd ewaluacji).
       allow read: if request.auth != null
                   && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
-      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId) && validWorkoutShape();
+      // Client creates only the empty session bootstrap. Exercise arrays pass
+      // through syncWorkoutV2/restoreWorkoutBackupV3 so embedded health cannot
+      // bypass consent validation. Roll out after the matching client release.
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId)
+                    && validWorkoutShape()
+                    && request.resource.data.exercises is list
+                    && request.resource.data.exercises.size() == 0;
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
                     && keepsOwner()
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['exercises'])
                     && validWorkoutShape();
       allow delete: if request.auth != null
-                    && hasSelfAccess(resource.data.userId);
+                    && (resource == null || hasSelfAccess(resource.data.userId));
       // Admin can read all
       allow read: if request.auth != null && isAdmin();
     }
@@ -245,8 +254,12 @@ service cloud.firestore {
     // SDK. Właściciel zachowuje prawo dostępu i usunięcia także po wycofaniu
     // zgody zdrowotnej; rola admina w kliencie nie daje dostępu do cudzych danych.
     match /workout_health_v2/{workoutId} {
-      allow get, list, delete: if request.auth != null
+      allow get, list: if request.auth != null
                                && request.auth.uid == resource.data.userId;
+      // Both documents are deleted in one batch; a missing sidecar (or retry
+      // after successful deletion) is a harmless no-op, not a permission error.
+      allow delete: if request.auth != null
+                    && (resource == null || request.auth.uid == resource.data.userId);
       allow create, update: if false;
     }
 

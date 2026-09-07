@@ -2,6 +2,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 
 // Z217: agregat all-time treningów dla kafli Dashboardu (tonaż, licznik) i
 // przyszłej redukcji listenera 500 (Z216). Źródłem prawdy jest MAPA WKŁADÓW per
@@ -260,7 +261,7 @@ const loadAllWorkouts = async (
   for (;;) {
     let query = db.collection("workouts")
       .where("userId", "==", uid)
-      .orderBy(admin.firestore.FieldPath.documentId())
+      .orderBy(FieldPath.documentId())
       .limit(REBUILD_PAGE_SIZE);
     if (cursor) query = query.startAfter(cursor);
     const snapshot = await query.get();
@@ -287,7 +288,7 @@ const rebuildAndStore = async (
       if (snapshotRevision(current) !== revision) return false;
       transaction.set(ref, {
         ...aggregate,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       return true;
     }),
@@ -356,7 +357,7 @@ export const onWorkoutWrittenAggregate = onDocumentWritten(
       const next = applyWorkoutChange(current, workoutId, contribution);
       transaction.set(ref, {
         ...next,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     });
   },

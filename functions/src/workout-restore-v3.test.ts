@@ -19,6 +19,7 @@ const profile = {
 
 const input = (overrides: Partial<WorkoutRestoreV3Input> = {}): WorkoutRestoreV3Input => ({
   v: 3,
+  expectedOwnerUid: "u1",
   restoreId: "restore-12345678",
   workout: {
     id: "workout-1",
@@ -71,6 +72,14 @@ const harness = (options: {
 };
 
 describe("restoreWorkoutBackupV3", () => {
+  it.each(["user-a", undefined])("odrzuca zmianę albo brak konta docelowego przed transakcją (%s)", async (expectedOwnerUid) => {
+    const h = harness();
+    await expect(executeWorkoutRestoreV3("u1", input({ expectedOwnerUid }), h.deps))
+      .rejects.toMatchObject({ code: "RESTORE_OWNER_CHANGED" });
+    expect(h.deps.commit).not.toHaveBeenCalled();
+    expect(h.getWrites()).toBe(0);
+  });
+
   it("odrzuca ukończoną serię bez żadnej dodatniej wartości treningowej", () => {
     expect(() => parseWorkoutRestoreV3Input(input({
       workout: {
@@ -144,7 +153,7 @@ describe("restoreWorkoutBackupV3", () => {
 
   it("przygotowuje bazę i health w jednym planie, a owner zawsze pochodzi z auth", async () => {
     const h = harness();
-    const result = await executeWorkoutRestoreV3("real-owner", input(), h.deps);
+    const result = await executeWorkoutRestoreV3("real-owner", input({ expectedOwnerUid: "real-owner" }), h.deps);
 
     expect(result).toEqual({ status: "restored", workoutId: "workout-1" });
     expect(h.getWrites()).toBe(1);

@@ -3,6 +3,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { randomBytes } from "crypto";
 import {
   API_RATE_LIMIT_PER_MINUTE,
@@ -28,7 +29,6 @@ import {
 import {
   canUseApiExport,
   canUseStravaIntegration,
-  hasActiveHealthConsent,
   isValidStravaOAuthState,
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
@@ -36,15 +36,13 @@ import {
 import { deleteQueryInBatches } from "./firestore-batch";
 import {
   diffRefreshableFields,
-  loadExistingActivities,
   manualSyncRetryAfterSeconds,
   mapStravaActivityToDoc,
   nextEstimatedMaxHr,
-  REFRESHABLE_ACTIVITY_FIELDS,
-  type ExistingActivitiesSource,
   type StravaActivityDoc,
 } from "./strava-activity";
 import { disconnectStravaForUser } from "./strava-disconnect";
+import { stravaHealthGrantStillCurrent } from "./strava-health-commit";
 export {
   createInvite,
   createWaitlistEntry,
@@ -344,7 +342,7 @@ const saveStravaConnection = async (userId: string, tokenData: StravaTokenPayloa
     stravaAthleteId: tokenData.athlete?.id || null,
     stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
     stravaLastSync: null,
-    stravaTokens: admin.firestore.FieldValue.delete(),
+    stravaTokens: FieldValue.delete(),
   }, { merge: true });
 };
 
@@ -375,7 +373,7 @@ const getStravaConnection = async (userId: string): Promise<StravaConnectionDoc 
 
   await getStravaConnectionRef(userId).set(migratedConnection);
   await getUserRef(userId).set({
-    stravaTokens: admin.firestore.FieldValue.delete(),
+    stravaTokens: FieldValue.delete(),
   }, { merge: true });
   logger.info(`[Strava] Migrated legacy tokens for ${userId}`);
 
@@ -1011,7 +1009,7 @@ interface SyncResult {
 async function syncUserActivities(userId: string, accessToken: string, fullSync = false): Promise<SyncResult> {
   const userDoc = await getUserRef(userId).get();
   const userData = userDoc.data();
-  const healthConsentActive = hasActiveHealthConsent(userData);
+  if (!userData || !canUseStravaIntegration(userData)) throw new HttpsError("permission-denied", "STRAVA_ACCESS_CLOSED");
   const lastSync = userData?.stravaLastSync;
 
   const now = Math.floor(Date.now() / 1000);
@@ -1061,96 +1059,51 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   let synced = 0;
   let refreshed = 0;
   let alreadyExisted = 0;
-  // R2-08: sync inkrementalny czyta TYLKO dokumenty pobranych w tym runie aktywności
-  // (deterministyczne ID strava-{uid}-{activityId}, db.getAll) — O(pobranych), nie
-  // O(całej historii). Pełny skan zostaje wyłącznie dla jednorazowego initial syncu.
-  const useFullScan = fullSync || !lastSync;
-  const existingSource: ExistingActivitiesSource = {
-    queryAllForUser: async () => {
-      const snapshot = await db
-        .collection(STRAVA_ACTIVITIES_COLLECTION)
-        .where("userId", "==", userId)
-        .select("stravaId", ...REFRESHABLE_ACTIVITY_FIELDS)
-        .get();
-      return snapshot.docs.map((doc) => doc.data() as Partial<StravaActivityDoc>);
-    },
-    getByIds: async (activityIds) => {
-      const results: Array<Partial<StravaActivityDoc> | null> = [];
-      // getAll przyjmuje setki refów; chunk 300 trzyma bezpieczny margines.
-      for (let i = 0; i < activityIds.length; i += 300) {
-        const chunk = activityIds.slice(i, i + 300);
-        const snapshots = await db.getAll(...chunk.map((id) => getStravaActivityRef(userId, id)));
-        snapshots.forEach((snapshot) => {
-          results.push(snapshot.exists ? (snapshot.data() as Partial<StravaActivityDoc>) : null);
-        });
+  // Read the grant and each existing document in the committing transaction.
+  // A revoke/regrant/disconnect during the HTTP fetch cannot authorize new HR
+  // fields, overwrite a manual MaxHR, or recreate a closed account's data.
+  for (let offset = 0; offset < activities.length; offset += 200) {
+    const chunk = activities.slice(offset, offset + 200);
+    const counts = await db.runTransaction(async (transaction) => {
+      const profile = (await transaction.get(getUserRef(userId))).data();
+      if (!profile || !canUseStravaIntegration(profile) || profile.stravaConnected !== true) {
+        throw new HttpsError("permission-denied", "STRAVA_ACCESS_CLOSED");
       }
-      return results;
-    },
-  };
-  const existingActivities = await loadExistingActivities(
-    existingSource,
-    activities.map((activity) => activity.id),
-    useFullScan,
-  );
-
-  let batch = db.batch();
-  let pendingWrites = 0;
-  const commitBatch = async () => {
-    if (pendingWrites === 0) return;
-    await batch.commit();
-    batch = db.batch();
-    pendingWrites = 0;
-  };
-
-  for (const activity of activities) {
-    const docRef = getStravaActivityRef(userId, activity.id);
-    const fullDoc = mapStravaActivityToDoc(
-      userId,
-      activity,
-      new Date().toISOString(),
-      healthConsentActive,
-    );
-    const existing = existingActivities.get(activity.id);
-
-    if (existing) {
-      // Known activity — refresh only the fields Strava may have backfilled.
-      const changes = diffRefreshableFields(existing, fullDoc, healthConsentActive);
-      if (!changes) {
-        alreadyExisted++;
-        continue;
-      }
-      batch.set(docRef, changes, { merge: true });
-      existingActivities.set(activity.id, { ...existing, ...changes });
-      refreshed++;
-    } else {
-      batch.set(docRef, fullDoc);
-      synced++;
-      existingActivities.set(activity.id, fullDoc);
-    }
-
-    pendingWrites++;
-    if (pendingWrites === 450) {
-      await commitBatch();
-    }
+      const includeHealth = stravaHealthGrantStillCurrent(userData, profile);
+      const refs = chunk.map(activity => getStravaActivityRef(userId, activity.id));
+      const existing = refs.length ? await transaction.getAll(...refs) : [];
+      const count = { synced: 0, refreshed: 0, alreadyExisted: 0 };
+      chunk.forEach((activity, index) => {
+        const fullDoc = mapStravaActivityToDoc(userId, activity, new Date().toISOString(), includeHealth);
+        if (existing[index].exists) {
+          const changes = diffRefreshableFields(existing[index].data() as Partial<StravaActivityDoc>, fullDoc, includeHealth);
+          if (changes) {
+            transaction.set(refs[index], changes, { merge: true });
+            count.refreshed++;
+          } else count.alreadyExisted++;
+        } else {
+          transaction.set(refs[index], fullDoc);
+          count.synced++;
+        }
+      });
+      return count;
+    });
+    synced += counts.synced;
+    refreshed += counts.refreshed;
+    alreadyExisted += counts.alreadyExisted;
   }
-
-  await commitBatch();
-
-  await getUserRef(userId).set({
-    stravaLastSync: new Date().toISOString(),
-  }, { merge: true });
-
-  // Dane zdrowotne są przetwarzane wyłącznie w granicach aktualnego grantu 1.1.
-  const estimatedMaxHrUpdate = nextEstimatedMaxHr(
-    activities,
-    userData?.estimatedMaxHR,
-    userData?.maxHRManualOverride === true,
-    healthConsentActive,
-  );
-  if (estimatedMaxHrUpdate !== null) {
-    await getUserRef(userId).set({ estimatedMaxHR: estimatedMaxHrUpdate }, { merge: true });
-    logger.info(`[Strava] Updated estimatedMaxHR=${estimatedMaxHrUpdate} for ${userId}`);
-  }
+  await db.runTransaction(async (transaction) => {
+    const profile = (await transaction.get(getUserRef(userId))).data();
+    if (!profile || !canUseStravaIntegration(profile) || profile.stravaConnected !== true) {
+      throw new HttpsError("permission-denied", "STRAVA_ACCESS_CLOSED");
+    }
+    const includeHealth = stravaHealthGrantStillCurrent(userData, profile);
+    const maxHR = nextEstimatedMaxHr(activities, profile.estimatedMaxHR, profile.maxHRManualOverride === true, includeHealth);
+    transaction.update(getUserRef(userId), {
+      stravaLastSync: new Date().toISOString(),
+      ...(maxHR !== null ? { estimatedMaxHR: maxHR, estimatedMaxHREpoch: (profile.consents as { healthEpoch: number }).healthEpoch } : {}),
+    });
+  });
 
   logger.info(`[Strava] Result: ${synced} new, ${refreshed} refreshed, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
   return { synced, refreshed, totalFetched: activities.length, alreadyExisted, lookbackDays };
@@ -1229,7 +1182,7 @@ export const stravaDisconnect = onCall(async (request) => {
       stravaLastSync: null,
       estimatedMaxHR: null,
       maxHRManualOverride: null,
-      stravaTokens: admin.firestore.FieldValue.delete(),
+      stravaTokens: FieldValue.delete(),
     }, { merge: true }),
   });
   logger.info(`[Strava] Disconnected ${userId}, removed ${deletedActivities} activities`);
@@ -1429,7 +1382,7 @@ const applySesEventToEmailLogs = async (
       const fields = applyLogUpdate((freshLog.data() ?? {}) as EmailLogState, update);
       if (fields) tx.set(logDoc.ref, fields, { merge: true });
       tx.set(eventRef, {
-        appliedLogIds: admin.firestore.FieldValue.arrayUnion(logDoc.id),
+        appliedLogIds: FieldValue.arrayUnion(logDoc.id),
         pendingLogApplication: false,
       }, { merge: true });
       return true;
@@ -1502,7 +1455,7 @@ export const sesEventsWebhook = onRequest({ secrets: [sesSnsTopicArn] }, async (
     if (existing.exists) return;
     tx.create(eventRef, {
       ...mapped.record,
-      expiresAt: admin.firestore.Timestamp.fromMillis(emailEventExpiresAtMs(mapped.record.timestamp)),
+      expiresAt: Timestamp.fromMillis(emailEventExpiresAtMs(mapped.record.timestamp)),
       appliedLogIds: [],
       pendingLogApplication: mapped.logUpdate !== null,
     });

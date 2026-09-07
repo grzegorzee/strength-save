@@ -4,7 +4,11 @@ import { connectAuthEmulator, getAuth, signInWithEmailAndPassword } from 'fireba
 import { connectFirestoreEmulator, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import type { WorkoutSession } from '../../src/types';
 import { mergePromotedDraft, type ActiveWorkoutDraft } from '../../src/lib/workout-draft-db';
-import { saveWorkoutBatchWithRevision } from '../../src/lib/workout-save';
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
+import { CustomProvider, initializeAppCheck } from 'firebase/app-check';
+import { EMULATOR_APP_CHECK_TOKEN } from './app-check';
+import type { WorkoutSyncV2Request, WorkoutSyncV2Response } from '../../src/lib/workout-sync-v2';
+import type { WorkoutSaveExercise, WorkoutSaveOptions } from '../../src/lib/workout-sync-engine';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '../../src/lib/workout-sync-engine';
 import { mergeDraftWithCloudWorkout } from '../../src/lib/workout-cross-device-merge';
 
@@ -72,12 +76,32 @@ async function seedDoc(path: string, data: Record<string, unknown>): Promise<voi
 
 const connectClient = async (email: string, appName: string): Promise<{ app: FirebaseApp; db: ReturnType<typeof getFirestore> }> => {
   const app = initializeApp({ apiKey: 'fake-api-key', projectId: PROJECT_ID }, appName);
+  initializeAppCheck(app, {
+    provider: new CustomProvider({ getToken: async () => ({ token: EMULATOR_APP_CHECK_TOKEN, expireTimeMillis: Date.now() + 3_600_000 }) }),
+    isTokenAutoRefreshEnabled: false,
+  });
   const auth = getAuth(app);
   connectAuthEmulator(auth, AUTH_EMULATOR, { disableWarnings: true });
   const db = getFirestore(app);
   connectFirestoreEmulator(db, '127.0.0.1', 8081);
+  connectFunctionsEmulator(getFunctions(app, 'us-central1'), '127.0.0.1', 5001);
   await signInWithEmailAndPassword(auth, email, PASSWORD);
   return { app, db };
+};
+
+// The product writes exercise arrays through v2; direct Firestore updates are
+// deliberately denied. Seed setup stays Admin-only, while every tested mutation
+// crosses the authenticated callable and its real revision/idempotency guards.
+const saveWorkoutViaCallable = async (
+  db: ReturnType<typeof getFirestore>, sessionId: string,
+  exercises: WorkoutSaveExercise[], options: WorkoutSaveOptions,
+): Promise<WorkoutSyncV2Response> => {
+  const { expectedRevision, writeId, ...baseOptions } = options;
+  if (expectedRevision === null) throw new Error('WORKOUT_SYNC_V2_REQUIRES_REVISION');
+  const callable = httpsCallable<WorkoutSyncV2Request, WorkoutSyncV2Response>(
+    getFunctions(db.app, 'us-central1'), 'syncWorkoutV2',
+  );
+  return (await callable({ v: 2, sessionId, expectedRevision, writeId, exercises, options: baseOptions })).data;
 };
 
 const seedActiveUser = async (uid: string, email: string): Promise<void> => {
@@ -117,13 +141,13 @@ test('Emulator: dwóch klientów, ten sam trening — stale revision dostaje WOR
   const b = await connectClient(email, `wc-b-${Date.now()}`);
 
   try {
-    const first = await saveWorkoutBatchWithRevision(a.db, sessionId, payload(9), {
+    const first = await saveWorkoutViaCallable(a.db, sessionId, payload(9), {
       expectedRevision: 1,
       writeId: 'write-a',
     });
     expect(first.revision).toBe(2);
 
-    await expect(saveWorkoutBatchWithRevision(b.db, sessionId, payload(10), {
+    await expect(saveWorkoutViaCallable(b.db, sessionId, payload(10), {
       expectedRevision: 1,
       writeId: 'write-b',
     })).rejects.toThrow('WORKOUT_CONFLICT');
@@ -184,7 +208,7 @@ test('Emulator Z228: konflikt iOS/Watch/web scala nowsze serie do jednej sesji',
     loadDraft: async (_ownerId, id) => drafts.get(id) ?? null,
     saveWorkout: async (id, exercises, options) => {
       try {
-        const state = await saveWorkoutBatchWithRevision(mine.db, id, exercises, options);
+        const state = await saveWorkoutViaCallable(mine.db, id, exercises, options);
         return { success: true, ...state };
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -219,7 +243,7 @@ test('Emulator Z228: konflikt iOS/Watch/web scala nowsze serie do jednej sesji',
 
   try {
     // Web zmienia set 0 później niż Watch; set 1 pozostaje starszym snapshotem.
-    const otherWrite = await saveWorkoutBatchWithRevision(other.db, sessionId, [{
+    const otherWrite = await saveWorkoutViaCallable(other.db, sessionId, [{
       exerciseId: 'ex-1',
       sets: [
         { reps: 9, weight: 107.5, completed: true, updatedAt: 3000, updatedEventId: 'web-set-0' },
@@ -272,7 +296,7 @@ test('Emulator: lost-ack retry z tym samym writeId = sukces alreadyApplied bez p
   const client = await connectClient(email, `wl-${Date.now()}`);
 
   try {
-    const first = await saveWorkoutBatchWithRevision(client.db, sessionId, payload(9), {
+    const first = await saveWorkoutViaCallable(client.db, sessionId, payload(9), {
       expectedRevision: 1,
       writeId: 'write-w',
     });
@@ -280,7 +304,7 @@ test('Emulator: lost-ack retry z tym samym writeId = sukces alreadyApplied bez p
     expect(first.alreadyApplied).toBeUndefined();
 
     // Retry identycznego zapisu (odpowiedź "zginęła"): ten sam writeId, stale expectedRevision.
-    const retry = await saveWorkoutBatchWithRevision(client.db, sessionId, payload(9), {
+    const retry = await saveWorkoutViaCallable(client.db, sessionId, payload(9), {
       expectedRevision: 1,
       writeId: 'write-w',
     });
@@ -310,7 +334,7 @@ test('Emulator: edycja po final syncu z expectedRevision odczytanym z serwera pr
     const expectedRevision = Math.max(0, Math.floor(Number(server.data()?.revision ?? 0)));
     expect(expectedRevision).toBe(1);
 
-    const result = await saveWorkoutBatchWithRevision(client.db, sessionId, payload(12), {
+    const result = await saveWorkoutViaCallable(client.db, sessionId, payload(12), {
       expectedRevision,
       writeId: 'write-edit',
     });
@@ -364,7 +388,7 @@ test('Emulator: promocja provisional->remote przez silnik; retry nie duplikuje d
     loadDraft: async (_ownerId, sessionId) => drafts.get(sessionId) ?? null,
     saveWorkout: async (sessionId, exercises, options) => {
       try {
-        const state = await saveWorkoutBatchWithRevision(db, sessionId, exercises, options);
+        const state = await saveWorkoutViaCallable(db, sessionId, exercises, options);
         return { success: true, ...state };
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -507,7 +531,7 @@ test('Emulator: sync orphana po promocji nie nadpisuje nowszej treści treningu 
     loadDraft: async (_ownerId, sessionId) => drafts.get(sessionId) ?? null,
     saveWorkout: async (sessionId, exercises, options) => {
       try {
-        const state = await saveWorkoutBatchWithRevision(db, sessionId, exercises, options);
+        const state = await saveWorkoutViaCallable(db, sessionId, exercises, options);
         return { success: true, ...state };
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };

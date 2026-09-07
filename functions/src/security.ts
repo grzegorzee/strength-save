@@ -6,6 +6,7 @@ import { LEGAL_VERSIONS } from "./legal-versions";
 export type AuthProvider = "google" | "password" | "apple";
 
 export interface AccessProfile {
+  deletionPending?: unknown;
   role?: unknown;
   status?: unknown;
   access?: {
@@ -135,7 +136,7 @@ export function resolveUpdatedAccessStatus(
 
 export function hasCallableAppAccess(profile: AccessProfile | undefined): boolean {
   // Brak dokumentu profilu = brak dostępu (jak get() nieistniejącego doca w regułach).
-  if (!profile) return false;
+  if (!profile || profile.deletionPending) return false;
   if (profile.role === "admin") return true;
   // Symetria z firestore.rules hasSelfAccess: brak pola status (konta Google/legacy) = aktywny;
   // jawnie nieaktywni (pending_verification/suspended) nadal blokowani, access.enabled !== false.

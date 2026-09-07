@@ -1,4 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
+import { LEGAL_VERSIONS } from '../../src/lib/legal-versions';
+import { dashboardGreeting, installEmulatorAppCheck } from './app-check';
+
+test.beforeEach(async ({ page }) => installEmulatorAppCheck(page));
 
 // Cykl życia planu na realnym Auth + Firestore (emulatory, prawdziwe rules):
 // 1. Onboarding: własny plan z pojedynczymi ćwiczeniami z biblioteki → Dashboard.
@@ -117,74 +121,87 @@ const mondayOfThisWeek = (): string => {
 };
 
 test.describe('Emulator: cykl życia planu', () => {
-  test('onboarding: własny plan z pojedynczym ćwiczeniem z biblioteki → Dashboard', async ({ page }) => {
-    const email = `onb-own-${Date.now()}@e2e.test`;
-    const uid = await createAuthUser(email);
-    await seedDoc(`users/${uid}`, {
-      uid,
-      email,
-      displayName: 'E2E Onboarding',
-      role: 'user',
-      status: 'active',
-      onboardingCompleted: false,
-      access: { enabled: true },
-      registration: { source: 'email' },
-      notifications: { welcomeSentAt: new Date().toISOString() },
+  for (const healthGranted of [true, false]) {
+    test(`onboarding: własny plan z biblioteki → Dashboard, health ${healthGranted ? 'opt-in' : 'declined'}`, async ({ page }) => {
+      const email = `onb-own-${Date.now()}@e2e.test`;
+      const uid = await createAuthUser(email);
+      await seedDoc(`users/${uid}`, {
+        uid,
+        email,
+        displayName: 'E2E Onboarding',
+        role: 'user',
+        status: 'active',
+        onboardingCompleted: false,
+        access: { enabled: true },
+        registration: { source: 'email' },
+        notifications: { welcomeSentAt: new Date().toISOString() },
+      });
+
+      await loginThroughUi(page, email);
+
+      // Wizard: welcome → poziom → cel → protokół → precyzja
+      await expect(page.getByRole('heading', { name: 'Cześć, E2E' })).toBeVisible({ timeout: 15000 });
+      await page.getByTestId('ob-personalization-next').click();
+      await page.getByTestId('consent-terms').click();
+      await page.getByTestId('consent-privacy').click();
+      if (healthGranted) await page.getByTestId('consent-health').click();
+      const consentResponsePromise = page.waitForResponse((response) => (
+        response.url().endsWith('/recordConsent') && response.request().method() === 'POST'
+      ));
+      await page.getByTestId('ob-legal-submit').click();
+      const consentResponse = await consentResponsePromise;
+      const consentBody = await consentResponse.json();
+      expect(consentBody, `recordConsent HTTP ${consentResponse.status()}`).toMatchObject({
+        result: { ok: true, mirror: {
+          termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy,
+          healthGranted, healthVersion: LEGAL_VERSIONS.health,
+        } },
+      });
+      await page.getByRole('button', { name: 'Następny krok' }).click();
+      await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+      await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+
+      // Krok 5A jest dostępny natychmiast; potem ścieżka "Ułóż własny" →
+      // PlanBuilder (Z73: najpierw wybór startu).
+      await expect(page.getByTestId('ob-matching')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Ułóż własny' }).click();
+      await page.getByRole('button', { name: 'Zacznij od zera' }).click();
+
+      // Dodaj dzień + pojedyncze ćwiczenie z biblioteki (search)
+      await page.getByRole('button', { name: /Dodaj dzień/ }).click();
+      await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
+      await page.getByPlaceholder(/Szukaj/i).fill('martwy');
+      const firstResult = page.getByRole('dialog').locator('button', { hasText: /martwy/i }).first();
+      const pickedName = (await firstResult.textContent() ?? '').trim();
+      await firstResult.click();
+
+      // Ćwiczenie widoczne na liście dnia
+      await expect(page.getByText(/martwy/i).first()).toBeVisible();
+
+      // Z73 / X34: submit buildera prowadzi na ekran 6/6 "Start planu" (nazwa,
+      // długość, start), stamtąd "Podgląd planu"; zapis dopiero po zatwierdzeniu.
+      await page.getByRole('button', { name: 'Dalej do podglądu' }).click();
+      await expect(page.getByTestId('ob-start-step')).toBeVisible();
+      await page.getByTestId('ob-start-preview').click();
+      await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
+      await page.getByTestId('plan-preview-confirm').click();
+
+      // Ląduje na Dashboardzie
+      await expect(dashboardGreeting(page)).toBeVisible({ timeout: 20000 });
+
+      // Plan zapisany w Firestore z naszym ćwiczeniem + aktywny cykl istnieje
+      const planDoc = await readDoc(`training_plans/${uid}`);
+      expect(planDoc).not.toBeNull();
+      expect(JSON.stringify(planDoc)).toMatch(/martwy/i);
+
+      const cycleDocs = await listDocs('plan_cycles');
+      const userCycles = cycleDocs.filter(d => JSON.stringify(d.fields.userId).includes(uid));
+      expect(userCycles).toHaveLength(1);
+      expect(userCycles[0].name).toContain(`cycle-${uid}-`);
+      expect(JSON.stringify(planDoc?.fields ?? {})).toContain('revision');
+      expect(pickedName.length).toBeGreaterThan(0);
     });
-
-    await loginThroughUi(page, email);
-
-    // Wizard: welcome → poziom → cel → protokół → precyzja
-    await expect(page.getByText('Witaj w')).toBeVisible({ timeout: 15000 });
-    await page.getByTestId('ob-personalization-next').click();
-    await page.getByTestId('consent-terms').click();
-    await page.getByTestId('consent-privacy').click();
-    await page.getByTestId('consent-health').click();
-    await page.getByTestId('ob-legal-submit').click();
-    await page.getByRole('button', { name: 'Następny krok' }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-
-    // Krok 5A jest dostępny natychmiast; potem ścieżka "Ułóż własny" →
-    // PlanBuilder (Z73: najpierw wybór startu).
-    await expect(page.getByTestId('ob-matching')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
-    await page.getByRole('button', { name: 'Zacznij od zera' }).click();
-
-    // Dodaj dzień + pojedyncze ćwiczenie z biblioteki (search)
-    await page.getByRole('button', { name: /Dodaj dzień/ }).click();
-    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
-    await page.getByPlaceholder(/Szukaj/i).fill('martwy');
-    const firstResult = page.getByRole('dialog').locator('button', { hasText: /martwy/i }).first();
-    const pickedName = (await firstResult.textContent() ?? '').trim();
-    await firstResult.click();
-
-    // Ćwiczenie widoczne na liście dnia
-    await expect(page.getByText(/martwy/i).first()).toBeVisible();
-
-    // Z73 / X34: submit buildera prowadzi na ekran 6/6 "Start planu" (nazwa,
-    // długość, start), stamtąd "Podgląd planu"; zapis dopiero po zatwierdzeniu.
-    await page.getByRole('button', { name: 'Dalej do podglądu' }).click();
-    await expect(page.getByTestId('ob-start-step')).toBeVisible();
-    await page.getByTestId('ob-start-preview').click();
-    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
-    await page.getByTestId('plan-preview-confirm').click();
-
-    // Ląduje na Dashboardzie
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 20000 });
-
-    // Plan zapisany w Firestore z naszym ćwiczeniem + aktywny cykl istnieje
-    const planDoc = await readDoc(`training_plans/${uid}`);
-    expect(planDoc).not.toBeNull();
-    expect(JSON.stringify(planDoc)).toMatch(/martwy/i);
-
-    const cycleDocs = await listDocs('plan_cycles');
-    const userCycles = cycleDocs.filter(d => JSON.stringify(d.fields.userId).includes(uid));
-    expect(userCycles).toHaveLength(1);
-    expect(userCycles[0].name).toContain(`cycle-${uid}-`);
-    expect(JSON.stringify(planDoc?.fields ?? {})).toContain('revision');
-    expect(pickedName.length).toBeGreaterThan(0);
-  });
+  }
 
   test('zakończenie planu przed czasem: cykl completed + ekran wyboru nowego planu', async ({ page }) => {
     const email = `endplan-${Date.now()}@e2e.test`;
@@ -205,6 +222,7 @@ test.describe('Emulator: cykl życia planu', () => {
       role: 'user',
       status: 'active',
       onboardingCompleted: true,
+      consents: { termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy },
       access: { enabled: true },
       registration: { source: 'email' },
       notifications: { welcomeSentAt: new Date().toISOString() },
@@ -226,10 +244,10 @@ test.describe('Emulator: cykl życia planu', () => {
     });
 
     await loginThroughUi(page, email);
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
+    await expect(dashboardGreeting(page)).toBeVisible({ timeout: 15000 });
 
     await page.goto('./#/cycles');
-    await page.getByRole('button', { name: 'Zakończ plan' }).click();
+    await page.getByTestId('cycles-end-plan-new').click();
     await page.getByRole('button', { name: 'Zakończ i wybierz nowy' }).click();
 
     // Przejście do wyboru nowego planu
@@ -243,6 +261,9 @@ test.describe('Emulator: cykl życia planu', () => {
   });
 
   test('merge 501 treningów dzieli zapis na batchy i kończy checkpoint', async ({ page }) => {
+    // This scenario seeds 501 records and runs their real background triggers
+    // before testing the two-batch repair; allow for emulator startup/backlog.
+    test.slow();
     const email = `merge-501-${Date.now()}@e2e.test`;
     const uid = await createAuthUser(email);
     const days = [{
@@ -253,6 +274,7 @@ test.describe('Emulator: cykl życia planu', () => {
       // Z90.4: narzędzia naprawcze są poprawnie ograniczone do administratora.
       uid, email, displayName: 'E2E Merge', role: 'admin', status: 'active',
       onboardingCompleted: true, access: { enabled: true }, registration: { source: 'email' },
+      consents: { termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy },
       notifications: { welcomeSentAt: new Date().toISOString() },
     });
     await seedDoc(`plan_cycles/merge-primary-${uid}`, {
@@ -282,8 +304,8 @@ test.describe('Emulator: cykl życia planu', () => {
     });
 
     await loginThroughUi(page, email);
-    await expect(page.getByRole('heading', { name: /Dzisiaj|Today/ })).toBeVisible({ timeout: 15000 });
-    await page.goto('./#/settings');
+    await expect(dashboardGreeting(page)).toBeVisible({ timeout: 15000 });
+    await page.goto('./#/admin');
     // Z52: narzędzia naprawcze żyją w domyślnie zwiniętym akordeonie.
     await page.getByText('Narzędzia naprawcze').click();
     const mergeButton = page.getByRole('button', { name: 'Połącz przerwane cykle' });

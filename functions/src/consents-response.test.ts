@@ -49,10 +49,25 @@ describe("recordConsent response mirror", () => {
     firestoreMocks.db.runTransaction.mockClear();
   });
 
-  it("po commit zwraca nested mirror zgodny z atomowym update users/{uid}", async () => {
+  it.each(["user-2", "", null])("odrzuca inne konto docelowe przed transakcją (%s)", async (expectedOwnerUid) => {
+    await expect(recordConsent.run({
+      auth: { uid: "user-1", token: {} },
+      data: {
+        expectedOwnerUid,
+        entries: [{ type: "terms", action: "granted", docVersion: LEGAL_VERSIONS.terms, lang: "pl", statementText: "Akceptuję regulamin." }],
+        channel: "web",
+      },
+      rawRequest: { headers: {} },
+    } as never)).rejects.toMatchObject({ code: "permission-denied", message: "CONSENT_OWNER_CHANGED" });
+    expect(firestoreMocks.db.runTransaction).not.toHaveBeenCalled();
+    expect(firestoreMocks.writes).toHaveLength(0);
+  });
+
+  it.each([undefined, "user-1"])("po commit zwraca nested mirror dla legacy/zgodnego ownera (%s)", async (expectedOwnerUid) => {
     const response = await recordConsent.run({
       auth: { uid: "user-1", token: {} },
       data: {
+        ...(expectedOwnerUid !== undefined ? { expectedOwnerUid } : {}),
         entries: [
           { type: "terms", action: "granted", docVersion: LEGAL_VERSIONS.terms, lang: "pl", statementText: "Akceptuję regulamin." },
           { type: "privacy_ack", action: "granted", docVersion: LEGAL_VERSIONS.privacy, lang: "pl", statementText: "Potwierdzam politykę." },

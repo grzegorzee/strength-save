@@ -10,6 +10,10 @@ export default defineConfig({
   testDir: './e2e/emulator',
   outputDir: './tmp/playwright-emulator-results',
   timeout: 45000,
+  // The local Functions emulator shares one host with browsers/builds. Parallel
+  // cold starts can consume the real callable's 10 s deadline before execution;
+  // run these integration sequences serially without weakening product timeouts.
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: 'http://localhost:8090/',

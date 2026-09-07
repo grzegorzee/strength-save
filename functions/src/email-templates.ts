@@ -171,7 +171,7 @@ export function selfDeletionNoticeHtml(email: string, uid: string, purgeAfterIso
     <div style="font-size:15px;line-height:1.6">
       <p>Użytkownik <strong>${e}</strong> (uid: <code>${u}</code>) usunął swoje konto.</p>
       <p>Logowanie zostało zablokowane od razu. Dane zostaną trwale wymazane po 30 dniach karencji: <strong>${date}</strong> (cron resumeDeletionOperations).</p>
-      <p>Aby anulować usunięcie przed tą datą: usuń dokument <code>deletion_operations/${u}</code>, usuń pole <code>deletionPending</code> z <code>users/${u}</code> i utwórz ponownie konto Auth z tym samym uid (Admin SDK importUsers) albo skontaktuj się z użytkownikiem w sprawie nowego konta.</p>
+      <p>Aby anulować usunięcie przed tą datą: odczytaj <code>recoveryProfile</code> z <code>deletion_operations/${u}</code>, przywróć z niego status i access w <code>users/${u}</code>, usuń pole <code>deletionPending</code>, a następnie usuń operację i utwórz ponownie konto Auth z tym samym uid (Admin SDK importUsers). Urządzenia i Strava wymagają ponownego połączenia.</p>
     </div>
     <p style="margin-top:24px;font-size:12px;color:#888">Strength Save</p>
   </div>`;

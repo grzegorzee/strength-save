@@ -9,12 +9,17 @@ const emulatorSecrets = [
   'SES_SECRET_ACCESS_KEY=e2e-emulator-only',
   'SES_FROM=Strength Save <noreply@example.invalid>',
   'API_KEY_PEPPER=e2e-emulator-pepper',
+  'REVENUECAT_WEBHOOK_AUTH=e2e-emulator-webhook-only',
+  'REVENUECAT_SERVER_API_KEY=sk_e2e_emulator_only',
   '',
 ].join('\n');
 
 try {
   const existing = readFileSync(secretPath, 'utf8');
-  if (existing !== emulatorSecrets) {
+  const priorFixture = emulatorSecrets.split('\n').filter(line => !line.startsWith('REVENUECAT_')).join('\n');
+  if (existing === priorFixture) {
+    writeFileSync(secretPath, emulatorSecrets, { encoding: 'utf8', mode: 0o600 });
+  } else if (existing !== emulatorSecrets) {
     throw new Error(
       `${secretPath} zawiera wartości inne niż bezpieczne fixture E2E. `
       + 'Przenieś prywatny plik przed uruchomieniem suite emulatora.',
