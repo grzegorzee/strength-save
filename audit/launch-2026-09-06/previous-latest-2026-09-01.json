@@ -1,0 +1,104 @@
+{
+  "score": 9.4,
+  "core_quality_score": 9.4,
+  "release_ready": false,
+  "date": "2026-09-01",
+  "run_at": "2026-09-01T11:45:00+02:00",
+  "base_commit": "60b89776956ee469be6ad4b53b8564f0fd6b9a20 plus local launch-stabilization changes",
+  "score_scope": "Strength Save 1.0.0 build 137 after the September 1 workout-flow stabilization; the signed iOS candidate is VALID in TestFlight and attached to both tester groups.",
+  "scoring_note": "No confirmed red functional defect remains in the changed paths. This is a GO to create the next TestFlight candidate, not permission to submit to App Review: the exact signed candidate still requires a physical-device smoke.",
+  "decision": "GO for packaging the next TestFlight candidate; NO-GO for App Store submission until physical iPhone smoke of that exact build and explicit owner approval.",
+  "summary": "The reported launch blockers were fixed without adding features. Bodyweight exercises can complete without kilograms, skipped exercises no longer enter saved payloads or summaries, timed exercises accept minutes and seconds without a colon keyboard key, warmup and finish layouts wrap safely, exercise search is recoverable above the iOS keyboard, exercise media has a production CDN fallback, and the app now uses one fixed lime brand theme. Full Chromium, focused WebKit, native iOS simulator and Android build gates are green.",
+  "product_findings": {
+    "red": [],
+    "orange": [
+      {
+        "id": "exact-ios-candidate-physical-smoke",
+        "problem": "Signed TestFlight build 137 is available, but has not yet been tested on a physical iPhone.",
+        "user_risk": "Real background suspension, notification sound, haptics, native keyboard behavior, HealthKit, Share Sheet and purchase/restore are not proven for the exact release artifact.",
+        "exit": "Install build 137 from TestFlight, run the physical checklist including screen-off/resume and weak network, then approve submission."
+      },
+      {
+        "id": "physical-android-smoke",
+        "problem": "The synchronized Android debug build compiles, but no physical Android device was available.",
+        "user_risk": "Health Connect, Play Billing, native sharing and lifecycle behavior remain device-only checks.",
+        "exit": "Install the next Internal Testing build on a real Android device and complete the mobile smoke."
+      }
+    ],
+    "yellow": [
+      {
+        "id": "existing-lint-warnings",
+        "problem": "Lint reports 0 errors and 15 pre-existing Fast Refresh warnings.",
+        "user_risk": "No release-runtime impact was reproduced; this remains non-blocking technical debt."
+      },
+      {
+        "id": "historical-palette-tests-skipped",
+        "problem": "Sixteen historical palette compatibility cases are intentionally skipped after removing palette selection from the 1.0 product.",
+        "user_risk": "No active UI path depends on them; keeping dormant legacy readers avoids destructive account migration."
+      },
+      {
+        "id": "webkit-scope",
+        "problem": "WebKit ran the critical suite and all changed high-risk flows, not the entire 310-case Chromium matrix.",
+        "user_risk": "Residual risk is limited by 36 green WebKit scenarios plus the synchronized native simulator build."
+      }
+    ],
+    "resolved_this_run": [
+      "Ab Rollout and the one-arm kneeling wheel rollout are bodyweight exercises and can be saved with repetitions and 0 kg.",
+      "Skipped exercises are filtered from checkpoint/final sync payloads, completion totals, PRs, milestones and the completed-workout summary.",
+      "Plank duration uses separate numeric minute and second inputs with a fixed colon; 1:15 is stored as 75 seconds.",
+      "Warmup cards place dose below the full wrapping exercise title.",
+      "Exercise picker no longer opens the keyboard automatically and exposes a localized 44 px keyboard-dismiss action.",
+      "Long exercise names and the final workout CTA wrap instead of clipping.",
+      "Exercise animations use the production CDN when the environment variable is absent.",
+      "Profile and onboarding palette controls were removed; legacy colors normalize to the fixed lime brand theme.",
+      "Current web assets were synchronized into both native projects and hash-verified before native builds.",
+      "Stale E2E palette contracts were replaced with fixed-theme invariants."
+    ]
+  },
+  "checks": {
+    "vitest": "3866 passed, 0 failed, 16 intentionally skipped; 3882 total across 1315 suites",
+    "chromium_e2e": "310/310 passed",
+    "webkit_critical": "9/9 passed",
+    "webkit_changed_flows": "27/27 passed: fixed theme, onboarding, keyboard dialogs, PL/EN label overflow, force-kill resume and warmup",
+    "label_audit": "PL and EN static, expanded, dialog, onboarding and admin labels passed at mobile widths; release screenshots regenerated",
+    "typecheck": "passed",
+    "lint": "0 errors, 15 pre-existing warnings",
+    "production_build": "passed",
+    "bundle_budget": "passed; no chunk over 819200 bytes and initial JS below 1536000 bytes",
+    "dist_smoke": "passed",
+    "dist_offline": "passed: cached profile and plan, cold Dashboard/lazy route and local draft",
+    "no_emoji": "276 files passed",
+    "mobile_sync": "passed; 18 Capacitor plugins; dist, iOS and Android index.html SHA-256 identical",
+    "ios_simulator": "current synchronized App + Watch build succeeded, installed and launched on iPhone 17 Pro simulator",
+    "android_debug": "BUILD SUCCESSFUL; 642 tasks, 33 executed and 609 up-to-date",
+    "testflight_137": "VALID; internal and external groups attached; en-US what-to-test saved; Beta App Review APPROVED",
+    "git_diff_check": "passed",
+    "functions_and_rules": "unchanged by this client-only stabilization; latest JDK 21 evidence remains Functions 12/12 registration, Firestore 317/317 and Storage 42/42 from the August 31 release audit",
+    "ios_physical": "not run",
+    "android_physical": "not run"
+  },
+  "native_not_covered": [
+    "physical iOS screen-off/background and resume with a running timer",
+    "physical iOS weak-network cold start and reconnect",
+    "real notification delivery, vibration and bundled sound",
+    "native Share Sheet, HealthKit and Sign in with Apple",
+    "real App Store purchase, failure and restore",
+    "physical Android lifecycle, Health Connect, native share and Play Billing"
+  ],
+  "costs": {
+    "status": "No new cloud calls, Functions, schedules or Firestore query patterns were added in this stabilization.",
+    "latest_verified_snapshot": "August 31: 70945 reads, 2362 writes, 40 deletes and 3732 Cloud requests over 30 days.",
+    "assessment": "The latest verified model remains approximately 1.60-2.26 USD/month fixed and below 0.10 USD GCP per MAU per month in the conservative projection. Recalculate from real billing at 100 MAU."
+  },
+  "versions": {
+    "marketing": "1.0.0",
+    "ios_current_project_version": 137,
+    "android_version_code": 46,
+    "note": "Build 137 is VALID in TestFlight, attached to both groups and Beta App Review is APPROVED; marketing version remains 1.0.0."
+  },
+  "required_before_submission": [
+    "Run the physical iPhone checklist on TestFlight build 137, including background/resume, weak network, keyboard, notification, share and purchase restore.",
+    "Run a physical Android smoke before Play production.",
+    "Obtain explicit final owner approval before Submit for Review."
+  ]
+}

@@ -5,11 +5,99 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-06 (korekta: Pomiary ciała pod kolorem przewodnim w Profilu, pasek z pięcioma zakładkami: web, iOS 142, AAB v48)
+**Ostatnia aktualizacja:** 2026-09-07 (lokalny audyt przed premierą i poprawki rozgrzewki; bez nowego wdrożenia)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-07: kandydaci TestFlight 143 i Google Play 49
+
+Właściciel zlecił przygotowanie nowych wydań i potwierdził, że fizyczne testy
+iPhone'a wykona przez TestFlight. Produkt pozostaje 1.0.0; zwiększono wyłącznie
+liczniki iOS do 143 (sześć konfiguracji) i Androida do 49. Poprzednie artefakty
+zachowano. Źródła audytu są zatwierdzane w osobnych grupach zmian; dystrybucja
+testowa nie oznacza zatwierdzenia publicznej premiery.
+
+Ponowiona bramka po bumpie: frontend 4084 PASS / 16 historycznych skipów,
+Functions 549 PASS / 15 przypadków wykonywanych osobno w emulatorze, typecheck
+PASS, lint bez błędów. Backend jest wdrażany etapami: nowy indeks i sekret RC,
+kompatybilne Functions oraz Storage Rules; strict restore i Firestore Rules
+pozostają do migracji klientów. Szczegóły i ograniczenia:
+`audit/release-2026-09-07/backend-preflight.md`. B11 (Undo bez sidecara) wymaga
+odroczonej aktualizacji Rules i nie jest deklarowane jako wdrożone w tej fazie.
+Rzeczywiste paczki i status sklepów zostaną zapisane w osobnych receipts wydania.
+
+### 2026-09-07: rozgrzewka — propozycja, powtórki i wznowienie
+
+**Kontekst:** właściciel zgłosił brak propozycji na świeżym treningu i powtarzające
+się ćwiczenia. Testy odtworzyły pomijanie propozycji przez planned autostart oraz
+krążenia ramion w dwóch kolejnych fazach górnej rozgrzewki. Dodatkowo sam stan
+warmupChecked nie chronił szkicu przed nowym startem, a globalne wyłączenie
+propozycji mogło przejść na inne konto bez ustawienia w profilu.
+
+**Decyzja:** świeży start telefonu respektuje propozycję po trwałym utworzeniu
+sesji; Watch i wznowienie zachowują osobne warunki. Usunięto dwa zbędne wiersze
+szablonów, pozostawiając ruch w pierwszej fazie. Odhaczenia rozgrzewki są treścią
+żywego szkicu. Cache preferencji ma właściciela i zachowuje jego jawne wyłączenie.
+Stare odhaczenia i serie nie są usuwane ani migrowane; UI liczy aktualne zadania.
+Dodatkowy opis pierwszej rozgrzewki skrócono do jednego zdania; szacowany czas
+pozostaje tylko w dynamicznym opisie zestawu, bez powtórzonej stałej 4–6 minut.
+
+**Weryfikacja:** czerwone regresje poprzedziły poprawki; generator/dialog 66 PASS,
+bramka/wznowienie/preferencje 69 PASS, pełny emulator po zmianie 18/18 PASS.
+Zestawy celowane częściowo się pokrywają. Ostateczne pełne wyniki, świeże buildy
+i granice urządzeniowego QA: [raport audytu](docs/LAUNCH-AUDIT-2026-09-06.md).
+Zmiany pozostają lokalne; marketingowa wersja 1.0.0 bez nowej dystrybucji.
+
+### 2026-09-06: audyt przed premierą — integralność, prywatność i UX
+
+**Kontekst:** przegląd źródeł od `33df6dbd`, trzy niezależne obszary agentów,
+cross-review, przegląd mobilnego UI PL/EN i weryfikacja na emulatorach.
+Środowisko docelowe pozostaje: siłownia, słaba sieć, zgaszony ekran.
+
+**Root causes i decyzje:** porównanie ACK musi obejmować pełne serie, notatki,
+czas/dystans/asystę, liczbę elementów i stan health; pusty tekst/lista są świadomą
+edycją. CSV używa istniejącego serwerowego restore i identyfikatorów właściciela,
+zachowuje wieloliniowe notatki i dodatkowe metryki. Import wiąże docelowy UID
+na kliencie i serwerze, niezależnie od UID starego backupu. Raw client writes
+nie mogą omijać health consent. Cofnięcie importu toleruje brak sidecara.
+
+Usuwanie konta zamyka dostęp od razu, zachowuje pierwotną 30-dniową karencję,
+odzyskuje przerwane operacje i nie zatrzymuje kolejki na completed. RevenueCat
+i Health mają kontrolę UID/generacji/zgody na granicach asynchronicznych.
+TRANSFER odtwarza aktualne uprawnienia obu właścicieli z API, błąd podlega retry.
+Natywny zapis Health ma stałą tożsamość rekordu. Android używa oficjalnych
+zgód HC i alarmów oraz kanałów z rzeczywistymi plikami dźwiękowymi.
+
+Formularz pomiarów czeka na wynik zapisu, blokuje duplikat, zachowuje dane przy
+błędzie i wskazuje nieprawidłowe pole. Usunięto powtórzenia i wewnętrzny żargon:
+onboarding na krokach 1–4 ma 24% mniej słów PL i 28% EN. Nie usunięto wymaganych zgód,
+opisów konsekwencji ani recovery. Vite nie obserwuje natywnych artefaktów HTML,
+których kopiowanie przeładowywało sesje podczas testów.
+
+Onboarding zachowuje zamiany ćwiczeń w szkicu właściciela i blokuje edycję oraz
+cofanie podczas zapisu. Wznowienie szkicu respektuje aktualne wymagane zgody.
+Potwierdzenie zgód z serwera trafia od razu do kontekstu konta, jest związane
+z UID, a starsze ACK nie przesłania nowszego wycofania zgody zdrowotnej.
+Ekran logowania na iOS kompensuje systemową klawiaturę lokalnie, bez zmiany
+globalnego zachowania treningu. Częściowy import zachowuje historię Undo.
+
+Utrata ACK na przełomie tygodnia ujawniła, że data startu nie jest trwałą
+tożsamością pierwszego onboardingu. Transakcja zapisuje wskaźnik pendingCycleId
+w profilu i odzyskuje ten sam cykl; ponowienie zachowuje aktualny wybór daty,
+a zwykły replan i zamknięta historia pozostają oddzielne. Niejednoznaczne stare
+dane wymagają jawnej pomocy, zamiast automatycznego nadpisania istniejącego planu.
+CI ma dodatkową bramkę kompilacji Androida. Manifest obejmuje także konfigurację
+Firebase Androida oraz pełne zasoby i podpisane artefakty wydania.
+
+**Weryfikacja i wydanie:** końcowe liczby oraz scenariusze znajdują się w
+[raporcie audytu](docs/LAUNCH-AUDIT-2026-09-06.md). Raport odróżnia testy z mockami,
+emulatory Firebase, natywne buildy/smoke i niewykonane fizyczne QA.
+Nie wykonano zapisów na prawdziwych kontach, deployu ani uploadu do sklepów.
+Wersja marketingowa 1.0.0 pozostaje. Przed dystrybucją konieczny nowy build i skoordynowane
+wdrożenie klienta/Functions/Rules, READY indeksu usuwania oraz weryfikacja sekretu
+RC. Usunięte z runbooka hasło recenzenta wymaga rotacji po stronie właściciela.
 
 ### 2026-08-31: X73 — kandydat 1.0 jest prawdziwym artefaktem, a dane mają recovery
 

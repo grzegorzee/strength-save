@@ -1,0 +1,10 @@
+{
+  "started_at": "2026-09-07T08:41:27.133863+00:00",
+  "previous_artifacts": {
+    "native-build-receipt.json": "native-build-receipt-before-final-copy-20260907T084127Z.json",
+    "final-mobile-sync.log": "final-mobile-sync-before-final-copy-20260907T084127Z.log",
+    "final-ios-build.log": "final-ios-build-before-final-copy-20260907T084127Z.log",
+    "final-android-build.log": "final-android-build-before-final-copy-20260907T084127Z.log"
+  },
+  "previous_ios_app": "/tmp/strength-launch-audit-20260906/ios/Build/Products/Debug-iphonesimulator/App-before-final-copy-20260907T084127Z.app"
+}

@@ -1,0 +1,42 @@
+{
+  "verified_at": "2026-09-07T08:24:45.972758+00:00",
+  "base_commit": "33df6dbd13883ce2f1abfbf25bfa11213b7bc6f5",
+  "working_tree": "local uncommitted audit fixes",
+  "scope": "Fresh diagnostic simulator/debug builds and unauthenticated login/keyboard smoke only; no distribution or physical-device signoff.",
+  "ios": {
+    "version": "1.0.0",
+    "build": "142",
+    "simulator": "AA0FDB8B-3EA6-4A92-BA7A-F3776DAF7BCB",
+    "device": "iPhone 17 / iOS 26.5",
+    "build_log": "final-ios-build.log"
+  },
+  "android": {
+    "name": "com.grzegorzjasionowicz.strengthsave",
+    "versionCode": "48",
+    "versionName": "1.0.0",
+    "device": "fresh API 35 AVD / emulator-5580",
+    "apk_sha256": "b8f2d6d099eb5347fb3ebf8aedb633e4b5debe1e5bc9b73c57b9d90227722b0a",
+    "apk_bytes": 36452392,
+    "build_log": "final-android-build.log"
+  },
+  "mobile_asset_parity": {
+    "mobile-dist": {
+      "files": 163,
+      "sha256": "0c94429097fa6ebe916fd4e93118b7a9c98cb3e864ff26da260a3ec11f9e4426"
+    },
+    "ios-project": {
+      "files": 163,
+      "sha256": "0c94429097fa6ebe916fd4e93118b7a9c98cb3e864ff26da260a3ec11f9e4426"
+    },
+    "ios-built-app": {
+      "files": 163,
+      "sha256": "0c94429097fa6ebe916fd4e93118b7a9c98cb3e864ff26da260a3ec11f9e4426"
+    },
+    "android-project": {
+      "files": 163,
+      "sha256": "0c94429097fa6ebe916fd4e93118b7a9c98cb3e864ff26da260a3ec11f9e4426"
+    }
+  },
+  "signed_ipa_aab": "Historical artifacts predating these fixes; not rebuilt or uploaded.",
+  "physical_device_qa": "NOT RUN"
+}

@@ -1,0 +1,35 @@
+{
+  "testedAt": "2026-09-06T14:06:17.198Z",
+  "success": true,
+  "url": "http://127.0.0.1:8093/#/",
+  "syntheticMode": true,
+  "googleapisRequestsBlocked": true,
+  "outcomes": [
+    {
+      "path": "ios/App/App/public/index.html",
+      "sha256": "4ded0b04a06739b32c38c7b029cbf15cc74ac5dca78bc870f85a8dc3fd6343f0",
+      "unchanged": true,
+      "fullReloadMessages": [],
+      "mainFrameNavigations": 0
+    },
+    {
+      "path": "android/app/src/main/assets/public/index.html",
+      "sha256": "4ded0b04a06739b32c38c7b029cbf15cc74ac5dca78bc870f85a8dc3fd6343f0",
+      "unchanged": true,
+      "fullReloadMessages": [],
+      "mainFrameNavigations": 0
+    },
+    {
+      "path": "index.html",
+      "sha256": "6da764ff196759d3aa1fac79c798261932fcafe50d80cd23f26d5722c7b8c7f7",
+      "unchanged": true,
+      "fullReloadMessages": [
+        {
+          "type": "full-reload",
+          "path": "/index.html"
+        }
+      ],
+      "mainFrameNavigations": 1
+    }
+  ]
+}

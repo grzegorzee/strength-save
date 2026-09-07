@@ -1,0 +1,64 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:39528) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/rest-notification.test.ts (18 tests | 2 failed) 31ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > arm w foregroundzie NIE planuje notyfikacji (koniec przy włączonym ekranie = tylko sygnał apki) 12ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > przejście w tło planuje notyfikację na pozostały czas (id 90001) 2ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > powrót na pierwszy plan anuluje pending i sprząta dostarczone, ale przerwa ZOSTAJE uzbrojona 2ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > cancel (skip/koniec/unmount) ROZBRAJA: późniejsze tło nie planuje niczego 1ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > deadline w przeszłości: tło nie planuje (przerwa już zasygnalizowana) 1ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > ułamek sekundy przed deadline: tło planuje (zaokrąglenie w górę, sygnał nie ginie) 1ms
+   ✓ rest-notification: uzbrajanie i planowanie w tle (bug 8, X30) > cancel czyści też DOSTARCZONE wpisy z Centrum Powiadomień (kumulacja per przerwa) 1ms
+   ✓ rest-notification: kanal odliczania serii (WP-C X37) > arm odliczania w foregroundzie nie planuje; tlo planuje na id 90002 1ms
+   ✓ rest-notification: kanal odliczania serii (WP-C X37) > przerwa i odliczanie uzbrojone razem: tlo planuje OBA (90001 i 90002) 1ms
+   ✓ rest-notification: kanal odliczania serii (WP-C X37) > cancel przerwy NIE rozbraja odliczania serii (i odwrotnie) 1ms
+   ✓ rest-notification: kanal odliczania serii (WP-C X37) > powrot na pierwszy plan sprzata pending/dostarczone odliczania, ale zostaje uzbrojone 1ms
+   ✓ rest-notification: tap w powiadomienie końca przerwy (bug 53, X30) > tap w notyfikację id 90001 woła onTap; inne id są ignorowane 1ms
+   ✓ rest-notification: tap w powiadomienie końca przerwy (bug 53, X30) > funkcja zwrotna zdejmuje listener pluginu 0ms
+   ✓ rest-notification: uprawnienia (R2-24) > odmowa uprawnien NIE jest cache-owana na zawsze: kolejna proba pyta ponownie 2ms
+   ✓ rest-notification: uprawnienia (R2-24) > cancel w trakcie trwajacego schedule wygrywa: notyfikacja NIE odpala mimo pauzy (R2-25) 1ms
+   ✓ rest-notification: uprawnienia (R2-24) > wynik pozytywny jest cache-owany (bez odpytywania przy kazdej serii) 1ms
+   × Android timer sound channels > changes the Android channel with the selected sound while preserving rest ID 4ms
+     → expected "spy" to be called with arguments: [ ObjectContaining{…} ]
+
+Number of calls: 0
+
+   × Android timer sound channels > cancel while Android channel setup is pending cannot schedule a stale alarm 1ms
+     → expected "spy" to be called 1 times, but got 0 times
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/rest-notification.test.ts > Android timer sound channels > changes the Android channel with the selected sound while preserving rest ID
+AssertionError: expected "spy" to be called with arguments: [ ObjectContaining{…} ]
+
+Number of calls: 0
+
+ ❯ src/test/rest-notification.test.ts:330:27
+    328|     const { saveRestSound } = await import('@/lib/rest-sound');
+    329|     await scheduleRestEndNotification(90, 'Rest over', 'Squat');
+    330|     expect(createChannel).toHaveBeenCalledWith(expect.objectContaining…
+       |                           ^
+    331|     expect(schedule).toHaveBeenLastCalledWith({ notifications: [expect…
+    332|     saveRestSound('horn');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/test/rest-notification.test.ts > Android timer sound channels > cancel while Android channel setup is pending cannot schedule a stale alarm
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ ❯ src/test/rest-notification.test.ts:343:27
+    341|     const scheduling = scheduleRestEndNotification(90, 'Rest over', 'S…
+    342|     await flushChain();
+    343|     expect(createChannel).toHaveBeenCalledTimes(1);
+       |                           ^
+    344|     const canceling = cancelRestEndNotification();
+    345|     finish(); await Promise.all([scheduling, canceling]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 16 passed (18)
+   Start at  15:39:31
+   Duration  723ms (transform 53ms, setup 54ms, collect 35ms, tests 31ms, environment 272ms, prepare 35ms)

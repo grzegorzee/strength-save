@@ -1,0 +1,58 @@
+[
+  {
+    "lang": "pl",
+    "step": 1,
+    "text": "STRENGTH SAVE\n01 / 06\nA\nCześć, Alex\n\nZapisuj treningi, korzystaj z planu i śledź postępy, także przy słabym internecie.\n\nJAK MASZ NA IMIĘ?\n\nKOLOR APLIKACJI\n\nDALEJ\n\nTRENUJ PEWNIE TAKŻE OFFLINE",
+    "words": 31,
+    "screenshot": "audit/launch-2026-09-06/copy-before/pl-step-1.png"
+  },
+  {
+    "lang": "pl",
+    "step": 2,
+    "text": "STRENGTH SAVE\n02 / 06\nOkreśl swój poziom\n\nWybierz aktualne doświadczenie w treningu siłowym.\n\nPoczątkujący\n0-6 miesięcy\nŚrednio zaawansowany\n6-24 miesiące\nZaawansowany\n2+ lata\nNASTĘPNY KROK",
+    "words": 26,
+    "screenshot": "audit/launch-2026-09-06/copy-before/pl-step-2.png"
+  },
+  {
+    "lang": "pl",
+    "step": 3,
+    "text": "STRENGTH SAVE\n03 / 06\nUstal swój cel\n\nWybierz główny cel. Propozycję planu oprzemy także na Twoim poziomie i liczbie dni treningowych.\n\nBudowa masy\nPriorytetem jest rozwój masy mięśniowej.\nMaksymalna siła\nPriorytetem jest zwiększanie siły w głównych ćwiczeniach.\nRedukcja\nPriorytetem jest utrzymanie siły i mięśni podczas redukcji.\nAtletyka\nPriorytetem są moc, szybkość i ogólna sprawność.\nDALEJ",
+    "words": 56,
+    "screenshot": "audit/launch-2026-09-06/copy-before/pl-step-3.png"
+  },
+  {
+    "lang": "pl",
+    "step": 4,
+    "text": "STRENGTH SAVE\n04 / 06\nWybierz dni treningowe\n\nWybierz, ile razy w tygodniu chcesz trenować, i zaznacz pasujące dni.\n\nILE DNI TRENINGOWYCH W TYGODNIU?\n\n2\n3\n4\n5\n6\n\nPlan możesz później dostosować, a treningi przekładać na inne dni.\n\nWYBIERZ DNI TRENINGOWE\n\nP\nW\nŚ\nC\nP\nS\nN\n\nWybrano 4/4 dni\n\nDALEJ",
+    "words": 53,
+    "screenshot": "audit/launch-2026-09-06/copy-before/pl-step-4.png"
+  },
+  {
+    "lang": "en",
+    "step": 1,
+    "text": "STRENGTH SAVE\n01 / 06\nA\nHi, Alex\n\nLog workouts, follow your plan, and track progress, even with a weak connection.\n\nWHAT'S YOUR NAME?\n\nAPP COLOR\n\nNEXT\n\nTRAIN CONFIDENTLY, EVEN OFFLINE",
+    "words": 31,
+    "screenshot": "audit/launch-2026-09-06/copy-before/en-step-1.png"
+  },
+  {
+    "lang": "en",
+    "step": 2,
+    "text": "STRENGTH SAVE\n02 / 06\nDefine Your Baseline\n\nSelect your current strength training experience.\n\nBeginner\n0-6 months\nIntermediate\n6-24 months\nAdvanced\n2+ years\nNEXT STEP",
+    "words": 25,
+    "screenshot": "audit/launch-2026-09-06/copy-before/en-step-2.png"
+  },
+  {
+    "lang": "en",
+    "step": 3,
+    "text": "STRENGTH SAVE\n03 / 06\nEstablish Your Objective\n\nChoose your main goal. We will also use your experience level and number of training days to suggest a plan.\n\nBuild Muscle\nFocus on building muscle.\nPeak Strength\nFocus on increasing strength in the main lifts.\nFat Loss\nFocus on maintaining strength and muscle during fat loss.\nAthletic Performance\nFocus on power, speed, and overall fitness.\nCONTINUE",
+    "words": 65,
+    "screenshot": "audit/launch-2026-09-06/copy-before/en-step-3.png"
+  },
+  {
+    "lang": "en",
+    "step": 4,
+    "text": "STRENGTH SAVE\n04 / 06\nChoose your training days\n\nChoose how many times a week you want to train, then select the days that suit you.\n\nHOW MANY TRAINING DAYS PER WEEK?\n\n2\n3\n4\n5\n6\n\nYou can adjust the plan later and reschedule workouts to other days.\n\nSELECT YOUR TRAINING DAYS\n\nM\nT\nW\nT\nF\nS\nS\n\n4/4 days selected\n\nCONTINUE",
+    "words": 64,
+    "screenshot": "audit/launch-2026-09-06/copy-before/en-step-4.png"
+  }
+]

@@ -1,185 +1,90 @@
-# Google Play: zalozenie konta i pierwszy upload
+# Google Play — przygotowanie wydania
 
-Stan na 2026-08-11. Decyzja: konto **organizacji**, nie personal.
+Stan dokumentacji: 2026-09-06. Nie jest to odczyt dzisiejszego stanu Play Console.
+Konto projektu jest według wcześniejszych notatek kontem organizacji; notatka
+z 2026-08-21 potwierdzała weryfikację. Przed wydaniem sprawdź bieżący stan konta,
+rekord aplikacji i Internal Testing. Numery firmowe, adresy administracyjne,
+service-account JSON oraz hasła recenzenta pozostają poza publicznym repo.
 
-Powod: zasady Play wymagaja konta organizacji dla aplikacji "zwiazanych ze
-zdrowiem", a ogloszenie Google z 2024-07-17 wymienia kategorie bez granulacji
-("financial products and services, health, VPN, and government"). Strength Save
-uzywa `health.READ_WEIGHT` + `health.WRITE_EXERCISE` i trafia do Health &
-Fitness, wiec konto personal groziloby blokada wydania na deklaracji zdrowotnej,
-a typu konta nie da sie pozniej zmienic (tylko formalny transfer). Dodatkowy
-zysk: organizacja jest zwolniona z wymogu 12 testerow x 14 dni.
+Kanoniczna instrukcja: [Launch runbook](LAUNCH-RUNBOOK.md).
 
-Adresu firmy nie da sie ukryc w sklepie: Play publikuje pelny adres dla kont
-organizacji ORAZ dla kont personal, ktore monetyzuja. Ten sam adres jest juz
-jawny w App Store przez DSA trader compliance, wiec wybor konta niczego tu nie
-pogarsza.
+## Źródła i artefakty
 
-**Repo jest publiczne. Numeru D-U-N-S, adresu firmy i identyfikatora konta Play
-nie zapisywac w tym drzewie.** Te dane sa w pamieci sesji Claude
-(`memory/google_play_account.md`).
+- applicationId: `com.grzegorzjasionowicz.strengthsave`.
+- source versionName1.0.0 / versionCode48; compileSdk36 / targetSdk36 / minSdk26.
+- Produkcyjny plik: `android/app/build/outputs/bundle/release/app-release.aab`.
+- Podpisany plik istniejący przed poprawkami audytu nie jest nowym kandydatem.
+  Przed kolejnym uploadem zwiększ versionCode bez zmiany1.0.0, przebuduj i zapisz
+  source commit + SHA256 nowego AAB. Signing keys przechowuj poza repo.
+- Listing PL/EN: `release/google-play/`. Potwierdź aktualność screenshotów telefonu,
+  feature graphic1024×500 i ikony512×512 przed wysłaniem.
 
-## 1. Stan gotowosci (zweryfikowany lokalnie)
+## Techniczna bramka Play
 
-| Element | Stan |
+- Nowe wydania telefonu od2026-08-31 wymagają targetAPI36; źródła spełniają.
+- Sprawdź ELF i ZIP alignment16KB finalnego AAB oraz instalację/systemowy smoke.
+  Sam brak własnego C++ nie zwalnia z kontroli bibliotek dołączonych przez SDK.
+- Android Health Connect: manifest permission declarations, provider visibility,
+  systemowy permission request oraz privacy-rationale Activity/alias są częścią
+  działania app. Testuj oddzielnie odczyt wagi i zapis treningu: grant, deny,
+  ponowienie, revoke oraz ubijanie procesu podczas dialogu systemowego.
+- Na Internal Testing potwierdź Play App Signing fingerprints w Firebase,
+  Google Sign-In, App Check/Play Integrity i powiadomienia. Keystore uploadu
+  i klucz podpisujący app ze sklepu mogą być różne.
+
+## Dane bezpieczeństwa — karta do przeglądu
+
+Poniższe mapowanie jest listą rzeczy do uzgodnienia z aktualnym backendem,
+PrivacyInfo.xcprivacy i polityką; nie kopiuj automatycznie odpowiedzi do konsoli.
+Brak uprawnienia GPS w AndroidManifest nie wyklucza tras z integracji Strava.
+
+| Kategoria | Przepływ wymagający deklaracji/przeglądu |
 |---|---|
-| `applicationId` | `com.grzegorzjasionowicz.strengthsave` |
-| Wersja | `versionName 1.0.0`, `versionCode 7` (redesign Profilu wariant A) |
-| Podpisany AAB | `android/app/build/outputs/bundle/release/app-release.aab`, SHA-256 `7efc414531459845a88d24f004efba3390d0b9ba8b264ad0fec7ec94b079dcd3` (build 2026-08-11 wieczór, `jar verified`) |
-| Upload key | keystore `FIRMA/_secrets/android/strength-save-release.keystore`, alias `STRENGTH`, wazny do 2053-12-02 |
-| Upload key SHA-1 | `61:75:B0:23:AE:29:5A:97:E1:5A:07:1A:92:E0:28:0D:88:0C:70:A0` |
-| Upload key SHA-256 | `8F:65:CB:13:AD:7B:7D:FE:08:71:DD:AA:CE:C3:B3:A4:52:4B:90:A4:8E:E0:95:3C:6C:37:BA:9B:E3:7A:9C:65` |
-| Listing PL/EN | `release/google-play/pl-PL.md`, `release/google-play/en-US.md` |
-| Privacy policy | https://strengthsave.app/legal/privacy.html (HTTP 200) |
-| Regulamin | https://strengthsave.app/legal/terms-pl.html (HTTP 200) |
-| Ikony Android | wygenerowane w `android/app/src/main/res/` |
+| Personal info | Email, opcjonalne imię, identyfikator konta Firebase |
+| Health and fitness | Treningi/serie, pomiary ciała, opcjonalne dane health po zgodzie |
+| Location | Rozbieżność do wyjaśnienia: manifest iOS deklaruje precise location; mapper Strava nie zapisuje tras, choć odpowiedź upstream może zawierać współrzędne |
+| Photos/videos | Avatar oraz opcjonalne zdjęcia i załączniki zgłoszenia błędu; odróżnij dane wyłącznie lokalne od uploadu |
+| Other user content | Notatki treningu, treść zgłoszeń błędów |
+| Financial info | Historia zakupów/subskrypcji przetwarzana przez Play i RevenueCat |
+| App activity | Interakcje, diagnostyka użycia i zdarzenia wiadomości email |
+| App info/performance | Błędy klienta, dane diagnostyczne i wydajności |
+| Device identifiers | Token FCM, identyfikatory wymagane przez dostawców SDK |
 
-Komenda przebudowy AAB:
+Dla każdego przepływu ustal collected/shared, optional/required, cel, retencję,
+transit encryption, usuwanie i zastosowanie wyjątku service-provider. Nie zakładaj
+jednej odpowiedzi „nic shared” dla wszystkich usług bez sprawdzenia warunków i
+rzeczywistej konfiguracji. Dane zdrowotne i trasy muszą odpowiadać aktualnej zgodzie.
 
-```
-npm run build:mobile && ./node_modules/.bin/cap sync android && (cd android && ./gradlew bundleRelease)
-```
+Publiczne adresy do sprawdzenia przed submission:
 
-## 2. Rejestracja konta: stan na 2026-08-11
+- Privacy: https://strengthsave.app/privacy
+- Terms: https://strengthsave.app/terms
+- Usuwanie konta: https://strengthsave.app/delete-account
 
-Zrobione:
+## Health Apps declaration
 
-- [x] Wybrany typ **Dla organizacji**, wlasciciel `grzegorzee@gmail.com`
-      (nieodwracalne), oplata 25 USD.
-- [x] Numer D-U-N-S: firma miala go juz nadany, wniosek do D&B okazal sie
-      zbedny. Dane firmy zgodne z profilem D&B (szczegoly poza repo).
-- [x] Konto organizacji utworzone, nazwa konta `Strength Save`.
+- `READ_WEIGHT`: propozycja najnowszej masy ciała, zatwierdzana przez użytkownika.
+- `WRITE_EXERCISE`: opcjonalny zapis ukończonego treningu do Health Connect.
+- Deklaracja musi odpowiadać wszystkim faktycznie włączonym funkcjom zdrowotnym,
+  a polityka z linku rationale musi być tą samą polityką podaną w konsoli.
+- Dowód z konsoli jest oddzielny od testu kodu i poprawnego manifestu Android.
 
-- [x] Dokumenty tozsamosci **przeslane**, Google prowadzi weryfikacje
-      ("moze potrwac kilka dni", po zakonczeniu mail do wlasciciela konta).
-      Dokumentow nie wolno edytowac przed wgraniem, bo to konczy sie
-      niepowodzeniem weryfikacji i wplywa na dostepnosc aplikacji.
+## Kolejność konsoli
 
-Otwarte (blokuje wszystko dalsze):
+1. Potwierdzenie organizacji, utworzenie rekordu aplikacji, Play App Signing.
+2. Internal Testing nowego AAB i instalacja przez sklep.
+3. Firebase signing fingerprints, Integrity, zakup/restore jako License tester.
+4. Produkty monthly/yearly, base plans, RevenueCat service account, offering/RTDN.
+5. Data Safety, Health Apps, App access z instrukcją logowania, rating/odbiorcy,
+   listing i grafiki. Dane logowania recenzenta tylko w prywatnym polu konsoli.
+6. Przegląd fizycznego QA i decyzja o submission/produkcji.
 
-- [ ] **Zweryfikuj numery telefonow**: osobne zadanie, niezalezne od dokumentow,
-      mozna domknac nie czekajac na wynik weryfikacji tozsamosci.
-- [ ] Zatwierdzenie weryfikacji organizacji i dokumentow przez Google.
+Nie stosuj automatycznie wymogu closed testing12×14 dni do organizacji; Google
+opisuje go dla nowych kont osobistych. Obowiązujące zadania należy sprawdzić w
+konkretnym koncie Play Console.
 
-Dokument firmy dla JDG: **zaswiadczenie o numerze REGON** (odpis z KRS nie
-dotyczy, JDG jest w CEIDG). Numer REGON istnieje od rejestracji dzialalnosci,
-czeka sie wylacznie na zaswiadczenie. Wydruk z `wyszukiwarkaregon.stat.gov.pl`
-jest od reki i bezplatny, formalne zaswiadczenie przez biznes.gov.pl (Profil
-Zaufany) ma ustawowe 7 dni roboczych, a wersja elektroniczna ma taka sama moc
-prawna jak papierowa.
-
-### Punkt wznowienia
-
-Wracamy do tematu, gdy przyjdzie mail o akceptacji konta. Wtedy sekcja 6 od
-kroku 1. Nic wczesniej nie da sie ruszyc, bo "Utworz aplikacje" jest wyszarzone,
-a Play Developer API nie tworzy aplikacji.
-
-Przycisk **Utworz aplikacje jest wyszarzony** do czasu potwierdzenia wlasnosci
-konta. Dopoki weryfikacja nie przejdzie, nie da sie utworzyc aplikacji ani
-wgrac AAB, takze przez API.
-
-Uwaga do wypelniania: nazwa dewelopera widoczna w sklepie to osobne pole niz
-nazwa prawna i moze brzmiec `Strength Save`. Dane adresowe musza byc znak w
-znak zgodne z profilem D&B, lacznie z nietypowym zapisem ulicy.
-
-### Czego NIE da sie zrobic przez API
-
-Play Developer API (androidpublisher) operuje na istniejacym `packageName`:
-`edits`, `monetization.subscriptions`, `inappproducts`. Nie ma metody tworzacej
-nowa aplikacje. Custom App Publishing API tworzy tylko prywatne aplikacje dla
-Managed Google Play. Do tego samo utworzenie service accounta odbywa sie w
-konsoli. Pierwsze kliki sa wiec recznie: weryfikacja, utworzenie aplikacji,
-pierwszy upload z akceptacja Play App Signing, wygenerowanie service accounta.
-Po tym kolejne buildy, listingi i subskrypcje wracaja do automatyzacji.
-
-## 3. Formularz Data safety (propozycja z kodu, do potwierdzenia)
-
-Zrodlo: `android/app/src/main/AndroidManifest.xml` (uprawnienia), zaleznosci
-Firebase/RevenueCat, model danych w `src/`.
-
-Uprawnienia w manifescie sa minimalne: `INTERNET`, `POST_NOTIFICATIONS`,
-`health.READ_WEIGHT`, `health.WRITE_EXERCISE`. **Brak jakiegokolwiek
-uprawnienia lokalizacji**, brak kontaktow, brak dostepu do zdjec i plikow.
-W kodzie nie ma zapisu GPS/polyline nawet dla aktywnosti Strava.
-
-### Zbierane dane
-
-| Kategoria Play | Typ | Zrodlo | Cel | Wymagane | Udostepniane |
-|---|---|---|---|---|---|
-| Personal info | Email address | Firebase Auth | Account management, App functionality | tak | nie |
-| Personal info | Name | opcjonalne pole profilu | App functionality | nie | nie |
-| Personal info | User IDs | Firebase UID | Account management, App functionality | tak | nie |
-| Health and fitness | Health info | masa ciala, pomiary, tetno | App functionality | nie | nie |
-| Health and fitness | Fitness info | treningi, serie, ciezary, plany, aktywnosci | App functionality | tak | nie |
-| Financial info | Purchase history | Google Play Billing przez RevenueCat | App functionality | tak | nie |
-| App activity | App interactions | wlasna telemetria (`app-telemetry.ts`) | Analytics, App functionality | nie | nie |
-| App info and performance | Crash logs | `error-telemetry.ts`, `client_errors` | Diagnostyka | nie | nie |
-| App info and performance | Diagnostics | jw. | Diagnostyka | nie | nie |
-| Device or other IDs | Device or other IDs | token FCM (push) | App functionality | nie | nie |
-
-### Deklaracje ogolne
-
-- Is all user data encrypted in transit? **Tak** (HTTPS, Firestore).
-- Do you provide a way for users to request data deletion? **Tak.**
-- Data collected is processed ephemerally? **Nie.**
-- Committed to Play Families Policy? **Nie dotyczy** (aplikacja nie jest
-  kierowana do dzieci).
-
-Firebase, Google Cloud i RevenueCat wystepuja jako procesorzy w imieniu
-aplikacji, wiec nie deklaruje sie ich jako "shared". Strava dziala odwrotnie:
-aplikacja pobiera dane od Stravy po autoryzacji usera, nic tam nie wysyla.
-**Potwierdz to swiadomie przed wyslaniem formularza**, bo to Twoja deklaracja.
-
-## 4. Osobna deklaracja Health Connect
-
-Uprawnienia `health.READ_WEIGHT` i `health.WRITE_EXERCISE` podlegaja polityce
-Health Connect. Google wymaga oddzielnego formularza deklaracji dostepu do
-danych zdrowotnych (App content -> Health apps declaration) z uzasadnieniem
-kazdego uprawnienia. Uzasadnienie zgodne ze stanem kodu:
-
-- `READ_WEIGHT`: import masy ciala do pomiarow uzytkownika, zawsze po jego
-  potwierdzeniu, wylacznie w celu sledzenia postepow.
-- `WRITE_EXERCISE`: zapis ukonczonego treningu silowego jako sesji cwiczen,
-  tylko gdy uzytkownik wlaczy synchronizacje.
-
-Bez tej deklaracji Google odrzuci wydanie produkcyjne.
-
-## 5. Luki blokujace wydanie produkcyjne
-
-1. **Publiczny URL usuwania konta (X26/Z247).** Kanoniczny adres do wpisania
-   w Play Console: `https://strengthsave.app/delete-account` (strona React
-   w repo `strength_save_landing`, PL/EN, opis karencji 30 dni z Z238).
-   Stary adres `/legal/delete-account.html` ma redirect 308 na powyzszy
-   (vercel.json). Wymaga deployu landingu (`npm run build` + `vercel --prod`)
-   i weryfikacji `curl -I` obu adresow.
-2. **Brak screenshotow telefonu** (min. 2, format 16:9 lub 9:16, krotszy bok
-   min. 320 px) i **feature graphic 1024x500 px**. Do wygenerowania z
-   emulatora Android.
-3. **Deklaracja Health apps** (sekcja 4) plus Data safety (sekcja 3).
-
-Wymog **12 testerow x 14 dni NIE dotyczy** tego konta: obowiazuje konta
-personal zalozone po 2023-11-13, a nasze jest kontem organizacji. To byl jeden
-z powodow wyboru typu konta.
-
-## 6. Kolejnosc po weryfikacji konta
-
-0. Dokonczenie weryfikacji konta (tozsamosc, telefony, dokumenty firmy).
-   Dopiero to odblokowuje przycisk "Utworz aplikacje".
-1. Utworzenie aplikacji: nazwa `Strength Save`, jezyk domyslny `pl-PL`, typ
-   `Aplikacja`, model `Bezplatna` (nieodwracalne, monetyzacja idzie przez
-   subskrypcje w aplikacji).
-2. Upload AAB do **Internal Testing**, akceptacja Play App Signing, publikacja.
-2. Skopiowanie **app signing** SHA-1 i SHA-256 z Play Console do ustawien
-   aplikacji Android w Firebase. Fingerprint upload key nie zastepuje klucza
-   podpisujacego aplikacje.
-3. App integrity: podpiecie projektu `fittracker-workouts`, wlaczenie Play
-   Integrity API.
-4. Subskrypcje i oferty trial, service account do Play Developer API,
-   podpiecie RevenueCat: dokladne parametry w
-   `docs/X25-MONETIZATION-STATUS.md`, kroki 3 do 7. Po nich
-   `scripts/revenuecat_release.py apply` ma zwrocic `APPLY + READ_BACK OK`
-   i cztery wiersze z `inEntitlement=true`, `inPackage=true`.
-5. Rownolegle: zaproszenie 12 testerow do closed testingu, zeby licznik 14 dni
-   ruszyl jak najwczesniej.
-6. Store listing PL/EN z `release/google-play/`, Data safety, Health apps
-   declaration, screenshoty, feature graphic.
+Źródła: [target API](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en),
+[Health publish](https://developer.android.com/health-and-fitness/health-connect/publish?hl=en),
+[Health permissions](https://developer.android.com/health-and-fitness/health-connect/get-started),
+[Data Safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en),
+[testing personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en).

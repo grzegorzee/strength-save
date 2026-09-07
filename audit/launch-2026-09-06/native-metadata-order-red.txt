@@ -1,0 +1,33 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:36042) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/native-health-release.test.ts (6 tests | 1 failed) 5ms
+   ✓ native Health system contracts for launch > a first Android request launches the system permission contract and resolves its result 1ms
+   ✓ native Health system contracts for launch > Health Connect can discover its provider and open the required policy on both Android generations 0ms
+   ✓ native Health system contracts for launch > iOS distinguishes request completion from actual workout write permission without claiming read status 0ms
+   ✓ native Health system contracts for launch > system record identity survives a lost acknowledgement and a repeat write on both platforms 0ms
+   × native Health system contracts for launch > starts HealthKit collection before attaching any metadata 2ms
+     → expected 4457 to be less than 4079
+   ✓ native Health system contracts for launch > optional energy samples require energy authorization and collection errors cannot silently succeed 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/native-health-release.test.ts > native Health system contracts for launch > starts HealthKit collection before attaching any metadata
+AssertionError: expected 4457 to be less than 4079
+ ❯ src/test/native-health-release.test.ts:37:55
+     35|   it('starts HealthKit collection before attaching any metadata', () =…
+     36|     const source = read(ios);
+     37|     expect(source.indexOf('builder.beginCollection')).toBeLessThan(sou…
+       |                                                       ^
+     38|   });
+     39|   it('optional energy samples require energy authorization and collect…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  15:36:02
+   Duration  594ms (transform 21ms, setup 64ms, collect 8ms, tests 5ms, environment 293ms, prepare 107ms)

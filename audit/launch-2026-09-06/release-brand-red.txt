@@ -1,0 +1,36 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:30553) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/release-brand-contract.test.ts (5 tests | 1 failed) 10ms
+   ✓ Z230 — one Strength Save release and brand contract > uses the canonical spaced product name on every installable surface 2ms
+   ✓ Z230 — one Strength Save release and brand contract > uses canonical accent #CCFC22 on web, Apple Watch and Garmin 1ms
+   ✓ Z230 — one Strength Save release and brand contract > keeps truthful, bilingual and platform-specific Store copy 2ms
+   × Z230 — one Strength Save release and brand contract > separates current source versions from historical delivery evidence 5ms
+     → expected 'https://grzegorzee.github.io/strength…' to be 'https://app.strengthsave.app/' // Object.is equality
+   ✓ Z230 — one Strength Save release and brand contract > uses Apple's current API identifier for the 6.9-inch screenshot slot 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/release-brand-contract.test.ts > Z230 — one Strength Save release and brand contract > separates current source versions from historical delivery evidence
+AssertionError: expected 'https://grzegorzee.github.io/strength…' to be 'https://app.strengthsave.app/' // Object.is equality
+
+Expected: "https://app.strengthsave.app/"
+Received: "https://grzegorzee.github.io/strength-save/"
+
+ ❯ src/test/release-brand-contract.test.ts:60:27
+     58|     const iosBuild = Number(read('ios/App/App.xcodeproj/project.pbxpro…
+     59|     const androidCode = Number(read('android/app/build.gradle').match(…
+     60|     expect(train.web.url).toBe('https://app.strengthsave.app/');
+       |                           ^
+     61|     expect(train.ios).toMatchObject({ version: '1.0.0', build: iosBuil…
+     62|     expect(train.android).toMatchObject({ version: '1.0.0', versionCod…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  15:30:34
+   Duration  733ms (transform 24ms, setup 35ms, collect 10ms, tests 10ms, environment 297ms, prepare 68ms)

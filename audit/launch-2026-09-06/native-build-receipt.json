@@ -1,0 +1,155 @@
+{
+  "verified_at": "2026-09-07T08:49:07.237611+00:00",
+  "base_commit": "33df6dbd13883ce2f1abfbf25bfa11213b7bc6f5",
+  "working_tree": "local uncommitted audit fixes",
+  "scope": "Fresh simulator/debug compilation after final warmup copy; prior runtime smoke is recorded separately. No distribution or physical-device signoff.",
+  "refresh": {
+    "reason": "Final warmup firstWhy copy in PL/EN",
+    "started_at": "2026-09-07T08:41:27.133863+00:00",
+    "previous_receipt": "native-build-receipt-before-final-copy-20260907T084127Z.json",
+    "previous_logs": {
+      "native-build-receipt.json": "native-build-receipt-before-final-copy-20260907T084127Z.json",
+      "final-mobile-sync.log": "final-mobile-sync-before-final-copy-20260907T084127Z.log",
+      "final-ios-build.log": "final-ios-build-before-final-copy-20260907T084127Z.log",
+      "final-android-build.log": "final-android-build-before-final-copy-20260907T084127Z.log"
+    },
+    "previous_ios_app": "/tmp/strength-launch-audit-20260906/ios/Build/Products/Debug-iphonesimulator/App-before-final-copy-20260907T084127Z.app",
+    "mobile_sync_log": "final-mobile-sync.log",
+    "final_copy_present_in_mobile_bundle": {
+      "pl": true,
+      "en": true
+    },
+    "source_locale_sha256": {
+      "src/i18n/locales/pl.ts": "40f1b93fc91063cd3b0fcd48726092e6f87f1d1f72accfd38e55945b8c54d57c",
+      "src/i18n/locales/en.ts": "b3725d3731eb872b935d0c824295b55d19a65ddf74fca27078a6db4b0b8357b1"
+    }
+  },
+  "ios": {
+    "version": "1.0.0",
+    "build": "142",
+    "bundle_id": "com.grzegorzjasionowicz.strengthsave",
+    "configuration": "Debug iphonesimulator",
+    "sdk": "iphonesimulator26.5",
+    "app_path": "/tmp/strength-launch-audit-20260906/ios/Build/Products/Debug-iphonesimulator/App.app",
+    "app_executable_sha256": "15a29e4a04cf7342022d29d5b0e114819a185dd045389e66e005c4c2721a4413",
+    "code_signing_allowed": false,
+    "installed_after_copy": false,
+    "simulator": "AA0FDB8B-3EA6-4A92-BA7A-F3776DAF7BCB",
+    "build_log": "final-ios-build.log"
+  },
+  "android": {
+    "name": "com.grzegorzjasionowicz.strengthsave",
+    "versionCode": "48",
+    "versionName": "1.0.0",
+    "configuration": "Debug",
+    "apk_sha256": "1447dc6d610dddd33ee80b32d03a8dd06d3f304fd59257bdaae24255731e6032",
+    "apk_bytes": 36452342,
+    "signing": "standard debug keystore; no release signing",
+    "installed_after_copy": false,
+    "build_log": "final-android-build.log"
+  },
+  "mobile_asset_parity": {
+    "mobile-dist": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "ios-project": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "ios-built-app": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "android-project": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "android-built-apk": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    }
+  },
+  "mobile_asset_hash_algorithm": "SHA256 of compact UTF-8 JSON sorted rows [relativePath, byteLength, fileSHA256]; all mobile-dist runtime files included. Finder .DS_Store metadata excluded and recorded separately; native-only Cordova stubs recorded separately.",
+  "excluded_finder_metadata": {
+    "mobile-dist": {
+      ".DS_Store": [
+        10244,
+        "813b924e9808da6397fc771b2ed0f9409ca5b8ff2812a884bc951f14d813aa4b"
+      ]
+    },
+    "ios-project": {
+      ".DS_Store": [
+        10244,
+        "813b924e9808da6397fc771b2ed0f9409ca5b8ff2812a884bc951f14d813aa4b"
+      ]
+    },
+    "ios-built-app": {},
+    "android-project": {
+      ".DS_Store": [
+        10244,
+        "813b924e9808da6397fc771b2ed0f9409ca5b8ff2812a884bc951f14d813aa4b"
+      ]
+    },
+    "android-built-apk": {}
+  },
+  "native_generated_extras": {
+    "mobile-dist": {},
+    "ios-project": {
+      "cordova.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "cordova_plugins.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    },
+    "ios-built-app": {
+      "cordova.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "cordova_plugins.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    },
+    "android-project": {
+      "cordova.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "cordova_plugins.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    },
+    "android-built-apk": {
+      "cordova.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "cordova_plugins.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    }
+  },
+  "previous_runtime_smoke": {
+    "receipt": "native-build-receipt-before-final-copy-20260907T084127Z.json",
+    "verified_at": "2026-09-07T08:24:45.972758+00:00",
+    "scope": "Fresh diagnostic simulator/debug builds and unauthenticated login/keyboard smoke only; no distribution or physical-device signoff.",
+    "ios_device": "iPhone 17 / iOS 26.5",
+    "android_device": "fresh API 35 AVD / emulator-5580",
+    "repeated_after_copy": false,
+    "note": "Prior unauthenticated login/keyboard smoke predates this copy-only refresh. Android AVD not started; iOS simulator left running."
+  },
+  "signed_ipa_aab": "Historical artifacts predating these fixes; not rebuilt or uploaded.",
+  "physical_device_qa": "NOT RUN"
+}

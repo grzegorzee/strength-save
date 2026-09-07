@@ -1,0 +1,62 @@
+[
+  {
+    "lang": "pl",
+    "section": "training",
+    "text": "Trening\nKG\n\nJednostki\n\nKG\nLBS\n\nNie wygaszaj ekranu podczas treningu\n\nEkran zostaje włączony do końca treningu. Zużywa więcej baterii, ale dźwięk i timer działają zawsze.\n\nProponuj rozgrzewkę przed treningiem\n\nPytanie o rozgrzewkę przy starcie treningu. Płomyk w treningu działa zawsze.\n\nDostosuj trening\n\nUrlop / wyjazd\n\nKALKULATOR TALERZY\n\nGryf i talerze dostępne na Twojej siłowni (zapisywane na tym urządzeniu).\n\nGRYF\n\n20 KG\n15 KG\n10 KG\n\nJEDNOSTKA INWENTARZA\n\nKG\nLBS\n\nDOSTĘPNE TALERZE (KG)\n\nPodaj ŁĄCZNĄ liczbę sztuk. Na jedną stronę gryfu wchodzi połowa.\n\n25 kg\nUsuń\n20 kg\nUsuń\n15 kg\nUsuń\n10 kg\nUsuń\n5 kg\nUsuń\n2.5 kg\nUsuń\n1.25 kg\nUsuń\nWŁASNY TALERZ\nDODAJ TALERZ",
+    "screenshot": "audit/launch-2026-09-06/ux-details/pl-profile-training.png"
+  },
+  {
+    "lang": "pl",
+    "section": "timer",
+    "text": "Timer i przerwy\nMiędzy seriami: 90 s\n\nTimer przerwy\n\nOdliczanie przerwy po odhaczeniu serii\n\nDźwięk timera\n\nIle ma trwać odliczanie po odhaczeniu serii (zapisywane na koncie, to samo na każdym urządzeniu).\n\nTWOJA PRZERWA ROBOCZA\n\n1:30\n\nPRZERWA MIĘDZY SERIAMI\nsek.\n15s\n30s\n45s\n1:00\n1:30\n2:00\n3:00\nPRZERWA MIĘDZY ĆWICZENIAMI\nsek.\n15s\n30s\n1:00\n1:30\n2:00\n2:30\n4:00\nPRZERWA PO ROZGRZEWCE\nsek.\n15s\n30s\n45s\n1:00\n1:30\n\nDŹWIĘK KOŃCA PRZERWY\n\nGong (dzwon bokserski)\nKlakson\nAlarm\n\nTapnij, żeby posłuchać. Ten sam dźwięk leci w powiadomieniu przy zgaszonym ekranie.\n\nGŁOŚNOŚĆ SYGNAŁÓW\n100%\n\nDotyczy dźwięków w aplikacji. Głośność powiadomienia przy zgaszonym ekranie ustawiasz systemową głośnością dzwonka.",
+    "screenshot": "audit/launch-2026-09-06/ux-details/pl-profile-timer.png"
+  },
+  {
+    "lang": "pl",
+    "section": "devices",
+    "text": "Urządzenia i połączenia\nTRENER\n\nZapisz adres trenera, a podsumowania treningów wyślesz jednym tapnięciem.\n\nDodaj trenera\n\nJeden dostęp PRO obejmuje web, telefon, Apple Watch i Garmin. Zegarki nie mają osobnego paywalla.\n\nOdśwież\n\nDostęp Strength Save\n\nTen sam status obowiązuje na wszystkich urządzeniach.\n\nBRAK PRO\n\nWeb pokazuje status, ale nie prowadzi sprzedaży. Zakupem i przywracaniem zarządza aplikacja mobilna.\n\nAplikacja iOS\nAplikacja Android\n\nBrak aktywnie połączonych zegarków.",
+    "screenshot": "audit/launch-2026-09-06/ux-details/pl-profile-devices.png"
+  },
+  {
+    "lang": "pl",
+    "section": "data",
+    "text": "Twoje dane\nBackup i przywracanie\n\nRekordy sprzed aplikacji\n\nBACKUP I PRZYWRACANIE\n\nPobierz kopię swoich treningów i pomiarów albo odtwórz dane z pliku JSON.\n\nEksportuj kopię\nImportuj kopię\nEksport treningów (CSV)\nImportuj ze Strong/Hevy (CSV)\nZGODY I PRYWATNOŚĆ\n\nE-maile marketingowe\n\nNowości i promocje. Możesz wyłączyć w każdej chwili.\n\nZgoda na dane zdrowotne\n\nZgoda wycofana. Nowe pomiary i oceny nie są zapisywane.\n\nWyraź zgodę ponownie",
+    "screenshot": "audit/launch-2026-09-06/ux-details/pl-profile-data.png"
+  },
+  {
+    "lang": "pl",
+    "section": "account",
+    "text": "Konto i pomoc\n\nJęzyk\n\nPolski\n\nZmień hasło\n\nCentrum pomocy\n\nPierwszy trening\n\nWróć do planu i najbliższego treningu.\n\nZgłoś błąd\n\nKontakt\n\nO aplikacji\n\n1.0.0",
+    "screenshot": "audit/launch-2026-09-06/ux-details/pl-profile-account.png"
+  },
+  {
+    "lang": "en",
+    "section": "training",
+    "text": "Training\nKG\n\nUnits\n\nKG\nLBS\n\nKeep screen on during workout\n\nThe screen stays on until the workout ends. Uses more battery, but sound and timer always work.\n\nSuggest a warm-up before workouts\n\nAsks about a warm-up when you start a workout. The flame in the workout always works.\n\nAdjust training\n\nVacation / trip\n\nPLATE CALCULATOR\n\nBar and plates available at your gym (saved on this device).\n\nBAR\n\n20 KG\n15 KG\n10 KG\n\nINVENTORY UNIT\n\nKG\nLBS\n\nAVAILABLE PLATES (KG)\n\nEnter the TOTAL number of plates. Half goes on each side of the bar.\n\n25 kg\nRemove\n20 kg\nRemove\n15 kg\nRemove\n10 kg\nRemove\n5 kg\nRemove\n2.5 kg\nRemove\n1.25 kg\nRemove\nCUSTOM PLATE\nADD PLATE",
+    "screenshot": "audit/launch-2026-09-06/ux-details/en-profile-training.png"
+  },
+  {
+    "lang": "en",
+    "section": "timer",
+    "text": "Timer & rest\nBetween sets: 90 s\n\nRest timer\n\nCountdown after checking off a set\n\nTimer sound\n\nHow long the countdown runs after you check a set (saved to your account, same on every device).\n\nYOUR WORKING REST\n\n1:30\n\nREST BETWEEN SETS\nsec\n15s\n30s\n45s\n1:00\n1:30\n2:00\n3:00\nREST BETWEEN EXERCISES\nsec\n15s\n30s\n1:00\n1:30\n2:00\n2:30\n4:00\nREST AFTER WARM-UP\nsec\n15s\n30s\n45s\n1:00\n1:30\n\nREST END SOUND\n\nGong (boxing bell)\nHorn\nAlarm\n\nTap to listen. The same sound plays in the notification when the screen is off.\n\nSIGNAL VOLUME\n100%\n\nApplies to in-app sounds. Notification volume with the screen off follows the system ringer volume.",
+    "screenshot": "audit/launch-2026-09-06/ux-details/en-profile-timer.png"
+  },
+  {
+    "lang": "en",
+    "section": "devices",
+    "text": "Devices & connections\nCOACH\n\nSave your coach address and send workout summaries with one tap.\n\nAdd coach\n\nOne PRO access covers web, phone, Apple Watch, and Garmin. Watches have no separate paywall.\n\nRefresh\n\nStrength Save access\n\nThe same status applies on every device.\n\nNO PRO\n\nWeb shows your status but does not sell subscriptions. Purchase and restore are managed in the mobile app.\n\niOS app\nAndroid app\n\nNo actively linked watches.",
+    "screenshot": "audit/launch-2026-09-06/ux-details/en-profile-devices.png"
+  },
+  {
+    "lang": "en",
+    "section": "data",
+    "text": "Your data\nBackup and restore\n\nRecords before the app\n\nBACKUP AND RESTORE\n\nDownload a copy of your workouts and measurements, or restore data from a JSON file.\n\nExport backup\nImport backup\nExport workouts (CSV)\nImport from Strong/Hevy (CSV)\nCONSENTS & PRIVACY\n\nMarketing e-mails\n\nNews and promotions. You can turn this off at any time.\n\nHealth data consent\n\nConsent withdrawn. New measurements and ratings are not being saved.\n\nGrant consent again",
+    "screenshot": "audit/launch-2026-09-06/ux-details/en-profile-data.png"
+  },
+  {
+    "lang": "en",
+    "section": "account",
+    "text": "Account & support\n\nLanguage\n\nEnglish\n\nChange password\n\nHelp center\n\nFirst workout\n\nReturn to your plan and next workout.\n\nReport a bug\n\nContact\n\nAbout\n\n1.0.0",
+    "screenshot": "audit/launch-2026-09-06/ux-details/en-profile-account.png"
+  }
+]

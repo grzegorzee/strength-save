@@ -1,0 +1,52 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:29074) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/release-artifact-fingerprints.test.ts (2 tests | 2 failed) 11ms
+   × release artifact provenance > detects a changed JS asset even when index.html remains unchanged 6ms
+     → expected undefined to not deeply equal undefined
+   × release artifact provenance > binds signed release AAB and IPA bytes and notices removal 4ms
+     → expected [] to deeply equal ArrayContaining{…}
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/release-artifact-fingerprints.test.ts > release artifact provenance > detects a changed JS asset even when index.html remains unchanged
+AssertionError: expected undefined to not deeply equal undefined
+ ❯ src/test/release-artifact-fingerprints.test.ts:19:81
+     17|     await writeFile(path.join(root, 'dist/assets/main.js'), 'other');
+     18|     const after = await collectArtifactFingerprints(root);
+     19|     expect(after.find((item: {name: string}) => item.name === 'dist/tr…
+       |                                                                                 ^
+     20|   });
+     21|   it('binds signed release AAB and IPA bytes and notices removal', asy…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/test/release-artifact-fingerprints.test.ts > release artifact provenance > binds signed release AAB and IPA bytes and notices removal
+AssertionError: expected [] to deeply equal ArrayContaining{…}
+
+- Expected
++ Received
+
+- ArrayContaining [
+-   "android/app-release.aab",
+-   "ios/export/App.ipa",
+- ]
++ []
+
+ ❯ src/test/release-artifact-fingerprints.test.ts:28:61
+     26|     await writeFile(aab, 'signed-aab'); await writeFile(ipa, 'signed-i…
+     27|     const before = await collectArtifactFingerprints(root);
+     28|     expect(before.map((item: {name: string}) => item.name)).toEqual(ex…
+       |                                                             ^
+     29|     await writeFile(aab, 'changed-aab'); await writeFile(ipa, 'changed…
+     30|     const after = await collectArtifactFingerprints(root);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  15:29:21
+   Duration  657ms (transform 29ms, setup 57ms, collect 14ms, tests 11ms, environment 266ms, prepare 40ms)

@@ -1,0 +1,54 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:28250) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/release-candidate-manifest.test.ts (9 tests | 1 failed) 15ms
+   × release candidate manifest > obejmuje źródła aplikacji, Functions i natywne, ale pomija buildy i prywatne artefakty 12ms
+     → expected [ …(9) ] to deeply equal [ …(11) ]
+   ✓ release candidate manifest > jawnie zwraca ignorowane dokumenty release, aby generator nie zależał od git ls-files 0ms
+   ✓ release candidate manifest > wiąże efektywne VITE_* bez zapisywania wartości i niezależnie od kolejności 1ms
+   ✓ release candidate manifest > buduje deterministyczny hash niezależnie od kolejności plików i czasu 1ms
+   ✓ release candidate manifest > odrzuca zmianę którejkolwiek wersji marketingowej z 1.0.0 oraz duplikaty ścieżek 0ms
+   ✓ release candidate manifest > odrzuca manifest po ręcznej zmianie hasha pliku lub candidateSha256 0ms
+   ✓ release candidate manifest > wiąże hash kandydata także z trybem wykonywalności pliku 0ms
+   ✓ release candidate manifest > weryfikator odrzuca zmienione źródło i artefakt bez zapisywania nowego manifestu 0ms
+   ✓ release candidate manifest > weryfikator wykrywa nowe i usunięte wejścia release 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/release-candidate-manifest.test.ts > release candidate manifest > obejmuje źródła aplikacji, Functions i natywne, ale pomija buildy i prywatne artefakty
+AssertionError: expected [ …(9) ] to deeply equal [ …(11) ]
+
+- Expected
++ Received
+
+  [
+-   ".github/workflows/deploy.yml",
+    "android/app/src/main/java/app/MainActivity.kt",
+    "android/capacitor.settings.gradle",
+    "android/gradle/wrapper/gradle-wrapper.jar",
+    "android/gradlew",
+    "android/variables.gradle",
+    "functions/src/index.ts",
+    "ios/App/App/AppDelegate.swift",
+-   "release/release-train.json",
+    "scripts/release-ios.sh",
+    "src/main.tsx",
+  ]
+
+ ❯ src/test/release-candidate-manifest.test.ts:25:9
+     23|       'dist/index.html',
+     24|       '../outside',
+     25|     ])).toEqual([
+       |         ^
+     26|       '.github/workflows/deploy.yml',
+     27|       'android/app/src/main/java/app/MainActivity.kt',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  15:28:42
+   Duration  410ms (transform 33ms, setup 36ms, collect 27ms, tests 15ms, environment 171ms, prepare 42ms)

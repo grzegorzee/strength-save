@@ -1,0 +1,194 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:40130) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/android-timer-permission.test.tsx (4 tests | 2 failed) 2035ms
+   × Android timer permission recovery > never opens settings by itself, keeps retry after denial and rechecks on resume 1018ms
+     → Unable to find role="button" and name "rest.exactAlarm.openSettings"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   × Android timer permission recovery > offers retry if the OS setting could not be read 1007ms
+     → Unable to find role="button" and name "rest.exactAlarm.openSettings"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   ✓ Android timer permission recovery > does not show Android settings or touch its API on web 7ms
+   ✓ Android timer permission recovery > does not show Android settings or touch its API on ios 2ms
+(node:40157) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/android-timer-resources.test.ts (2 tests | 2 failed) 11ms
+   × Android rest notification resources > ships exactly the selected iOS/web WAV sounds as Android raw resources 2ms
+     → ENOENT: no such file or directory, open 'android/app/src/main/res/raw/rest_bell.wav'
+   × Android rest notification resources > declares user-controlled exact alarms without restricted automatic exact access 8ms
+     → expected '<?xml version="1.0" encoding="utf-8" …' to contain 'android.permission.SCHEDULE_EXACT_ALA…'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/android-timer-permission.test.tsx > Android timer permission recovery > never opens settings by itself, keeps retry after denial and rechecks on resume
+TestingLibraryElementError: Unable to find role="button" and name "rest.exactAlarm.openSettings"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ findByRole node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/test/android-timer-permission.test.tsx:18:33
+     16|   it('never opens settings by itself, keeps retry after denial and rec…
+     17|     render(<AndroidTimerPermission />);
+     18|     const button = await screen.findByRole('button', { name: 'rest.exa…
+       |                                 ^
+     19|     expect(native.change).not.toHaveBeenCalled();
+     20|     fireEvent.click(button);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/test/android-timer-permission.test.tsx > Android timer permission recovery > offers retry if the OS setting could not be read
+TestingLibraryElementError: Unable to find role="button" and name "rest.exactAlarm.openSettings"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ findByRole node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/test/android-timer-permission.test.tsx:30:25
+     28|     native.check.mockRejectedValue(new Error('bridge unavailable'));
+     29|     render(<AndroidTimerPermission />);
+     30|     expect(await screen.findByRole('button', { name: 'rest.exactAlarm.…
+       |                         ^
+     31|   });
+     32|   for (const platform of ['web', 'ios']) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/test/android-timer-resources.test.ts > Android rest notification resources > ships exactly the selected iOS/web WAV sounds as Android raw resources
+Error: ENOENT: no such file or directory, open 'android/app/src/main/res/raw/rest_bell.wav'
+ ❯ src/test/android-timer-resources.test.ts:7:14
+      5|   it('ships exactly the selected iOS/web WAV sounds as Android raw res…
+      6|     for (const sound of ['bell', 'horn', 'alarm']) {
+      7|       expect(readFileSync(`android/app/src/main/res/raw/rest_${sound}.…
+       |              ^
+      8|         .toEqual(readFileSync(`public/rest_${sound}.wav`));
+      9|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/test/android-timer-resources.test.ts > Android rest notification resources > declares user-controlled exact alarms without restricted automatic exact access
+AssertionError: expected '<?xml version="1.0" encoding="utf-8" …' to contain 'android.permission.SCHEDULE_EXACT_ALA…'
+
+- Expected
++ Received
+
+- android.permission.SCHEDULE_EXACT_ALARM
++ <?xml version="1.0" encoding="utf-8" ?>
++ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
++     <queries>
++         <package android:name="com.google.android.apps.healthdata" />
++     </queries>
++     <application
++         android:allowBackup="true"
++         android:fullBackupContent="@xml/backup_rules"
++         android:dataExtractionRules="@xml/data_extraction_rules"
++         android:icon="@mipmap/ic_launcher"
++         android:label="@string/app_name"
++         android:roundIcon="@mipmap/ic_launcher_round"
++         android:supportsRtl="true"
++         android:theme="@style/AppTheme">
++         <activity
++             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
++             android:name=".MainActivity"
++             android:label="@string/title_activity_main"
++             android:theme="@style/AppTheme.NoActionBarLaunch"
++             android:launchMode="singleTask"
++             android:exported="true">
++             <intent-filter>
++                 <action android:name="android.intent.action.MAIN" />
++                 <category android:name="android.intent.category.LAUNCHER" />
++             </intent-filter>
++
++             <!-- Deep link strengthsave://open (link "Otwórz aplikację" w mailach) -->
++             <intent-filter>
++                 <action android:name="android.intent.action.VIEW" />
++                 <category android:name="android.intent.category.DEFAULT" />
++                 <category android:name="android.intent.category.BROWSABLE" />
++                 <data android:scheme="strengthsave" />
++             </intent-filter>
++         </activity>
++
++         <activity android:name=".HealthPermissionsRationaleActivity" android:exported="true">
++             <intent-filter>
++                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
++             </intent-filter>
++         </activity>
++         <activity-alias
++             android:name="ViewHealthPermissionUsageActivity"
++             android:exported="true"
++             android:targetActivity=".HealthPermissionsRationaleActivity"
++             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
++             <intent-filter>
++                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
++                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
++             </intent-filter>
++         </activity-alias>
++
++         <provider
++             android:name="androidx.core.content.FileProvider"
++             android:authorities="${applicationId}.fileprovider"
++             android:exported="false"
++             android:grantUriPermissions="true">
++             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
++         </provider>
++     </application>
++
++     <!-- Permissions -->
++
++     <uses-permission android:name="android.permission.INTERNET" />
++     <!-- Z117: Health Connect (zapis sesji treningowych, odczyt wagi) -->
++     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
++     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
++     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
++ </manifest>
++
+
+ ❯ src/test/android-timer-resources.test.ts:13:22
+     11|   it('declares user-controlled exact alarms without restricted automat…
+     12|     const manifest = readFileSync('android/app/src/main/AndroidManifes…
+     13|     expect(manifest).toContain('android.permission.SCHEDULE_EXACT_ALAR…
+       |                      ^
+     14|     expect(manifest).not.toContain('android.permission.USE_EXACT_ALARM…
+     15|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  4 failed | 2 passed (6)
+   Start at  15:40:12
+   Duration  3.17s (transform 41ms, setup 99ms, collect 132ms, tests 2.05s, environment 424ms, prepare 67ms)

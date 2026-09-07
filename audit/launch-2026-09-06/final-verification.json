@@ -1,0 +1,13 @@
+{
+  "verified_at": "2026-09-07T08:57:52.171566+00:00",
+  "manifest_verification": "PASS",
+  "candidate_sha256": "91eba414574d77c1e4c7db4473363342906a19d5e4eb8eb5352ad6b5544a958f",
+  "source_file_count": 2156,
+  "artifact_count": 10,
+  "audit_latest_sha256": "744a6a3878c76710a882176b7db1d92c428d483c4a8a977b025d9cbb8fa8a1f0",
+  "git_diff_check": "PASS",
+  "local_test_ports": "8080/8081/9099/5001/8090 have no listeners",
+  "release_ready": false,
+  "signed_distribution_artifacts": "Historical; no new signed IPA/AAB or upload",
+  "evidence": "final-manifest-verify.log"
+}
