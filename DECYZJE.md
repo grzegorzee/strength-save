@@ -5,28 +5,45 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-07 (lokalny audyt przed premierą i poprawki rozgrzewki; bez nowego wdrożenia)
+**Ostatnia aktualizacja:** 2026-09-07 (TestFlight 143, podpisany AAB49, backend etap 1)
 
 ---
 
 ## DECYZJE
 
-### 2026-09-07: kandydaci TestFlight 143 i Google Play 49
+### 2026-09-07: TestFlight 143, podpisany Google Play AAB49 i backend etap 1
 
 Właściciel zlecił przygotowanie nowych wydań i potwierdził, że fizyczne testy
 iPhone'a wykona przez TestFlight. Produkt pozostaje 1.0.0; zwiększono wyłącznie
 liczniki iOS do 143 (sześć konfiguracji) i Androida do 49. Poprzednie artefakty
-zachowano. Źródła audytu są zatwierdzane w osobnych grupach zmian; dystrybucja
+zachowano. Źródła audytu zatwierdzono i wypchnięto na main w dziewięciu commitach;
+artefakty pochodzą z `3c9f975b40634e83472497b331b2d4ce53bafa0b`. Dystrybucja
 testowa nie oznacza zatwierdzenia publicznej premiery.
 
 Ponowiona bramka po bumpie: frontend 4084 PASS / 16 historycznych skipów,
 Functions 549 PASS / 15 przypadków wykonywanych osobno w emulatorze, typecheck
-PASS, lint bez błędów. Backend jest wdrażany etapami: nowy indeks i sekret RC,
-kompatybilne Functions oraz Storage Rules; strict restore i Firestore Rules
+PASS, lint bez błędów. Wdrożono etap 1 backendu: nowy indeks i sekret RC,
+68 kompatybilnych Functions oraz Storage Rules; strict restore i Firestore Rules
 pozostają do migracji klientów. Szczegóły i ograniczenia:
 `audit/release-2026-09-07/backend-preflight.md`. B11 (Undo bez sidecara) wymaga
 odroczonej aktualizacji Rules i nie jest deklarowane jako wdrożone w tej fazie.
-Rzeczywiste paczki i status sklepów zostaną zapisane w osobnych receipts wydania.
+Potwierdzono 69/69 ACTIVE, 14/14 indeksów READY, wiązanie sekretu RC v1 i pięć
+kontroli HTTP bez logowania i zapisów danych. Dowód:
+`audit/release-2026-09-07/backend-deployment-receipt.json`.
+
+iOS143 przesłano skryptem release i rozdystrybuowano przez
+`testflight_external.py`. Odczyt App Store Connect: VALID, Beta Review APPROVED,
+obie grupy zawierają build, internal/external IN_BETA_TESTING, What to Test zgodne
+z plikiem. Podpisane App, Watch i widget mają 1.0.0/143. Dowód:
+`release/ios/testflight-143.json`. Właściciel wykona fizyczne QA przez TestFlight.
+
+AAB49 jest podpisany istniejącym kluczem uploadu; zweryfikowano wszystkie
+1368 wpisów, 235 zasobów zgodnych z iOS i mobile dist, 6 bibliotek 64-bitowych
+oraz 87 splitów APK pod kątem 16 KB. Dowód:
+`release/android/internal-2026-09-07/artifact.json`. Upload do Play nie został
+wykonany: obecne ADC nie ma zakresu Android Publisher, a dostęp do Chrome
+wymaga ręcznego udostępnienia przez właściciela. Najwyższy versionCode w Play
+pozostaje do sprawdzenia. Publicznej wersji App Store/Play ani webu nie wydano.
 
 ### 2026-09-07: rozgrzewka — propozycja, powtórki i wznowienie
 
@@ -48,7 +65,7 @@ pozostaje tylko w dynamicznym opisie zestawu, bez powtórzonej stałej 4–6 min
 bramka/wznowienie/preferencje 69 PASS, pełny emulator po zmianie 18/18 PASS.
 Zestawy celowane częściowo się pokrywają. Ostateczne pełne wyniki, świeże buildy
 i granice urządzeniowego QA: [raport audytu](docs/LAUNCH-AUDIT-2026-09-06.md).
-Zmiany pozostają lokalne; marketingowa wersja 1.0.0 bez nowej dystrybucji.
+Stan po audycie był lokalny; późniejszą dystrybucję opisuje wpis wydania powyżej.
 
 ### 2026-09-06: audyt przed premierą — integralność, prywatność i UX
 

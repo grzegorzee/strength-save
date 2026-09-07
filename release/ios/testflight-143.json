@@ -1,0 +1,89 @@
+{
+  "recordedAt": "2026-09-07T14:54:26.340911+00:00",
+  "sourceCommit": "3c9f975b40634e83472497b331b2d4ce53bafa0b",
+  "appId": "6777446137",
+  "bundleId": "com.grzegorzjasionowicz.strengthsave",
+  "version": "1.0.0",
+  "build": 143,
+  "buildId": "c2645668-2450-487a-bdce-5964622012bc",
+  "uploadedAt": "2026-09-07T07:42:31-07:00",
+  "processingState": "VALID",
+  "betaReviewState": "APPROVED",
+  "betaTesting": {
+    "autoNotifyEnabled": true,
+    "internalBuildState": "IN_BETA_TESTING",
+    "externalBuildState": "IN_BETA_TESTING"
+  },
+  "groups": [
+    {
+      "id": "48daa230-813f-4bcc-8158-cc12e69d354c",
+      "kind": "internal",
+      "http": 200,
+      "containsBuild143": true,
+      "verifiedThrough": "betaGroups/relationships/builds"
+    },
+    {
+      "id": "4ad8388a-a717-42a6-b7a7-7aeb737d29e8",
+      "kind": "external",
+      "http": 200,
+      "containsBuild143": true,
+      "verifiedThrough": "betaGroups/relationships/builds"
+    }
+  ],
+  "whatToTest": {
+    "path": "release/ios/testflight-143-pl.txt",
+    "verifiedLocales": [
+      "en-US"
+    ],
+    "readbackMatches": true
+  },
+  "artifact": {
+    "path": "build/ios/export/App.ipa",
+    "bytes": 24216607,
+    "sha256": "9fbc5364a7c4157b0204fc56f3e2c751fcaef8b753441fe7ad7009489798dca5"
+  },
+  "signing": {
+    "verification": "PASS",
+    "appWatchAndWidgetBuilds": [
+      {
+        "bundleId": "com.grzegorzjasionowicz.strengthsave",
+        "version": "1.0.0",
+        "build": "143"
+      },
+      {
+        "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp",
+        "version": "1.0.0",
+        "build": "143"
+      },
+      {
+        "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets",
+        "version": "1.0.0",
+        "build": "143"
+      }
+    ],
+    "details": "audit/release-2026-09-07/ios-143-artifact-verification.json"
+  },
+  "assetParity": {
+    "mobile-dist": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "ios-project": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "signed-ipa": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    }
+  },
+  "distribution": "TestFlight internal and external testing active; not public App Store publication.",
+  "physicalQa": "Pending owner testing through TestFlight as requested.",
+  "evidence": [
+    "audit/release-2026-09-07/ios-release.log",
+    "audit/release-2026-09-07/ios-143-asc-readback.json"
+  ]
+}

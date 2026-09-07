@@ -33,20 +33,24 @@
   },
   "functions": {
     "project": "fittracker-workouts",
-    "state": "requires-current-deployment-verification"
+    "state": "requires-current-deployment-verification",
+    "deliveryEvidence": "audit/release-2026-09-07/backend-deployment-receipt.json",
+    "verifiedDelivery": "compatible-phase1-deployed-strict-restore-and-firestore-rules-deferred"
   },
   "ios": {
     "version": "1.0.0",
     "build": 143,
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/ios/testflight-143.json"
+    "deliveryEvidence": "release/ios/testflight-143.json",
+    "verifiedDelivery": "testflight-valid-approved-in-beta-testing-both-groups"
   },
   "android": {
     "version": "1.0.0",
     "versionCode": 49,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/android/internal-2026-09-07/artifact.json"
+    "deliveryEvidence": "release/android/internal-2026-09-07/artifact.json",
+    "verifiedDelivery": "signed-aab-verified-upload-pending-console-access"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",

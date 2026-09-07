@@ -1,0 +1,96 @@
+{
+  "verifiedAt": "2026-09-07T14:53:10.226894+00:00",
+  "sourceCommit": "3c9f975b40634e83472497b331b2d4ce53bafa0b",
+  "artifact": {
+    "path": "build/ios/export/App.ipa",
+    "bytes": 24216607,
+    "sha256": "9fbc5364a7c4157b0204fc56f3e2c751fcaef8b753441fe7ad7009489798dca5"
+  },
+  "codeSignature": "PASS",
+  "bundles": [
+    {
+      "path": "Payload/App.app",
+      "bundleId": "com.grzegorzjasionowicz.strengthsave",
+      "version": "1.0.0",
+      "build": "143",
+      "entitlements": {
+        "application-identifier": "J4CRD2SA6D.com.grzegorzjasionowicz.strengthsave",
+        "aps-environment": "production",
+        "beta-reports-active": true,
+        "com.apple.developer.applesignin": [
+          "Default"
+        ],
+        "com.apple.developer.devicecheck.appattest-environment": "production",
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.team-identifier": "J4CRD2SA6D",
+        "get-task-allow": false
+      },
+      "profile": {
+        "name": "Strength Save App Store",
+        "expiration": "2027-06-06 13:31:53",
+        "team": [
+          "J4CRD2SA6D"
+        ],
+        "distribution": "App Store"
+      }
+    },
+    {
+      "path": "Payload/App.app/Watch/StrengthWatch.app",
+      "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp",
+      "version": "1.0.0",
+      "build": "143",
+      "entitlements": {
+        "application-identifier": "J4CRD2SA6D.com.grzegorzjasionowicz.strengthsave.watchkitapp",
+        "beta-reports-active": true,
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.team-identifier": "J4CRD2SA6D",
+        "get-task-allow": false
+      },
+      "profile": {
+        "name": "Strength Save Watch App Store",
+        "expiration": "2027-06-06 13:31:53",
+        "team": [
+          "J4CRD2SA6D"
+        ],
+        "distribution": "App Store"
+      }
+    },
+    {
+      "path": "Payload/App.app/Watch/StrengthWatch.app/PlugIns/StrengthWatchWidgets.appex",
+      "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets",
+      "version": "1.0.0",
+      "build": "143",
+      "entitlements": {
+        "application-identifier": "J4CRD2SA6D.com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets",
+        "beta-reports-active": true,
+        "com.apple.developer.team-identifier": "J4CRD2SA6D",
+        "get-task-allow": false
+      },
+      "profile": {
+        "name": "Strength Save Watch Widgets App Store",
+        "expiration": "2027-06-06 13:31:53",
+        "team": [
+          "J4CRD2SA6D"
+        ],
+        "distribution": "App Store"
+      }
+    }
+  ],
+  "assetParity": {
+    "mobile-dist": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "ios-project": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    },
+    "signed-ipa": {
+      "files": 235,
+      "bytes": 9881840,
+      "sha256": "0e13809a191c3cdb9aebfd2810cb20a62fad6a07dde7962a4b91036abfbba0b1"
+    }
+  }
+}

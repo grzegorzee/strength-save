@@ -1,0 +1,622 @@
+{
+  "schemaVersion": 1,
+  "project": "fittracker-workouts",
+  "account": "g.jasionowicz@gmail.com",
+  "status": "phase1_complete",
+  "phase": 1,
+  "sourceCommit": "3c9f975b40634e83472497b331b2d4ce53bafa0b",
+  "rollbackSource": "33df6dbd13883ce2f1abfbf25bfa11213b7bc6f5",
+  "secret": {
+    "name": "REVENUECAT_SERVER_API_KEY",
+    "version": "1",
+    "state": "ENABLED",
+    "createTime": "2026-09-07T14:33:43.897904Z",
+    "valueDisclosed": false,
+    "accessor": "serviceAccount:283539506094-compute@developer.gserviceaccount.com",
+    "role": "roles/secretmanager.secretAccessor"
+  },
+  "excluded": [
+    "firestore:rules",
+    "functions:restoreWorkoutBackupV3"
+  ],
+  "deferredFindings": [
+    "B10",
+    "B11",
+    "B12",
+    "B3 Firestore deletionPending guards"
+  ],
+  "functionTargets": [
+    "activityRollup",
+    "adminBroadcastEmail",
+    "adminDeleteUser",
+    "adminGetBugReportScreenshotUrl",
+    "adminGetUserLogs",
+    "adminGrantSubscription",
+    "adminResendVerification",
+    "adminRevokeSubscription",
+    "adminSendPush",
+    "adminSendUserEmail",
+    "adminUpdateBugReport",
+    "adminUserRepair",
+    "cleanupExpiredSesEvents",
+    "cleanupStaleBugReports",
+    "createApiKey",
+    "createBugReport",
+    "createInvite",
+    "createWaitlistEntry",
+    "dailyCostDigest",
+    "dailyErrorDigest",
+    "dailyTrainingReminder",
+    "deleteOwnAccount",
+    "emailWorkoutHistory",
+    "emailWorkoutSummary",
+    "exportUserDataApi",
+    "finalizeBugReport",
+    "garminDay",
+    "garminDevices",
+    "garminIngest",
+    "garminPair",
+    "garminPairStart",
+    "garminRevokeAllDevices",
+    "garminRevokeDevice",
+    "linkedDevices",
+    "listApiKeys",
+    "listAuthAuditLogs",
+    "listInvites",
+    "listWaitlistEntries",
+    "onWorkoutCompletedPrPush",
+    "onWorkoutWrittenAggregate",
+    "photoReminder",
+    "rebuildWorkoutAggregate",
+    "reconcilePendingSesEvents",
+    "recordConsent",
+    "redeemInvite",
+    "reducedModeEndingPush",
+    "registerPushToken",
+    "reportAppleWatchStatus",
+    "requestEmailVerificationCode",
+    "resumeDeletionOperations",
+    "revenuecatWebhook",
+    "revokeApiKey",
+    "revokeInvite",
+    "rotateApiKey",
+    "sesEventsWebhook",
+    "stravaAuthUrl",
+    "stravaCallback",
+    "stravaDisconnect",
+    "stravaScheduledSync",
+    "stravaSync",
+    "syncUserProfile",
+    "syncWorkoutV2",
+    "unlinkLinkedDevice",
+    "unregisterPushToken",
+    "updateUserAccess",
+    "vacationEndingPush",
+    "verifyEmailCode",
+    "weeklyDigest"
+  ],
+  "steps": [
+    {
+      "name": "secret_provision",
+      "status": "complete",
+      "exitCode": 0
+    },
+    {
+      "name": "secret_runtime_binding",
+      "status": "complete",
+      "exitCode": 0
+    },
+    {
+      "name": "firestore_indexes",
+      "status": "complete",
+      "state": "READY",
+      "exitCode": 0,
+      "indexName": "projects/fittracker-workouts/databases/(default)/collectionGroups/deletion_operations/indexes/CICAgJiUzYsK",
+      "existingFieldOverridesPreserved": 10
+    },
+    {
+      "name": "storage_rules",
+      "status": "complete",
+      "exitCode": 0
+    },
+    {
+      "name": "compatible_functions",
+      "status": "complete",
+      "exitCode": 0
+    }
+  ],
+  "verifiedAt": "2026-09-07T14:55:19.628Z",
+  "predeploy": {
+    "typecheck": "PASS",
+    "unitTestsPassed": 549,
+    "emulatorOnlyTestsSkipped": 15,
+    "build": "PASS"
+  },
+  "verification": {
+    "functionCount": 69,
+    "activeFunctions": 69,
+    "updatedTargetCount": 68,
+    "functions": [
+      {
+        "name": "activityRollup",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.986185409Z"
+      },
+      {
+        "name": "adminBroadcastEmail",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.405054355Z"
+      },
+      {
+        "name": "adminDeleteUser",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.356850792Z"
+      },
+      {
+        "name": "adminGetBugReportScreenshotUrl",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:42.473519878Z"
+      },
+      {
+        "name": "adminGetUserLogs",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.400605481Z"
+      },
+      {
+        "name": "adminGrantSubscription",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:16.252272508Z"
+      },
+      {
+        "name": "adminResendVerification",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:29.141031572Z"
+      },
+      {
+        "name": "adminRevokeSubscription",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:35.646993721Z"
+      },
+      {
+        "name": "adminSendPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:28.775797434Z"
+      },
+      {
+        "name": "adminSendUserEmail",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.655920997Z"
+      },
+      {
+        "name": "adminUpdateBugReport",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.606196438Z"
+      },
+      {
+        "name": "adminUserRepair",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:22.986899972Z"
+      },
+      {
+        "name": "cleanupExpiredSesEvents",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:47.873963801Z"
+      },
+      {
+        "name": "cleanupStaleBugReports",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.054962413Z"
+      },
+      {
+        "name": "createApiKey",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.773510669Z"
+      },
+      {
+        "name": "createBugReport",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:48.087073981Z"
+      },
+      {
+        "name": "createInvite",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:49:44.628350936Z"
+      },
+      {
+        "name": "createWaitlistEntry",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.281043829Z"
+      },
+      {
+        "name": "dailyCostDigest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:38.555628163Z"
+      },
+      {
+        "name": "dailyErrorDigest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:53.840543808Z"
+      },
+      {
+        "name": "dailyTrainingReminder",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.911761501Z"
+      },
+      {
+        "name": "deleteOwnAccount",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.670705902Z"
+      },
+      {
+        "name": "emailWorkoutHistory",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:41.823178139Z"
+      },
+      {
+        "name": "emailWorkoutSummary",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:55.759123993Z"
+      },
+      {
+        "name": "exportUserDataApi",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:51:59.290264565Z"
+      },
+      {
+        "name": "finalizeBugReport",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:39.594051004Z"
+      },
+      {
+        "name": "garminDay",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.809855350Z"
+      },
+      {
+        "name": "garminDevices",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.744526150Z"
+      },
+      {
+        "name": "garminIngest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.061765002Z"
+      },
+      {
+        "name": "garminPair",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:22.414891455Z"
+      },
+      {
+        "name": "garminPairStart",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:29.053276225Z"
+      },
+      {
+        "name": "garminRevokeAllDevices",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.874862444Z"
+      },
+      {
+        "name": "garminRevokeDevice",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:24.773583286Z"
+      },
+      {
+        "name": "linkedDevices",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.344184552Z"
+      },
+      {
+        "name": "listApiKeys",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.702550580Z"
+      },
+      {
+        "name": "listAuthAuditLogs",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.304185099Z"
+      },
+      {
+        "name": "listInvites",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:29.794835686Z"
+      },
+      {
+        "name": "listWaitlistEntries",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.762565289Z"
+      },
+      {
+        "name": "onWorkoutCompletedPrPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:44.618199106Z"
+      },
+      {
+        "name": "onWorkoutWrittenAggregate",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:30.540841884Z"
+      },
+      {
+        "name": "photoReminder",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:31.896647422Z"
+      },
+      {
+        "name": "rebuildWorkoutAggregate",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:51.440755384Z"
+      },
+      {
+        "name": "reconcilePendingSesEvents",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:48.213132788Z"
+      },
+      {
+        "name": "recordConsent",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:45.600560519Z"
+      },
+      {
+        "name": "redeemInvite",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.346771872Z"
+      },
+      {
+        "name": "reducedModeEndingPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.601692296Z"
+      },
+      {
+        "name": "registerPushToken",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.543311462Z"
+      },
+      {
+        "name": "reportAppleWatchStatus",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.785211384Z"
+      },
+      {
+        "name": "requestEmailVerificationCode",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.202981258Z"
+      },
+      {
+        "name": "restoreWorkoutBackupV3",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-04T08:57:50.173608534Z"
+      },
+      {
+        "name": "resumeDeletionOperations",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.984313198Z"
+      },
+      {
+        "name": "revenuecatWebhook",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:30.358650397Z"
+      },
+      {
+        "name": "revokeApiKey",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:41.870822774Z"
+      },
+      {
+        "name": "revokeInvite",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:51.225653160Z"
+      },
+      {
+        "name": "rotateApiKey",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.478202218Z"
+      },
+      {
+        "name": "sesEventsWebhook",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.760584612Z"
+      },
+      {
+        "name": "stravaAuthUrl",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.491685839Z"
+      },
+      {
+        "name": "stravaCallback",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:52.794616343Z"
+      },
+      {
+        "name": "stravaDisconnect",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.150414743Z"
+      },
+      {
+        "name": "stravaScheduledSync",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.724208533Z"
+      },
+      {
+        "name": "stravaSync",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:39.579397825Z"
+      },
+      {
+        "name": "syncUserProfile",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.983121129Z"
+      },
+      {
+        "name": "syncWorkoutV2",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:53.566037476Z"
+      },
+      {
+        "name": "unlinkLinkedDevice",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.996522619Z"
+      },
+      {
+        "name": "unregisterPushToken",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.559684837Z"
+      },
+      {
+        "name": "updateUserAccess",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.861363795Z"
+      },
+      {
+        "name": "vacationEndingPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.574483344Z"
+      },
+      {
+        "name": "verifyEmailCode",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.673695624Z"
+      },
+      {
+        "name": "weeklyDigest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.828167304Z"
+      }
+    ],
+    "restoreUnchanged": {
+      "name": "restoreWorkoutBackupV3",
+      "state": "ACTIVE",
+      "updateTime": "2026-09-04T08:57:50.173608534Z"
+    },
+    "revenueCat": {
+      "state": "ACTIVE",
+      "updateTime": "2026-09-07T14:50:30.358650397Z",
+      "serviceAccount": "283539506094-compute@developer.gserviceaccount.com",
+      "secretBindings": [
+        {
+          "key": "REVENUECAT_WEBHOOK_AUTH",
+          "projectId": "fittracker-workouts",
+          "secret": "REVENUECAT_WEBHOOK_AUTH",
+          "version": "1"
+        },
+        {
+          "key": "REVENUECAT_SERVER_API_KEY",
+          "projectId": "fittracker-workouts",
+          "secret": "REVENUECAT_SERVER_API_KEY",
+          "version": "1"
+        }
+      ]
+    },
+    "indexCount": 14,
+    "readyIndexes": 14,
+    "deletionIndex": {
+      "fields": [
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "purgeAfter",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "name": "projects/fittracker-workouts/databases/(default)/collectionGroups/deletion_operations/indexes/CICAgJiUzYsK",
+      "queryScope": "COLLECTION",
+      "state": "READY"
+    },
+    "secretVersions": [
+      {
+        "createTime": "2026-09-07T14:33:43.897904Z",
+        "name": "projects/283539506094/secrets/REVENUECAT_SERVER_API_KEY/versions/1",
+        "state": "ENABLED"
+      }
+    ],
+    "secretIam": {
+      "bindings": [
+        {
+          "members": [
+            "serviceAccount:283539506094-compute@developer.gserviceaccount.com"
+          ],
+          "role": "roles/secretmanager.secretAccessor"
+        }
+      ]
+    },
+    "rules": [
+      {
+        "resource": "firestore.rules",
+        "release": {
+          "name": "projects/fittracker-workouts/releases/cloud.firestore",
+          "rulesetName": "projects/fittracker-workouts/rulesets/ae49dda7-1e3a-4276-b777-413def64df88",
+          "createTime": "2026-01-26T07:33:13.510796Z",
+          "updateTime": "2026-08-31T10:22:28.355052Z"
+        },
+        "sha256": "0d537d9da30800a598b4734be68c9df00a82e775b27ba66d8e708c6db57dc87f",
+        "matchesExpected": true,
+        "expectedContract": "old_production_unchanged"
+      },
+      {
+        "resource": "storage.rules",
+        "release": {
+          "name": "projects/fittracker-workouts/releases/firebase.storage/fittracker-workouts.firebasestorage.app",
+          "rulesetName": "projects/fittracker-workouts/rulesets/5e08c59a-f3dc-48d0-8e44-af1daafd90de",
+          "createTime": "2026-06-06T13:22:17.225652Z",
+          "updateTime": "2026-09-07T14:47:19.649253Z"
+        },
+        "sha256": "570b5837f1c9cbb2f60df50e49ce995f2e0c0707666fcffbc98c063d819e85dd",
+        "matchesExpected": true,
+        "expectedContract": "current_release_source"
+      }
+    ],
+    "unauthenticatedSmoke": [
+      {
+        "function": "syncUserProfile",
+        "method": "POST",
+        "authenticated": false,
+        "httpStatus": 401,
+        "errorCode": "UNAUTHENTICATED",
+        "expectedStatus": 401,
+        "pass": true
+      },
+      {
+        "function": "recordConsent",
+        "method": "POST",
+        "authenticated": false,
+        "httpStatus": 401,
+        "errorCode": "UNAUTHENTICATED",
+        "expectedStatus": 401,
+        "pass": true
+      },
+      {
+        "function": "syncWorkoutV2",
+        "method": "POST",
+        "authenticated": false,
+        "httpStatus": 401,
+        "errorCode": "UNAUTHENTICATED",
+        "expectedStatus": 401,
+        "pass": true
+      },
+      {
+        "function": "restoreWorkoutBackupV3",
+        "method": "POST",
+        "authenticated": false,
+        "httpStatus": 401,
+        "errorCode": "UNAUTHENTICATED",
+        "expectedStatus": 401,
+        "pass": true
+      },
+      {
+        "function": "revenuecatWebhook",
+        "method": "GET",
+        "authenticated": false,
+        "httpStatus": 405,
+        "errorCode": null,
+        "expectedStatus": 405,
+        "pass": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "build": {
+    "id": "c2645668-2450-487a-bdce-5964622012bc",
+    "version": "143",
+    "uploadedDate": "2026-09-07T07:42:31-07:00",
+    "expirationDate": "2026-12-06T06:42:31-08:00",
+    "expired": false,
+    "minOsVersion": "15.0",
+    "lsMinimumSystemVersion": null,
+    "computedMinMacOsVersion": "12.0",
+    "computedMinVisionOsVersion": "1.0",
+    "iconAssetToken": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/17/96/9e/17969ed4-d252-50cd-fdee-0eec079d56e0/AppIcon76x76@2x_U007eipad.png/{w}x{h}bb.{f}",
+      "width": 152,
+      "height": 152
+    },
+    "processingState": "VALID",
+    "buildAudienceType": "APP_STORE_ELIGIBLE",
+    "usesNonExemptEncryption": false
+  },
+  "checks": {
+    "groups": {
+      "http": 200,
+      "data": [
+        {
+          "id": "48daa230-813f-4bcc-8158-cc12e69d354c",
+          "kind": "internal",
+          "http": 200,
+          "containsBuild143": true,
+          "verifiedThrough": "betaGroups/relationships/builds"
+        },
+        {
+          "id": "4ad8388a-a717-42a6-b7a7-7aeb737d29e8",
+          "kind": "external",
+          "http": 200,
+          "containsBuild143": true,
+          "verifiedThrough": "betaGroups/relationships/builds"
+        }
+      ],
+      "unsupportedReverseEndpointHttp": 403
+    },
+    "localizations": {
+      "http": 200,
+      "data": [
+        {
+          "type": "betaBuildLocalizations",
+          "id": "374f562b-4816-4a35-80a5-d8d14ba3c2a1",
+          "attributes": {
+            "whatsNew": "Co sprawdzi\u0107 w buildzie 143:\n\n1. Rozpocznij \u015bwie\u017cy trening z Dzisiaj: pojawia si\u0119 propozycja rozgrzewki. W rozgrzewce g\u00f3ry kr\u0105\u017cenia ramion wyst\u0119puj\u0105 raz.\n2. Odhacz rozgrzewk\u0119, zga\u015b ekran i wr\u00f3\u0107: post\u0119p pozostaje. Kolejny trening zaczyna w\u0142asn\u0105 rozgrzewk\u0119 od zera.\n3. Plan \u2192 wyj\u015bcie \u2192 szybki trening \u2192 powr\u00f3t do planu: wszystkie \u0107wiczenia nadal s\u0105 na miejscu.\n4. Sprawd\u017a timer przy zgaszonym ekranie: gong/wibracja, potem wznowienie treningu przy s\u0142abej sieci.\n5. Zako\u0144cz trening i poczekaj na synchronizacj\u0119. Sprawd\u017a notatki oraz warto\u015bci serii.\n6. Na koncie testowym sprawd\u017a onboarding: zamiana \u0107wiczenia, cofni\u0119cie, ponowne wej\u015bcie i zapis planu.\n7. Sprawd\u017a logowanie z klawiatur\u0105 oraz zapis pomiar\u00f3w.\n\nWersja zawiera te\u017c poprawki izolacji kont, zg\u00f3d i obs\u0142ugi b\u0142\u0119d\u00f3w oraz kr\u00f3tsze opisy. Testy konta, importu, usuwania danych i zakup\u00f3w wykonuj na koncie testowym.\n",
+            "locale": "en-US"
+          },
+          "relationships": {
+            "build": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations/374f562b-4816-4a35-80a5-d8d14ba3c2a1/relationships/build",
+                "related": "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations/374f562b-4816-4a35-80a5-d8d14ba3c2a1/build"
+              }
+            }
+          },
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations/374f562b-4816-4a35-80a5-d8d14ba3c2a1"
+          }
+        }
+      ]
+    },
+    "review": {
+      "http": 200,
+      "data": {
+        "type": "betaAppReviewSubmissions",
+        "id": "c2645668-2450-487a-bdce-5964622012bc",
+        "attributes": {
+          "betaReviewState": "APPROVED",
+          "submittedDate": null
+        },
+        "relationships": {
+          "build": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions/c2645668-2450-487a-bdce-5964622012bc/relationships/build",
+              "related": "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions/c2645668-2450-487a-bdce-5964622012bc/build"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions/c2645668-2450-487a-bdce-5964622012bc"
+        }
+      }
+    },
+    "betaDetail": {
+      "http": 200,
+      "data": {
+        "type": "buildBetaDetails",
+        "id": "c2645668-2450-487a-bdce-5964622012bc",
+        "attributes": {
+          "autoNotifyEnabled": true,
+          "internalBuildState": "IN_BETA_TESTING",
+          "externalBuildState": "IN_BETA_TESTING"
+        },
+        "relationships": {
+          "build": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/buildBetaDetails/c2645668-2450-487a-bdce-5964622012bc/relationships/build",
+              "related": "https://api.appstoreconnect.apple.com/v1/buildBetaDetails/c2645668-2450-487a-bdce-5964622012bc/build"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/buildBetaDetails/c2645668-2450-487a-bdce-5964622012bc"
+        }
+      }
+    }
+  }
+}

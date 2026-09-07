@@ -2,17 +2,19 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Wydanie testowe 2026-09-07:** przygotowywane TestFlight `1.0.0 (143)` oraz
-> Android AAB `1.0.0 (49)`. Właściciel wykona próby fizycznego iPhone'a przez
-> TestFlight. Rzeczywiste dowody dystrybucji wskazuje `release/release-train.json`;
-> sam numer w źródłach nie oznacza jeszcze publikacji. Etapowanie backendu:
+> **Wydanie testowe 2026-09-07:** TestFlight `1.0.0 (143)` ma status VALID,
+> APPROVED i IN_BETA_TESTING dla obu grup testerów. Podpisany Android AAB
+> `1.0.0 (49)` jest gotowy; upload do Play czeka na dostęp do konsoli.
+> Właściciel wykona próby fizycznego iPhone'a przez TestFlight. Dowody paczek
+> i dystrybucji wskazuje `release/release-train.json`. Publiczna premiera
+> pozostaje osobną bramką. Etapowanie backendu:
 > `audit/release-2026-09-07/backend-preflight.md`.
 
 > **Audyt lokalnego kandydata 2026-09-06–07:** aktualne poprawki, dowody testów,
 > ograniczenia oraz kolejność wdrożenia są w
 > [LAUNCH-AUDIT-2026-09-06.md](docs/LAUNCH-AUDIT-2026-09-06.md).
-> Zmiany audytu nie są jeszcze wdrożone. Wersja produktu pozostaje `1.0.0`;
-> istniejące wydania iOS142/Android48 nie zawierają tych poprawek.
+> Raport opisuje stan sprzed dystrybucji; aktualny status jest powyżej.
+> Wersja produktu pozostaje `1.0.0`; starsze iOS142/Android48 nie zawierają poprawek.
 > Historyczne statusy APPROVED/PASS niżej nie zastępują nowych bramek.
 > Uzupełnienie z 7 września naprawia propozycję i powtórki rozgrzewki oraz
 > wznowienie jej odhaczeń i izolację ustawienia między kontami.

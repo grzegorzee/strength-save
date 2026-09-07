@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-09-07T14:58:30.454398+00:00",
+  "reason": "Historical diagnostic APK excluded from current signed143/49 release manifest.",
+  "originalPath": "android/app/build/outputs/apk/debug/app-debug.apk",
+  "preservedPath": "/tmp/strength-release-20260907/android-history/app-debug-before-release49.apk",
+  "bytes": 36452342,
+  "sha256": "1447dc6d610dddd33ee80b32d03a8dd06d3f304fd59257bdaae24255731e6032"
+}

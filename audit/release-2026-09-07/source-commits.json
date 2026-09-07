@@ -1,0 +1,38 @@
+[
+  {
+    "group": "01-backend",
+    "commit": "dee1eb400f417158f2215bba8c8d9879025197fe"
+  },
+  {
+    "group": "02-health-purchases",
+    "commit": "d9c9230b9d0e8a905615dfb0613a50a4bbd92801"
+  },
+  {
+    "group": "03-warmup",
+    "commit": "d93e4bce1a1277ecf1688fb6aff63d34e85b18ae"
+  },
+  {
+    "group": "04-workout-data-import",
+    "commit": "5287c721ed885a136c6f35ac2988f8e2d1c38a24"
+  },
+  {
+    "group": "05-onboarding",
+    "commit": "ff0ab8f8a05d5c2e5b7e6fa2ca4c247d7ceb30ba"
+  },
+  {
+    "group": "06-forms-copy-login",
+    "commit": "9fc037ac5020f7325d122adfcb51fc6fa730e656"
+  },
+  {
+    "group": "07-android-timer",
+    "commit": "441cfa4e8d4eea98637be610b0eb739de7d34b8e"
+  },
+  {
+    "group": "08-release-tooling",
+    "commit": "81c61b8a9c2838b32d8ce7f8835d0b2a83291561"
+  },
+  {
+    "group": "09-audit-docs",
+    "commit": "3c9f975b40634e83472497b331b2d4ce53bafa0b"
+  }
+]

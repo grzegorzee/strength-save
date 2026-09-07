@@ -1,6 +1,6 @@
 # Google Play — przygotowanie wydania
 
-Stan dokumentacji: 2026-09-06. Nie jest to odczyt dzisiejszego stanu Play Console.
+Stan dokumentacji: 2026-09-07. Nie jest to odczyt dzisiejszego stanu Play Console.
 Konto projektu jest według wcześniejszych notatek kontem organizacji; notatka
 z 2026-08-21 potwierdzała weryfikację. Przed wydaniem sprawdź bieżący stan konta,
 rekord aplikacji i Internal Testing. Numery firmowe, adresy administracyjne,
@@ -11,11 +11,15 @@ Kanoniczna instrukcja: [Launch runbook](LAUNCH-RUNBOOK.md).
 ## Źródła i artefakty
 
 - applicationId: `com.grzegorzjasionowicz.strengthsave`.
-- source versionName1.0.0 / versionCode48; compileSdk36 / targetSdk36 / minSdk26.
+- source versionName1.0.0 / versionCode49; compileSdk36 / targetSdk36 / minSdk26.
 - Produkcyjny plik: `android/app/build/outputs/bundle/release/app-release.aab`.
-- Podpisany plik istniejący przed poprawkami audytu nie jest nowym kandydatem.
-  Przed kolejnym uploadem zwiększ versionCode bez zmiany1.0.0, przebuduj i zapisz
-  source commit + SHA256 nowego AAB. Signing keys przechowuj poza repo.
+- Podpisany AAB49 z commita `3c9f975b40634e83472497b331b2d4ce53bafa0b`
+  zawiera poprawki audytu. Podpis, 235 zasobów oraz zgodność 16 KB zweryfikowano:
+  [dowód artefaktu](../release/android/internal-2026-09-07/artifact.json).
+  Upload nie został wykonany: obecne ADC nie ma zakresu Android Publisher,
+  a dostęp do zalogowanej Play Console wymaga ręcznego udostępnienia Chrome.
+  Bieżący najwyższy versionCode w sklepie nadal wymaga sprawdzenia przed uploadem.
+  Poprzedni AAB48 zachowano poza repo. Signing keys pozostają poza repo.
 - Listing PL/EN: `release/google-play/`. Potwierdź aktualność screenshotów telefonu,
   feature graphic1024×500 i ikony512×512 przed wysłaniem.
 
