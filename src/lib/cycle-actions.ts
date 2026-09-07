@@ -297,7 +297,9 @@ export async function completeOnboardingPlan(
     await applyRestDefaults(deps.restDefaults, deps.choice?.objective ?? choice.objective);
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
+    return { success: false, error: err instanceof Error && err.message === 'ONBOARDING_PLAN_RECOVERY_REQUIRED'
+      ? translate(deps.lang ?? 'pl', 'ob.errExistingPlanRecovery')
+      : err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
   }
 }
 

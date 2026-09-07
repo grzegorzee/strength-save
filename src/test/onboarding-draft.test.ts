@@ -130,4 +130,29 @@ describe('onboarding draft', () => {
     await expect(readOnboardingDraft('', { storage, now: NOW })).resolves.toBeNull();
     expect(values.size).toBe(0);
   });
+
+  it('restores reviewed exercises without persisting consent fields from untrusted input', async () => {
+    const { storage } = memoryStorage();
+    const reviewDays = [{ id: 'day-1', dayName: 'Day', weekday: 'monday', focus: 'Strength',
+      exercises: [{ id: 'swapped-ex', name: 'Replacement', sets: '3 × 8', instructions: [] }],
+    }];
+    await writeOnboardingDraft('u1', {
+      phase: 'preview', wizardStep: 6, reviewDays, healthConsent: true,
+    }, { storage, now: NOW });
+    const restored = await readOnboardingDraft('u1', { storage, now: NOW });
+    expect(restored?.reviewDays).toEqual(reviewDays);
+    expect(restored).not.toHaveProperty('healthConsent');
+    await expect(readOnboardingDraft('u2', { storage, now: NOW })).resolves.toBeNull();
+  });
+
+  it('rejects a corrupt reviewed exercise list as a whole instead of restoring a subset', async () => {
+    const { storage } = memoryStorage();
+    const result = await writeOnboardingDraft('u1', {
+      phase: 'preview', wizardStep: 6,
+      reviewDays: [{ id: 'day-1', dayName: 'Day', weekday: 'monday', exercises: [
+        { id: 'good', name: 'Good', sets: '3 × 8' }, { id: 'broken' },
+      ] }],
+    }, { storage, now: NOW });
+    expect(result).not.toHaveProperty('reviewDays');
+  });
 });

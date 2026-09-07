@@ -93,6 +93,7 @@ export const PlanStartStep = ({
       className="flex h-[calc(100dvh-var(--keyboard-inset,0px)-9.25rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-0 shrink-0 flex-col"
     >
       <div ref={scrollRef} data-testid="ob-start-scroll" className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
+      <fieldset disabled={isSaving} className="min-w-0">
       <div className="mb-4 mt-5">
         <p className="mb-1.5 text-xs font-medium uppercase tracking-widest text-primary">{t('ob.start.kicker')}</p>
         <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight">{t('ob.start.title')}</h1>
@@ -207,6 +208,7 @@ export const PlanStartStep = ({
           />
         </div>
       </div>
+      </fieldset>
       </div>
       <div
         data-testid="ob-start-actions"

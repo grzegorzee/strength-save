@@ -24,6 +24,7 @@ vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({
     uid: 'u1',
+    mergeConfirmedConsentMirror: vi.fn(),
     profile: { displayName: 'Grzegorz', photoURL: '', consents: { marketingGranted: false, marketingVersion: '1.0' } },
   }),
 }));

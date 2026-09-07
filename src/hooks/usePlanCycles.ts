@@ -263,28 +263,68 @@ export const usePlanCycles = (userId: string) => {
         ...(opts?.choice ? { choice: opts.choice } : {}),
       };
 
-      // The start date is the operation key. Retrying after a lost response must
-      // observe the same cycle rather than create another active one.
-      const baseId = `cycle-${userId}-${startDate}`;
-      const baseRef = doc(db, CYCLES_COLLECTION, baseId);
+      const isOnboarding = opts?.choice?.entry === 'onboarding';
+      // Legacy pending onboardings predate the durable pointer. Query by owner,
+      // then re-read candidates in the transaction before adopting any cycle.
+      const pendingCandidates = isOnboarding
+        ? (await getDocs(query(collection(db, CYCLES_COLLECTION),
+          where('userId', '==', userId), where('status', '==', 'active')))).docs
+        : [];
       const cycleId = await runTransaction(db, async transaction => {
+        let baseId = `cycle-${userId}-${startDate}`;
+        const profileRef = doc(db, 'users', userId);
+        let onboardingState: Record<string, unknown> | undefined;
+        if (isOnboarding) {
+          const profile = await transaction.get(profileRef);
+          if (!profile.exists() || profile.data().onboardingCompleted === true) return null;
+          const stored = profile.data().onboarding;
+          onboardingState = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored as Record<string, unknown> : {};
+          const pointer = onboardingState.pendingCycleId;
+          const candidateIds = new Set(pendingCandidates.map(candidate => candidate.id));
+          // An arbitrary/foreign ID in a corrupt profile is not read as the
+          // current owner's cycle. Known legacy candidates may use older IDs.
+          if (typeof pointer === 'string' && pointer.length <= 200 && !pointer.includes('/')
+            && (pointer.startsWith(`cycle-${userId}-`) || candidateIds.has(pointer))) candidateIds.add(pointer);
+          const candidates = await Promise.all([...candidateIds].map(id => transaction.get(doc(db, CYCLES_COLLECTION, id))));
+          const active = candidates.filter(candidate => candidate.exists()
+            && candidate.data().userId === userId && candidate.data().status === 'active');
+          // An unrelated or ambiguous active plan is not evidence of an
+          // unfinished onboarding. Preserve it and stop before saving a plan.
+          if (active.length > 1 || active.some(candidate => candidate.data()!.choice?.entry !== 'onboarding')) {
+            throw new Error('ONBOARDING_PLAN_RECOVERY_REQUIRED');
+          }
+          if (active[0]) baseId = active[0].id;
+        }
+        const rememberCycle = (id: string): string => {
+          if (onboardingState) {
+            // This shared document serializes concurrent first attempts, even
+            // when their chosen dates differ. Completion updates dot paths.
+            transaction.set(profileRef, { onboarding: { ...onboardingState, pendingCycleId: id } }, { merge: true });
+          }
+          return id;
+        };
+        const baseRef = doc(db, CYCLES_COLLECTION, baseId);
         const existing = await transaction.get(baseRef);
         if (!existing.exists()) {
           transaction.set(baseRef, cycle);
-          return baseId;
+          return rememberCycle(baseId);
         }
         // Retry tej samej operacji: aktywny cykl tego samego planu pod tym id → reuse.
         const data = existing.data() as {
+          userId?: unknown;
           status?: unknown;
+          startDate?: unknown;
           durationWeeks?: unknown;
           days?: unknown;
           choice?: { entry?: unknown };
         };
+        if (isOnboarding && data.userId !== userId) throw new Error('ONBOARDING_PLAN_RECOVERY_REQUIRED');
         const sameActivePlan = data.status === 'active'
+          && (!isOnboarding || data.startDate === startDate)
           && data.durationWeeks === durationWeeks
           && Array.isArray(data.days)
           && planTemplateHash(data.days as TrainingDay[]) === planTemplateHash(planDays);
-        if (sameActivePlan) return baseId;
+        if (sameActivePlan) return rememberCycle(baseId);
         // Niedokończony onboarding może mieć już cykl, gdy zapis planu stracił
         // odpowiedź lub się nie udał. Zmiana wyboru po restarcie nadal należy do
         // tej samej operacji onboardingu: podmieniamy jej snapshot pod
@@ -295,7 +335,7 @@ export const usePlanCycles = (userId: string) => {
           && opts?.choice?.entry === 'onboarding';
         if (replacesIncompleteOnboarding) {
           transaction.set(baseRef, cycle);
-          return baseId;
+          return rememberCycle(baseId);
         }
         // H1 bug B (X31): id zajęte przez ZAMKNIĘTY cykl (albo aktywny z innym
         // planem) — ponowny wybór planu z tą samą datą startu. Dotąd transakcja
@@ -304,10 +344,11 @@ export const usePlanCycles = (userId: string) => {
         // sufiksem; stary zostaje nietknięty.
         const freshId = `${baseId}-${Date.now()}`;
         transaction.set(doc(db, CYCLES_COLLECTION, freshId), cycle);
-        return freshId;
+        return rememberCycle(freshId);
       });
       return cycleId;
     } catch (err) {
+      if (err instanceof Error && err.message === 'ONBOARDING_PLAN_RECOVERY_REQUIRED') throw err;
       console.error('[usePlanCycles] Create active cycle error:', err);
       return null;
     }

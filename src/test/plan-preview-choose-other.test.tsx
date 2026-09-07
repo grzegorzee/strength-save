@@ -27,7 +27,7 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 vi.mock('@/lib/user-events', () => ({ buildPlanEventEmitter: () => vi.fn() }));
 vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({ uid: 'u1', profile: { displayName: 'Grzegorz', photoURL: '', consents: { marketingGranted: false, marketingVersion: '1.0' } }, isAdmin: false }),
+  useCurrentUser: () => ({ uid: 'u1', profile: { displayName: 'Grzegorz', photoURL: '', consents: { marketingGranted: false, marketingVersion: '1.0' } }, isAdmin: false, mergeConfirmedConsentMirror: vi.fn() }),
 }));
 vi.mock('@/hooks/useSubscription', () => ({ useRequiresPaywall: () => false }));
 vi.mock('@/hooks/useTrainingPlan', () => ({

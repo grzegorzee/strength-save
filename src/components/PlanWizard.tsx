@@ -169,7 +169,6 @@ const PrimaryButton = ({ onClick, disabled, testId, ariaLabel, busy, children }:
 
 interface PlanWizardProps {
   showWelcome?: boolean;
-  socialProof?: boolean;
   /** Dyskretna zapowiedź trialu na ekranie Welcome (tylko onboarding na iOS — nie replan, nie web). */
   trialNotice?: boolean;
   /** Rozdzielone checkboxy zgód na Welcome (pakiet prawny v2); obowiązkowe blokują Dalej (tylko onboarding). */
@@ -217,7 +216,7 @@ export interface PlanWizardConfirmOptions {
   skipPreview?: boolean;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, showMarketingConsent = false, onLegalConsent, askName, initialName, avatarPhotoURL, accountEmail, initial, initialDraft, legalConsentAlreadyRecorded = false, onDraftChange, resume, resumeStep, builderDraftKey, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketingConsent = false, onLegalConsent, askName, initialName, avatarPhotoURL, accountEmail, initial, initialDraft, legalConsentAlreadyRecorded = false, onDraftChange, resume, resumeStep, builderDraftKey, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const wizardRootRef = useRef<HTMLDivElement>(null);
   const previousViewRef = useRef<string | null>(null);
@@ -228,10 +227,13 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // osobno PlanBuilder). Po restarcie wracamy więc do buildera, zamiast
   // przedstawiać rekomendowany szablon jako wcześniejszy wybór użytkownika.
   const resumedCustomDraft = !resume && initialDraft?.planSource === 'custom';
+  // Resume w tej samej sesji następuje po zapisie zgód. Lokalny draft nie jest
+  // takim dowodem i nie może otwierać buildera ani dalszego kroku samodzielnie.
+  const requiresInitialLegal = legalConsent && !legalConsentAlreadyRecorded && !resume;
   // X32: bez Welcome kreator ZAWSZE startuje od kroku 2 (poziom) z wartosciami
   // z `initial` wstepnie zaznaczonymi; replan nie skacze juz na krok 5
   // (startAtPrecision usuniete), user potwierdza poziom/cel/dni klikajac Dalej.
-  const [step, setStep] = useState(resumeStep ?? (resumedCustomDraft ? 5 : initialDraft?.wizardStep) ?? (showWelcome ? 1 : 2));
+  const [step, setStep] = useState(requiresInitialLegal ? 1 : resumeStep ?? (resumedCustomDraft ? 5 : initialDraft?.wizardStep) ?? (showWelcome ? 1 : 2));
   const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initialDraft?.level ?? initial?.level) ?? 'beginner');
   const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initialDraft?.objective ?? initial?.objective ?? 'build_muscle');
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
@@ -246,12 +248,19 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const [firstWorkoutInput, setFirstWorkoutInput] = useState<string | null>(() => resume?.firstWorkoutDate ?? initialDraft?.firstWorkoutDate ?? null);
   // X34: wznowienie na konkretnym kroku (6/6 albo 5A po "Wybierz inny plan")
   // ląduje w trybie wyboru; bez resumeStep własny plan otwiera się w builderze jak dotąd.
-  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>((resumedCustomPlan && resumeStep === undefined) || resumedCustomDraft ? 'own' : 'recommend');
+  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(!requiresInitialLegal && ((resumedCustomPlan && resumeStep === undefined) || resumedCustomDraft) ? 'own' : 'recommend');
   // X34: własny plan z PlanBuildera czeka na ekran 6/6 (nazwa / długość / start)
   // zamiast trafiać od razu do hosta; null = ścieżka szablonu (karty 5A).
   const [customPlan, setCustomPlan] = useState<{ days: TrainingDay[]; durationWeeks: number } | null>(
-    resumedCustomPlan ? { days: resumedCustomPlan.days, durationWeeks: resumedCustomPlan.durationWeeks } : null,
+    resumedCustomPlan ? { days: resumedCustomPlan.days, durationWeeks: resumedCustomPlan.durationWeeks }
+      : resumedCustomDraft && initialDraft.reviewDays
+        ? { days: initialDraft.reviewDays, durationWeeks: initialDraft.durationWeeks ?? 12 } : null,
   );
+  const [reviewedTemplate, setReviewedTemplate] = useState(() => {
+    const templateId = resume?.templateId ?? initialDraft?.templateId;
+    const days = resume?.days ?? initialDraft?.reviewDays;
+    return templateId && days ? { templateId, days } : null;
+  });
   const [picked, setPicked] = useState<PlanTemplate | null>(() => {
     const templateId = resume?.templateId ?? initialDraft?.templateId;
     return templateId ? planTemplates.find((p) => p.id === templateId) ?? null : null;
@@ -353,6 +362,8 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, dayPool.templates), [objective, level, daysPerWeek, dayPool]);
   const recommended = scoredTemplates[0].template;
   const chosen = picked ?? recommended;
+  const reviewedDays = reviewedTemplate?.templateId === chosen.id ? reviewedTemplate.days : undefined;
+  const chosenDays = reviewedDays ?? chosen.days;
   // X33 WP-2: karta 2 "Alternatywa" = najlepiej punktowany szablon puli o INNYM
   // celu niż Polecany; bez takiego = drugi element puli; pula 1-elementowa = brak.
   const alternative = useMemo(
@@ -387,13 +398,13 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // Centralny AndroidBackHandler najpierw zamyka overlay, a potem wysyła ten
   // anulowalny event. Wizard przejmuje go, żeby cofać lokalny krok zamiast trasy.
   // Ref eliminuje przeinstalowywanie listenera przy każdym kroku.
-  const backStateRef = useRef({ step, mode, showWelcome, welcomeView, consentSaving, onExitBack });
-  backStateRef.current = { step, mode, showWelcome, welcomeView, consentSaving, onExitBack };
+  const backStateRef = useRef({ step, mode, showWelcome, welcomeView, consentSaving, isSaving, onExitBack });
+  backStateRef.current = { step, mode, showWelcome, welcomeView, consentSaving, isSaving, onExitBack };
   useEffect(() => {
     const onAndroidBack = (event: Event) => {
       event.preventDefault();
       const state = backStateRef.current;
-      if (state.consentSaving) return;
+      if (state.consentSaving || state.isSaving) return;
       if (state.mode === 'browse' || state.mode === 'own') {
         setMode('recommend');
         return;
@@ -441,8 +452,8 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // pułapki z niezaznaczonym startem.
   const todayISO = formatLocalDate(new Date());
   const scheduleWeekdays = useMemo(
-    () => uniqueSortedWeekdays((customPlan ? customPlan.days : applyWeekdaysToPlanDays(chosen.days, trainingDays)).map((d) => d.weekday)),
-    [customPlan, chosen, trainingDays],
+    () => uniqueSortedWeekdays((customPlan ? customPlan.days : applyWeekdaysToPlanDays(chosenDays, trainingDays)).map((d) => d.weekday)),
+    [customPlan, chosenDays, trainingDays],
   );
   const firstWorkoutOptions = useMemo(() => listFirstWorkoutOptions(scheduleWeekdays, todayISO), [scheduleWeekdays, todayISO]);
   const defaultFirstWorkout = firstWorkoutOptions.find((iso) => iso >= (resume?.startDate ?? '')) ?? firstWorkoutOptions[0];
@@ -465,8 +476,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       durationWeeks: effectiveWeeks,
       firstWorkoutDate,
       planName: planNameInput ?? undefined,
+      ...(customPlan ? { reviewDays: customPlan.days } : reviewedDays ? { reviewDays: reviewedDays } : {}),
     });
-  }, [accentId, chosen.id, customPlan, daysPerWeek, effectiveWeeks, firstWorkoutDate, level, mode, objective, onDraftChange, pickedViaBrowse, planNameInput, recommended.id, step, trainingDays, userName]);
+  }, [accentId, chosen.id, customPlan, daysPerWeek, effectiveWeeks, firstWorkoutDate, level, mode, objective, onDraftChange, pickedViaBrowse, planNameInput, recommended.id, reviewedDays, step, trainingDays, userName]);
 
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
@@ -491,9 +503,10 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // X34: zatwierdzenie z ekranu 6/6 (główny CTA = skipPreview, "Podgląd planu" = false).
   // Edge 4: pusta nazwa spada do nazwy szablonu / "Własny plan" (fallback, nie pusty string).
   const confirmPlan = (opts: PlanWizardConfirmOptions) => {
+    if (isSaving) return;
     const planName = planNameInput?.trim() || defaultPlanName;
     if (customPlan) fire(customPlan.days, effectiveWeeks, undefined, planName, opts);
-    else fire(applyWeekdaysToPlanDays(chosen.days, trainingDays), effectiveWeeks, chosen.id, planName, opts);
+    else fire(applyWeekdaysToPlanDays(chosenDays, trainingDays), effectiveWeeks, chosen.id, planName, opts);
   };
 
   // X33 WP-2: zaznaczenie karty / wybór z biblioteki = nowy szablon, więc nazwa
@@ -501,6 +514,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // planSource: karta 1 = recommended, karta 2 i biblioteka = browsed.
   const pickTemplate = (tpl: PlanTemplate, viaBrowse: boolean) => {
     if (tpl.id === chosen.id) return;
+    setReviewedTemplate(null);
     setPicked(tpl);
     setPickedViaBrowse(viaBrowse);
     setTemplateWeeks(null);
@@ -655,7 +669,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   <PrimaryButton onClick={advanceFromPersonalization} testId="ob-personalization-next">
                     {t('ob.next')} <ArrowRight className="h-4 w-4" />
                   </PrimaryButton>
-                  {socialProof && <p className="text-center text-[11px] font-medium tracking-widest uppercase text-muted-foreground mt-3">{t('ob.social')}</p>}
                 </div>
               </>
             ) : (
@@ -698,7 +711,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 <h1 tabIndex={-1} className="font-heading font-bold text-4xl leading-tight tracking-tight">
                   {t('ob.baseline.title1')} <span className="text-primary">{t('ob.baseline.title2')}</span>
                 </h1>
-                <p className="text-muted-foreground mt-2">{t('ob.baseline.desc')}</p>
               </div>
               <div className="space-y-3">
                 {LEVELS.map(l => (
@@ -738,7 +750,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 <h1 tabIndex={-1} className="font-heading font-bold text-4xl leading-tight tracking-tight">
                   {t('ob.protocol.title1')} <span className="text-primary">{t('ob.protocol.title2')}</span>
                 </h1>
-                <p className="text-muted-foreground mt-2">{t('ob.protocol.desc')}</p>
               </div>
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.protocol.daysQ')}</p>
@@ -842,7 +853,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             {/* X34 / X34b: ekran 6/6 "Start planu": data pierwszego treningu, długość,
                 nazwa, główny CTA celu (zapis od razu, skipPreview) i "Podgląd planu".
                 Wstecz = 5A. */}
-            <StepHeader step={6} total={6} onBack={() => setStep(5)} />
+            <StepHeader step={6} total={6} onBack={() => setStep(5)} backDisabled={isSaving} />
             <PlanStartStep
               name={planNameInput ?? defaultPlanName}
               onNameChange={setPlanNameInput}
@@ -911,7 +922,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 <p data-testid="browse-empty-objective" className="rounded-2xl bg-surface-low p-4 text-[13px] text-muted-foreground">{t('ob.browse.emptyObjective', { days: daysPerWeek })}</p>
               )}
               {browseTemplates.map(({ template: tpl }) => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setPickedViaBrowse(true); if (tpl.daysPerWeek !== daysPerWeek) setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full touch-manipulation select-none text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
+                <button key={tpl.id} onClick={() => { if (tpl.id !== chosen.id) setReviewedTemplate(null); setPicked(tpl); setPickedViaBrowse(true); if (tpl.daysPerWeek !== daysPerWeek) setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full touch-manipulation select-none text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
                   {/* WP-F (X28): hero na górze karty (rounded-t przez overflow-hidden rodzica) */}
                   <PlanTemplateHero templateId={tpl.id} className="h-20" />
                   <div className="p-4">

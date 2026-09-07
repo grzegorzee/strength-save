@@ -24,7 +24,7 @@ const mockProfile = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
 vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({ uid: 'u1', profile: mockProfile.current }),
+  useCurrentUser: () => ({ uid: 'u1', profile: mockProfile.current, mergeConfirmedConsentMirror: vi.fn() }),
 }));
 // X33 WP-8: Welcome liczy kandydatów dopiero po jawnym CTA. Analiza porządkuje
 // kropki "Z Twojego zdjęcia", ale nie zapisuje wyboru bez tapnięcia swatcha.

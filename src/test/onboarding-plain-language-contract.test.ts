@@ -16,7 +16,7 @@ const onboardingCopy = (locale: Record<string, string>): string => [
 describe('onboarding: prosty i rzetelny język rekomendacji planu', () => {
   it('PL jasno podaje kryteria rekomendacji i unika pseudotechnicznych obietnic', () => {
     expect(pl['ob.obj.desc']).toBe(
-      'Wybierz główny cel. Propozycję planu oprzemy także na Twoim poziomie i liczbie dni treningowych.',
+      'Plan dopasujemy do celu, poziomu i liczby dni treningowych.',
     );
     expect(pl['ob.protocol.title1']).toBe('Wybierz');
     expect(pl['ob.protocol.title2']).toBe('dni treningowe');
@@ -29,7 +29,7 @@ describe('onboarding: prosty i rzetelny język rekomendacji planu', () => {
 
   it('EN mówi to samo prostym językiem, bez pseudotechnicznego żargonu', () => {
     expect(en['ob.obj.desc']).toBe(
-      'Choose your main goal. We will also use your experience level and number of training days to suggest a plan.',
+      'Your goal, experience and training days guide the plan.',
     );
     expect(en['ob.protocol.title1']).toBe('Choose your');
     expect(en['ob.protocol.title2']).toBe('training days');

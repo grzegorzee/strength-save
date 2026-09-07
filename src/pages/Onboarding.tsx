@@ -41,10 +41,11 @@ import {
 const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
-  const { uid, profile, avatarSrc } = useCurrentUser();
+  const { uid, profile, avatarSrc, mergeConfirmedConsentMirror } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
   const { createActiveCycle } = usePlanCycles(uid);
   const [isSaving, setIsSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [choice, setChoice] = useState<PlanWizardChoice | null>(null);
   const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
@@ -103,11 +104,12 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
     : null;
 
   const handleWizardConfirm = (c: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => {
+    if (saveInFlightRef.current) return;
     const skip = opts?.skipPreview === true;
     setChoice(c);
     setReviewDays(c.days);
     setError(null);
-    persistDraft({ ...latestDraftRef.current, phase: 'wizard', wizardStep: 6 });
+    persistDraft({ ...latestDraftRef.current, phase: 'wizard', wizardStep: 6, reviewDays: c.days });
     if (skip) {
       void finishOnboarding(c);
       return;
@@ -115,16 +117,26 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
     setShowPreview(true);
   };
 
+  const handleReviewDaysChange = (days: TrainingDay[]) => {
+    if (saveInFlightRef.current) return;
+    setReviewDays(days);
+    setChoice(previous => previous ? { ...previous, days } : previous);
+    persistDraft({ ...latestDraftRef.current, phase: 'preview', wizardStep: 6, reviewDays: days });
+  };
+
   // Zapis zgód z kroku Welcome do logu (Cloud Function recordConsent: IP,
   // timestamp serwerowy, wersje dokumentów). Odrzucenie zatrzymuje przejście
   // kroku — bez wpisu w logu nie ma dowodu zgody.
   const handleLegalConsent = async (selection: ConsentSelection) => {
-    await recordConsents(buildConsentSubmissions(t, selection), lang);
+    const confirmedMirror = await recordConsents(buildConsentSubmissions(t, selection), lang);
+    mergeConfirmedConsentMirror(confirmedMirror);
   };
 
   // Jeden zapis dla obu ścieżek (podgląd -> Zatwierdź oraz "Zaczynam ten plan"):
   // ten sam completeOnboardingPlan, ten sam payload.
   const finishOnboarding = async (confirmed: PlanWizardChoice) => {
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
     setIsSaving(true);
     setError(null);
     const result = await completeOnboardingPlan(confirmed, {
@@ -154,6 +166,7 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
       },
     });
     if (!result.success) {
+      saveInFlightRef.current = false;
       trackTelemetryEvent(uid, 'onboarding_save_failed');
       setError(result.error || t('onboarding.error.saveFailed'));
       setIsSaving(false);
@@ -173,6 +186,7 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
       // trafia prosto na paywall (start trialu); na web na dashboard z confetti.
       navigate(requiresPaywall ? '/paywall' : '/?welcome=1', { replace: true });
     } catch (err) {
+      saveInFlightRef.current = false;
       setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
       setIsSaving(false);
     }
@@ -184,9 +198,9 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
     return (
       <PlanPreview
         days={reviewDays}
-        onDaysChange={setReviewDays}
-        onBack={() => { setWizardResumeStep(6); setShowPreview(false); }}
-        onChooseOther={() => { setWizardResumeStep(5); setShowPreview(false); }}
+        onDaysChange={handleReviewDaysChange}
+        onBack={() => { if (!saveInFlightRef.current) { setWizardResumeStep(6); setShowPreview(false); } }}
+        onChooseOther={() => { if (!saveInFlightRef.current) { setWizardResumeStep(5); setShowPreview(false); } }}
         onConfirm={() => { void finishOnboarding({ ...choice, days: reviewDays }); }}
         confirmLabel={t('ob.precision.confirm')}
         isSaving={isSaving}
@@ -198,7 +212,6 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
   return (
     <PlanWizard
       showWelcome
-      socialProof
       trialNotice={requiresPaywall}
       legalConsent
       onLegalConsent={handleLegalConsent}

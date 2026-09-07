@@ -38,6 +38,7 @@ vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({
     uid: 'u1',
+    mergeConfirmedConsentMirror: vi.fn(),
     profile: { displayName: 'Grzegorz', photoURL: '', consents: { marketingGranted: false, marketingVersion: '1.0' } },
     isAdmin: false,
     canUseStrava: false,

@@ -1,5 +1,6 @@
 import { Preferences } from '@capacitor/preferences';
-import type { Weekday } from '@/data/trainingPlan';
+import type { TrainingDay, Weekday } from '@/data/trainingPlan';
+import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 
 export const ONBOARDING_DRAFT_VERSION = 1 as const;
 export const ONBOARDING_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -31,6 +32,8 @@ export interface OnboardingDraftV1 {
   startDate?: string;
   firstWorkoutDate?: string;
   planName?: string;
+  /** Zatwierdzany podgląd, także podmiany ćwiczeń; nadal wyłącznie lokalny stan UX. */
+  reviewDays?: TrainingDay[];
 }
 
 export type OnboardingDraftInput = Omit<OnboardingDraftV1, 'version' | 'updatedAt'>;
@@ -96,6 +99,15 @@ const sanitizeTrainingDays = (value: unknown): Weekday[] | undefined => {
   return result.length ? result : undefined;
 };
 
+const sanitizeReviewDays = (value: unknown): TrainingDay[] | undefined => {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 6) return undefined;
+  const days = sanitizeTrainingPlanDays(value);
+  // Nie odtwarzaj podzbioru ćwiczeń z uszkodzonego podglądu.
+  return days?.every((day, index) => WEEKDAYS.has(day.weekday)
+    && day.exercises.length > 0 && day.exercises.length === value[index].exercises.length)
+    ? days : undefined;
+};
+
 const sanitizeInput = (value: unknown): OnboardingDraftInput | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const candidate = value as Record<string, unknown>;
@@ -122,6 +134,7 @@ const sanitizeInput = (value: unknown): OnboardingDraftInput | null => {
   const startDate = isoDate(candidate.startDate);
   const firstWorkoutDate = isoDate(candidate.firstWorkoutDate);
   const planName = trimmed(candidate.planName, 60);
+  const reviewDays = sanitizeReviewDays(candidate.reviewDays);
 
   return {
     phase,
@@ -139,6 +152,7 @@ const sanitizeInput = (value: unknown): OnboardingDraftInput | null => {
     ...(startDate ? { startDate } : {}),
     ...(firstWorkoutDate ? { firstWorkoutDate } : {}),
     ...(planName ? { planName } : {}),
+    ...(reviewDays ? { reviewDays } : {}),
   };
 };
 

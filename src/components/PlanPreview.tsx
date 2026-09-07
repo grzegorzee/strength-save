@@ -46,6 +46,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
   };
 
   const confirmSwap = (rep: { name: string; sets: string; videoUrl?: string; category?: string }) => {
+    if (isSaving) return;
     onDaysChange(days.map((day) => day.id !== swap.dayId ? day : {
       ...day,
       // swapExerciseIdentity pomija videoUrl gdy zamiennik go nie ma — undefined wywala setDoc w Firestore.
@@ -60,7 +61,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
     >
       <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-1 flex-col pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[calc(1rem+env(safe-area-inset-top))]">
         <div className="flex shrink-0 items-center justify-between">
-          <button onClick={onBack} aria-label={t('common.back')} className="flex min-h-11 min-w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"><ChevronLeft className="h-5 w-5" /></button>
+          <button onClick={onBack} disabled={isSaving} aria-label={t('common.back')} className="flex min-h-11 min-w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"><ChevronLeft className="h-5 w-5" /></button>
           <span className="font-heading font-bold uppercase tracking-widest text-xs text-primary">{t('ob.brand')}</span>
           <span className="h-11 w-11" aria-hidden="true" />
         </div>
@@ -81,7 +82,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, onChooseOth
                     <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">{ex.sets}</p>
                   </div>
-                  <Button variant="ghost" size="sm" className="min-h-11 shrink-0 text-xs text-primary" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
+                  <Button variant="ghost" size="sm" disabled={isSaving} className="min-h-11 shrink-0 text-xs text-primary" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
                     <RefreshCw className="h-3 w-3 mr-1" />{t('onboarding.swap')}
                   </Button>
                 </div>

@@ -17,7 +17,7 @@ vi.mock('@/components/PlanPreview', () => ({
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc: vi.fn(async () => {}) }));
 vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({ uid: 'u1', profile: { displayName: 'Grzegorz' } }),
+  useCurrentUser: () => ({ uid: 'u1', profile: { displayName: 'Grzegorz' }, mergeConfirmedConsentMirror: vi.fn() }),
 }));
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ savePlan: vi.fn(async () => ({ success: true })) }),

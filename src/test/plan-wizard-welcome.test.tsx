@@ -211,7 +211,7 @@ describe('PlanWizard Welcome (Z231 + pakiet prawny v2)', () => {
 
   it('nie pokazuje niezweryfikowanego social proof 12K+', () => {
     render(withProviders(
-      <PlanWizard showWelcome socialProof confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+      <PlanWizard showWelcome confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
     expect(screen.queryByText(/12K\+/i)).toBeNull();
   });

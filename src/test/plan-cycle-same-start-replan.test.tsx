@@ -121,6 +121,7 @@ const storeCycles = (): Array<DocData & { id: string }> => [...fake.store.entrie
 
 beforeEach(() => {
   fake.store.clear();
+  fake.store.set(`users/${UID}`, { uid: UID, onboardingCompleted: false });
   fake.listeners.length = 0;
   // Dzis 2026-08-25 (wtorek); 09-07 = poniedzialek za 2 tygodnie (wazny start).
   vi.setSystemTime(new Date(2026, 7, 25, 10, 30));

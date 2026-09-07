@@ -28,7 +28,7 @@ const profileFixture = vi.hoisted(() => ({
   current: { displayName: 'Grzegorz', photoURL: '', consents: { marketingGranted: false, marketingVersion: '1.0' } } as Record<string, unknown>,
 }));
 vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({ uid: 'u1', profile: profileFixture.current }),
+  useCurrentUser: () => ({ uid: 'u1', profile: profileFixture.current, mergeConfirmedConsentMirror: vi.fn() }),
 }));
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ savePlan: vi.fn(async () => ({ success: true })) }),
