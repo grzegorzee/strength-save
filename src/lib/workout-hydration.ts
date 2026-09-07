@@ -21,19 +21,23 @@ export interface WorkoutHydrationDecision {
 
 export const resolveWorkoutHydration = (input: WorkoutHydrationInput): WorkoutHydrationDecision => {
   const { workoutForDate, draft, draftHasData, completedValidationOk } = input;
+  // Bazowy dokument nie potwierdza prywatnego sidecara. Jego retry musi zachować
+  // draft i grant nawet wtedy, gdy wszystkie zwykłe serie są już w chmurze.
+  const healthWritePending = !!(draft?.pendingHealthGrant || draft?.healthSyncPending);
 
   // Draft BEZ treści przy ukończonym treningu w chmurze jest śmieciem: nie ma czego
   // stracić, a trzymany z finalSyncPending wisiałby wiecznie (incydent 2026-07-20 —
   // pusty szybki trening nigdy nie przejdzie walidacji 'empty-final-payload').
-  const emptyDraftOnCompleted = !!(workoutForDate?.completed && draft && !draftHasData
+  const emptyDraftOnCompleted = !!(!healthWritePending && workoutForDate?.completed && draft && !draftHasData
     && Object.keys(draft.exerciseSets).length === 0);
 
   const clearDraft = emptyDraftOnCompleted || !!(workoutForDate?.completed && draft
-    && !draft.finalSyncPending && completedValidationOk === true);
+    && !draft.finalSyncPending && !healthWritePending && completedValidationOk === true);
 
   const useDraft = (() => {
     if (!draft) return false;
     if (emptyDraftOnCompleted) return false;
+    if (healthWritePending) return true;
     // Z183: rozjazd sessionId nie może wskrzeszać starszej chmury — dirty draft
     // NOWSZY niż workout w chmurze wygrywa (force-quit tuż po promocji sesji).
     // Draft czysty albo starszy: chmura wygrywa (ochrona przed zombie-draftem).

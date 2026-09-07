@@ -133,7 +133,7 @@ export const autoMapExercises = (
 };
 
 /**
- * Buduje WorkoutSession[] z zaparsowanych treningów (Z109): id/dayId = imported-<batchId>-<n>,
+ * Buduje WorkoutSession[] z zaparsowanych treningów: id/dayId zawierają UID,
  * snapshot nazw (mapping albo oryginał), completed, tag importBatchId, zero undefined.
  */
 export const buildImportedSessions = (
@@ -144,7 +144,7 @@ export const buildImportedSessions = (
 ): WorkoutSession[] => {
   const sorted = [...parsed].sort((a, b) => a.date.localeCompare(b.date));
   return sorted.map((workout, index) => {
-    const id = `imported-${batchId}-${index + 1}`;
+    const id = `imported-${userId}-${batchId}-${index + 1}`;
     return {
       id,
       userId,

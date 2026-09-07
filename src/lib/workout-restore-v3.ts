@@ -5,6 +5,8 @@ import type { WorkoutBackupV3RestoreItem } from '@/lib/workout-backup-v3';
 export interface WorkoutRestoreV3Request {
   v: 3;
   restoreId: string;
+  /** Destination account captured when import starts; separate from backup ownership. */
+  expectedOwnerUid: string;
   workout: Record<string, unknown>;
   health?: { workoutId: string; metrics: Record<string, unknown>[] };
   healthEpoch?: number;
@@ -24,6 +26,7 @@ const callableTransport: WorkoutRestoreV3Transport = (request) => (
   callProtectedFunction<WorkoutRestoreV3Request, WorkoutRestoreV3Response>(
     'restoreWorkoutBackupV3',
     request,
+    { expectedOwnerUid: request.expectedOwnerUid },
   )
 );
 
@@ -31,6 +34,7 @@ export async function restoreWorkoutBackupV3Item(
   item: WorkoutBackupV3RestoreItem,
   activeHealthGrant: ActiveHealthGrant | null,
   restoreId: string,
+  expectedOwnerUid: string,
   transport: WorkoutRestoreV3Transport = callableTransport,
 ): Promise<WorkoutRestoreV3Response> {
   if (item.health && !activeHealthGrant) {
@@ -39,6 +43,7 @@ export async function restoreWorkoutBackupV3Item(
   return transport({
     v: 3,
     restoreId,
+    expectedOwnerUid,
     workout: item.workout as unknown as Record<string, unknown>,
     ...(item.health ? {
       health: item.health as unknown as WorkoutRestoreV3Request['health'],

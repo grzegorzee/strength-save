@@ -2421,7 +2421,7 @@ const WorkoutDay = () => {
         exercises: [],
         ...(activeDraftRef.current?.startedAt && { startedAt: activeDraftRef.current.startedAt }),
         completedAt: Date.now(),
-      }, healthConsent);
+      }, activeHealthGrant);
     }
 
     // Z83: natywna prośba o ocenę po kamieniach ukończonych treningów (5., 15., 30. ...),
@@ -2555,7 +2555,7 @@ const WorkoutDay = () => {
 
     const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
       notes: dayNotes,
-      skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
+      skippedExercises,
       dayName: daySnapshotRef.current.dayName || undefined,
       dayFocus: daySnapshotRef.current.focus || undefined,
       expectedRevision,

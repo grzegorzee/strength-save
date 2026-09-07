@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { WORKOUT_CSV_HEADERS, buildWorkoutsCsv, escapeCsvField } from '@/lib/workout-csv';
 import type { WorkoutSession } from '@/types';
+import { splitCsvLine } from '@/lib/workout-import/parser';
 
 const workout = (over: Partial<WorkoutSession> = {}): WorkoutSession => ({
   id: 'w1',
@@ -42,6 +43,25 @@ describe('escapeCsvField', () => {
 });
 
 describe('buildWorkoutsCsv', () => {
+  it('launch W5: exports timed, distance and assisted results with PL/EN snapshot names', () => {
+    const source = workout({
+      exercises: [
+        { exerciseId: 'plank', name: 'Plank boczny', sets: [{ reps: 0, weight: 0, durationSec: 60, completed: true }] },
+        { exerciseId: 'carry', name: "Farmer's Walk", sets: [{ reps: 0, weight: 24.25, distanceM: 35.5, durationSec: 45, completed: true }] },
+        { exerciseId: 'pullup', name: 'Podciąganie wspomagane', sets: [{ reps: 8, weight: 0, assistWeight: 15.25, completed: true }] },
+      ],
+    });
+    const [header, ...lines] = buildWorkoutsCsv([source]).slice(1).trimEnd().split('\r\n');
+    const columns = splitCsvLine(header);
+    const records = lines.map(line => Object.fromEntries(splitCsvLine(line).map((value, index) => [columns[index], value])));
+    expect(records).toMatchObject([
+      { exercise: 'Plank boczny', set_duration_sec: '60', distance_m: '', assist_weight_kg: '' },
+      { exercise: "Farmer's Walk", weight_kg: '24.25', set_duration_sec: '45', distance_m: '35.5', assist_weight_kg: '' },
+      { exercise: 'Podciąganie wspomagane', reps: '8', set_duration_sec: '', distance_m: '', assist_weight_kg: '15.25' },
+    ]);
+    expect(records.every(record => record.duration_sec === '3617')).toBe(true);
+  });
+
   it('nagłówki EN techniczne w ustalonej kolejności, UTF-8 BOM, CRLF', () => {
     const csv = buildWorkoutsCsv([workout()]);
     expect(csv.startsWith('﻿')).toBe(true);
@@ -51,6 +71,7 @@ describe('buildWorkoutsCsv', () => {
       'date', 'day', 'focus', 'exercise', 'set_no', 'set_type',
       'weight_kg', 'reps', 'completed', 'rpe', 'pain', 'quality', 'exercise_note',
       'day_note', 'session_rating', 'tonnage_kg', 'duration_sec', 'prs',
+      'set_duration_sec', 'distance_m', 'assist_weight_kg',
     ]);
   });
 
@@ -59,7 +80,7 @@ describe('buildWorkoutsCsv', () => {
     const lines = csv.slice(1).trimEnd().split('\r\n');
     expect(lines).toHaveLength(4); // nagłówek + 3 serie
     expect(lines[1]).toBe(
-      '2026-08-20,Czwartek,Góra B,Wyciskanie sztangi,1,warmup,40,10,true,8,3,4,lekki dyskomfort,Dobra energia,down,500,3617,2',
+      '2026-08-20,Czwartek,Góra B,Wyciskanie sztangi,1,warmup,40,10,true,8,3,4,lekki dyskomfort,Dobra energia,down,500,3617,2,,,',
     );
     expect(lines[2]).toContain(',2,working,100,5,true,');
     expect(lines[3]).toContain(',3,working,100,5,false,');
@@ -95,7 +116,7 @@ describe('buildWorkoutsCsv', () => {
     const lines = csv.slice(1).trimEnd().split('\r\n');
     expect(lines).toHaveLength(5); // nagłówek + 1 seria bare + 3 serie w1
     // Chronologicznie: najpierw 2026-08-10 (bare), potem 2026-08-20.
-    expect(lines[1]).toBe('2026-08-10,Czwartek,Góra B,ex-x,1,working,0,0,true,,,,,,,0,,0');
+    expect(lines[1]).toBe('2026-08-10,Czwartek,Góra B,ex-x,1,working,0,0,true,,,,,,,0,,0,60,,');
     expect(lines[2].startsWith('2026-08-20')).toBe(true);
   });
 });

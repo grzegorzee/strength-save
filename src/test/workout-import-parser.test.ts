@@ -107,3 +107,30 @@ describe('parseImportDate — walidacja semantyczna (bug 51)', () => {
     expect(parseImportDate('4 May 2026, 17:31')).toBe('2026-05-04');
   });
 });
+
+describe('launch W8: logical CSV records preserve quoted line breaks', () => {
+  it.each(['\n', '\r\n'])('Strong preserves multiline notes, escaped quotes and RPE with %j records', (newline) => {
+    const csv = [
+      'Date,Workout Name,Exercise Name,Set Order,Weight,Reps,Notes,Workout Notes,RPE',
+      `2026-09-06 10:00:00,Test,Bench Press,1,80,8,"first, ""line""${newline}second line","day${newline}note",8.5`,
+      '2026-09-06 10:00:00,Test,Bench Press,2,82.5,8,,,9',
+    ].join(newline);
+    const result = parseWorkoutCsv(csv);
+    expect(result.skippedRows).toBe(0);
+    expect(result.workouts[0].notes).toBe(`day${newline}note`);
+    expect(result.workouts[0].exercises[0].notes).toBe(`first, "line"${newline}second line`);
+    expect(result.workouts[0].exercises[0].sets.map(set => set.rpe)).toEqual([8.5, 9]);
+  });
+
+  it('Hevy preserves a multiline description and later metric columns', () => {
+    const csv = 'title,start_time,exercise_title,set_index,weight_kg,reps,description,exercise_notes,rpe\r\nTest,2026-09-06 10:00:00,Plank,1,0,1,"day\r\nnote","first\r\nsecond",7.5';
+    const result = parseWorkoutCsv(csv);
+    expect(result.skippedRows).toBe(0);
+    expect(result.workouts[0]).toMatchObject({ notes: 'day\r\nnote', exercises: [{ notes: 'first\r\nsecond', sets: [{ rpe: 7.5 }] }] });
+  });
+
+  it('reports an unterminated quoted record instead of importing a truncated note', () => {
+    const csv = 'Date,Workout Name,Exercise Name,Set Order,Weight,Reps,Notes\n2026-09-06 10:00:00,Test,Bench Press,1,80,8,"unterminated';
+    expect(parseWorkoutCsv(csv)).toMatchObject({ workouts: [], skippedRows: 1, format: 'strong' });
+  });
+});

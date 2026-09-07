@@ -1,4 +1,5 @@
 import type { SetData, WorkoutSession } from '@/types';
+import { clampSet } from '@/lib/workout-sanitizers';
 
 export interface WorkoutWriteExercise {
   exerciseId: string;
@@ -35,12 +36,8 @@ export const hasWorkoutWriteConflict = (
   !== Math.max(0, Math.floor(expectedRevision ?? 0))
 );
 
-const normalizeSet = (set: Partial<SetData>): SetData => ({
-  reps: Math.max(0, Math.min(999, Math.round(Number(set.reps) || 0))),
-  weight: Math.max(0, Math.min(999, Math.round((Number(set.weight) || 0) * 2) / 2)),
-  completed: !!set.completed,
-  ...(set.isWarmup && { isWarmup: true }),
-});
+// Ten sam kształt wyniku co zapis: czas/dystans/asysta oraz ułamki kg są danymi.
+const normalizeSet = clampSet;
 
 const setsMatch = (actual: SetData, expected: SetData): boolean => {
   const nextActual = normalizeSet(actual);
@@ -51,9 +48,9 @@ const setsMatch = (actual: SetData, expected: SetData): boolean => {
     && nextActual.completed === nextExpected.completed
     && !!nextActual.isWarmup === !!nextExpected.isWarmup
     // Z105: rozjazd czasu/dystansu/asysty też jest rozjazdem zapisu.
-    && (actual.durationSec ?? 0) === (expected.durationSec ?? 0)
-    && (actual.distanceM ?? 0) === (expected.distanceM ?? 0)
-    && (actual.assistWeight ?? 0) === (expected.assistWeight ?? 0);
+    && (nextActual.durationSec ?? 0) === (nextExpected.durationSec ?? 0)
+    && (nextActual.distanceM ?? 0) === (nextExpected.distanceM ?? 0)
+    && (nextActual.assistWeight ?? 0) === (nextExpected.assistWeight ?? 0);
 };
 
 const metricMatches = (actual: number | undefined, expected: number | undefined): boolean => (
@@ -85,7 +82,8 @@ export const buildWorkoutWriteExpectation = (
   exercises: exercises.map(exercise => ({
     exerciseId: exercise.exerciseId,
     sets: exercise.sets.map(normalizeSet),
-    ...(exercise.notes !== undefined && { notes: exercise.notes }),
+    // Tablica exercises jest zastępowana w całości; brak notatki oznacza jej usunięcie.
+    notes: exercise.notes ?? '',
     ...(exercise.name !== undefined && { name: exercise.name }),
     ...(exercise.rpe !== undefined && { rpe: exercise.rpe }),
     ...(exercise.pain !== undefined && { pain: exercise.pain }),
@@ -100,20 +98,33 @@ export const buildWorkoutWriteExpectation = (
   ...(options.startedAt !== undefined && { startedAt: options.startedAt }),
 });
 
-// Ekspektacja finalna z draftu do porównania z chmurą (hydracja, R2-22): oprócz serii
-// porównuje też notatkę dnia i pominięte ćwiczenia — draft z niedosłaną notatką/skipem
-// NIE może zostać skasowany jako "już w chmurze". Semantyka pól jak w zapisie silnika
-// (puste = nie wysyłane = nie porównywane).
+// Pełny bazowy snapshot do destrukcyjnego cleanupu przy hydracji. Musi odpowiadać
+// payloadowi silnika, również przy kasowaniu notatek i pomijaniu ćwiczeń.
+// Metryki health mają osobny ACK i nie są potwierdzane bazowym dokumentem.
 export const buildDraftFinalExpectation = (draft: {
   exerciseSets: Record<string, SetData[]>;
+  exerciseNotes?: Record<string, string>;
+  exerciseNames?: Record<string, string>;
   dayNotes: string;
+  dayName?: string;
+  dayFocus?: string;
+  cycleId?: string | null;
   skippedExercises: string[];
 }): WorkoutWriteExpectation => buildWorkoutWriteExpectation(
-  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({ exerciseId, sets })),
+  Object.entries(draft.exerciseSets)
+    .filter(([exerciseId]) => !draft.skippedExercises.includes(exerciseId))
+    .map(([exerciseId, sets]) => ({
+      exerciseId, sets,
+      notes: draft.exerciseNotes?.[exerciseId] ?? '',
+      ...(draft.exerciseNames?.[exerciseId] && { name: draft.exerciseNames[exerciseId] }),
+    })),
   {
     completed: true,
-    notes: draft.dayNotes || undefined,
-    skippedExercises: draft.skippedExercises.length > 0 ? draft.skippedExercises : undefined,
+    notes: draft.dayNotes,
+    skippedExercises: draft.skippedExercises,
+    ...(draft.dayName && { dayName: draft.dayName }),
+    ...(draft.dayFocus && { dayFocus: draft.dayFocus }),
+    ...(draft.cycleId && { cycleId: draft.cycleId }),
   },
 );
 
@@ -165,6 +176,10 @@ export const validateWorkoutCloudWrite = (
     return { ok: false, reason: 'missing-exercises' };
   }
 
+  if (workout.exercises.length > expectation.exercises.length) {
+    return { ok: false, reason: 'extra-exercises' };
+  }
+
   for (const expectedExercise of expectation.exercises) {
     const actualExercise = workout.exercises.find(exercise => exercise.exerciseId === expectedExercise.exerciseId);
     if (!actualExercise) {
@@ -173,6 +188,9 @@ export const validateWorkoutCloudWrite = (
 
     if (actualExercise.sets.length < expectedExercise.sets.length) {
       return { ok: false, reason: `missing-sets:${expectedExercise.exerciseId}` };
+    }
+    if (actualExercise.sets.length > expectedExercise.sets.length) {
+      return { ok: false, reason: `extra-sets:${expectedExercise.exerciseId}` };
     }
 
     for (let index = 0; index < expectedExercise.sets.length; index += 1) {

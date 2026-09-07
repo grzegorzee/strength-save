@@ -170,9 +170,9 @@ describe('buildDraftFinalExpectation (R2-22)', () => {
     expect(validateWorkoutCloudWrite(cloud, expectation).ok).toBe(false);
   });
 
-  it('pusta notatka i brak skipow nie wchodza do porownania', () => {
+  it('pusta notatka i brak skipow potwierdzaja swiadome wyczyszczenie', () => {
     const expectation = buildDraftFinalExpectation({ exerciseSets: draft.exerciseSets, dayNotes: '', skippedExercises: [] });
-    expect(expectation.notes).toBeUndefined();
-    expect(expectation.skippedExercises).toBeUndefined();
+    expect(expectation.notes).toBe('');
+    expect(expectation.skippedExercises).toEqual([]);
   });
 });

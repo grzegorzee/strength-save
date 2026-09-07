@@ -25,11 +25,12 @@ describe('restore workout backup v3 client', () => {
     await restoreWorkoutBackupV3Item(item, {
       healthEpoch: 8,
       healthGrantId: 'grant-8',
-    }, 'restore-12345678', transport);
+    }, 'restore-12345678', 'destination-owner', transport);
 
     expect(transport).toHaveBeenCalledWith({
       v: 3,
       restoreId: 'restore-12345678',
+      expectedOwnerUid: 'destination-owner',
       workout: item.workout,
       health: item.health,
       healthEpoch: 8,
@@ -39,7 +40,7 @@ describe('restore workout backup v3 client', () => {
 
   it('nie wysyła żądania health bez aktywnego grantu', async () => {
     const transport: WorkoutRestoreV3Transport = vi.fn();
-    await expect(restoreWorkoutBackupV3Item(item, null, 'restore-12345678', transport))
+    await expect(restoreWorkoutBackupV3Item(item, null, 'restore-12345678', 'destination-owner', transport))
       .rejects.toThrow('WORKOUT_BACKUP_HEALTH_CONSENT_REQUIRED');
     expect(transport).not.toHaveBeenCalled();
   });

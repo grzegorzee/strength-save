@@ -10,6 +10,7 @@ export const WORKOUT_CSV_HEADERS = [
   'date', 'day', 'focus', 'exercise', 'set_no', 'set_type',
   'weight_kg', 'reps', 'completed', 'rpe', 'pain', 'quality', 'exercise_note',
   'day_note', 'session_rating', 'tonnage_kg', 'duration_sec', 'prs',
+  'set_duration_sec', 'distance_m', 'assist_weight_kg',
 ] as const;
 
 const UTF8_BOM = '﻿';
@@ -60,6 +61,9 @@ export function buildWorkoutsCsv(workouts: WorkoutSession[], prCounts: Record<st
           cell(tonnage),
           cell(workout.durationSec),
           cell(prs),
+          cell(set.durationSec),
+          cell(set.distanceM),
+          cell(set.assistWeight),
         ].join(','));
       });
     }

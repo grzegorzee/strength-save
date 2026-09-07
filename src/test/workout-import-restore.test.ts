@@ -7,12 +7,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 const batchSetMock = vi.hoisted(() => vi.fn());
+const batchDeleteMock = vi.hoisted(() => vi.fn());
 const batchCommitMock = vi.hoisted(() => vi.fn(async () => undefined));
 const setDocMock = vi.hoisted(() => vi.fn(async () => undefined));
 const getDocsMock = vi.hoisted(() => vi.fn(async () => ({ docs: [] as unknown[] })));
 const updateDocMock = vi.hoisted(() => vi.fn(async () => undefined));
 const runTransactionMock = vi.hoisted(() => vi.fn());
 const restoreWorkoutV3Mock = vi.hoisted(() => vi.fn(async () => ({ status: 'restored', workoutId: 'w-v3' })));
+const protectedCallMock = vi.hoisted(() => vi.fn());
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, name: string) => ({ __collection: name })),
@@ -32,20 +34,24 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn((source: unknown, ...clauses: unknown[]) => ({ __query: source, clauses })),
   where: vi.fn((field: string, op: string, value: unknown) => ({ field, op, value })),
   runTransaction: runTransactionMock,
-  writeBatch: vi.fn(() => ({ set: batchSetMock, commit: batchCommitMock })),
+  writeBatch: vi.fn(() => ({ set: batchSetMock, delete: batchDeleteMock, commit: batchCommitMock })),
   increment: vi.fn((n: number) => ({ __increment: n })),
 }));
-vi.mock('@/lib/firebase', () => ({ db: {} }));
+vi.mock('@/lib/firebase', () => ({ db: {}, auth: { currentUser: { uid: 'canonical-user-1' } } }));
 vi.mock('@/contexts/LanguageContext', () => ({
   useTranslation: () => ({ t: (k: string) => k, lang: 'pl' }),
 }));
 vi.mock('@/lib/workout-restore-v3', () => ({
   restoreWorkoutBackupV3Item: restoreWorkoutV3Mock,
 }));
+vi.mock('@/lib/protected-callable', () => ({ callProtectedFunction: protectedCallMock }));
 
 import { useFirebaseWorkoutActions } from '@/hooks/useFirebaseWorkouts';
 import { buildCanonicalState, CANONICAL_UID } from '@/test/canonical-states';
 import type { WorkoutSession, BodyMeasurement } from '@/types';
+import { buildImportedSessions } from '@/lib/workout-import/mapper';
+import { parseWorkoutCsv } from '@/lib/workout-import/parser';
+import { auth } from '@/lib/firebase';
 
 type FirestoreRefToken = { __coll: string; __id: string };
 
@@ -66,12 +72,15 @@ const planCycleSetCalls = (): Array<[FirestoreRefToken, Record<string, unknown>]
 
 beforeEach(() => {
   batchSetMock.mockClear();
+  batchDeleteMock.mockClear();
   batchCommitMock.mockClear();
   setDocMock.mockClear();
   updateDocMock.mockClear();
   runTransactionMock.mockReset();
+  protectedCallMock.mockReset();
   getDocsMock.mockReset().mockResolvedValue({ docs: [] });
-  restoreWorkoutV3Mock.mockClear();
+  restoreWorkoutV3Mock.mockReset().mockResolvedValue({ status: 'restored', workoutId: 'w-v3' });
+  Object.assign(auth, { currentUser: { uid: CANONICAL_UID } });
 });
 
 describe('importData — restore schema 3 bez embedded health', () => {
@@ -95,6 +104,7 @@ describe('importData — restore schema 3 bez embedded health', () => {
       expect.objectContaining({ workout: expect.objectContaining({ id: 'w-v3' }) }),
       { healthEpoch: 7, healthGrantId: 'grant-7' },
       expect.any(String),
+      CANONICAL_UID,
     );
     const workoutSets = (batchSetMock.mock.calls as Array<[FirestoreRefToken]>)
       .filter(([ref]) => ref.__coll === 'workouts');
@@ -126,7 +136,106 @@ describe('importData — restore schema 3 bez embedded health', () => {
       }),
       { healthEpoch: 7, healthGrantId: 'grant-7' },
       expect.any(String),
+      CANONICAL_UID,
     );
+  });
+});
+
+describe('launch W6/W7: CSV imports use the protected restore contract', () => {
+  const csv = (format: 'strong' | 'hevy', rpe = '8.5') => format === 'strong'
+    ? `Date,Workout Name,Exercise Name,Set Order,Weight,Reps,RPE\n2026-09-06 10:00:00,Test,Bench Press,1,80,8,${rpe}`
+    : `title,start_time,exercise_title,set_index,weight_kg,reps,rpe\nTest,2026-09-06 10:00:00,Bench Press,1,80,8,${rpe}`;
+  const sessions = (format: 'strong' | 'hevy', rpe?: string) => buildImportedSessions(
+    parseWorkoutCsv(csv(format, rpe)).workouts, new Map(), CANONICAL_UID, 'batch123',
+  );
+
+  it.each(['strong', 'hevy'] as const)('%s RPE is split into a sidecar with the captured health grant', async (format) => {
+    const { result } = renderActions([], [], 7);
+    const imported = sessions(format);
+    const outcome = await result.current.importCsvSessions(imported);
+    expect(outcome).toMatchObject({ success: true, written: 1 });
+    expect(batchSetMock).not.toHaveBeenCalled();
+    expect(restoreWorkoutV3Mock).toHaveBeenCalledWith({
+      workout: expect.objectContaining({ exercises: [expect.not.objectContaining({ rpe: expect.anything() })] }),
+      health: { workoutId: imported[0].id, metrics: [{ exerciseId: 'imported-ex-1', rpe: 8.5 }] },
+    }, { healthEpoch: 7, healthGrantId: 'grant-7' }, expect.any(String), CANONICAL_UID);
+  });
+
+  it('health off rejects the whole file before writing even if the first workout has no RPE', async () => {
+    const { result } = renderActions();
+    const imported = [...sessions('strong', ''), { ...sessions('strong')[0], id: 'imported-second', dayId: 'imported-second' }];
+    expect(await result.current.importCsvSessions(imported)).toMatchObject({ success: false, written: 0, error: 'import.healthConsentRequired' });
+    expect(batchSetMock).not.toHaveBeenCalled();
+    expect(restoreWorkoutV3Mock).not.toHaveBeenCalled();
+  });
+
+  it('base-only CSV works without a health grant', async () => {
+    const { result } = renderActions();
+    expect(await result.current.importCsvSessions(sessions('strong', ''))).toMatchObject({ success: true, written: 1 });
+    expect(restoreWorkoutV3Mock).toHaveBeenCalledWith(expect.not.objectContaining({ health: expect.anything() }), null, expect.any(String), CANONICAL_UID);
+  });
+
+  it('a legacy import of the same file is preserved and not duplicated', async () => {
+    getDocsMock.mockResolvedValueOnce({ docs: [{ id: 'imported-batch123-1', data: () => ({ userId: CANONICAL_UID, importBatchId: 'batch123' }) }] });
+    const { result } = renderActions([], [], 7);
+    expect(await result.current.importCsvSessions(sessions('strong'))).toMatchObject({ success: true, written: 1 });
+    expect(restoreWorkoutV3Mock).not.toHaveBeenCalled();
+    expect(batchSetMock).not.toHaveBeenCalled();
+  });
+
+  it('an input from another account is rejected before any writes', async () => {
+    const { result } = renderActions([], [], 7);
+    expect(await result.current.importCsvSessions([{ ...sessions('strong')[0], userId: 'another-account' }])).toMatchObject({ success: false, written: 0 });
+    expect(restoreWorkoutV3Mock).not.toHaveBeenCalled();
+    expect(batchSetMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['CALLABLE_ACCOUNT_CHANGED', 'RESTORE_OWNER_CHANGED'])('localizes the account boundary failure %s', async (message) => {
+    restoreWorkoutV3Mock.mockRejectedValueOnce(new Error(message));
+    const { result } = renderActions();
+    expect(await result.current.importCsvSessions(sessions('strong', ''))).toMatchObject({
+      success: false, written: 0, error: 'import.accountChanged',
+    });
+  });
+
+  it('stops after account change during an import and reports the already written count', async () => {
+    const { result } = renderActions([], [], 7);
+    const imported = [sessions('strong')[0], { ...sessions('strong')[0], id: 'imported-second', dayId: 'imported-second' }];
+    restoreWorkoutV3Mock.mockImplementationOnce(async () => {
+      Object.assign(auth, { currentUser: { uid: 'another-account' } });
+      return { status: 'restored', workoutId: imported[0].id };
+    });
+    const outcome = await result.current.importCsvSessions(imported);
+    expect(outcome).toMatchObject({ success: false, written: 1 });
+    expect(restoreWorkoutV3Mock).toHaveBeenCalledOnce();
+  });
+
+  it('launch W9: Undo stops if the account changes while reading the batch', async () => {
+    const { result } = renderActions();
+    getDocsMock.mockImplementationOnce(async () => {
+      Object.assign(auth, { currentUser: { uid: 'another-account' } });
+      return { docs: [{ id: 'owned-workout', ref: {}, data: () => ({ userId: CANONICAL_UID }) }] };
+    });
+    expect(await result.current.deleteImportBatch('batch123')).toMatchObject({ success: false, deleted: 0 });
+    expect(batchDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it('launch W9: mock Undo deletes only the current account even when both imported the same file', async () => {
+    vi.stubEnv('VITE_E2E_MODE', 'true');
+    vi.stubEnv('VITE_USE_EMULATORS', 'false');
+    try {
+      const { result } = renderActions();
+      localStorage.setItem('fittracker_e2e_workouts', JSON.stringify([
+        { id: 'own', userId: CANONICAL_UID, importBatchId: 'batch123' },
+        { id: 'other', userId: 'another-account', importBatchId: 'batch123' },
+      ]));
+      expect(await result.current.deleteImportBatch('batch123')).toEqual({ success: true, deleted: 1 });
+      expect(JSON.parse(localStorage.getItem('fittracker_e2e_workouts')!)).toEqual([
+        { id: 'other', userId: 'another-account', importBatchId: 'batch123' },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -346,13 +455,16 @@ describe('importData — training_plans.days wyrównane do aktywnego cyklu (bug 
 // Bug 43 (X30): backfillHistoricalWorkouts robił goły updateDoc z pełną tablicą
 // exercises ze snapshotu klienta — równoległy zapis tej samej sesji (drugie
 // urządzenie edytuje stary trening w trakcie "Napraw"/archiwizacji planu)
-// był cicho cofany do starej tablicy serii. Fix: transakcja z precondycją
-// rewizji, rozjazd = pomiń dokument.
+// był cicho cofany do starej tablicy serii. Fix: callable v2 z precondycją
+// rewizji w transakcji serwera; rozjazd = pomiń dokument.
 describe('backfillHistoricalWorkouts — precondycja rewizji (bug 43)', () => {
-  type TxUpdatePayload = Record<string, unknown>;
-
   const setupTransaction = (currentDoc: Record<string, unknown> | null) => {
     const txUpdate = vi.fn();
+    protectedCallMock.mockImplementation(async (_name: string, request: { expectedRevision: number }) => {
+      if (currentDoc === null) throw new Error('WORKOUT_NOT_FOUND');
+      if (request.expectedRevision !== currentDoc.revision) throw new Error('WORKOUT_CONFLICT');
+      return { updatedAt: 123, revision: request.expectedRevision + 1, health: 'none' };
+    });
     runTransactionMock.mockImplementation(async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         get: async () => ({
@@ -378,7 +490,7 @@ describe('backfillHistoricalWorkouts — precondycja rewizji (bug 43)', () => {
     };
   };
 
-  it('rewizja zgodna ze snapshotem: naprawa dopisuje nazwy i podbija rewizję w transakcji', async () => {
+  it('rewizja zgodna ze snapshotem: naprawa dopisuje nazwy przez callable z precondycją', async () => {
     const { state, workout } = buildLegacyWorkout();
     const txUpdate = setupTransaction({ revision: 3 });
     const { result } = renderActions([workout]);
@@ -389,12 +501,15 @@ describe('backfillHistoricalWorkouts — precondycja rewizji (bug 43)', () => {
     });
 
     expect(outcome).toMatchObject({ updated: 1, scanned: 1 });
-    expect(txUpdate).toHaveBeenCalledTimes(1);
-    const [ref, payload] = txUpdate.mock.calls[0] as [FirestoreRefToken, TxUpdatePayload];
-    expect(ref.__id).toBe(workout.id);
+    expect(protectedCallMock).toHaveBeenCalledTimes(1);
+    const [name, payload] = protectedCallMock.mock.calls[0] as [string, Record<string, unknown>];
+    expect(name).toBe('syncWorkoutV2');
+    expect(payload.sessionId).toBe(workout.id);
     expect((payload.exercises as Array<{ name?: string }>)[0].name).toBe('Przysiad ze sztangą');
-    expect(payload.revision).toBe(4);
-    // Naprawa nie idzie już gołym updateDoc poza transakcją.
+    expect(payload.expectedRevision).toBe(3);
+    expect(payload.writeId).toEqual(expect.any(String));
+    expect(payload).not.toHaveProperty('healthEpoch');
+    expect(txUpdate).not.toHaveBeenCalled();
     expect(updateDocMock).not.toHaveBeenCalled();
   });
 
@@ -439,6 +554,7 @@ describe('backfillHistoricalWorkouts — precondycja rewizji (bug 43)', () => {
 
     expect(outcome).toMatchObject({ updated: 0, scanned: 1 });
     expect(runTransactionMock).not.toHaveBeenCalled();
+    expect(protectedCallMock).not.toHaveBeenCalled();
     expect(txUpdate).not.toHaveBeenCalled();
     expect(updateDocMock).not.toHaveBeenCalled();
   });

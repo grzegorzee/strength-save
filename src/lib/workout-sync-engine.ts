@@ -318,8 +318,8 @@ const runSync = async (
       : undefined;
     const saveOptions: WorkoutSaveOptions = {
       cycleId: draft.cycleId ?? undefined,
-      notes: draft.dayNotes || undefined,
-      skippedExercises: draft.skippedExercises.length > 0 ? draft.skippedExercises : undefined,
+      notes: draft.dayNotes,
+      skippedExercises: draft.skippedExercises,
       dayName: draft.dayName || undefined,
       dayFocus: draft.dayFocus || undefined,
       ...(requiresFinal && { completed: true }),

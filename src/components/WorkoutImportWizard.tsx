@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toggleButtonClasses } from '@/components/ui/chip-button';
@@ -26,7 +26,7 @@ type WizardStep = 'file' | 'mapping' | 'confirm' | 'writing' | 'done';
 
 /**
  * Kreator importu historii ze Strong/Hevy (Z110). Parser w 100% kliencki; zapis
- * WYŁĄCZNIE nowych dokumentów imported-<hash>-<n> po jawnym zatwierdzeniu podglądu.
+ * WYŁĄCZNIE nowych dokumentów imported-<uid>-<hash>-<n> po jawnym zatwierdzeniu podglądu.
  */
 export const WorkoutImportWizard = () => {
   const { t } = useTranslation();
@@ -44,9 +44,12 @@ export const WorkoutImportWizard = () => {
   const [progressPct, setProgressPct] = useState(0);
   const [writtenCount, setWrittenCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<ImportHistoryEntry[]>(() => loadImportHistory());
+  const [historySnapshot, setHistorySnapshot] = useState(() => ({ uid, entries: loadImportHistory(uid) }));
+  const history = historySnapshot.uid === uid ? historySnapshot.entries : [];
   const [undoingBatch, setUndoingBatch] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ownerRef = useRef(uid);
+  ownerRef.current = uid;
 
   const parsed: ParseResult = useMemo(
     () => (fileText ? parseWorkoutCsv(fileText, { strongWeightUnit: strongUnit }) : { workouts: [], skippedRows: 0, format: null }),
@@ -86,7 +89,7 @@ export const WorkoutImportWizard = () => {
 
   const stillUnmapped = autoMap.unmapped.filter((name) => !manualMapping[name]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setStep('file');
     setFileName('');
     setFileText('');
@@ -95,12 +98,21 @@ export const WorkoutImportWizard = () => {
     setProgressPct(0);
     setWrittenCount(0);
     setError(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    setHistorySnapshot({ uid, entries: loadImportHistory(uid) });
+    setOpen(false);
+    setUndoingBatch(null);
+    reset();
+  }, [uid, reset]);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
     setError(null);
+    const owner = uid;
     const text = await file.text();
+    if (ownerRef.current !== owner) return;
     setFileName(file.name);
     setFileText(text);
     const result = parseWorkoutCsv(text, { strongWeightUnit: strongUnit });
@@ -119,6 +131,7 @@ export const WorkoutImportWizard = () => {
       isBodyweight: false,
       type: 'compound',
     });
+    if (ownerRef.current !== uid) return;
     setManualMapping((prev) => ({ ...prev, [name]: created.name }));
   };
 
@@ -128,32 +141,38 @@ export const WorkoutImportWizard = () => {
     setError(null);
     const sessions = buildImportedSessions(parsed.workouts, finalMapping, uid, batchId);
     const result = await importCsvSessions(sessions, (written, total) => {
-      setProgressPct(Math.round((written / total) * 100));
+      if (ownerRef.current === uid) setProgressPct(Math.round((written / total) * 100));
     });
+    if (ownerRef.current !== uid) return;
+    if (result.written > 0) {
+      addImportHistoryEntry({
+        batchId,
+        fileName,
+        importedAt: new Date().toISOString(),
+        workoutCount: result.written,
+        format: parsed.format!,
+      }, uid);
+      setHistorySnapshot({ uid, entries: loadImportHistory(uid) });
+    }
     if (!result.success) {
       setError(result.error ?? t('import.errWrite'));
       setStep('confirm');
       return;
     }
     setWrittenCount(result.written);
-    addImportHistoryEntry({
-      batchId,
-      fileName,
-      importedAt: new Date().toISOString(),
-      workoutCount: result.written,
-      format: parsed.format!,
-    });
-    setHistory(loadImportHistory());
     setStep('done');
   };
 
   const handleUndo = async (entry: ImportHistoryEntry) => {
     setUndoingBatch(entry.batchId);
     const result = await deleteImportBatch(entry.batchId);
+    if (ownerRef.current !== uid) return;
     setUndoingBatch(null);
     if (result.success) {
-      removeImportHistoryEntry(entry.batchId);
-      setHistory(loadImportHistory());
+      removeImportHistoryEntry(entry.batchId, uid);
+      setHistorySnapshot({ uid, entries: loadImportHistory(uid) });
+    } else {
+      setError(result.error ?? t('import.errWrite'));
     }
   };
 

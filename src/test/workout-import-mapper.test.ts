@@ -85,10 +85,10 @@ describe('buildImportedSessions (Z109)', () => {
 
   const sessions = buildImportedSessions(parsed, mapping, 'user-1', 'abc123');
 
-  it('id i dayId = imported-<batchId>-<n>, completed, snapshot dayName', () => {
+  it('id i dayId = imported-<uid>-<batchId>-<n>, completed, snapshot dayName', () => {
     expect(sessions).toHaveLength(2);
-    expect(sessions[0].id).toBe('imported-abc123-1');
-    expect(sessions[0].dayId).toBe('imported-abc123-1');
+    expect(sessions[0].id).toBe('imported-user-1-abc123-1');
+    expect(sessions[0].dayId).toBe('imported-user-1-abc123-1');
     expect(sessions[0].userId).toBe('user-1');
     expect(sessions[0].completed).toBe(true);
     expect(sessions[0].date).toBe('2026-05-04');
@@ -131,5 +131,17 @@ describe('computeImportBatchId (Z110)', () => {
     expect(computeImportBatchId('plik A')).toBe(a);
     expect(computeImportBatchId('plik B')).not.toBe(a);
     expect(a).toMatch(/^[0-9a-f]{16}$/);
+  });
+});
+
+describe('launch W7: CSV document identity belongs to an account', () => {
+  it('the same file is idempotent within an account and disjoint between accounts', () => {
+    const workouts: ImportedWorkout[] = [{ date: '2026-09-06', dayName: 'Test', exercises: [] }];
+    const a = buildImportedSessions(workouts, new Map(), 'account-a', 'abc123');
+    const retry = buildImportedSessions(workouts, new Map(), 'account-a', 'abc123');
+    const b = buildImportedSessions(workouts, new Map(), 'account-b', 'abc123');
+    expect(a[0].id).toBe(retry[0].id);
+    expect(a[0].id).not.toBe(b[0].id);
+    expect(a[0].dayId).not.toBe(b[0].dayId);
   });
 });

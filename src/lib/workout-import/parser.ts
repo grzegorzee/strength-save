@@ -73,6 +73,30 @@ export const splitCsvLine = (line: string): string[] => {
 
 const normalizeHeader = (value: string): string => value.trim().replace(/^"|"$/g, '').toLowerCase();
 
+// RFC 4180: nowa linia wewnątrz cytowanego pola należy do notatki, nie kończy
+// rekordu. Zachowujemy oryginalne LF/CRLF; niedomknięty rekord nie trafia do importu.
+const splitCsvRecords = (text: string): { records: string[]; malformedRecords: number } => {
+  const records: string[] = [];
+  let start = 0;
+  let inQuotes = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '"') {
+      if (inQuotes && text[index + 1] === '"') index += 1;
+      else inQuotes = !inQuotes;
+    } else if (!inQuotes && (char === '\r' || char === '\n')) {
+      const record = text.slice(start, index);
+      if (record.trim()) records.push(record);
+      if (char === '\r' && text[index + 1] === '\n') index += 1;
+      start = index + 1;
+    }
+  }
+  if (inQuotes) return { records, malformedRecords: 1 };
+  const last = text.slice(start);
+  if (last.trim()) records.push(last);
+  return { records, malformedRecords: 0 };
+};
+
 export const detectFormat = (headerLine: string): ImportFormat | null => {
   const cols = splitCsvLine(headerLine).map(normalizeHeader);
   if (cols.includes('exercise name') && cols.includes('set order') && cols.includes('workout name')) return 'strong';
@@ -138,7 +162,7 @@ interface RowHandlerResult {
 }
 
 export const parseWorkoutCsv = (text: string, options: ParseOptions = {}): ParseResult => {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const { records: lines, malformedRecords } = splitCsvRecords(text);
   if (lines.length === 0) return { workouts: [], skippedRows: 0, format: null };
 
   const format = detectFormat(lines[0]);
@@ -147,7 +171,7 @@ export const parseWorkoutCsv = (text: string, options: ParseOptions = {}): Parse
   const header = splitCsvLine(lines[0]).map(normalizeHeader);
   const col = (name: string): number => header.indexOf(name);
 
-  let skippedRows = 0;
+  let skippedRows = malformedRecords;
   const rows: RowHandlerResult[] = [];
 
   for (const line of lines.slice(1)) {

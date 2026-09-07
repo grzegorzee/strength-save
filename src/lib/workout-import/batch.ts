@@ -9,7 +9,9 @@ export interface ImportHistoryEntry {
   format: 'strong' | 'hevy';
 }
 
-const IMPORT_HISTORY_KEY = 'fittracker_import_history_v1';
+// Legacy v1 nie miało właściciela: nie wolno przypisać tych nazw plików osobie,
+// która zaloguje się następna. Stary klucz zostaje nietknięty; nowe wpisy są per UID.
+const importHistoryKey = (userId: string): string => `fittracker_import_history_v2_${userId}`;
 
 // FNV-1a 32-bit, dwa przebiegi (offset zwykły + solony) => 16 hex znaków.
 const fnv1a = (text: string, seed: number): number => {
@@ -27,26 +29,35 @@ export const computeImportBatchId = (text: string): string => {
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 };
 
-export const loadImportHistory = (): ImportHistoryEntry[] => {
+export const loadImportHistory = (userId: string): ImportHistoryEntry[] => {
+  if (!userId) return [];
   try {
-    const raw = window.localStorage.getItem(IMPORT_HISTORY_KEY);
-    return raw ? (JSON.parse(raw) as ImportHistoryEntry[]) : [];
+    const raw = window.localStorage.getItem(importHistoryKey(userId));
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((entry): entry is ImportHistoryEntry => (
+      !!entry && typeof entry === 'object'
+      && typeof entry.batchId === 'string' && typeof entry.fileName === 'string'
+      && typeof entry.importedAt === 'string' && Number.isFinite(entry.workoutCount)
+      && (entry.format === 'strong' || entry.format === 'hevy')
+    )) : [];
   } catch {
     return [];
   }
 };
 
-export const addImportHistoryEntry = (entry: ImportHistoryEntry): void => {
+export const addImportHistoryEntry = (entry: ImportHistoryEntry, userId: string): void => {
+  if (!userId) return;
   try {
-    const history = loadImportHistory().filter((e) => e.batchId !== entry.batchId);
+    const history = loadImportHistory(userId).filter((e) => e.batchId !== entry.batchId);
     history.unshift(entry);
-    window.localStorage.setItem(IMPORT_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+    window.localStorage.setItem(importHistoryKey(userId), JSON.stringify(history.slice(0, 20)));
   } catch { /* localStorage niedostępne — historia importów jest tylko wygodą */ }
 };
 
-export const removeImportHistoryEntry = (batchId: string): void => {
+export const removeImportHistoryEntry = (batchId: string, userId: string): void => {
+  if (!userId) return;
   try {
-    const history = loadImportHistory().filter((e) => e.batchId !== batchId);
-    window.localStorage.setItem(IMPORT_HISTORY_KEY, JSON.stringify(history));
+    const history = loadImportHistory(userId).filter((e) => e.batchId !== batchId);
+    window.localStorage.setItem(importHistoryKey(userId), JSON.stringify(history));
   } catch { /* ignoruj */ }
 };

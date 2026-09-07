@@ -14,7 +14,7 @@ import {
   type UpdateData,
 } from 'firebase/firestore';
 import { ref as storageRef, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
 import { MEASUREMENT_LIMITS, validateMeasurement } from '@/lib/measurement-validation';
 import { calculateTonnage } from '@/lib/summary-utils';
@@ -436,6 +436,7 @@ export const useFirebaseWorkoutActions = (
             item,
             activeHealthGrant,
             crypto.randomUUID(),
+            userId,
           );
           imported += 1;
         }
@@ -484,7 +485,7 @@ export const useFirebaseWorkoutActions = (
             ...(healthMetrics.length > 0 ? {
               health: { workoutId, metrics: healthMetrics },
             } : {}),
-          }, activeHealthGrant, crypto.randomUUID());
+          }, activeHealthGrant, crypto.randomUUID(), userId);
           imported += 1;
         }
       }
@@ -579,55 +580,98 @@ export const useFirebaseWorkoutActions = (
     onProgress?: (written: number, total: number) => void,
   ): Promise<{ success: boolean; written: number; error?: string }> => {
     if (sessions.length === 0) return { success: true, written: 0 };
+    if (!userId || sessions.some(session => session.userId !== userId)) {
+      return { success: false, written: 0, error: t('import.accountChanged') };
+    }
+    const backup = buildWorkoutBackupV3({ workouts: sessions, measurements: [] });
+    if (backup.workoutHealth.length > 0 && !activeHealthGrant) {
+      return { success: false, written: 0, error: t('import.healthConsentRequired') };
+    }
+    let written = 0;
     try {
+      // Preflight CAŁEGO pliku, zanim powstanie pierwszy dokument; RPE nigdy nie
+      // trafia do bazowego dokumentu ani nie znika po cichu przy braku zgody.
+      const { items } = planWorkoutBackupV3Restore(backup, activeHealthGrant);
       if (isMockE2E) {
-        // E2E mock: historia żyje w localStorage (fittracker_e2e_workouts) — merge po id.
+        // E2E mock zachowuje tę samą tożsamość i ochronę istniejącego importu.
         const raw = window.localStorage.getItem('fittracker_e2e_workouts');
         const existing: WorkoutSession[] = raw ? JSON.parse(raw) : [];
         const byId = new Map(existing.map((w) => [w.id, w]));
-        sessions.forEach((s) => byId.set(s.id, s));
+        sessions.forEach((s) => {
+          const legacyId = `imported-${s.importBatchId}-${s.id.split('-').pop()}`;
+          const legacy = byId.get(legacyId);
+          if (!byId.has(s.id) && legacy?.userId !== userId) byId.set(s.id, s);
+        });
         window.localStorage.setItem('fittracker_e2e_workouts', JSON.stringify(Array.from(byId.values())));
         onProgress?.(sessions.length, sessions.length);
         return { success: true, written: sessions.length };
       }
 
-      let written = 0;
-      // Chunkowane batche (limit Firestore 500 operacji).
-      for (let i = 0; i < sessions.length; i += 400) {
-        const batch = writeBatch(db);
-        const chunk = sessions.slice(i, i + 400);
-        chunk.forEach((session) => batch.set(doc(db, WORKOUTS_COLLECTION, session.id), session));
-        await batch.commit();
-        written += chunk.length;
+      const assertOwner = () => {
+        if (auth.currentUser?.uid !== userId) throw new Error(t('import.accountChanged'));
+      };
+      const legacyIds = new Set<string>();
+      // Pliki sprzed namespace UID mogą już być na tym koncie. Odczyt z chmury
+      // obejmuje także importy starsze niż okno 120 treningów i chroni je przed duplikacją.
+      for (const batchId of new Set(sessions.map(session => session.importBatchId).filter(Boolean))) {
+        assertOwner();
+        const existing = await getDocs(query(
+          collection(db, WORKOUTS_COLLECTION),
+          where('userId', '==', userId),
+          where('importBatchId', '==', batchId),
+        ));
+        existing.docs.forEach((snapshot) => {
+          if (snapshot.data().userId === userId) legacyIds.add(snapshot.id);
+        });
+      }
+      for (const item of items) {
+        assertOwner();
+        const legacyId = `imported-${item.workout.importBatchId}-${item.workout.id.split('-').pop()}`;
+        if (!legacyIds.has(legacyId)) {
+          // Atomowy restore chroni istniejący workout przed nadpisaniem oraz
+          // sprawdza zgodę i zapisuje prywatne metryki w osobnym sidecarze.
+          await restoreWorkoutBackupV3Item(item, activeHealthGrant, crypto.randomUUID(), userId);
+        }
+        written += 1;
         onProgress?.(written, sessions.length);
       }
       return { success: true, written };
     } catch (err) {
       console.error('[importCsvSessions] Error:', err);
-      return { success: false, written: 0, error: err instanceof Error ? err.message : String(err) };
+      const error = err instanceof Error
+        && ['CALLABLE_ACCOUNT_CHANGED', 'RESTORE_OWNER_CHANGED'].includes(err.message)
+        ? t('import.accountChanged')
+        : err instanceof Error ? err.message : String(err);
+      return { success: false, written, error };
     }
-  }, [isMockE2E]);
+  }, [isMockE2E, userId, activeHealthGrant, t]);
 
   const deleteImportBatch = useCallback(async (
     batchId: string,
   ): Promise<{ success: boolean; deleted: number; error?: string }> => {
+    if (!userId) return { success: false, deleted: 0, error: t('import.accountChanged') };
+    let deleted = 0;
     try {
       if (isMockE2E) {
         const raw = window.localStorage.getItem('fittracker_e2e_workouts');
         const existing: WorkoutSession[] = raw ? JSON.parse(raw) : [];
-        const remaining = existing.filter((w) => w.importBatchId !== batchId);
+        const remaining = existing.filter((w) => w.userId !== userId || w.importBatchId !== batchId);
         window.localStorage.setItem('fittracker_e2e_workouts', JSON.stringify(remaining));
         return { success: true, deleted: existing.length - remaining.length };
       }
 
+      const assertOwner = () => {
+        if (auth.currentUser?.uid !== userId) throw new Error(t('import.accountChanged'));
+      };
+      assertOwner();
       const snapshot = await getDocs(query(
         collection(db, WORKOUTS_COLLECTION),
         where('userId', '==', userId),
         where('importBatchId', '==', batchId),
       ));
-      let deleted = 0;
-      const docs = snapshot.docs;
+      const docs = snapshot.docs.filter(d => d.data().userId === userId);
       for (let i = 0; i < docs.length; i += 200) {
+        assertOwner();
         const batch = writeBatch(db);
         docs.slice(i, i + 200).forEach((d) => {
           batch.delete(d.ref);
@@ -639,9 +683,9 @@ export const useFirebaseWorkoutActions = (
       return { success: true, deleted };
     } catch (err) {
       console.error('[deleteImportBatch] Error:', err);
-      return { success: false, deleted: 0, error: err instanceof Error ? err.message : String(err) };
+      return { success: false, deleted, error: err instanceof Error ? err.message : String(err) };
     }
-  }, [isMockE2E, userId]);
+  }, [isMockE2E, userId, t]);
 
   // Delete a specific workout (for cleanup)
   const deleteWorkout = useCallback(async (workoutId: string): Promise<{ success: boolean; error?: string }> => {
@@ -760,6 +804,23 @@ export const useFirebaseWorkoutActions = (
         }
 
         if (Object.keys(update).length === 0) continue;
+        if (update.exercises) {
+          // Exercise arrays are server-owned. Preserve all base data and let
+          // syncWorkoutV2 retain existing health without granting a new health write.
+          const result = await createWorkoutV2SaveAdapter(null)(
+            w.id,
+            update.exercises as Array<{ exerciseId: string; sets: SetData[]; name?: string; notes?: string }>,
+            {
+              expectedRevision: Math.max(0, Math.floor(w.revision ?? 0)),
+              writeId: crypto.randomUUID(),
+              ...(typeof update.cycleId === 'string' && { cycleId: update.cycleId }),
+              ...(typeof update.dayName === 'string' && { dayName: update.dayName }),
+              ...(typeof update.dayFocus === 'string' && { dayFocus: update.dayFocus }),
+            },
+          );
+          if (result.success) updated++;
+          continue;
+        }
         // Bug 43 (X30): zapis w transakcji z precondycją rewizji — naprawa
         // liczy update ze snapshotu klienta (closure), więc równoległy zapis
         // tej samej sesji (drugie urządzenie edytuje stary trening w trakcie
@@ -797,15 +858,16 @@ export const useFirebaseWorkoutActions = (
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
     // expectedRevision wymagane: null = świadome pominięcie preconditionu (tylko migracje/naprawy danych).
     // writeId wymagane: klucz idempotencji — ten sam przy retry tej samej treści, nowy przy nowej treści.
-    options: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision: number | null; writeId: string }
-  ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number; alreadyApplied?: boolean }> => {
+    options: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision: number | null; writeId: string },
+    health?: { healthGrant: ActiveHealthGrant | null; healthMode?: 'replace' },
+  ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number; alreadyApplied?: boolean; health?: 'none' | 'stripped' | 'written' | 'pending' }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
     try {
       if (isE2ECloudMockEnabled()) {
         return { success: true, ...e2eCloudMock.save(sessionId, exercises, options) };
       }
-      const syncState = await createWorkoutV2SaveAdapter(activeHealthGrant)(sessionId, exercises, options);
+      const syncState = await createWorkoutV2SaveAdapter(health ? health.healthGrant : activeHealthGrant)(sessionId, exercises, options);
       if (!syncState.success) return syncState;
       return syncState;
     } catch (err) {
