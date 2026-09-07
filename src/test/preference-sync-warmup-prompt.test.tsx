@@ -8,9 +8,9 @@ const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
 vi.mock('@/lib/firebase', () => ({ db: {} }));
 
-const mockProfile = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
+const mockProfile = vi.hoisted(() => ({ uid: 'u1', current: {} as Record<string, unknown> }));
 vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({ uid: 'u1', profile: mockProfile.current }),
+  useCurrentUser: () => ({ uid: mockProfile.uid, profile: mockProfile.current }),
 }));
 vi.mock('@/contexts/UnitContext', () => ({
   useUnit: () => ({ unit: 'kg', setUnit: vi.fn() }),
@@ -25,10 +25,44 @@ import { isWarmupPromptEnabled, setWarmupPromptEnabled, WARMUP_PROMPT_KEY } from
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  mockProfile.uid = 'u1';
   mockProfile.current = { uid: 'u1', photoURL: '', preferences: undefined };
 });
 
 describe('PreferenceSync: preferences.warmupPrompt -> cache (X37)', () => {
+  it('A off → B bez pola: B dostaje domyślne on, powrót A zachowuje jego jawne off', () => {
+    mockProfile.current = { uid: 'u1', preferences: { warmupPrompt: false } };
+    const view = render(<PreferenceSync />);
+    expect(isWarmupPromptEnabled()).toBe(false);
+
+    mockProfile.uid = 'u2';
+    // Profil A może przez jeden render zostać po zmianie auth; nie należy do B.
+    view.rerender(<PreferenceSync />);
+    expect(isWarmupPromptEnabled()).toBe(true);
+    mockProfile.current = { uid: 'u2', preferences: {} };
+    view.rerender(<PreferenceSync />);
+    expect(isWarmupPromptEnabled()).toBe(true);
+
+    mockProfile.uid = 'u1';
+    mockProfile.current = { uid: 'u1', preferences: {} };
+    view.rerender(<PreferenceSync />);
+    expect(isWarmupPromptEnabled()).toBe(false);
+  });
+
+  it('nie przypisuje legacy off bez znanego właściciela do zalogowanego konta', () => {
+    localStorage.setItem(WARMUP_PROMPT_KEY, 'false');
+    render(<PreferenceSync />);
+    expect(isWarmupPromptEnabled()).toBe(true);
+  });
+
+  it('cold remount tego samego konta zachowuje lokalne off przy braku pola w profilu', () => {
+    const view = render(<PreferenceSync />);
+    setWarmupPromptEnabled(false);
+    view.unmount();
+    render(<PreferenceSync />);
+    expect(isWarmupPromptEnabled()).toBe(false);
+  });
+
   it('chmura false -> cache false (start bez arkusza na tym urządzeniu)', async () => {
     mockProfile.current = { uid: 'u1', photoURL: '', preferences: { warmupPrompt: false } };
     render(<PreferenceSync />);

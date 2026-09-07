@@ -4,6 +4,7 @@ import {
   clearWorkoutDraftDb,
   localToday,
   navigateAndWait,
+  skipPreStartWarmup,
   readWorkoutDraftDb,
   setE2ECycles,
 } from './helpers';
@@ -103,6 +104,7 @@ test.describe('Id dni aktywnego cyklu przy edycji planu (Z152)', () => {
   test('cykl → trening z serią → /plan/edit (dzień + ćwiczenie) → back → id w formacie cyklu, serie nietknięte', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/${START}-d1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
     await checkOneSet(page);
 
     const draftBefore = await readWorkoutDraftDb(page, E2E_UID) as DraftShape;

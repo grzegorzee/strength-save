@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, openProfileSection } from './helpers';
+import { LEGAL_VERSIONS } from '../src/lib/legal-versions';
+import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmup, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, openProfileSection } from './helpers';
 
 // X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
 // dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
@@ -536,6 +537,7 @@ test.describe('ExercisePicker (Z69)', () => {
   test('WorkoutDay: swap "tylko dziś" przez picker podmienia ćwiczenie lokalnie', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
     await expect(page.locator('.exercise-card').first()).toBeVisible();
 
     // X17A Z129.2: „Zamień ćwiczenie" przeniesione z przycisków pod kartą do menu ⋯.
@@ -976,6 +978,7 @@ test.describe('Przypięte notatki (Z103)', () => {
 
   test('notatka przypięta w treningu jest widoczna w kolejnej sesji i w szczegółach ćwiczenia', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1?autostart=true');
+    await skipPreStartWarmup(page);
     await clearWorkoutDraftDb(page, 'e2e-test-user');
 
     // X17A Z129.2: pusta przypięta notatka nie zaśmieca już karty — zakłada się ją
@@ -1243,6 +1246,7 @@ test.describe('Kalkulator talerzy (Z107)', () => {
   test('otwiera się z karty ćwiczenia i pokazuje poprawny rozkład na stronę', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
@@ -1255,6 +1259,7 @@ test.describe('Kalkulator talerzy (Z107)', () => {
   test('Rozgrzewka dodaje jeden pusty slot i nie kopiuje serii roboczej', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
@@ -1282,6 +1287,13 @@ test.describe('Import CSV (Z110)', () => {
   });
 
   test('pełny scenariusz: import fixture Strong, idempotencja 2x, historia, cofnięcie', async ({ page }) => {
+    // This fixture contains RPE. Import must use an explicitly active health
+    // grant; the default basic-mode user intentionally has no such consent.
+    await setE2EAuthScenario(page, 'active-user', { consents: {
+      termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy,
+      healthGranted: true, healthVersion: LEGAL_VERSIONS.health,
+      healthEpoch: 1, healthGrantId: 'e2e-csv-grant',
+    } });
     await navigateAndWait(page, '/profile');
     await openProfileSection(page, 'backup');
 

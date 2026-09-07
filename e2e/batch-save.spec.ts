@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue , localToday, skipPreStartWarmupIfShown } from './helpers';
+import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue , localToday, skipPreStartWarmup, skipPreStartWarmupIfShown } from './helpers';
 
 const E2E_USER_ID = 'e2e-test-user';
 
@@ -391,6 +391,7 @@ test.describe('Batch Save Workflow', () => {
 
     await page.context().setOffline(true);
     await page.evaluate((route) => { window.location.hash = `#${route}`; }, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard).toBeVisible();

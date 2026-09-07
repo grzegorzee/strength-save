@@ -5,6 +5,7 @@ import {
   localToday,
   navigateAndWait,
   readWorkoutDraftDb,
+  skipPreStartWarmup,
 } from './helpers';
 
 // Z141 (X18A): edycja planu dnia W TRAKCIE treningu nie może skasować odhaczonych
@@ -81,6 +82,7 @@ const expectWorkoutIntactAfterBack = async (page: Page, draftBefore: DraftShape)
   // Serie NADAL odhaczone, wartości nietknięte.
   await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(2);
   await expect(firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first()).toHaveValue('100');
+  await expect(page.getByTestId('prestart-sheet')).toBeHidden();
   await expect(firstCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).first()).toHaveValue('8');
   await expect(firstCard.getByRole('textbox', { name: /Set 2, kg/ }).first()).toHaveValue('102.5');
 
@@ -102,6 +104,7 @@ test.describe('Edycja planu dnia w trakcie treningu (Z141)', () => {
   test('start z autostart → 2 serie → /plan/edit → dodanie ćwiczenia → back → serie nietknięte', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
     await checkTwoSets(page);
 
     // Krok 3 Z141.1: parametr autostart znika z URL po konsumpcji.
@@ -138,6 +141,7 @@ test.describe('Edycja planu dnia w trakcie treningu (Z141)', () => {
     // index.html z dev servera, więc testuje właściwy runtime offline zamiast awarii goto.
     const offlineRoute = `/workout/day-1?date=${today}&autostart=true`;
     await navigateWithinLoadedApp(page, offlineRoute);
+    await skipPreStartWarmup(page);
     await checkTwoSets(page);
 
     const draftBefore = await readWorkoutDraftDb(page, E2E_UID) as DraftShape;

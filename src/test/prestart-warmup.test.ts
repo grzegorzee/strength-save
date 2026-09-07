@@ -85,7 +85,8 @@ describe('X37: treść rozgrzewki wg szablonu (tętno -> mobilność -> aktywacj
     const plan = buildPreStartWarmup({ exerciseName: 'Wyciskanie sztangi', category: 'chest' });
     const keys = plan.items.map((i) => i.key);
     expect(plan.variant).toBe('upper');
-    expect(keys).toContain('warmup.v3.armCircles');
+    expect(keys).toContain('warmup.v3.heelsArmCircles');
+    expect(keys).not.toContain('warmup.v3.armCircles');
     expect(keys).toContain('warmup.v3.extRotations');
     expect(keys).toContain('warmup.v3.bandPullApart');
     expect(keys).toContain('warmup.v3.pushups');
@@ -183,9 +184,9 @@ describe('C-T2 + X37: kiedy pokazać prompt pre-start', () => {
     expect(shouldOfferPreStartWarmup({ ...base, warmupPrompt: true })).toBe(true);
   });
 
-  it('resume (draft z treścią), autostart z Watch/Garmin, trwająca sesja i przeszłość = bez promptu', () => {
+  it('resume (draft z treścią), start z zegarka, trwająca sesja i przeszłość = bez promptu', () => {
     expect(shouldOfferPreStartWarmup({ ...base, hasDraftContent: true })).toBe(false);
-    expect(shouldOfferPreStartWarmup({ ...base, autostart: true })).toBe(false);
+    expect(shouldOfferPreStartWarmup({ ...base, autostart: true, isWatchStart: true })).toBe(false);
     expect(shouldOfferPreStartWarmup({ ...base, alreadyStarted: true })).toBe(false);
     expect(shouldOfferPreStartWarmup({ ...base, viewingPast: true })).toBe(false);
   });
@@ -199,8 +200,17 @@ describe('C-T2 + X37: kiedy pokazać prompt pre-start', () => {
     expect(shouldOfferPreStartWarmup({ ...adhoc, hasDraftContent: true })).toBe(false);
     expect(shouldOfferPreStartWarmup({ ...adhoc, alreadyStarted: true })).toBe(false);
     expect(shouldOfferPreStartWarmup({ ...adhoc, viewingPast: true })).toBe(false);
-    // Autostart z planu (Dashboard "dzisiejszy trening", Watch/Garmin) bez zmian: bez arkusza.
-    expect(shouldOfferPreStartWarmup({ ...base, autostart: true, isAdhoc: false })).toBe(false);
+    // Jawny start telefonu na Dashboardzie ma ten sam kontrakt dla planu i ad-hoc.
+    expect(shouldOfferPreStartWarmup({ ...base, autostart: true, isAdhoc: false })).toBe(true);
+    expect(shouldOfferPreStartWarmup({ ...adhoc, isWatchStart: true })).toBe(false);
+  });
+
+  it('Dashboard: świeży trening z planu dostaje propozycję, explicit off i resume nadal ją wyłączają', () => {
+    const planned = { ...base, autostart: true, isAdhoc: false };
+    expect(shouldOfferPreStartWarmup(planned)).toBe(true);
+    expect(shouldOfferPreStartWarmup({ ...planned, warmupPrompt: false })).toBe(false);
+    expect(shouldOfferPreStartWarmup({ ...planned, hasDraftContent: true })).toBe(false);
+    expect(shouldOfferPreStartWarmup({ ...planned, alreadyStarted: true })).toBe(false);
   });
 
   it('X37: preferencja wyłączona = bez promptu mimo świeżego startu', () => {

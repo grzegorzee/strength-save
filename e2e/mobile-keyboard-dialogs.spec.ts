@@ -1,9 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
+  auditScreenshotPath,
   advanceWizardToStep5,
   blockFirebase,
   localToday,
   navigateAndWait,
+  skipPreStartWarmup,
 } from './helpers';
 
 const KEYBOARD_INSET = 300;
@@ -62,7 +64,7 @@ test.describe('mobilna klawiatura nie zasłania CTA', () => {
     const dialog = page.getByTestId('bug-report-dialog');
     await expectReachableAboveKeyboard(page, dialog.getByRole('button', { name: 'Wyślij zgłoszenie' }));
     await expectReachableAboveKeyboard(page, dialog.getByRole('button', { name: 'Zamknij okno' }));
-    await page.screenshot({ path: 'audit/shots/2026-08-27/keyboard-report-bug.png', fullPage: false });
+    await page.screenshot({ path: auditScreenshotPath('keyboard-report-bug.png'), fullPage: false });
   });
 
   test('własne ćwiczenie: formularz i Zapisz i wybierz są osiągalne', async ({ page }) => {
@@ -79,11 +81,12 @@ test.describe('mobilna klawiatura nie zasłania CTA', () => {
 
     await expect(dialog.getByTestId('exercise-picker-scroll')).toHaveCSS('overflow-y', 'auto');
     await expectReachableAboveKeyboard(page, dialog.getByRole('button', { name: 'Zapisz i wybierz' }));
-    await page.screenshot({ path: 'audit/shots/2026-08-27/keyboard-custom-exercise.png', fullPage: false });
+    await page.screenshot({ path: auditScreenshotPath('keyboard-custom-exercise.png'), fullPage: false });
   });
 
   test('kalkulator talerzy: pole wagi i Ustaw w serii są osiągalne', async ({ page }) => {
     await navigateAndWait(page, `/workout/day-1?date=${localToday()}&autostart=true`);
+    await skipPreStartWarmup(page);
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByTestId('plate-calculator-open').click();
     await page.getByLabel(/Waga docelowa/i).fill('100');
@@ -91,7 +94,7 @@ test.describe('mobilna klawiatura nie zasłania CTA', () => {
 
     const sheet = page.getByRole('dialog');
     await expectReachableAboveKeyboard(page, sheet.getByRole('button', { name: /Ustaw w serii/i }));
-    await page.screenshot({ path: 'audit/shots/2026-08-27/keyboard-plate-calculator.png', fullPage: false });
+    await page.screenshot({ path: auditScreenshotPath('keyboard-plate-calculator.png'), fullPage: false });
   });
 
   test('cardio: przewijana treść i Zapisz wpis pozostają nad klawiaturą', async ({ page }) => {

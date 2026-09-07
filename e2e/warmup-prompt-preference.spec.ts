@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   blockFirebase,
+  clearWorkoutDraftAfterAppUnload,
   clearWorkoutDraftDb,
   expectPageRendered,
   navigateAndWait,
@@ -32,8 +33,42 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await blockFirebase(page);
   });
 
+  test('Dashboard -> trening z planu: propozycja na świeży start, pominięcie nie wraca przy resume i nie przechodzi na nową sesję', async ({ page }, testInfo) => {
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    await page.getByTestId('dashboard-primary-action').click();
+    await expect(page.getByTestId('prestart-sheet')).toBeVisible();
+    await page.screenshot({ path: `audit/launch-2026-09-06/warmup-followup-shots/${testInfo.project.name}-planned-prompt.png` });
+    await page.getByTestId('prestart-skip').click();
+    await expectSessionStarted(page);
+
+    await navigateAndWait(page, '/plan');
+    await expect(page.getByTestId('finish-workout')).toHaveCount(0);
+    await page.reload();
+    await expectPageRendered(page);
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}&autostart=true`);
+    await expectSessionStarted(page);
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
+
+    await navigateAndWait(page, '/plan');
+    await expect(page.getByTestId('finish-workout')).toHaveCount(0);
+    await navigateAndWait(page, `/workout/day-2?date=${MONDAY}&autostart=true`);
+    await expect(page.getByTestId('prestart-sheet')).toBeVisible();
+    await page.getByTestId('prestart-skip').click();
+    await expectSessionStarted(page);
+  });
+
+  test('start zaplanowanego treningu z zegarka nadal pomija propozycję', async ({ page }) => {
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}&autostart=true&watchEventId=synthetic-warmup-regression`);
+    await expectSessionStarted(page);
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
+  });
+
   test('cache OFF (fittracker_warmup_prompt_v1=false) -> start treningu BEZ arkusza prestart, płomyk rozgrzewki nadal w sesji', async ({ page }) => {
-    await page.addInitScript((key) => localStorage.setItem(key, 'false'), WARMUP_PROMPT_KEY);
+    await page.addInitScript(({ key, uid }) => {
+      localStorage.setItem('fittracker_warmup_prompt_owner_v1', uid);
+      localStorage.setItem(key, 'false');
+    }, { key: WARMUP_PROMPT_KEY, uid: E2E_UID });
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await clearWorkoutDraftDb(page, E2E_UID);
@@ -77,12 +112,7 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await expect(page.getByText(/Włączysz ją w Profilu > Trening/).first()).toBeVisible();
     expect(await page.evaluate((key) => localStorage.getItem(key), WARMUP_PROMPT_KEY)).toBe('false');
 
-    // Najpierw odmontuj aktywny WorkoutDay i pozwól jego fire-and-forget flushowi
-    // się zakończyć. Kasowanie storage na aktywnym ekranie nie symuluje discardu:
-    // pagehide zgodnie z kontraktem trwałości natychmiast odtworzyłby draft.
-    await navigateAndWait(page, '/plan');
-    await page.waitForTimeout(250);
-    await clearWorkoutDraftDb(page, E2E_UID);
+    await clearWorkoutDraftAfterAppUnload(page, E2E_UID);
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await startButton(page).click();
@@ -109,10 +139,7 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await startButton(page).click();
     await expectSessionStarted(page);
     await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
-    // Nową sesję symulujemy dopiero po zakończeniu flushu przy odmontowaniu.
-    await navigateAndWait(page, '/plan');
-    await page.waitForTimeout(250);
-    await clearWorkoutDraftDb(page, E2E_UID);
+    await clearWorkoutDraftAfterAppUnload(page, E2E_UID);
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await expect(startButton(page)).toBeVisible();
@@ -149,6 +176,28 @@ test.describe('Rozgrzewka w szybkim treningu (X38 WP-B)', () => {
     await expect(page).toHaveURL(/adhoc-/);
     await expect(page.getByTestId('adhoc-add-exercise')).toBeVisible({ timeout: 10_000 });
   };
+
+  test('sama rozgrzewka w szybkim treningu -> cold resume: bez nowej propozycji i z zachowanymi odhaczeniami', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    await page.getByTestId('quick-workout-start').click();
+    await page.getByTestId('prestart-yes').click();
+    const firstItem = page.getByRole('dialog').getByTestId('warmup-item').first();
+    await firstItem.click();
+    await expect(firstItem.locator('.line-through')).toHaveCount(1);
+    await page.getByTestId('warmup-finish').click();
+    const route = new URL(page.url()).hash.slice(1);
+
+    await navigateAndWait(page, '/plan');
+    await expect(page.getByTestId('adhoc-add-exercise')).toHaveCount(0);
+    await page.reload();
+    await expectPageRendered(page);
+    await navigateAndWait(page, `${route}&autostart=true`);
+    await expectAdhocSessionStarted(page);
+    await expect(page.getByTestId('prestart-sheet')).toHaveCount(0);
+    await page.getByRole('button', { name: /Rozgrzewka/i }).first().click();
+    await expect(page.getByRole('dialog').getByTestId('warmup-item').first().locator('.line-through')).toHaveCount(1);
+  });
 
   test('Dashboard -> Szybki trening: arkusz prestart PO autostarcie, "Pomiń dziś" zostawia sesję bez arkusza', async ({ page }) => {
     await navigateAndWait(page, '/');
@@ -200,7 +249,10 @@ test.describe('Rozgrzewka w szybkim treningu (X38 WP-B)', () => {
   });
 
   test('cache OFF -> szybki trening prosto do sesji, bez arkusza', async ({ page }) => {
-    await page.addInitScript((key) => localStorage.setItem(key, 'false'), WARMUP_PROMPT_KEY);
+    await page.addInitScript(({ key, uid }) => {
+      localStorage.setItem('fittracker_warmup_prompt_owner_v1', uid);
+      localStorage.setItem(key, 'false');
+    }, { key: WARMUP_PROMPT_KEY, uid: E2E_UID });
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     await clearWorkoutDraftDb(page, E2E_UID);

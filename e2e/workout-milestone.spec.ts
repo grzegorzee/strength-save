@@ -6,6 +6,7 @@ import {
   localToday,
   navigateAndWait,
   setE2EWorkouts,
+  skipPreStartWarmup,
 } from './helpers';
 
 // WP-F (X37, RESEARCH sekcja 5): celebracja pierwszego treningu i kamieni
@@ -54,6 +55,7 @@ const finishOfflineWorkout = async (page: Page) => {
 
   await page.context().setOffline(true);
   await navigateWithinLoadedApp(page, `/workout/day-1?date=${today}&autostart=true`);
+  await skipPreStartWarmup(page);
 
   const firstCard = page.locator('.exercise-card').first();
   await expect(firstCard).toBeVisible();

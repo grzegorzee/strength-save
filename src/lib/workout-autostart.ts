@@ -24,7 +24,8 @@ export const draftHasLiveContent = (draft: ActiveWorkoutDraft): boolean => {
   );
   const anyNotes = Object.values(draft.exerciseNotes).some(note => note.trim().length > 0)
     || draft.dayNotes.trim().length > 0;
-  return anySetTouched || anyNotes || draft.skippedExercises.length > 0;
+  return anySetTouched || anyNotes || draft.skippedExercises.length > 0
+    || (draft.warmupChecked?.length ?? 0) > 0;
 };
 
 export const shouldAutostartWorkout = (input: AutostartInput): AutostartDecision => {

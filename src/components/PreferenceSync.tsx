@@ -6,7 +6,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { normalizeRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { buildMigratedRestSettings, toRestPreference } from '@/lib/rest-preferences';
-import { setWarmupPromptEnabled } from '@/lib/warmup-prompt';
+import { claimWarmupPromptOwner, setWarmupPromptEnabled } from '@/lib/warmup-prompt';
 import { claimStoredThemeOwner, readStoredAccentId, selectLegacyAccent } from '@/lib/accent-theme';
 
 // Synchronizacja preferencji (jednostki, język, akcent, przerwy, dźwięk) z users/{uid}.preferences.
@@ -20,6 +20,22 @@ export const PreferenceSync = () => {
   const { lang, setLang } = useTranslation();
   const appliedUidRef = useRef<string | null>(null);
   const writeEnabledRef = useRef(false);
+  const warmupAppliedUidRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!uid) {
+      warmupAppliedUidRef.current = null;
+      return;
+    }
+    // Najpierw odłącz preferencję poprzedniego konta, również podczas ładowania
+    // profilu. Spóźniony profil A nie może ustawić wyłączenia dla konta B.
+    claimWarmupPromptOwner(uid);
+    if (!profile || profile.uid !== uid || warmupAppliedUidRef.current === uid) return;
+    warmupAppliedUidRef.current = uid;
+    if (typeof profile.preferences?.warmupPrompt === 'boolean') {
+      setWarmupPromptEnabled(profile.preferences.warmupPrompt);
+    }
+  }, [uid, profile]);
 
   useEffect(() => {
     if (!profile || !uid || appliedUidRef.current === uid) return;
@@ -38,9 +54,6 @@ export const PreferenceSync = () => {
     } catch {
       // localStorage niedostępny — preferencje i tak działają w tej sesji
     }
-    // X37 WP-B: proponowanie rozgrzewki. Chmura -> cache (arkusz przed startem
-    // czyta cache synchronicznie); brak pola = włączone, cache bez zmian.
-    if (typeof prefs?.warmupPrompt === 'boolean') setWarmupPromptEnabled(prefs.warmupPrompt);
     // X35b: przerwy. Chmura ma preferences.rest -> cache. Brak pola -> migracja
     // RAZ z legacy restTimerSec albo z cache tego urządzenia (custom: true, żeby
     // start cyklu nie nadpisał świadomego wyboru); świeży user bez zapisów = nic.

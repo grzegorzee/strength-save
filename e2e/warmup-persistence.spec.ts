@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
 import {
   blockFirebase,
+  clearWorkoutDraftAfterAppUnload,
   clearWorkoutDraftDb,
   expectPageRendered,
   navigateAndWait,
+  readWorkoutDraftDb,
   setE2EAuthScenario,
-  skipPreStartWarmupIfShown,
+  skipPreStartWarmup,
 } from './helpers';
 
 // Z162: scenariusz zgłoszony przez usera — odhaczenia rozgrzewki znikały po zamknięciu
@@ -123,25 +125,14 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
 
     await toggleFirstItems(page, 1);
     expect(await struckCount(page)).toBe(1);
-    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').getByRole('button', { name: 'Zamknij okno' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 
-    // Najpierw odmontuj aktywny ekran, aby jego pagehide/debounce nie odtworzył
-    // draftu już po technicznym cleanupie testu. Potem zasymuluj zakończoną sesję.
-    // Dashboard świadomie auto-wznawia aktywny draft; Plan reprezentuje jawne
-    // wyjście użytkownika i naprawdę odmontowuje ekran sesji przed cleanupem.
-    await navigateAndWait(page, '/plan');
-    // Cleanup unmountu zapisuje fire-and-forget. Poczekaj na jego transakcję,
-    // dopiero potem zasymuluj świadome usunięcie draftu.
-    await page.waitForTimeout(250);
-    await clearWorkoutDraftDb(page, E2E_UID);
-    // Cold reload usuwa pamięć komponentu i oczekujące callbacki poprzedniej
-    // sesji; następny ekran musi odbudować stan wyłącznie z trwałych warstw.
-    await page.reload();
-    await expectPageRendered(page);
+    await clearWorkoutDraftAfterAppUnload(page, E2E_UID);
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
-    await page.getByRole('button', { name: /Rozpocznij trening|Kontynuuj trening/ }).first().click();
-    await skipPreStartWarmupIfShown(page);
+    await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
+    await skipPreStartWarmup(page);
 
     await openWarmup(page);
     expect(await struckCount(page)).toBe(0);

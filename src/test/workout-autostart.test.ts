@@ -59,6 +59,13 @@ describe('shouldAutostartWorkout', () => {
       .toBe('resume');
   });
 
+  it('cold resume po samej rozgrzewce zachowuje fazy nawet przed dodaniem pierwszego ćwiczenia', () => {
+    const draft = baseDraft({ warmupChecked: ['warmup.v3.cardioEasy'] });
+    expect(shouldAutostartWorkout({ autostart: true, sessionId: null, draftForPage: draft }))
+      .toBe('resume');
+    expect(draft.warmupChecked).toEqual(['warmup.v3.cardioEasy']);
+  });
+
   it('autostart=true, draft całkiem pusty (zero setów, zero notatek) → start', () => {
     expect(shouldAutostartWorkout({ autostart: true, sessionId: null, draftForPage: baseDraft() }))
       .toBe('start');

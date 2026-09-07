@@ -47,8 +47,8 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
   it('klik w pozycję woła onToggle z nameKey (klucz i18n pozycji)', () => {
     const onToggle = vi.fn();
     renderDialog({ onToggle });
-    fireEvent.click(screen.getByText(translate('pl', 'warmup.v3.armCircles')));
-    expect(onToggle).toHaveBeenCalledWith('warmup.v3.armCircles');
+    fireEvent.click(screen.getByText(translate('pl', 'warmup.v3.armSwings')));
+    expect(onToggle).toHaveBeenCalledWith('warmup.v3.armSwings');
   });
 
   it('przypadkowy tap w przyciemnione tło nie zamyka rozgrzewki; wyjście jest jawne', async () => {
@@ -67,9 +67,9 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
   });
 
   it('odhaczenia przychodzą z propsa i przeżywają cykl zamknij/otwórz', () => {
-    const checked = new Set(['warmup.v3.armCircles']);
+    const checked = new Set(['warmup.v3.armSwings']);
     const { rerender } = renderDialog({ checked });
-    const item = () => screen.getByText(translate('pl', 'warmup.v3.armCircles'));
+    const item = () => screen.getByText(translate('pl', 'warmup.v3.armSwings'));
     expect(item().className).toContain('line-through');
 
     rerender(dialog({ checked, open: false }));
@@ -79,11 +79,11 @@ describe('WarmupRoutineDialog (kontrolowany)', () => {
   });
 
   // X38 WP-B: dialog opisuje TYLKO fazy; stary klucz stretchingu w drafcie nie zawyża licznika.
-  it('licznik liczy pozycje szablonu (9 dla góry); bez sekcji stretchingu i rampy (X38)', () => {
-    const checked = new Set(['warmup.v3.armCircles', 'stretch.pigeonPose']);
+  it('licznik liczy pozycje szablonu (8 dla góry); bez sekcji stretchingu i rampy (X38)', () => {
+    const checked = new Set(['warmup.v3.armSwings', 'stretch.pigeonPose']);
     renderDialog({ checked });
-    expect(screen.getByText(/1\/9/)).toBeTruthy();
-    expect(screen.getAllByTestId('warmup-item').length).toBe(9);
+    expect(screen.getByText(/1\/8/)).toBeTruthy();
+    expect(screen.getAllByTestId('warmup-item').length).toBe(8);
     expect(screen.queryByTestId('warmup-stretch-toggle')).toBeNull();
     expect(screen.queryByTestId('warmup-ramp')).toBeNull();
   });
@@ -196,7 +196,7 @@ describe('WarmupRoutineDialog: odliczanie pozycji czasowej za flagą intervalTim
     fireEvent.click(screen.getByText(translate('pl', 'comp.warmup.stop')));
     expect(screen.queryByTestId('warmup-countdown')).toBeNull();
     expect(onToggle).not.toHaveBeenCalled();
-    // Aktywna = krążenia ramion (powtórzenia): bez odliczania.
+    // Aktywna = wymachy ramion (powtórzenia): bez odliczania.
     rerender(dialog({ onToggle, checked: new Set(['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles']) }));
     expect(screen.queryByTestId('warmup-countdown-start')).toBeNull();
     expect(screen.getByTestId('warmup-next')).toBeTruthy();
@@ -264,7 +264,7 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
 
     // 2. Odhaczenie 3 pozycji przechodzi przez builder snapshotu (jak saveDraftSnapshot).
     const afterToggles = buildWorkoutDraftSnapshot(contextFor(start), {
-      warmupChecked: ['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles', 'warmup.v3.armCircles'],
+      warmupChecked: ['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles', 'warmup.v3.armSwings'],
     });
     expect(afterToggles?.warmupChecked).toHaveLength(3);
     expect(afterToggles?.version).toBe(4); // zmiana treści = bump wersji
@@ -296,6 +296,21 @@ describe('sekwencja rozgrzewki: odhacz → wyjdź → wróć → nowa sesja (Z16
     // nic nie pasuje, lista czysta, zero wyjątków, licznik od zera.
     render(dialog({ checked: new Set(['warmup.v2.cardio', 'warmup.v2.dynArmCircles', 'warmup.v3.jacks', 'stretch.pigeonPose']) }));
     expect(struckItems()).toBe(0);
-    expect(screen.getByText(/0\/9/)).toBeTruthy();
+    expect(screen.getByText(/0\/8/)).toBeTruthy();
+  });
+
+  it('stary szkic z powtórzonym ruchem zachowuje zapis i trening, a postęp liczy tylko obecną listę', () => {
+    const legacy = draftBase({
+      warmupChecked: ['warmup.v3.cardioEasy', 'warmup.v3.heelsArmCircles', 'warmup.v3.armCircles'],
+    });
+    const snapshot = buildWorkoutDraftSnapshot(contextFor(legacy));
+
+    expect(snapshot?.warmupChecked).toEqual(legacy.warmupChecked);
+    expect(snapshot?.exerciseSets).toEqual(legacy.exerciseSets);
+    expect(snapshot?.version).toBe(legacy.version);
+    render(dialog({ checked: new Set(snapshot?.warmupChecked ?? []) }));
+    expect(struckItems()).toBe(2);
+    expect(screen.getByText(/2\/8/)).toBeTruthy();
+    expect(screen.getByTestId('warmup-active-instruction')).toHaveTextContent(translate('pl', 'warmup.v3.armSwings'));
   });
 });

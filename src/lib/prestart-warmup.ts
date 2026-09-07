@@ -102,9 +102,10 @@ const PULSE_BEGINNER: WarmupItem[] = [
 ];
 
 // Mobilność + aktywacja wg wariantu (RESEARCH sekcja 7, tabela + warianty).
+// Krążenia ramion są już w fazie tętna (heelsArmCircles); nie powtarzamy
+// tego ruchu jako osobnej pozycji mobilności w rozgrzewce góry ciała.
 const BODY_STANDARD: Record<WarmupVariant, WarmupItem[]> = {
   upper: [
-    reps('warmup.v3.armCircles', 'mobility', 10),
     reps('warmup.v3.armSwings', 'mobility', 10),
     reps('warmup.v3.extRotations', 'mobility', 10, true),
     reps('warmup.v3.hipHinge', 'mobility', 10),
@@ -132,7 +133,6 @@ const BODY_STANDARD: Record<WarmupVariant, WarmupItem[]> = {
 };
 const BODY_BEGINNER: Record<WarmupVariant, WarmupItem[]> = {
   upper: [
-    reps('warmup.v3.armCircles', 'mobility', 10),
     reps('warmup.v3.hipHinge', 'mobility', 10),
     reps('warmup.v3.bandPullApart', 'activation', 10),
     reps('warmup.v3.pushupsKnees', 'activation', 8),
@@ -182,20 +182,21 @@ export interface PreStartOfferContext {
   viewingPast: boolean;
   /** X37: preferences.warmupPrompt (cache isWarmupPromptEnabled); brak = włączone. */
   warmupPrompt?: boolean;
-  /** X38: szybki trening (dzień ad-hoc z Dashboardu); jego autostart NIE blokuje arkusza. */
+  /** Plan i szybki trening mają ten sam kontrakt propozycji. */
   isAdhoc?: boolean;
+  /** Start z zegarka nie przerywa sesji dialogiem na telefonie. */
+  isWatchStart?: boolean;
 }
 
 /**
  * Prompt pojawia się WYŁĄCZNIE przy świeżym starcie. Resume (draft z treścią),
- * autostart z planu (?autostart=true: Dashboard "dzisiejszy trening", Watch/Garmin)
- * i widok przeszłości nie dostają promptu i nie są blokowane: draft/sesja
+ * start z zegarka i widok przeszłości nie dostają promptu: draft/sesja
  * powstaje dokładnie raz, w handleStartWorkout. X37: user może wyłączyć
  * proponowanie (Profil > Trening albo "Nie proponuj więcej" w arkuszu).
- * X38: szybki trening (ad-hoc) startuje zawsze przez autostart, więc dla niego
- * autostart nie jest bramką; arkusz otwiera się PO utworzeniu sesji.
+ * Dashboard uruchamia plan i ad-hoc przez autostart. To jawna decyzja na telefonie,
+ * więc oba dostają arkusz PO trwałym utworzeniu świeżej sesji.
  */
 export const shouldOfferPreStartWarmup = (ctx: PreStartOfferContext): boolean =>
   ctx.warmupPrompt !== false
   && !ctx.alreadyStarted && !ctx.hasDraftContent && !ctx.viewingPast
-  && (!ctx.autostart || ctx.isAdhoc === true);
+  && (!ctx.autostart || ctx.isWatchStart !== true);

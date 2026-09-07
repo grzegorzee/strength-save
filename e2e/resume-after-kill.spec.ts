@@ -6,6 +6,7 @@ import {
   localToday,
   navigateAndWait,
   readWorkoutDraftDb,
+  skipPreStartWarmup,
 } from './helpers';
 
 // Z186: bramka sekwencji "kill w trakcie treningu" (incydent z builda 81 — wskrzeszone
@@ -31,6 +32,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
 
     // Start treningu z planu.
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
@@ -114,6 +116,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     await expect(cardAfter.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveValue('20');
     await expect(cardAfter.getByRole('spinbutton', { name: /Rozgrzewka W, Powt\./ })).toHaveValue('10');
     await expect(cardAfter.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(3);
+    await expect(page.getByTestId('prestart-sheet')).toBeHidden();
     await expect(cardAfter.getByRole('button', { name: 'Zaznacz serię jako zrobioną' })).toHaveCount(uncheckedBefore);
 
     // Dokończenie: "Zakończ trening" dostępny (finalny sync w mock e2e nie domknie

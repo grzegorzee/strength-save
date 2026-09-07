@@ -1,4 +1,8 @@
-import { Page, expect } from '@playwright/test';
+import { Page, expect, test } from '@playwright/test';
+
+// Każdy przebieg i silnik zachowuje osobne dowody, bez nadpisywania dawnych audytów.
+export const auditScreenshotPath = (file: string) =>
+  `${process.env.AUDIT_SHOT_DIR ?? `audit/shots/${new Date().toISOString().slice(0, 10)}`}/${test.info().project.name}/${file}`;
 
 const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
@@ -186,6 +190,26 @@ export const clearWorkoutDraftDb = async (page: Page, userId: string, sessionId?
   }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, dbVersion: WORKOUT_DRAFT_DB_VERSION, userId, sessionId });
 };
 
+// Raw storage cleanup needs a document without application callbacks: a hash
+// navigation leaves the delayed unmount save alive and can recreate the draft.
+// Use only to arrange a synthetic NEW session; resume tests keep the live draft.
+export const clearWorkoutDraftAfterAppUnload = async (page: Page, userId: string) => {
+  const cleanupUrl = new URL('/__e2e_workout_cleanup__', page.url()).href;
+  await page.route(cleanupUrl, route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><title>Workout fixture cleanup</title>',
+  }));
+  try {
+    await page.goto(cleanupUrl);
+    await expect(page.locator('#root')).toHaveCount(0);
+    await clearWorkoutDraftDb(page, userId);
+    expect(await readWorkoutDraftDb(page, userId)).toBeNull();
+  } finally {
+    await page.unroute(cleanupUrl);
+  }
+};
+
 export const writeWorkoutSyncQueue = async (page: Page, userId: string, entries: unknown[]) => {
   await page.evaluate(({ draftUserId, queueEntries, queuePrefix }) => {
     localStorage.setItem(`${queuePrefix}_${draftUserId}`, JSON.stringify(queueEntries));
@@ -346,9 +370,17 @@ export const setE2EPlanMeta = async (page: Page, meta: {
   }, { key: 'fittracker_e2e_plan', data: meta });
 };
 
-/** C-T2: świeży jawny start pokazuje sheet rozgrzewki (Tak/Pomiń). Testy,
- *  które nie badają rozgrzewki, pomijają go; resume/autostart promptu nie mają,
- *  więc helper jest warunkowy i tani (krótki timeout). */
+/** Fresh phone starts, including planned autostart, offer a warmup after the
+ *  draft is saved. Tests proceeding to working sets explicitly skip the offer. */
+export const skipPreStartWarmup = async (page: Page) => {
+  const skip = page.getByTestId('prestart-skip');
+  await expect(skip).toBeVisible();
+  await skip.click();
+  await expect(skip).toBeHidden();
+};
+
+/** Optional helper for flows that may resume an existing session or have the
+ *  offer explicitly disabled. Fresh phone autostart uses the mandatory helper. */
 export const skipPreStartWarmupIfShown = async (page: Page) => {
   const skip = page.getByTestId('prestart-skip');
   try {
@@ -356,6 +388,6 @@ export const skipPreStartWarmupIfShown = async (page: Page) => {
     await skip.click();
     await skip.waitFor({ state: 'hidden', timeout: 2000 });
   } catch {
-    // brak promptu (resume/autostart/kontynuacja) — nic do zrobienia
+    // brak promptu (resume/Watch/kontynuacja/ustawienie off) — nic do zrobienia
   }
 };
