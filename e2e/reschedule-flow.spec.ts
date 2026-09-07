@@ -12,8 +12,8 @@ import {
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
-const localDate = (offsetDays: number): { iso: string; weekday: string } => {
-  const d = new Date();
+const localDate = (today: Date, offsetDays: number): { iso: string; weekday: string } => {
+  const d = new Date(today);
   d.setDate(d.getDate() + offsetDays);
   return {
     iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
@@ -21,8 +21,8 @@ const localDate = (offsetDays: number): { iso: string; weekday: string } => {
   };
 };
 
-const localMonday = (): string => {
-  const d = new Date();
+const localMonday = (today: Date): string => {
+  const d = new Date(today);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
@@ -36,23 +36,32 @@ const planDay = (id: string, dayName: string, weekday: string, exerciseName: str
 });
 
 test.describe('Przełożenie treningu przez UI (repro builda 92)', () => {
-  test('jutrzejszy dzień -> pojutrze: sheet zamyka się czysto, apka klikalna, tydzień przerysowany', async ({ page }) => {
+  for (const currentDate of ['2026-09-04', '2026-09-06']) {
+  test(`${currentDate}: jutrzejszy dzień -> pojutrze: sheet zamyka się czysto, apka klikalna, tydzień przerysowany`, async ({ page }) => {
     await blockFirebase(page);
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
+    const today = new Date(`${currentDate}T12:00:00`);
+    await page.clock.setFixedTime(today);
 
     // Trening JUTRO (zawsze w horyzoncie karty tygodnia gdy jutro>=poniedziałku,
     // a akcja przełożenia jest niezależnie od tygodnia widoczna na karcie).
-    const tomorrow = localDate(1);
-    const dayAfter = localDate(2);
+    const tomorrow = localDate(today, 1);
+    const dayAfter = localDate(today, 2);
     await setE2EPlanMeta(page, {
       days: [planDay('day-src', 'Dzień Źródłowy E2E', tomorrow.weekday, 'Wyciskanie E2E')],
       durationWeeks: 8,
-      startDate: localMonday(),
+      startDate: localMonday(today),
     });
 
     // D-T3: karty dni tygodnia (i akcja przełożenia) mieszkają na Planie.
     await navigateAndWait(page, '/plan');
     await expectPageRendered(page);
+
+    // W niedzielę jutro jest już w następnym tygodniu. Poprzedni test klikał
+    // wtedy zeszły poniedziałek, którego nie można przełożyć jako przyszłej sesji.
+    if (tomorrow.weekday === 'monday') {
+      await page.getByRole('button', { name: 'Następny tydzień' }).click();
+    }
 
     // Karta jutrzejszego dnia grupuje akcje wtórne w jednym menu.
     const actions = page.getByRole('button', { name: 'Więcej akcji' }).first();
@@ -83,4 +92,5 @@ test.describe('Przełożenie treningu przez UI (repro builda 92)', () => {
     await page.getByRole('link', { name: /Plan/i }).or(page.getByText('PLAN', { exact: true })).first().click();
     await expectPageRendered(page);
   });
+  }
 });

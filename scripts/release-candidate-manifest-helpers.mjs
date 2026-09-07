@@ -5,6 +5,7 @@ const COMMIT_SHA = /^[0-9a-f]{40}$/;
 
 const EXACT_RELEASE_INPUTS = new Set([
   '.firebaserc',
+  'android/app/google-services.json',
   'AGENTS.md',
   'CLAUDE.md',
   'START.md',
@@ -33,6 +34,8 @@ export const requiredReleaseInputPaths = () => [...EXACT_RELEASE_INPUTS]
   .sort((a, b) => a.localeCompare(b));
 
 const RELEASE_INPUT_PREFIXES = [
+  '.github/',
+  'release/',
   'docs/',
   'e2e/',
   'functions/src/',

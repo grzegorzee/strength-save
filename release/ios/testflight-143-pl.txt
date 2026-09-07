@@ -1,0 +1,11 @@
+Co sprawdzić w buildzie 143:
+
+1. Rozpocznij świeży trening z Dzisiaj: pojawia się propozycja rozgrzewki. W rozgrzewce góry krążenia ramion występują raz.
+2. Odhacz rozgrzewkę, zgaś ekran i wróć: postęp pozostaje. Kolejny trening zaczyna własną rozgrzewkę od zera.
+3. Plan → wyjście → szybki trening → powrót do planu: wszystkie ćwiczenia nadal są na miejscu.
+4. Sprawdź timer przy zgaszonym ekranie: gong/wibracja, potem wznowienie treningu przy słabej sieci.
+5. Zakończ trening i poczekaj na synchronizację. Sprawdź notatki oraz wartości serii.
+6. Na koncie testowym sprawdź onboarding: zamiana ćwiczenia, cofnięcie, ponowne wejście i zapis planu.
+7. Sprawdź logowanie z klawiaturą oraz zapis pomiarów.
+
+Wersja zawiera też poprawki izolacji kont, zgód i obsługi błędów oraz krótsze opisy. Testy konta, importu, usuwania danych i zakupów wykonuj na koncie testowym.

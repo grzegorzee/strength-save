@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  auditScreenshotPath,
   blockFirebase,
   localDaysAgo,
   navigateAndWait,
@@ -49,11 +50,11 @@ test('wizualny smoke Postępów na iPhonie', async ({ page }) => {
   for (const shot of screenshots) {
     await navigateAndWait(page, shot.route);
     await expect(page.getByTestId(shot.marker)).toBeVisible();
-    await page.screenshot({ path: `audit/shots/2026-08-31-x72/${shot.file}`, fullPage: true });
+    await page.screenshot({ path: auditScreenshotPath(shot.file), fullPage: true });
   }
 
   await navigateAndWait(page, '/achievements?view=records&section=badges');
   await expect(page.getByRole('heading', { level: 1, name: 'Odznaki' })).toBeVisible();
   await expect(page.getByTestId('group-hero')).toHaveCount(0);
-  await page.screenshot({ path: 'audit/shots/2026-08-31-x72/badges.png', fullPage: true });
+  await page.screenshot({ path: auditScreenshotPath('badges.png'), fullPage: true });
 });

@@ -17,6 +17,8 @@ import {
   validateReleaseCandidateManifest,
 } from './release-candidate-manifest-helpers.mjs';
 
+import { collectArtifactFingerprints, fingerprintTree } from './release-artifact-fingerprints.mjs';
+
 const ROOT = process.cwd();
 
 const usage = () => [
@@ -154,13 +156,14 @@ const collectCurrentReleaseCandidate = async ({ generatedAt = new Date().toISOSt
     buildEnvironmentFingerprint(mode, loadEnv(mode, ROOT, 'VITE_'))
   ));
 
-  const artifacts = (await Promise.all([
-    existingFingerprint('dist/index.html', path.join(ROOT, 'dist/index.html')),
-    existingFingerprint('android/public/index.html', path.join(ROOT, 'android/app/src/main/assets/public/index.html')),
-    existingFingerprint('ios/public/index.html', path.join(ROOT, 'ios/App/App/public/index.html')),
-    existingFingerprint('android/app-debug.apk', path.join(ROOT, 'android/app/build/outputs/apk/debug/app-debug.apk')),
-    existingFingerprint('ios-simulator/App.app/index.html', path.join('/tmp/strength-save-derived-data/Build/Products/Debug-iphonesimulator/App.app/public/index.html')),
-  ])).filter(Boolean);
+  const simulatorTree = await fingerprintTree(
+    'ios-simulator/App.app/public/tree',
+    path.join(process.env.RUNNER_TEMP ?? '/tmp', 'strength-save-derived-data/Build/Products/Debug-iphonesimulator/App.app/public'),
+  );
+  const artifacts = [
+    ...await collectArtifactFingerprints(ROOT),
+    ...(simulatorTree ? [simulatorTree] : []),
+  ];
 
   const audit = await existingFingerprint('audit/latest.json', path.join(ROOT, 'audit/latest.json'));
   if (!audit) throw new Error('AUDIT_LATEST_MISSING');

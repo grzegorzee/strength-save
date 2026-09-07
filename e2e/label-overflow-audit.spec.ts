@@ -35,6 +35,9 @@ type LabelIssue = {
 // błędami runtime aplikacji; wszystkie pozostałe console.error nadal failują audyt.
 const isExpectedBlockedNetworkError = (text: string) =>
   text === 'Failed to load resource: net::ERR_FAILED'
+  // WebKit reports route.abort() for this explicitly blocked Firestore
+  // transport as an access-control error, instead of Chromium's ERR_FAILED.
+  || /^\/firestore\.googleapis\.com\/google\.firestore\.v1\.Firestore\/(Listen|Write)\/channel\?.* due to access control checks\.$/.test(text)
   || (text.includes('@firebase/firestore') && text.includes('Could not reach Cloud Firestore backend'));
 
 const inspectInteractiveLabels = async (page: Page, route: string, language: string): Promise<LabelIssue[]> =>

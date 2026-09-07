@@ -36,6 +36,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port: 8080,
+      watch: {
+        // cap sync and native builds copy HTML outside the web source tree.
+        // Watching those outputs reloads open workouts and interrupts E2E flows.
+        ignored: ['**/android/**', '**/ios/**', '**/build/**', '**/audit/**', '**/src/test/**', '**/e2e/**'],
+      },
       hmr: {
         overlay: false,
       },

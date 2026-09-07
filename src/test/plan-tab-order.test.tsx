@@ -2,7 +2,7 @@
 // przed paskiem hybrydowym, trybami (urlop/reduced) i rules tipem.
 // Niezmiennik (zasada 5): przestawiamy, niczego nie usuwamy — wszystkie
 // dotychczasowe elementy (Cykle, tryby, strip, stats) nadal w DOM.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -121,6 +121,11 @@ const renderPlan = () =>
   );
 
 beforeEach(() => {
+  // All three recorded cardio dates below must be in the past/current week.
+  // On Monday the former live clock made Wednesday/Friday future events,
+  // correctly sorted after Today instead of in reverse history order.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-11T12:00:00+02:00'));
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
   navigateSpy.mockClear();
@@ -136,6 +141,8 @@ beforeEach(() => {
   }];
   workoutsFixture.workouts = [];
 });
+
+afterEach(() => { vi.useRealTimers(); });
 
 describe('kolejność sekcji zakładki Plan (T9)', () => {
   it('timeline treningów przed paskiem hybrydowym, trybami i rules tipem', async () => {

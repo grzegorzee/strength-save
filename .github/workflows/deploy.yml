@@ -114,6 +114,50 @@ jobs:
 
       - run: npm run ios:simulator:smoke
 
+  android-debug-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          # AGP 8.13 uses Build Tools 35.0.0 with compile/target SDK 36.
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: 'false'
+
+      - run: npm ci
+
+      - run: npm run build:mobile
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
+      - run: npx cap sync android
+
+      # google-services.json is tracked; SDK discovery uses ANDROID_HOME.
+      # Debug uses the generated debug key, without release signing credentials.
+      # Override the tracked developer-machine JDK path for the Linux runner.
+      - run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" :app:assembleDebug --no-daemon
+        working-directory: android
+
   build-and-deploy:
     # Kanoniczny deploy web to lokalne `npm run deploy` (gh-pages, CLAUDE.md);
     # Pages jest w trybie legacy (source: branch gh-pages), wiec deploy-pages
@@ -122,7 +166,7 @@ jobs:
     if: vars.ENABLE_PAGES_DEPLOY == 'true'
     runs-on: ubuntu-latest
     environment: production
-    needs: [quality, ios-simulator-smoke]
+    needs: [quality, ios-simulator-smoke, android-debug-build]
 
     steps:
       - uses: actions/checkout@v4

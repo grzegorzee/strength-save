@@ -1,0 +1,72 @@
+{
+  "scope": "Historical recorded delivery snapshot; not current source or current store verification.",
+  "snapshot": {
+    "schemaVersion": 1,
+    "product": {
+      "name": "Strength Save",
+      "version": "1.0.0",
+      "accent": "#CCFC22",
+      "canonicalUnit": "kg",
+      "languages": [
+        "pl",
+        "en"
+      ]
+    },
+    "entitlement": {
+      "id": "pro",
+      "surfaces": [
+        "web",
+        "ios",
+        "android",
+        "apple-watch",
+        "garmin"
+      ],
+      "checkout": [
+        "ios",
+        "android"
+      ]
+    },
+    "web": {
+      "commit": "7fd295c7",
+      "url": "https://grzegorzee.github.io/strength-save/",
+      "asset": "assets/index-aT6jBzZu.js",
+      "state": "deployed-verified"
+    },
+    "functions": {
+      "commit": "956b61a0",
+      "project": "fittracker-workouts",
+      "state": "deployed"
+    },
+    "ios": {
+      "version": "1.0.0",
+      "build": 136,
+      "deliveryUuid": "58ceac5b-c0b3-4ddd-8c10-a798c5ee0ad8",
+      "state": "testflight-valid-both-groups-beta-review-approved"
+    },
+    "android": {
+      "version": "1.0.0",
+      "versionCode": 46,
+      "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
+      "bytes": 22597448,
+      "sha256": "c3ba127c97551d8a99a4fe30d4b05c474d3ec82a4b1bdc9c8be79433b2d07502",
+      "state": "signed-local-awaiting-play-internal-and-physical-smoke",
+      "debugSmoke": "emulator-api35-passed"
+    },
+    "garmin": {
+      "appId": "3b03f3dec24548779f335a38e08b013d",
+      "manifestSchemaVersion": 3,
+      "targetBinaries": 27,
+      "artifact": "garmin/bin/strengthsave.iq",
+      "bytes": 644900,
+      "sha256": "5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98",
+      "state": "signed-local-not-submitted"
+    },
+    "smoke": {
+      "web": "production-passed",
+      "iosSimulator": "build-install-launch-passed",
+      "androidEmulator": "build-install-launch-passed",
+      "physicalIos": "blocked-device-offline",
+      "physicalAndroid": "blocked-no-device-connected"
+    }
+  }
+}

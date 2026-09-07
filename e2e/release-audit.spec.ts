@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { blockFirebase, expectHashRoute, localDaysAgo, setE2EAuthScenario, setE2EWorkouts } from './helpers';
+import { auditScreenshotPath, blockFirebase, expectHashRoute, localDaysAgo, setE2EAuthScenario, setE2EWorkouts } from './helpers';
 
 // Release-readiness audit: dowód renderowania najważniejszych tras dla trzech
 // ról i w dwóch orientacjach. To nie zastępuje natywnego smoke (safe-area,
@@ -7,6 +7,7 @@ import { blockFirebase, expectHashRoute, localDaysAgo, setE2EAuthScenario, setE2
 // poziomego overflow na webowym odpowiedniku WKWebView.
 
 type AuditIssue = { kind: 'console' | 'pageerror'; message: string };
+
 
 const observeRuntime = (page: Page): AuditIssue[] => {
   const issues: AuditIssue[] = [];
@@ -83,7 +84,7 @@ for (const [name, route] of activeRoutes) {
     // /new-plan jest celowo pełnoekranowym flow poza semantycznym <main>
     // Layoutu; nadal przechodzi wspólne kontrole treści, NaN, overflow i konsoli.
     await assertHealthyPage(page, issues, route !== '/new-plan');
-    await page.screenshot({ path: `audit/shots/2026-08-28/active-user_${name}.png`, fullPage: true });
+    await page.screenshot({ path: auditScreenshotPath(`active-user_${name}.png`), fullPage: true });
   });
 }
 
@@ -105,7 +106,7 @@ test('audit new-user portrait: onboarding', async ({ page }) => {
   await expect(page.getByTestId('ob-personalization-next')).toBeVisible();
   await expect(page.getByTestId('consent-terms')).toHaveCount(0);
   await assertHealthyPage(page, issues, false);
-  await page.screenshot({ path: 'audit/shots/2026-08-28/new-user_onboarding.png', fullPage: true });
+  await page.screenshot({ path: auditScreenshotPath('new-user_onboarding.png'), fullPage: true });
 });
 
 test('audit active-admin portrait: panel', async ({ page }) => {
@@ -114,7 +115,7 @@ test('audit active-admin portrait: panel', async ({ page }) => {
   await setE2EAuthScenario(page, 'active-admin');
   await page.goto('./#/admin');
   await assertHealthyPage(page, issues);
-  await page.screenshot({ path: 'audit/shots/2026-08-28/active-admin_admin.png', fullPage: true });
+  await page.screenshot({ path: auditScreenshotPath('active-admin_admin.png'), fullPage: true });
 });
 
 for (const [name, route] of [
@@ -130,6 +131,6 @@ for (const [name, route] of [
     await seedActiveUser(page);
     await page.goto(`./#${route}`);
     await assertHealthyPage(page, issues);
-    await page.screenshot({ path: `audit/shots/2026-08-28/landscape_${name}.png`, fullPage: true });
+    await page.screenshot({ path: auditScreenshotPath(`landscape_${name}.png`), fullPage: true });
   });
 }

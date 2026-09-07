@@ -53,11 +53,15 @@ describe('Z230 — one Strength Save release and brand contract', () => {
     expect(stores[3]).not.toMatch(/Strav/i);
   });
 
-  it('maps the exact release artifact for every surface', () => {
+  it('separates current source versions from historical delivery evidence', () => {
     const train = JSON.parse(read('release/release-train.json')) as Record<string, Record<string, unknown>>;
-    expect(train.web.commit).toMatch(/^[0-9a-f]{8}$/);
-    expect(train.ios).toMatchObject({ version: '1.0.0', build: 136 });
-    expect(train.android).toMatchObject({ version: '1.0.0', versionCode: 46 });
+    const iosBuild = Number(read('ios/App/App.xcodeproj/project.pbxproj').match(/CURRENT_PROJECT_VERSION = (\d+);/)?.[1]);
+    const androidCode = Number(read('android/app/build.gradle').match(/versionCode (\d+)/)?.[1]);
+    expect(train.web.url).toBe('https://app.strengthsave.app/');
+    expect(train.ios).toMatchObject({ version: '1.0.0', build: iosBuild });
+    expect(train.android).toMatchObject({ version: '1.0.0', versionCode: androidCode });
+    expect(train.ios.state).toBe('source-version-requires-current-delivery-verification');
+    expect(train.android.state).toBe('source-version-requires-current-delivery-verification');
     expect(train.garmin).toMatchObject({ manifestSchemaVersion: 3, targetBinaries: 27 });
     expect(train.entitlement).toMatchObject({ id: 'pro', checkout: ['ios', 'android'] });
   });

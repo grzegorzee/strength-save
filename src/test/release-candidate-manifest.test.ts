@@ -16,11 +16,14 @@ describe('release candidate manifest', () => {
       'android/gradlew',
       'android/gradle/wrapper/gradle-wrapper.jar',
       'scripts/release-ios.sh',
+      '.github/workflows/deploy.yml',
+      'release/release-train.json',
       'private-audits/health.json',
       'node_modules/pkg/index.js',
       'dist/index.html',
       '../outside',
     ])).toEqual([
+      '.github/workflows/deploy.yml',
       'android/app/src/main/java/app/MainActivity.kt',
       'android/capacitor.settings.gradle',
       'android/gradle/wrapper/gradle-wrapper.jar',
@@ -28,6 +31,7 @@ describe('release candidate manifest', () => {
       'android/variables.gradle',
       'functions/src/index.ts',
       'ios/App/App/AppDelegate.swift',
+      'release/release-train.json',
       'scripts/release-ios.sh',
       'src/main.tsx',
     ]);
@@ -42,6 +46,35 @@ describe('release candidate manifest', () => {
       'DECYZJE.md',
       'PLAN.md',
     ]));
+  });
+
+  it('zmiana konfiguracji Firebase Androida unieważnia kandydata po selekcji wejść', () => {
+    const configPath = 'android/app/google-services.json';
+    const buildWithConfigHash = (configHash: string) => buildReleaseCandidateManifest({
+      generatedAt: '2026-09-06T12:00:00.000Z',
+      baseCommit: 'a'.repeat(40),
+      versions: { package: '1.0.0', iosMarketing: '1.0.0', iosBuild: '142', androidName: '1.0.0', androidCode: '48' },
+      sourceFiles: selectReleaseInputPaths(['src/main.tsx', configPath]).map((path: string) => ({
+        path,
+        size: 1,
+        mode: 0o644,
+        sha256: path === configPath ? configHash : 'a'.repeat(64),
+        status: 'tracked',
+      })),
+      environmentFingerprints: [],
+      artifacts: [],
+      evidence: { auditSha256: 'd'.repeat(64) },
+    });
+
+    const expected = buildWithConfigHash('b'.repeat(64));
+    const changed = buildWithConfigHash('c'.repeat(64));
+
+    expect(changed.candidateSha256).not.toBe(expected.candidateSha256);
+    expect(compareReleaseCandidateManifests(expected, changed)).toEqual({
+      ok: false,
+      mismatches: [`source:changed:${configPath}`, 'candidate-sha256'],
+    });
+    expect(requiredReleaseInputPaths()).toContain(configPath);
   });
 
   it('wiąże efektywne VITE_* bez zapisywania wartości i niezależnie od kolejności', () => {
