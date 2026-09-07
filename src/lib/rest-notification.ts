@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { loadRestSound } from '@/lib/rest-sound';
+import { loadRestSound, type RestSoundOption } from '@/lib/rest-sound';
 import { addAppStateListener } from '@/lib/app-lifecycle';
 
 // Powiadomienie lokalne "koniec przerwy" (iOS/Android). JS w WKWebView jest wstrzymywany
@@ -52,6 +52,18 @@ const ensurePermission = async (): Promise<boolean> => {
   return permissionGranted === true;
 };
 
+// Android 8+ stores sound on an immutable OS channel. Each selectable sound
+// gets its own versioned channel; creating one again preserves the user's OS settings.
+const ensureAndroidSoundChannel = async (sound: RestSoundOption): Promise<string | undefined> => {
+  if (Capacitor.getPlatform() !== 'android') return undefined;
+  const id = `strength-rest-${sound.id}-v1`;
+  await LocalNotifications.createChannel({
+    id, name: 'Strength Save · Timer', sound: sound.file,
+    importance: 4, vibration: true,
+  });
+  return id;
+};
+
 interface ArmedEnd {
   deadlineAt: number;
   title: string;
@@ -91,6 +103,9 @@ const scheduleEndNotification = async (
     if (myGeneration !== channel.generation) return;
 
     try {
+      const sound = loadRestSound();
+      const channelId = await ensureAndroidSoundChannel(sound);
+      if (myGeneration !== channel.generation) return;
       // Nadpisz ewentualne wcześniejsze (jeden aktywny timer na kanał naraz).
       await LocalNotifications.cancel({ notifications: [{ id: channel.id }] });
       if (myGeneration !== channel.generation) return;
@@ -100,7 +115,8 @@ const scheduleEndNotification = async (
           title,
           body,
           schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
-          sound: loadRestSound().file,
+          sound: sound.file,
+          ...(channelId ? { channelId } : {}),
         }],
       });
     } catch {
@@ -151,6 +167,7 @@ export const cancelRestEndNotification = (): Promise<void> => disarmChannel(rest
 export const cancelSetCountdownNotification = (): Promise<void> => disarmChannel(setCountdownChannel);
 
 const handleAppActiveChange = (isActive: boolean): void => {
+  if (isActive) permissionGranted = null;
   for (const channel of CHANNELS) {
     // Nieuzbrojony kanał nie ma nic pending (schedule leci tylko z uzbrojenia,
     // rozbrojenie samo anuluje), więc nie zaśmiecamy chaina pustymi cancelami.

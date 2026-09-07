@@ -40,7 +40,7 @@ vi.mock('@/lib/feature-flags', () => ({ FEATURE_FLAGS: { workoutTimers: true } }
 // Po sekwencji zdarzeń liczba wpisów = liczba realnie zaplanowanych sygnałów.
 const pendingNotifications = new Map<number, { body: string; at: Date }>();
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => true },
+  Capacitor: { isNativePlatform: () => true, getPlatform: () => 'ios' },
 }));
 vi.mock('@capacitor/local-notifications', () => ({
   LocalNotifications: {

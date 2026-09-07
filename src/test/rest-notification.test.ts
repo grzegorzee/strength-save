@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const platform = vi.hoisted(() => ({ value: 'ios' }));
+const createChannel = vi.fn(async (_options: unknown) => undefined);
 const checkPermissions = vi.fn();
 const requestPermissions = vi.fn();
 const schedule = vi.fn(async (_options: unknown) => undefined);
@@ -20,10 +22,11 @@ const appState = vi.hoisted(() => ({
 }));
 
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => true },
+  Capacitor: { isNativePlatform: () => true, getPlatform: () => platform.value },
 }));
 vi.mock('@capacitor/local-notifications', () => ({
   LocalNotifications: {
+    createChannel: (options: unknown) => createChannel(options),
     checkPermissions: () => checkPermissions(),
     requestPermissions: () => requestPermissions(),
     schedule: (options: unknown) => schedule(options),
@@ -309,5 +312,37 @@ describe('rest-notification: uprawnienia (R2-24)', () => {
 
     expect(checkPermissions).toHaveBeenCalledTimes(1);
     expect(schedule).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+describe('Android timer sound channels', () => {
+  beforeEach(() => {
+    vi.clearAllMocks(); vi.resetModules(); localStorage.clear();
+    platform.value = 'android';
+    checkPermissions.mockResolvedValue({ display: 'granted' });
+    createChannel.mockResolvedValue(undefined);
+  });
+  it('changes the Android channel with the selected sound while preserving rest ID', async () => {
+    const { scheduleRestEndNotification } = await import('@/lib/rest-notification');
+    const { saveRestSound } = await import('@/lib/rest-sound');
+    await scheduleRestEndNotification(90, 'Rest over', 'Squat');
+    expect(createChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'strength-rest-bell-v1', sound: 'rest_bell.wav' }));
+    expect(schedule).toHaveBeenLastCalledWith({ notifications: [expect.objectContaining({ id: 90001, channelId: 'strength-rest-bell-v1', sound: 'rest_bell.wav' })] });
+    saveRestSound('horn');
+    await scheduleRestEndNotification(90, 'Rest over', 'Squat');
+    expect(createChannel).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'strength-rest-horn-v1', sound: 'rest_horn.wav' }));
+    expect(schedule).toHaveBeenLastCalledWith({ notifications: [expect.objectContaining({ channelId: 'strength-rest-horn-v1' })] });
+  });
+  it('cancel while Android channel setup is pending cannot schedule a stale alarm', async () => {
+    let finish!: () => void;
+    createChannel.mockReturnValue(new Promise<undefined>(resolve => { finish = () => resolve(undefined); }));
+    const { scheduleRestEndNotification, cancelRestEndNotification } = await import('@/lib/rest-notification');
+    const scheduling = scheduleRestEndNotification(90, 'Rest over', 'Squat');
+    await flushChain();
+    expect(createChannel).toHaveBeenCalledTimes(1);
+    const canceling = cancelRestEndNotification();
+    finish(); await Promise.all([scheduling, canceling]);
+    expect(schedule).not.toHaveBeenCalled();
   });
 });

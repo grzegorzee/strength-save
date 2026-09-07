@@ -55,6 +55,7 @@ import { NotificationSettings } from '@/components/NotificationSettings';
 import { HealthSettings } from '@/components/HealthSettings';
 import { GarminSettings } from '@/components/GarminSettings';
 import { RestSettingsCard } from '@/components/RestSettingsCard';
+import { AndroidTimerPermission } from '@/components/AndroidTimerPermission';
 import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
 import { StravaConnectionCard } from '@/components/StravaConnectionCard';
 import { BackupSettings } from '@/components/BackupSettings';
@@ -742,6 +743,7 @@ const Profile = () => {
               zakończenia ćwiczenia, nie tylko timera przerwy. */}
           <SettingRow compact label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
         </div>
+        <AndroidTimerPermission />
         <RestSettingsCard hideTitle />
       </ProfileAccordionSection>
 
