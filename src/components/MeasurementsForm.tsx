@@ -5,28 +5,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import type { BodyMeasurement } from '@/types';
-import { Camera, Save, User, X } from 'lucide-react';
+import { Camera, Loader2, Save, User, X } from 'lucide-react';
 import { formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
-import { validateMeasurement } from '@/lib/measurement-validation';
+import { MEASUREMENT_LIMITS, validateMeasurement, type MeasurementField } from '@/lib/measurement-validation';
 import { parseDecimalInput } from '@/lib/decimal-input';
 import { composeRecordedAt, recordedAtToTimeInput } from '@/lib/measurement-time';
 import { PhotoCropDialog } from '@/components/PhotoCropDialog';
 
-type ValidationErrorKey = 'measurements.saveErrorDesc' | 'measurements.dateInvalidError' | 'measurements.dateFutureError';
-
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
-  onSave: (measurement: Omit<BodyMeasurement, 'id' | 'userId'>, photoFile?: File | null) => void;
+  onSave: (measurement: Omit<BodyMeasurement, 'id' | 'userId'>, photoFile?: File | null) => Promise<MeasurementSaveResult> | MeasurementSaveResult;
   /** T13a: sekcja zdjęcia sylwetki — tylko przy włączonym feature bodyPhotos (default: wyłączona). */
   photosEnabled?: boolean;
 }
 
+export type MeasurementSaveResult = { ok: true } | { ok: false; error?: string };
+
 export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = false }: MeasurementsFormProps) => {
   const { t, lang } = useTranslation();
-  const { unit, lengthUnit, toDisplay, fromInput, toDisplayLength, fromInputLength } = useUnit();
+  const { unit, lengthUnit, toDisplay, fromInput, toDisplayLength, fromInputLength, fmt, fmtLength } = useUnit();
   const [formData, setFormData] = useState({
     weight: latestMeasurement?.weight != null
       ? String(Number(toDisplay(latestMeasurement.weight).toFixed(1)))
@@ -44,7 +44,10 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
   // Data pomiaru (migracja starych metryk): domyślnie dziś, nigdy z przyszłości.
   // Ten sam kontrakt co w dialogu edycji (LocalizedDateInput, ISO YYYY-MM-DD).
   const [date, setDate] = useState(() => formatLocalDate(new Date()));
-  const [validationError, setValidationError] = useState<ValidationErrorKey | null>(null);
+  const [validationError, setValidationError] = useState<{ field: string; reason?: 'future' } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   // T13a: opcjonalne zdjęcie sylwetki — zwykły input file (w WKWebView natywny
   // sheet Aparat/Biblioteka, bez pluginu Capacitor). Upload robi rodzic.
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -69,8 +72,9 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
     // Z178: przecinek legalny (Number("82,4")=NaN blokował zapis pomiarów).
     // Pole nieparsowalne → NaN, które walidacja odrzuca jako błąd (nie trafia do danych).
     const parseField = (raw: string, convert: (n: number) => number): number | undefined => {
@@ -96,11 +100,9 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
     // liczbowych przechodzi, gdy jest fotka (wpis tylko-zdjęcie).
     const validation = validateMeasurement(measurement, { hasPhoto: photoFile !== null, maxDate: today });
     if (!validation.valid) {
-      setValidationError(
-        validation.field !== 'date'
-          ? 'measurements.saveErrorDesc'
-          : validation.reason === 'future' ? 'measurements.dateFutureError' : 'measurements.dateInvalidError',
-      );
+      setValidationError(validation);
+      const fieldId = validation.field === 'date' ? 'measurementDate' : validation.field === 'measurement' ? 'weight' : validation.field;
+      e.currentTarget.querySelector<HTMLInputElement>(`#${fieldId}`)?.focus();
       return;
     }
     // Data wsteczna: recordedAt w TYM SAMYM dniu (hook wpisałby Date.now(), czyli
@@ -109,9 +111,23 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
       const recordedAt = composeRecordedAt(date, recordedAtToTimeInput(Date.now()));
       if (recordedAt !== undefined) measurement.recordedAt = recordedAt;
     }
-    onSave(measurement, photoFile ?? undefined);
-    setPhotoFile(null);
-    setDate(today);
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await onSave(measurement, photoFile ?? undefined);
+      if (!result.ok) {
+        setSaveError(result.error || t('measurements.saveRetryError'));
+        return;
+      }
+      setPhotoFile(null);
+      setDate(formatLocalDate(new Date()));
+    } catch {
+      setSaveError(t('measurements.saveRetryError'));
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   const measurementFields = [
@@ -126,6 +142,17 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
     { key: 'calfLeft', label: t('measurements.field.calfLeft', { unit: lengthUnit }), description: t('measurements.hint.widest') },
     { key: 'calfRight', label: t('measurements.field.calfRight', { unit: lengthUnit }), description: t('measurements.hint.widest') },
   ];
+
+  const validationMessage = (() => {
+    if (!validationError) return null;
+    if (validationError.field === 'date') return t(validationError.reason === 'future' ? 'measurements.dateFutureError' : 'measurements.dateInvalidError');
+    if (validationError.field === 'measurement') return t(photosEnabled ? 'measurements.emptyWithPhotoError' : 'measurements.emptyError');
+    const field = measurementFields.find(item => item.key === validationError.field)!;
+    const [min, max] = MEASUREMENT_LIMITS[field.key as MeasurementField];
+    const format = field.key === 'weight' ? fmt : fmtLength;
+    return t('measurements.fieldRangeError', { field: field.label, min: format(min, { withUnit: false }), max: format(max, { withUnit: false }) });
+  })();
+  const validationHint = validationMessage && <p id="measurement-validation" role="alert" className="text-sm text-destructive">{validationMessage}</p>;
 
   return (
     <Card>
@@ -153,7 +180,9 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
       <CardContent>
         {/* noValidate: przy dacie > max przeglądarka blokowałaby submit własnym
             dymkiem w języku systemu; komunikat ma dawać walidacja apki (i18n). */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <form onSubmit={handleSubmit} noValidate aria-busy={saving} className="space-y-6">
+          <fieldset disabled={saving} className="min-w-0 space-y-6">
+          {validationError?.field === 'measurement' && validationHint}
           <div className="space-y-2">
             <Label htmlFor="measurementDate" className="text-sm font-medium">
               {t('measurements.date')}
@@ -166,7 +195,10 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
               onChange={(e) => { setValidationError(null); setDate(e.target.value); }}
               className="[&_input]:h-11 [&_span]:h-11 desktop-shell:[&_input]:h-10 desktop-shell:[&_span]:h-10"
               data-testid="measurement-date"
+              aria-invalid={validationError?.field === 'date' || undefined}
+              aria-describedby={validationError?.field === 'date' ? 'measurement-validation' : undefined}
             />
+            {validationError?.field === 'date' && validationHint}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {measurementFields.map((field) => (
@@ -182,7 +214,10 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
                   value={formData[field.key as keyof typeof formData]}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   className="h-11"
+                  aria-invalid={validationError?.field === field.key || undefined}
+                  aria-describedby={validationError?.field === field.key ? 'measurement-validation' : undefined}
                 />
+                {validationError?.field === field.key && validationHint}
               </div>
             ))}
           </div>
@@ -225,11 +260,12 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
               )}
             </div>
           )}
-          {validationError && <p role="alert" className="text-sm text-destructive">{t(validationError)}</p>}
-          <Button type="submit" className="w-full" size="lg">
-            <Save className="h-4 w-4 mr-2" />
-            {t('measurements.saveButton')}
+          {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+          <Button type="submit" disabled={saving} className="w-full" size="lg">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {saving ? t('measurements.saving') : t('measurements.saveButton')}
           </Button>
+          </fieldset>
         </form>
         {/* WP-D D3: kadrowanie przed uploadem — zawsze zamontowany, sterowany open. */}
         <PhotoCropDialog

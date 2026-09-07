@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
@@ -24,7 +24,7 @@ vi.mock('@/components/PhotoCropDialog', () => ({
   ),
 }));
 
-const renderForm = (onSave = vi.fn(), photosEnabled?: boolean) => {
+const renderForm = (onSave = vi.fn().mockReturnValue({ ok: true }), photosEnabled?: boolean) => {
   render(
     <LanguageProvider>
       <UnitProvider>
@@ -44,13 +44,13 @@ beforeEach(() => {
 });
 
 describe('MeasurementsForm — zdjecie sylwetki (T13a)', () => {
-  it('NIEZMIENNIK: bez photosEnabled brak sekcji zdjecia, payload jak dzis', () => {
+  it('NIEZMIENNIK: bez photosEnabled brak sekcji zdjecia, payload jak dzis', async () => {
     const onSave = renderForm();
 
     expect(screen.queryByTestId('measurement-photo-input')).toBeNull();
 
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '82,4' } });
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const [measurement, photoFile] = onSave.mock.calls[0];
@@ -59,14 +59,14 @@ describe('MeasurementsForm — zdjecie sylwetki (T13a)', () => {
     expect(photoFile).toBeUndefined();
   });
 
-  it('z photosEnabled wybor pliku (po kadrze) przekazuje File jako drugi argument onSave', () => {
-    const onSave = renderForm(vi.fn(), true);
+  it('z photosEnabled wybor pliku (po kadrze) przekazuje File jako drugi argument onSave', async () => {
+    const onSave = renderForm(vi.fn().mockReturnValue({ ok: true }), true);
     const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
 
     fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
     fireEvent.click(screen.getByTestId('mock-crop-confirm'));
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0].weight).toBe(80);
@@ -74,40 +74,40 @@ describe('MeasurementsForm — zdjecie sylwetki (T13a)', () => {
     expect((onSave.mock.calls[0][1] as File).type).toBe('image/jpeg');
   });
 
-  it('anulowanie kadrowania = powrot do formularza bez zdjecia (WP-D D3)', () => {
-    const onSave = renderForm(vi.fn(), true);
+  it('anulowanie kadrowania = powrot do formularza bez zdjecia (WP-D D3)', async () => {
+    const onSave = renderForm(vi.fn().mockReturnValue({ ok: true }), true);
     const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
 
     fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
     // Mock renderuje przycisk tylko przy open=true; brak potwierdzenia kadru
     // i zapis => zdjecie nie trafia do onSave.
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][1]).toBeUndefined();
   });
 
-  it('z photosEnabled zapis bez zdjecia nadal dziala (zdjecie tylko DOKLADA)', () => {
-    const onSave = renderForm(vi.fn(), true);
+  it('z photosEnabled zapis bez zdjecia nadal dziala (zdjecie tylko DOKLADA)', async () => {
+    const onSave = renderForm(vi.fn().mockReturnValue({ ok: true }), true);
 
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0].weight).toBe(80);
     expect(onSave.mock.calls[0][1]).toBeUndefined();
   });
 
-  it('usuniecie wybranego zdjecia przed zapisem wraca do zapisu bez fotki', () => {
-    const onSave = renderForm(vi.fn(), true);
+  it('usuniecie wybranego zdjecia przed zapisem wraca do zapisu bez fotki', async () => {
+    const onSave = renderForm(vi.fn().mockReturnValue({ ok: true }), true);
     const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
 
     fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
     fireEvent.click(screen.getByTestId('mock-crop-confirm'));
     fireEvent.click(screen.getByRole('button', { name: /Usuń zdjęcie/i }));
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][1]).toBeUndefined();

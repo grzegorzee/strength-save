@@ -13,7 +13,7 @@ test.describe('Auth and registration flows', () => {
     await expect(page.getByRole('button', { name: 'Kontynuuj z Apple' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Kontynuuj z emailem' })).toBeVisible();
     await expect(page.getByText('Wykryto kod zaproszenia:')).toBeVisible();
-    await expect(page.getByText('Chcesz trafić na waitlistę lub dostać invite?')).toBeVisible();
+    await expect(page.getByText('Chcesz dołączyć do testów?')).toBeVisible();
   });
 
   test('register route starts social-first and opens email registration form', async ({ page }) => {
@@ -33,9 +33,11 @@ test.describe('Auth and registration flows', () => {
     await page.getByPlaceholder('Email').fill('waitlist@test.com');
     await page.getByPlaceholder('Imię / nazwa').fill('Waitlist User');
     await page.getByPlaceholder('Notatka lub kontekst').fill('Proszę o invite do testów');
-    await page.getByRole('button', { name: 'Zapisz na waitlistę' }).click();
+    await page.getByRole('button', { name: 'Dołącz do listy' }).click();
 
-    await expect(page.getByText('Twoje zgłoszenie zostało zapisane.').first()).toBeVisible();
+    const notification = page.getByRole('region', { name: 'Notifications (F8)', exact: true }).getByRole('status');
+    await expect(notification).toContainText('Dodano do listy');
+    await expect(notification).toContainText('Damy Ci znać e-mailem, gdy dostęp będzie gotowy.');
   });
 
   test('email path toggles between sign in and registration', async ({ page }) => {

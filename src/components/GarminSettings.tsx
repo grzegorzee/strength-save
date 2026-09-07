@@ -150,7 +150,6 @@ export const GarminSettings = ({ hideTitle = false }: { hideTitle?: boolean } = 
         <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
           <div>
             <p className="text-sm font-medium">{t('devices.access')}</p>
-            <p className="text-xs text-muted-foreground">{t('devices.onePro')}</p>
           </div>
           <Badge variant={subscription.isPro ? 'default' : 'secondary'}>
             {subscription.loading ? t('devices.checking') : subscription.isPro ? `PRO · ${subscription.tier}` : t('devices.inactive')}

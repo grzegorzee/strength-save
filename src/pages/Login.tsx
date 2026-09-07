@@ -192,7 +192,12 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   );
 
   return (
-    <div className="flex min-h-[100dvh] justify-center overflow-y-auto bg-gradient-to-br from-background to-muted pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div
+      className="flex min-h-[100dvh] justify-center overflow-y-auto bg-gradient-to-br from-background to-muted pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+      // iOS keeps the WebView full-height (Keyboard.resize=none). Give this
+      // form its own visible scroll area; Android already resizes the WebView.
+      style={isIOS ? { height: 'calc(100dvh - var(--keyboard-inset, 0px))', minHeight: 0 } : undefined}
+    >
       <Card className="my-auto w-full max-w-xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">

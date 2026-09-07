@@ -5,7 +5,7 @@ import { storage } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
-import { MeasurementsForm } from '@/components/MeasurementsForm';
+import { MeasurementsForm, type MeasurementSaveResult } from '@/components/MeasurementsForm';
 import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,7 +84,7 @@ const Measurements = () => {
   const [editMeasurement, setEditMeasurement] = useState<BodyMeasurement | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
 
-  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null) => {
+  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null): Promise<MeasurementSaveResult> => {
     // T13a: NIEZMIENNIK — pomiar nigdy nie przepada przez zdjęcie. Upload jest
     // opcjonalnym krokiem PRZED zapisem; jego błąd degraduje do zapisu bez fotki.
     let photoFields: { photoUrl: string; photoPath: string } | null = null;
@@ -101,15 +101,16 @@ const Measurements = () => {
         // WP-D D2: wpis TYLKO-zdjęcie bez udanego uploadu nie ma treści —
         // koniec (toast wyżej mówi co się stało), user ponawia dodanie.
         const hasNumericContent = Object.values(measurement).some((value) => typeof value === 'number');
-        if (!hasNumericContent) return;
+        if (!hasNumericContent) return { ok: false, error: t('measurements.saveRetryError') };
       }
     }
     const result = await addMeasurement(photoFields ? { ...measurement, ...photoFields } : measurement);
     if (result.error || !result.measurement) {
       toast({ title: t('measurements.saveErrorTitle'), description: result.error || t('measurements.saveErrorDesc'), variant: 'destructive' });
-      return;
+      return { ok: false, error: t('measurements.saveRetryError') };
     }
     toast({ title: t('measurements.saveSuccessTitle'), description: t('measurements.saveSuccessDesc', { date: measurement.date }) });
+    return { ok: true };
   };
 
   // WP-D D5: zapis wpisu tylko-zdjęcie (bez otwierania formularza pomiarów).

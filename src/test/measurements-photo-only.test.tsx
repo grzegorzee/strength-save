@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -85,7 +85,7 @@ const renderPage = () =>
     </MemoryRouter>,
   );
 
-const renderForm = (onSave = vi.fn()) => {
+const renderForm = (onSave = vi.fn().mockReturnValue({ ok: true })) => {
   render(
     <LanguageProvider>
       <UnitProvider>
@@ -109,13 +109,13 @@ beforeEach(() => {
 });
 
 describe('MeasurementsForm — wpis tylko-zdjęcie (WP-D D2)', () => {
-  it('zapis z samym zdjęciem (zero pól liczbowych) woła onSave z photo, bez NaN', () => {
+  it('zapis z samym zdjęciem (zero pól liczbowych) woła onSave z photo, bez NaN', async () => {
     const onSave = renderForm();
     const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
 
     fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
     fireEvent.click(screen.getByTestId('mock-crop-confirm'));
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const [measurement, photoFile] = onSave.mock.calls[0];
@@ -128,10 +128,10 @@ describe('MeasurementsForm — wpis tylko-zdjęcie (WP-D D2)', () => {
     expect(photoFile).toBeInstanceOf(File);
   });
 
-  it('zapis bez zdjęcia i bez pól nadal odrzucony (walidacja z wyjściem)', () => {
+  it('zapis bez zdjęcia i bez pól nadal odrzucony (walidacja z wyjściem)', async () => {
     const onSave = renderForm();
 
-    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Zapisz/i })); });
 
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('MeasurementsForm — wpis tylko-zdjęcie (WP-D D2)', () => {
 });
 
 describe('Measurements — sekcja zdjęć i porównania (WP-D D5)', () => {
-  it('bug 40: błąd listenera jest widoczny i ma działającą akcję ponowienia', () => {
+  it('bug 40: błąd listenera jest widoczny i ma działającą akcję ponowienia', async () => {
     pageMocks.measurementError = 'permission-denied';
     renderPage();
 
@@ -148,7 +148,7 @@ describe('Measurements — sekcja zdjęć i porównania (WP-D D5)', () => {
     expect(pageMocks.retryMeasurements).toHaveBeenCalledTimes(1);
   });
 
-  it('0 zdjęć: przycisk "Dodaj zdjęcie" + zachęta compareEmpty, bez porównania', () => {
+  it('0 zdjęć: przycisk "Dodaj zdjęcie" + zachęta compareEmpty, bez porównania', async () => {
     renderPage();
 
     expect(screen.getByTestId('measurements-add-photo')).toBeInTheDocument();
@@ -156,14 +156,14 @@ describe('Measurements — sekcja zdjęć i porównania (WP-D D5)', () => {
     expect(screen.queryByTestId('body-photo-compare')).toBeNull();
   });
 
-  it('1 zdjęcie: zachęta "dodaj drugie, aby porównać" widoczna', () => {
+  it('1 zdjęcie: zachęta "dodaj drugie, aby porównać" widoczna', async () => {
     pageMocks.measurements = [photoMeasurement('m1', '2026-08-01')];
     renderPage();
 
     expect(screen.getByText(/Dodaj drugie, aby zobaczyć porównanie/)).toBeInTheDocument();
   });
 
-  it('2 zdjęcia: BodyPhotoCompare widoczny, zachęty znikają', () => {
+  it('2 zdjęcia: BodyPhotoCompare widoczny, zachęty znikają', async () => {
     pageMocks.measurements = [
       photoMeasurement('m1', '2026-08-01'),
       photoMeasurement('m2', '2026-08-20'),

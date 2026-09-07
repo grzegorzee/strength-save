@@ -41,10 +41,10 @@ describe('rzeczowe copy funkcji treningowych', () => {
 
   it('nie przedstawia rozgrzewki ani reakcji na ból jako gwarancji medycznej', () => {
     expect(pl['warmup.prestart.firstWhy']).toBe(
-      'Krótka rozgrzewka przygotuje Cię do ruchów i serii roboczych. Zajmie około 4 do 6 minut.',
+      'Przygotuj ciało do pierwszych serii.',
     );
     expect(en['warmup.prestart.firstWhy']).toBe(
-      'A short warm-up prepares you for the movements and working sets. It takes about 4 to 6 minutes.',
+      'Get ready for your first sets.',
     );
     expect(pl['progression.reason.pain']).toBe(
       'Ostatnio zgłosiłeś ból 4+/10. Nie zwiększaj obciążenia. Jeśli ból się utrzymuje lub nasila, przerwij ćwiczenie i skonsultuj się ze specjalistą.',

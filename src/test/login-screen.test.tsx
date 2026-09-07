@@ -127,11 +127,11 @@ describe('Login: niezmienniki web (waitlista)', () => {
   it('waitlista widoczna na web, ukryta na native', () => {
     platform = 'web';
     const { unmount } = renderLogin();
-    expect(screen.getByText('Zapisz na waitlistę')).toBeTruthy();
+    expect(screen.getByText('Dołącz do listy')).toBeTruthy();
     unmount();
 
     platform = 'ios';
     renderLogin();
-    expect(screen.queryByText('Zapisz na waitlistę')).toBeNull();
+    expect(screen.queryByText('Dołącz do listy')).toBeNull();
   });
 });
