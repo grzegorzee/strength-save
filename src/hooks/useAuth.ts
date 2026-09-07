@@ -26,6 +26,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { markStartup } from '@/lib/startup-performance';
 import { claimStoredThemeOwner } from '@/lib/accent-theme';
+import { setHealthAccountOwner } from '@/lib/health-bridge';
 
 // Z222: flaga sesyjna łączy register_started z profile_created (backend nie
 // sygnalizuje "utworzono" — najbliższy udany sync profilu po rejestracji = created).
@@ -67,6 +68,8 @@ export const useAuth = () => {
         // To użytkownik utrzymywany przez Firebase SDK, nie lokalnie odtworzona
         // tożsamość. Listener nadal godzi prawdę po powrocie sieci.
         claimStoredThemeOwner(cachedFirebaseUser.uid);
+        setHealthAccountOwner(cachedFirebaseUser.uid);
+        void logInPurchases(cachedFirebaseUser.uid);
         setUser(cachedFirebaseUser);
         setLoading(false);
         markStartup('auth-restored');
@@ -82,6 +85,7 @@ export const useAuth = () => {
       // synchronicznie przed setUser, aby pierwszy render konta B nigdy nie
       // zobaczył palety ani zaznaczenia pozostawionego przez konto A.
       if (user) claimStoredThemeOwner(user.uid);
+      setHealthAccountOwner(user?.uid ?? null);
       setUser(user);
       setError(null);
       setSlow(false);

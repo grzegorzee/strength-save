@@ -1,5 +1,9 @@
 package com.grzegorzjasionowicz.strengthsave
 
+import androidx.activity.result.ActivityResult
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.records.metadata.Metadata
+import com.getcapacitor.annotation.ActivityCallback
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
@@ -24,6 +28,14 @@ import java.time.format.DateTimeFormatter
 class HealthSyncPlugin : Plugin() {
 
     private val scope = CoroutineScope(Dispatchers.Main)
+
+    private val permissionContract = PermissionController.createRequestPermissionResultContract()
+
+    private fun permissions(call: PluginCall): Set<String> =
+        if (call.getString("purpose") == "weight")
+            setOf(HealthPermission.getReadPermission(WeightRecord::class))
+        else
+            setOf(HealthPermission.getWritePermission(ExerciseSessionRecord::class))
 
     private val activityTypes = mapOf(
         "strength" to ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
@@ -60,27 +72,29 @@ class HealthSyncPlugin : Plugin() {
         }
         scope.launch {
             try {
-                val needed = setOf(
-                    HealthPermission.getWritePermission(ExerciseSessionRecord::class),
-                    HealthPermission.getReadPermission(WeightRecord::class),
-                )
+                val needed = permissions(call)
                 val granted = hc.permissionController.getGrantedPermissions()
                 val ret = JSObject()
                 if (granted.containsAll(needed)) {
                     ret.put("granted", true)
                     call.resolve(ret)
                 } else {
-                    // Pelny flow zgod wymaga ActivityResult — v1: otwieramy ustawienia Health Connect,
-                    // user nadaje zgody tam; kolejne wywolanie zwroci granted=true.
-                    val intent = android.content.Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
-                    try { activity.startActivity(intent) } catch (_: Exception) { /* brak apki HC */ }
-                    ret.put("granted", false)
-                    call.resolve(ret)
+                    val intent = permissionContract.createIntent(context, needed)
+                    startActivityForResult(call, intent, "healthPermissionsResult")
                 }
             } catch (e: Exception) {
                 call.reject("permissions failed: ${e.message}")
             }
         }
+    }
+
+    // Capacitor retains/restores the pending call across the permission Activity.
+    // The callback never writes Health data or enables settings by itself.
+    @ActivityCallback
+    private fun healthPermissionsResult(call: PluginCall?, result: ActivityResult) {
+        if (call == null) return
+        val granted = permissionContract.parseResult(result.resultCode, result.data)
+        call.resolve(JSObject().put("granted", granted.containsAll(permissions(call))))
     }
 
     @PluginMethod
@@ -93,12 +107,22 @@ class HealthSyncPlugin : Plugin() {
         val typeName = call.getString("activityType") ?: run { call.reject("invalid payload"); return }
         val startMs = call.getDouble("startMs") ?: run { call.reject("invalid payload"); return }
         val endMs = call.getDouble("endMs") ?: run { call.reject("invalid payload"); return }
-        if (endMs <= startMs) { call.reject("invalid payload"); return }
+        val recordId = call.getString("recordId")?.takeIf { it.isNotBlank() }
+            ?: run { call.reject("missing record identity"); return }
+        val recordVersion = call.getDouble("recordVersion")
+            ?: run { call.reject("missing record version"); return }
+        if (!startMs.isFinite() || !endMs.isFinite() || !recordVersion.isFinite()
+            || recordVersion < 0 || recordVersion > 9007199254740991.0
+            || recordVersion % 1.0 != 0.0 || endMs <= startMs) { call.reject("invalid payload"); return }
         val exerciseType = activityTypes[typeName] ?: ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT
 
         scope.launch {
             try {
                 val record = ExerciseSessionRecord(
+                    metadata = Metadata(
+                        clientRecordId = recordId,
+                        clientRecordVersion = recordVersion.toLong(),
+                    ),
                     startTime = Instant.ofEpochMilli(startMs.toLong()),
                     startZoneOffset = null,
                     endTime = Instant.ofEpochMilli(endMs.toLong()),

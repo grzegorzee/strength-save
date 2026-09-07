@@ -45,6 +45,7 @@ vi.mock('@revenuecat/purchases-capacitor', () => ({
 }));
 vi.mock('@/lib/purchases', () => ({
   PRO_ENTITLEMENT: 'pro',
+  runPurchasesForUser: (_uid: string, operation: () => Promise<unknown>) => operation(),
   resolvePurchaseOptions: async (pkgs: Array<typeof yearlyPkg>) =>
     pkgs.map((pkg) => ({ pkg, trial: { status: 'unknown', days: null }, subscriptionOption: null })),
   trialPresentation: () => ({ line: 'standard', cta: 'standard', renewal: 'standard' }),

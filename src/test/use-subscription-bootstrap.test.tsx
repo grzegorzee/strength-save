@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   currentUser: {
+    uid: 'user-a',
     profile: null as null | { subscription?: { tier: 'monthly'; status: 'active'; expiresAt: string } },
     isAdmin: false,
     profileLoaded: true,
@@ -10,6 +11,12 @@ const mocks = vi.hoisted(() => ({
   getCustomerInfo: vi.fn(),
   addListener: vi.fn(() => Promise.resolve('listener-1')),
   removeListener: vi.fn(),
+}));
+vi.mock('@/lib/purchases', () => ({
+  PRO_ENTITLEMENT: 'pro',
+  readPurchasesForUser: (_uid: string, operation: () => Promise<unknown>) => operation(),
+  subscribePurchasesIdentity: () => () => {},
+  purchasesIdentityVersion: () => 0,
 }));
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => true } }));
@@ -27,6 +34,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 describe('useSubscription startup', () => {
   beforeEach(() => {
     mocks.currentUser.profile = null;
+    mocks.currentUser.uid = 'user-a';
     mocks.currentUser.isAdmin = false;
     mocks.currentUser.profileLoaded = true;
     mocks.getCustomerInfo.mockReset();
@@ -62,5 +70,16 @@ describe('useSubscription startup', () => {
     expect(result.current.isPro).toBe(false);
     expect(result.current.tier).toBe('none');
     vi.useRealTimers();
+  });
+
+  it('switching account never exposes the previous account entitlement', async () => {
+    mocks.getCustomerInfo.mockResolvedValueOnce({ customerInfo: { entitlements: { active: { pro: { expirationDate: '2099-01-01' } } } } });
+    const { result, rerender } = renderHook(() => useSubscription());
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.isPro).toBe(true);
+    mocks.getCustomerInfo.mockReturnValue(new Promise(() => undefined));
+    mocks.currentUser.uid = 'user-b';
+    rerender();
+    expect(result.current.isPro).toBe(false);
   });
 });

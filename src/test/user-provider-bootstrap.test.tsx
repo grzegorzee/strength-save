@@ -121,6 +121,11 @@ const Probe = () => {
       <span data-testid="block-reason">{current.profileSyncBlockReason ?? 'none'}</span>
       <span data-testid="sync-pending">{String(current.profileSyncPending)}</span>
       <span data-testid="terms-version">{current.profile?.consents?.termsVersion ?? 'none'}</span>
+      <span data-testid="health-granted">{String(current.profile?.consents?.healthGranted)}</span>
+      <span data-testid="health-epoch">{current.profile?.consents?.healthEpoch ?? 'none'}</span>
+      <button type="button" onClick={() => current.mergeConfirmedConsentMirror({
+        healthGranted: true, healthVersion: '1.1', healthEpoch: 3, healthGrantId: 'grant-3',
+      })}>confirm-health</button>
       <button type="button" onClick={() => void current.retryProfileSync()}>retry</button>
       <button
         type="button"
@@ -180,6 +185,41 @@ describe('UserProvider cache-first profile bootstrap', () => {
       consents: { termsVersion: '1.0', privacyVersion: '2.0', healthGranted: true, healthVersion: '1.0' },
     }, true);
     expect(screen.getByTestId('terms-version')).toHaveTextContent('2.0');
+  });
+
+  it('a newer withdrawal from the server supersedes a locally confirmed health grant', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+    await emit('user-1', { ...profile('user-1'), consents: {
+      healthGranted: false, healthVersion: '1.1', healthEpoch: 2, healthGrantId: null,
+    } }, true);
+    await act(async () => screen.getByText('confirm-health').click());
+    expect(screen.getByTestId('health-granted')).toHaveTextContent('true');
+
+    // An older cache must not undo the just-confirmed choice.
+    await emit('user-1', { ...profile('user-1'), consents: {
+      healthGranted: false, healthVersion: '1.1', healthEpoch: 2, healthGrantId: null,
+    } }, true);
+    expect(screen.getByTestId('health-epoch')).toHaveTextContent('3');
+
+    // Another device withdrew after that choice. Exact mirror equality will
+    // never happen now, so waiting for it would mask this revocation forever.
+    await emit('user-1', { ...profile('user-1'), consents: {
+      healthGranted: false, healthVersion: '1.1', healthEpoch: 4, healthGrantId: null,
+    } }, false);
+    expect(screen.getByTestId('health-granted')).toHaveTextContent('false');
+    expect(screen.getByTestId('health-epoch')).toHaveTextContent('4');
+  });
+
+  it('a late confirmation cannot revive a grant after a newer withdrawal was already observed', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+    await emit('user-1', { ...profile('user-1'), consents: {
+      healthGranted: false, healthVersion: '1.1', healthEpoch: 4, healthGrantId: null,
+    } }, false);
+    await act(async () => screen.getByText('confirm-health').click());
+    expect(screen.getByTestId('health-granted')).toHaveTextContent('false');
+    expect(screen.getByTestId('health-epoch')).toHaveTextContent('4');
   });
 
   it('zachowuje cached active i dostęp po błędzie sync', async () => {

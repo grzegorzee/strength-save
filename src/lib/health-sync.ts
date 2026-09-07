@@ -10,6 +10,9 @@ export type HealthActivityType =
   | 'swimming' | 'jumpRope' | 'hiit' | 'other';
 
 export interface HealthWorkoutPayload {
+  /** Stable identity across retries, app restarts and edits (native upsert). */
+  recordId?: string;
+  recordVersion?: number;
   activityType: HealthActivityType;
   startMs: number;
   endMs: number;
@@ -24,7 +27,7 @@ export interface HealthWeightSample {
 
 export interface HealthBridge {
   isAvailable: () => Promise<boolean>;
-  requestPermissions: () => Promise<boolean>;
+  requestPermissions: (purpose?: 'workout' | 'weight') => Promise<boolean>;
   writeWorkout: (payload: HealthWorkoutPayload) => Promise<{ ok: boolean; error?: string }>;
   readLatestWeight: () => Promise<HealthWeightSample | null>;
 }

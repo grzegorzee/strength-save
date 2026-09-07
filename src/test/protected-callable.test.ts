@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   httpsCallable: vi.fn(),
   callNativeAttestedFunction: vi.fn(),
   appCheckReady: Promise.resolve(),
+  auth: { currentUser: { uid: 'account-a' } },
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -22,6 +23,7 @@ vi.mock('@capacitor/core', () => ({
 
 vi.mock('@/lib/firebase', () => ({
   functions: { __tag: 'functions-instance' },
+  auth: mocks.auth,
   get appCheckReady() { return mocks.appCheckReady; },
 }));
 
@@ -45,6 +47,7 @@ describe('callProtectedFunction', () => {
     mocks.httpsCallable.mockReset();
     mocks.callNativeAttestedFunction.mockReset();
     mocks.appCheckReady = Promise.resolve();
+    mocks.auth.currentUser = { uid: 'account-a' };
   });
 
   afterEach(() => {
@@ -103,6 +106,20 @@ describe('callProtectedFunction', () => {
     expect(mocks.callNativeAttestedFunction).toHaveBeenCalledWith('recordConsent', { x: 2 });
     expect(mocks.httpsCallable).not.toHaveBeenCalled();
     expect(result).toEqual({ ok: true });
+  });
+
+  it.each(['ios', 'android'])('%s: rejects an account change while loading the native transport', async (platform) => {
+    mocks.platform = platform;
+    const call = callProtectedFunction('restoreWorkoutBackupV3', {}, { expectedOwnerUid: 'account-a' });
+    mocks.auth.currentUser = { uid: 'account-b' };
+    await expect(call).rejects.toThrow('CALLABLE_ACCOUNT_CHANGED');
+    expect(mocks.callNativeAttestedFunction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale target owner before waiting or sending', async () => {
+    await expect(callProtectedFunction('restoreWorkoutBackupV3', {}, { expectedOwnerUid: 'account-b' }))
+      .rejects.toThrow('CALLABLE_ACCOUNT_CHANGED');
+    expect(mocks.httpsCallable).not.toHaveBeenCalled();
   });
 });
 

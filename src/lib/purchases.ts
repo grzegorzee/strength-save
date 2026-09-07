@@ -22,44 +22,116 @@ export const revenueCatApiKeyForPlatform = (
 };
 
 let configured = false;
+let configureInFlight: Promise<void> | null = null;
+let requestedUserId: string | null | undefined;
+let confirmedUserId: string | null = null;
+let identityGeneration = 0;
+let sdkQueue: Promise<unknown> = Promise.resolve();
+const identityListeners = new Set<() => void>();
+const notifyIdentity = () => identityListeners.forEach(listener => listener());
+
+export const subscribePurchasesIdentity = (listener: () => void): (() => void) => {
+  identityListeners.add(listener);
+  return () => { identityListeners.delete(listener); };
+};
+export const purchasesIdentityVersion = (): number => identityGeneration * 2 + (confirmedUserId ? 1 : 0);
+export const isPurchasesUserCurrent = (uid: string): boolean =>
+  requestedUserId === uid && confirmedUserId === uid;
+
+const enqueueSdk = <T>(operation: () => Promise<T>, waitTimeoutMs?: number): Promise<T> => {
+  let expired = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const result = sdkQueue.then(() => {
+    clearTimeout(timeout);
+    if (expired) throw new Error('PURCHASES_BUSY_RETRY');
+    return operation();
+  });
+  sdkQueue = result.catch(() => undefined);
+  if (!waitTimeoutMs) return result;
+  // Bound waiting for a previous SDK operation, never an open store sheet.
+  return Promise.race([result, new Promise<T>((_resolve, reject) => {
+    timeout = setTimeout(() => { expired = true; reject(new Error('PURCHASES_BUSY_RETRY')); }, waitTimeoutMs);
+  })]);
+};
 
 export const configurePurchases = async (): Promise<void> => {
   if (!Capacitor.isNativePlatform() || configured) return;
-  const platform = Capacitor.getPlatform();
-  const apiKey = revenueCatApiKeyForPlatform(platform, import.meta.env);
-  if (!apiKey) {
-    console.warn(`[purchases] Brak klucza RevenueCat dla platformy ${platform} — zakupy wyłączone.`);
-    return;
-  }
-  try {
-    await Purchases.configure({ apiKey });
-    configured = true;
-  } catch (error) {
-    console.error('[purchases] configure failed', error);
-  }
+  if (configureInFlight) return configureInFlight;
+  const apiKey = revenueCatApiKeyForPlatform(Capacitor.getPlatform(), import.meta.env);
+  if (!apiKey) return;
+  configureInFlight = (async () => {
+    try {
+      await Purchases.configure({ apiKey });
+      configured = true;
+    } catch (error) {
+      console.error('[purchases] configure failed', error);
+    }
+  })();
+  try { await configureInFlight; } finally { configureInFlight = null; }
 };
 
 export const isPurchasesConfigured = (): boolean => configured;
 
-/** Po zalogowaniu Firebase: zwiąż zakupy z uid (webhook RC → users/{uid}.subscription). */
-export const logInPurchases = async (uid: string): Promise<void> => {
-  if (!configured) await configurePurchases();
-  if (!configured) return;
-  try {
-    await Purchases.logIn({ appUserID: uid });
-  } catch (error) {
-    console.error('[purchases] logIn failed', error);
-  }
+const requestIdentity = (uid: string | null): void => {
+  if (requestedUserId === uid) return;
+  requestedUserId = uid;
+  confirmedUserId = null;
+  identityGeneration++;
+  notifyIdentity();
 };
 
-/** Po wylogowaniu Firebase: wróć do anonimowego appUserID. */
+/** Auth publishes intent synchronously; SDK mutations follow in order. */
+export const logInPurchases = async (uid: string): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) return;
+  requestIdentity(uid);
+  const generation = identityGeneration;
+  await enqueueSdk(async () => {
+    if (generation !== identityGeneration || requestedUserId !== uid) return;
+    await configurePurchases();
+    if (!configured || isPurchasesUserCurrent(uid)) return;
+    try {
+      await Purchases.logIn({ appUserID: uid });
+      if (generation === identityGeneration && requestedUserId === uid) {
+        confirmedUserId = uid;
+        notifyIdentity();
+      }
+    } catch (error) {
+      console.error('[purchases] logIn failed', error);
+    }
+  });
+};
+
 export const logOutPurchases = async (): Promise<void> => {
-  if (!configured) return;
-  try {
-    await Purchases.logOut();
-  } catch {
-    // logOut rzuca gdy user już anonimowy — ignorujemy.
-  }
+  requestIdentity(null);
+  await enqueueSdk(async () => {
+    if (!configured) return;
+    try { await Purchases.logOut(); } catch { /* Already anonymous. */ }
+  });
+};
+
+/** Every read, purchase and restore is serialized with the authenticated owner. */
+export const runPurchasesForUser = async <T>(uid: string, operation: () => Promise<T>): Promise<T> => {
+  const generation = identityGeneration;
+  if (requestedUserId === uid && !confirmedUserId) void logInPurchases(uid);
+  return enqueueSdk(async () => {
+    if (!isPurchasesUserCurrent(uid) || generation !== identityGeneration) {
+      throw new Error('PURCHASES_IDENTITY_NOT_READY');
+    }
+    const result = await operation();
+    if (!isPurchasesUserCurrent(uid) || generation !== identityGeneration) {
+      throw new Error('PURCHASES_IDENTITY_CHANGED');
+    }
+    return result;
+  }, 5000);
+};
+
+/** CustomerInfo is read-only and must not hold the mutation queue while offline. */
+export const readPurchasesForUser = async <T>(uid: string, operation: () => Promise<T>): Promise<T> => {
+  await runPurchasesForUser(uid, async () => undefined);
+  const generation = identityGeneration;
+  const result = await operation();
+  if (!isPurchasesUserCurrent(uid) || generation !== identityGeneration) throw new Error('PURCHASES_IDENTITY_CHANGED');
+  return result;
 };
 
 // === Z208: eligibility-aware paywall ===

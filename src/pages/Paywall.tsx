@@ -14,7 +14,7 @@ import { useHardPaywall } from '@/hooks/useHardPaywall';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { localizeFocus } from '@/lib/plan-i18n';
 import {
-  PRO_ENTITLEMENT,
+  PRO_ENTITLEMENT, runPurchasesForUser,
   resolvePurchaseOptions,
   trialPresentation,
   yearlyValueSummary,
@@ -107,9 +107,9 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
     try {
       // Android: kupuj dokładnie tę opcję Play, którą pokazaliśmy (free trial albo base plan);
       // żadnego dorozumianego trialu z samego produktu. iOS: standardowo pakiet.
-      const { customerInfo } = option.subscriptionOption
-        ? await Purchases.purchaseSubscriptionOption({ subscriptionOption: option.subscriptionOption })
-        : await Purchases.purchasePackage({ aPackage: option.pkg });
+      const { customerInfo } = await runPurchasesForUser(uid, () => option.subscriptionOption
+        ? Purchases.purchaseSubscriptionOption({ subscriptionOption: option.subscriptionOption })
+        : Purchases.purchasePackage({ aPackage: option.pkg }));
       if (customerInfo.entitlements.active[PRO_ENTITLEMENT]) {
         // Z222: funnel — zakup z potwierdzonym trialem liczy się jako start triala.
         if (uid && option.trial.status === 'eligible') trackTelemetryEvent(uid, 'trial_started');
@@ -138,7 +138,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
     if (busy) return;
     setBusy(true);
     try {
-      const { customerInfo } = await Purchases.restorePurchases();
+      const { customerInfo } = await runPurchasesForUser(uid, () => Purchases.restorePurchases());
       if (customerInfo.entitlements.active[PRO_ENTITLEMENT]) {
         await refresh();
         toast({ title: t('paywall.restored') });

@@ -118,7 +118,7 @@ export const useManualActivities = (userId: string, sinceDate?: string) => {
         id: ref.id,
         userId,
         createdAt: Date.now(),
-      }, activeHealthGrant !== null);
+      }, activeHealthGrant);
       return { ok: true };
     } catch (err) {
       console.error('[useManualActivities] add error:', err);

@@ -16,6 +16,8 @@ vi.mock('@capacitor/core', () => ({
   Capacitor: { getPlatform: () => 'web' },
 }));
 
+vi.mock('@/lib/firebase', () => ({ auth: { currentUser: { uid: 'test-user' } } }));
+
 import { recordConsents } from '@/lib/consents-api';
 import { CONSENT_DOC_VERSION } from '@/lib/legal-versions';
 

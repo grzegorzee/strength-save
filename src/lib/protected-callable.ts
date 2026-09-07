@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { Capacitor } from '@capacitor/core';
-import { appCheckReady, functions } from '@/lib/firebase';
+import { appCheckReady, auth, functions } from '@/lib/firebase';
 import { withTimeout } from '@/lib/promise-timeout';
 
 // Chroniona ścieżka callable dla flow pierwszego uruchomienia (rejestracja,
@@ -41,16 +41,26 @@ export function getProtectedCallableRejectionReason(
 export async function callProtectedFunction<RequestData, ResponseData>(
   functionName: string,
   data: RequestData,
+  options: { expectedOwnerUid?: string } = {},
 ): Promise<ResponseData> {
+  const assertOwner = () => {
+    if (options.expectedOwnerUid !== undefined
+      && (!options.expectedOwnerUid || auth.currentUser?.uid !== options.expectedOwnerUid)) {
+      throw new Error('CALLABLE_ACCOUNT_CHANGED');
+    }
+  };
+  assertOwner();
   const platform = Capacitor.getPlatform();
   if (platform === 'ios' || platform === 'android') {
     const { callNativeAttestedFunction } = await import('@/lib/native-callable');
+    assertOwner();
     return callNativeAttestedFunction<RequestData, ResponseData>(functionName, data);
   }
   // Bug 35: nie wysyłaj żądania, zanim webowy App Check się zarejestruje —
   // SDK dołącza wtedy brak tokenu i tworzenie profilu pada permission-denied.
   // appCheckReady ma własny limit czasu w firebase.ts, więc nie wisi.
   await appCheckReady;
+  assertOwner();
   const fn = httpsCallable<RequestData, ResponseData>(functions, functionName);
   return (await withTimeout(
     fn(data),

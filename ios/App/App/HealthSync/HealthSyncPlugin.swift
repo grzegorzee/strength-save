@@ -40,10 +40,19 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["granted": false])
             return
         }
-        let toShare: Set<HKSampleType> = [HKObjectType.workoutType()]
-        let toRead: Set<HKObjectType> = [HKObjectType.quantityType(forIdentifier: .bodyMass)!]
-        store.requestAuthorization(toShare: toShare, read: toRead) { granted, _ in
+        let purpose = call.getString("purpose") ?? "workout"
+        let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
+        let toShare: Set<HKSampleType> = purpose == "weight"
+            ? [] : [HKObjectType.workoutType(), energyType]
+        let toRead: Set<HKObjectType> = purpose == "weight"
+            ? [HKObjectType.quantityType(forIdentifier: .bodyMass)!] : []
+        store.requestAuthorization(toShare: toShare, read: toRead) { [weak self] success, _ in
             DispatchQueue.main.async {
+                guard let self else { call.resolve(["granted": false]); return }
+                // HealthKit intentionally hides read authorization. For weight this only
+                // means the request completed; an empty query must remain an empty query.
+                let granted = success && (purpose == "weight"
+                    || self.store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized)
                 call.resolve(["granted": granted])
             }
         }
@@ -59,7 +68,11 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             let activityType = Self.activityTypes[typeName],
             let startMs = call.getDouble("startMs"),
             let endMs = call.getDouble("endMs"),
-            endMs > startMs
+            startMs.isFinite, endMs.isFinite, endMs > startMs,
+            let recordId = call.getString("recordId"), !recordId.isEmpty,
+            let recordVersion = call.getDouble("recordVersion"),
+            recordVersion.isFinite, recordVersion >= 0,
+            recordVersion <= 9007199254740991, recordVersion.rounded() == recordVersion
         else {
             call.reject("invalid payload")
             return
@@ -68,38 +81,60 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         let start = Date(timeIntervalSince1970: startMs / 1000)
         let end = Date(timeIntervalSince1970: endMs / 1000)
         let calories = call.getDouble("calories")
-
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = activityType
-
         let builder = HKWorkoutBuilder(healthStore: store, configuration: configuration, device: .local())
+
         builder.beginCollection(withStart: start) { [weak self] began, error in
             guard let self, began else {
                 DispatchQueue.main.async { call.reject("begin failed: \(error?.localizedDescription ?? "unknown")") }
                 return
             }
-
-            let finish = {
-                builder.endCollection(withEnd: end) { _, _ in
-                    builder.finishWorkout { workout, error in
-                        DispatchQueue.main.async {
-                            if workout != nil {
-                                call.resolve(["ok": true])
-                            } else {
-                                call.reject("finish failed: \(error?.localizedDescription ?? "unknown")")
+            // HealthKit requires active collection before adding metadata or samples.
+            builder.addMetadata([
+                HKMetadataKeySyncIdentifier: recordId,
+                HKMetadataKeySyncVersion: Int64(recordVersion),
+            ]) { added, error in
+                guard added else {
+                    DispatchQueue.main.async { call.reject("metadata failed: \(error?.localizedDescription ?? "unknown")") }
+                    return
+                }
+                let finish = {
+                    builder.endCollection(withEnd: end) { ended, error in
+                        guard ended else {
+                            DispatchQueue.main.async { call.reject("end failed: \(error?.localizedDescription ?? "unknown")") }
+                            return
+                        }
+                        builder.finishWorkout { workout, error in
+                            DispatchQueue.main.async {
+                                if workout != nil { call.resolve(["ok": true]) }
+                                else { call.reject("finish failed: \(error?.localizedDescription ?? "unknown")") }
                             }
                         }
                     }
                 }
-            }
-
-            if let calories, calories > 0,
-               let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
-                let quantity = HKQuantity(unit: .kilocalorie(), doubleValue: calories)
-                let sample = HKQuantitySample(type: energyType, quantity: quantity, start: start, end: end)
-                builder.add([sample]) { _, _ in finish() }
-            } else {
-                finish()
+                if let calories, calories.isFinite, calories > 0,
+                   let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
+                   self.store.authorizationStatus(for: energyType) == .sharingAuthorized {
+                    let quantity = HKQuantity(unit: .kilocalorie(), doubleValue: calories)
+                    let sample = HKQuantitySample(
+                        type: energyType, quantity: quantity, start: start, end: end,
+                        metadata: [
+                            HKMetadataKeySyncIdentifier: recordId + ":energy",
+                            HKMetadataKeySyncVersion: Int64(recordVersion),
+                        ]
+                    )
+                    builder.add([sample]) { added, error in
+                        guard added else {
+                            DispatchQueue.main.async { call.reject("energy failed: \(error?.localizedDescription ?? "unknown")") }
+                            return
+                        }
+                        finish()
+                    }
+                } else {
+                    // Energy is optional; declining it must not disable workout sync.
+                    finish()
+                }
             }
         }
     }

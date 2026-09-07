@@ -12,6 +12,7 @@ import {
 import type { WorkoutSession } from '@/types';
 import type { ManualActivity } from '@/lib/manual-activity';
 import { reportClientError } from '@/lib/error-telemetry';
+import type { ActiveHealthGrant } from '@/lib/legal-versions';
 
 // Most natywny (Z116/Z230): iOS HealthKit i Android Health Connect przez
 // lokalne pluginy HealthSync. Web pozostaje jawnym no-op.
@@ -19,7 +20,7 @@ import { reportClientError } from '@/lib/error-telemetry';
 
 interface HealthSyncPluginApi {
   isAvailable(): Promise<{ available: boolean }>;
-  requestHealthPermissions(): Promise<{ granted: boolean }>;
+  requestHealthPermissions(options: { purpose: 'workout' | 'weight' }): Promise<{ granted: boolean }>;
   writeWorkout(payload: HealthWorkoutPayload): Promise<{ ok: boolean }>;
   readLatestWeight(): Promise<{ sample: HealthWeightSample | null }>;
 }
@@ -27,6 +28,25 @@ interface HealthSyncPluginApi {
 const SETTINGS_KEY = 'fittracker_health_settings_v1';
 const SYNC_STATE_KEY = 'fittracker_health_sync_state_v1';
 const MAX_RETRIES = 3;
+let ioGeneration = 0;
+let accountOwner: string | null = null;
+let consentScope: string | null = null;
+
+export const setHealthAccountOwner = (uid: string | null): void => {
+  if (accountOwner === uid) return;
+  accountOwner = uid;
+  consentScope = null;
+  ioGeneration++;
+};
+
+export const setHealthConsentScope = (uid: string, grantId: string | null): void => {
+  if (accountOwner !== uid) return;
+  if (consentScope !== grantId) {
+    consentScope = grantId;
+    ioGeneration++;
+  }
+  if (!grantId) disableHealthFeatures();
+};
 
 export interface HealthSettings {
   syncWorkouts: boolean;
@@ -46,13 +66,13 @@ export const loadHealthSettings = (): HealthSettings => {
 };
 
 export const saveHealthSettings = (settings: HealthSettings): void => {
+  if (!settings.syncWorkouts) ioGeneration++;
   try { window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
 };
 
-/** Wycofanie zgody zatrzymuje lokalne IO i usuwa wyłącznie kolejkę Health. */
+/** Wycofanie zatrzymuje IO; potwierdzenia eksportu pozostają ochroną przed duplikatami. */
 export const disableHealthFeatures = (): void => {
   saveHealthSettings(DEFAULT_SETTINGS);
-  try { window.localStorage.removeItem(SYNC_STATE_KEY); } catch { /* ignore */ }
 };
 
 const loadSyncState = (): HealthSyncState => {
@@ -78,19 +98,27 @@ const buildNativeBridge = (): HealthBridge => {
     isAvailable: async () => {
       try { return (await plugin.isAvailable()).available; } catch { return false; }
     },
-    requestPermissions: async () => {
-      try { return (await plugin.requestHealthPermissions()).granted; } catch { return false; }
+    requestPermissions: async (purpose = 'workout') => {
+      const generation = ioGeneration;
+      try {
+        const result = await plugin.requestHealthPermissions({ purpose });
+        return generation === ioGeneration && result.granted;
+      } catch { return false; }
     },
     writeWorkout: async (payload) => {
       try {
-        await plugin.writeWorkout(payload);
-        return { ok: true };
+        const result = await plugin.writeWorkout(payload);
+        return { ok: result.ok === true };
       } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
     readLatestWeight: async () => {
-      try { return (await plugin.readLatestWeight()).sample ?? null; } catch { return null; }
+      const generation = ioGeneration;
+      try {
+        const result = await plugin.readLatestWeight();
+        return generation === ioGeneration ? result.sample ?? null : null;
+      } catch { return null; }
     },
   };
 };
@@ -106,10 +134,11 @@ export const getHealthBridge = (): HealthBridge => {
   return cachedBridge;
 };
 
-const writeWithRetry = async (payload: HealthWorkoutPayload): Promise<{ ok: boolean; error?: string }> => {
+const writeWithRetry = async (payload: HealthWorkoutPayload, isCurrent: () => boolean): Promise<{ ok: boolean; error?: string }> => {
   const bridge = getHealthBridge();
   let lastError: string | undefined;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    if (!isCurrent()) return { ok: false };
     const result = await bridge.writeWorkout(payload);
     if (result.ok) return result;
     lastError = result.error;
@@ -118,18 +147,24 @@ const writeWithRetry = async (payload: HealthWorkoutPayload): Promise<{ ok: bool
   return { ok: false, error: lastError };
 };
 
-const syncPayload = async (uid: string, docId: string, payload: HealthWorkoutPayload): Promise<void> => {
+const syncPayload = async (uid: string, kind: 'workout' | 'cardio', docId: string, payload: HealthWorkoutPayload, grant: ActiveHealthGrant): Promise<void> => {
   const settings = loadHealthSettings();
-  if (!settings.syncWorkouts) return;
+  const ownsGrant = () => accountOwner === uid && consentScope === grant.healthGrantId;
+  if (!settings.syncWorkouts || !ownsGrant()) return;
 
+  const recordId = `strengthsave:${encodeURIComponent(uid)}:${kind}:${encodeURIComponent(docId)}`;
   const state = loadSyncState();
-  if (!shouldSyncWorkout(docId, payload.endMs, state)) return;
+  if (!shouldSyncWorkout(recordId, payload.endMs, state)) return;
+  const generation = ioGeneration;
+  const isCurrent = () => generation === ioGeneration && ownsGrant() && loadHealthSettings().syncWorkouts;
 
-  const result = await writeWithRetry(payload);
+  const result = await writeWithRetry({ ...payload, recordId, recordVersion: Date.now() }, isCurrent);
+  if (!isCurrent()) return;
   if (result.ok) {
-    state[docId] = { syncedAt: Date.now(), endMs: payload.endMs };
-    saveSyncState(state);
-    saveHealthSettings({ ...settings, lastSyncAt: Date.now() });
+    const currentState = loadSyncState();
+    currentState[recordId] = { syncedAt: Date.now(), endMs: payload.endMs };
+    saveSyncState(currentState);
+    saveHealthSettings({ ...loadHealthSettings(), lastSyncAt: Date.now() });
   } else {
     void reportClientError(uid, {
       code: 'health-sync-failed',
@@ -140,17 +175,17 @@ const syncPayload = async (uid: string, docId: string, payload: HealthWorkoutPay
 };
 
 /** Fire-and-forget po finalnym zapisie treningu siłowego (retry x3, log przy porażce). */
-export const syncWorkoutToHealth = (uid: string, workout: WorkoutSession, healthConsent: boolean): void => {
-  if (!healthConsent) return;
+export const syncWorkoutToHealth = (uid: string, workout: WorkoutSession, healthGrant: ActiveHealthGrant | null): void => {
+  if (!healthGrant) return;
   const payload = mapWorkoutToHealth(workout);
   if (!payload) return;
-  void syncPayload(uid, workout.id, payload);
+  void syncPayload(uid, 'workout', workout.id, payload, healthGrant);
 };
 
 /** Fire-and-forget po zapisie wpisu cardio (X15A). */
-export const syncCardioToHealth = (uid: string, activity: ManualActivity, healthConsent: boolean): void => {
-  if (!healthConsent) return;
+export const syncCardioToHealth = (uid: string, activity: ManualActivity, healthGrant: ActiveHealthGrant | null): void => {
+  if (!healthGrant) return;
   const payload = mapCardioToHealth(activity);
   if (!payload) return;
-  void syncPayload(uid, activity.id, payload);
+  void syncPayload(uid, 'cardio', activity.id, payload, healthGrant);
 };

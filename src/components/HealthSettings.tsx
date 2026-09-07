@@ -33,7 +33,7 @@ export const HealthSettings = () => {
     if (next) {
       // Zgody systemowe dopiero przy pierwszym włączeniu (nie przy starcie apki).
       setRequesting(true);
-      const granted = await getHealthBridge().requestPermissions();
+      const granted = await getHealthBridge().requestPermissions('workout');
       setRequesting(false);
       if (!granted) return;
     }
@@ -45,7 +45,7 @@ export const HealthSettings = () => {
   const toggleSuggestWeight = async (next: boolean) => {
     if (next) {
       setRequesting(true);
-      const granted = await getHealthBridge().requestPermissions();
+      const granted = await getHealthBridge().requestPermissions('weight');
       setRequesting(false);
       if (!granted) return;
     }

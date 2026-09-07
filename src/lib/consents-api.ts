@@ -3,6 +3,7 @@ import { CONSENT_DOC_VERSION } from '@/lib/legal-versions';
 import { isConsentBypassed, type ConsentSubmission } from '@/lib/consent-selection';
 import { callProtectedFunction } from '@/lib/protected-callable';
 import type { ConsentMirror } from '@/lib/legal-versions';
+import { auth } from '@/lib/firebase';
 
 // Zapis zgód przez Cloud Function recordConsent: IP i timestamp muszą pochodzić
 // z serwera (rozliczalność art. 7 ust. 1 RODO), więc klient NIE pisze do
@@ -20,11 +21,17 @@ export async function recordConsents(
   if (entries.length === 0) return {};
   if (isConsentBypassed) return {};
 
+  // Bind the choice to the account that made it, across attestation waits and
+  // a late response after logout/login. The server also checks this UID.
+  const expectedOwnerUid = auth.currentUser?.uid;
+  if (!expectedOwnerUid) throw new Error('CALLABLE_ACCOUNT_CHANGED');
+
   const platform = Capacitor.getPlatform();
   const channel = channelOverride ?? (platform === 'ios' || platform === 'android' ? platform : 'web');
   const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
 
   const response = await callProtectedFunction('recordConsent', {
+    expectedOwnerUid,
     entries: entries.map((entry) => ({
       type: entry.type,
       action: entry.action,
@@ -34,7 +41,9 @@ export async function recordConsents(
     })),
     channel,
     appVersion,
-  });
+  }, { expectedOwnerUid });
+
+  if (auth.currentUser?.uid !== expectedOwnerUid) throw new Error('CALLABLE_ACCOUNT_CHANGED');
 
   return parseConfirmedConsentMirror(response, entries);
 }

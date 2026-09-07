@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { PRO_ENTITLEMENT } from '@/lib/purchases';
+import { PRO_ENTITLEMENT, readPurchasesForUser, subscribePurchasesIdentity, purchasesIdentityVersion } from '@/lib/purchases';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { isSubscriptionActive, type SubscriptionState, type SubscriptionTier } from '@/lib/user-profile';
 import { withTimeout } from '@/lib/promise-timeout';
@@ -48,34 +48,36 @@ const readRcState = (info: { entitlements: { active: Record<string, { expiration
 };
 
 export const useSubscription = (): SubscriptionInfo => {
-  const { profile, isAdmin, profileLoaded } = useCurrentUser();
+  const { uid, profile, isAdmin, profileLoaded } = useCurrentUser();
+  const identityVersion = useSyncExternalStore(subscribePurchasesIdentity, purchasesIdentityVersion, purchasesIdentityVersion);
   const isNative = Capacitor.isNativePlatform();
-  const [rc, setRc] = useState<RcState | null>(null);
-  const [rcLoaded, setRcLoaded] = useState(!isNative);
+  const [rcResult, setRc] = useState<{ uid: string; version: number; state: RcState } | null>(null);
+  const [loadedFor, setLoadedFor] = useState<{ uid: string; version: number } | null>(null);
+  const rc = rcResult?.uid === uid && rcResult.version === identityVersion ? rcResult.state : null;
+  const rcLoaded = !isNative || (loadedFor?.uid === uid && loadedFor.version === identityVersion);
 
   const refresh = useCallback(async () => {
     if (!isNative) return;
     try {
       const { customerInfo } = await withTimeout(
-        Purchases.getCustomerInfo(),
+        readPurchasesForUser(uid, () => Purchases.getCustomerInfo()),
         REVENUECAT_BOOT_TIMEOUT_MS,
         'RevenueCat customer info',
       );
-      setRc(readRcState(customerInfo));
+      setRc({ uid, version: identityVersion, state: readRcState(customerInfo) });
     } catch {
       // RC nieskonfigurowany / offline — zostajemy przy Firestore.
     } finally {
-      setRcLoaded(true);
+      setLoadedFor({ uid, version: identityVersion });
     }
-  }, [isNative]);
+  }, [isNative, uid, identityVersion]);
 
   useEffect(() => {
     if (!isNative) return;
     void refresh();
-    const listenerId = Purchases.addCustomerInfoUpdateListener((customerInfo) => {
-      setRc(readRcState(customerInfo));
-      setRcLoaded(true);
-    });
+    // Listener payload may have been queued for a previous account. Read the
+    // current customer through the identity barrier instead of trusting it.
+    const listenerId = Purchases.addCustomerInfoUpdateListener(() => { void refresh(); });
     return () => {
       void listenerId
         .then(id => Purchases.removeCustomerInfoUpdateListener({ listenerToRemove: id }))

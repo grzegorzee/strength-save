@@ -20,6 +20,9 @@ import {
 } from '@/lib/protected-callable';
 import type { ConsentMirror } from '@/lib/legal-versions';
 import { purgeAvatarCache, readCachedAvatar, refreshCachedAvatar } from '@/lib/avatar-cache';
+import { setHealthConsentScope } from '@/lib/health-bridge';
+import { getActiveHealthGrant } from '@/lib/legal-versions';
+import { reconcileConsentConfirmation } from '@/lib/consent-confirmation';
 
 interface UserContextValue {
   uid: string;
@@ -60,6 +63,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const userEmail = user?.email || '';
   const userDisplayName = user?.displayName || '';
   const userPhotoUrl = user?.photoURL || '';
+  useEffect(() => {
+    if (userId && profile?.uid === userId) {
+      setHealthConsentScope(userId, getActiveHealthGrant(profile.consents)?.healthGrantId ?? null);
+    }
+  }, [userId, profile?.uid, profile?.consents]);
   const retryProfileSync = useCallback(
     () => retryProfileSyncRef.current?.() ?? Promise.resolve(),
     [],
@@ -71,9 +79,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       : {};
     const merged = { ...previous, ...mirror };
     confirmedConsentRef.current = { uid: userId, mirror: merged };
-    setProfile((current) => current?.uid === userId
-      ? { ...current, consents: { ...current.consents, ...merged } }
-      : current);
+    setProfile((current) => {
+      if (current?.uid !== userId) return current;
+      const retained = reconcileConsentConfirmation(merged, current.consents);
+      confirmedConsentRef.current = retained ? { uid: userId, mirror: retained } : null;
+      return retained ? { ...current, consents: { ...current.consents, ...retained } } : current;
+    });
   }, [userId]);
 
   useEffect(() => {
@@ -189,14 +200,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const data = snapshot.data() as AppUserProfile;
         const mappedProfile = mapAppUserProfile(userId, data, authProfileSeed);
         const pendingConfirmation = confirmedConsentRef.current?.uid === userId
-          ? confirmedConsentRef.current.mirror
+          ? reconcileConsentConfirmation(confirmedConsentRef.current.mirror, mappedProfile.consents)
           : null;
-        const serverHasConfirmation = pendingConfirmation
-          ? Object.entries(pendingConfirmation).every(([key, value]) =>
-            mappedProfile.consents?.[key as keyof ConsentMirror] === value)
-          : false;
-        if (serverHasConfirmation) confirmedConsentRef.current = null;
-        setProfile(pendingConfirmation && !serverHasConfirmation
+        confirmedConsentRef.current = pendingConfirmation ? { uid: userId, mirror: pendingConfirmation } : null;
+        setProfile(pendingConfirmation
           ? { ...mappedProfile, consents: { ...mappedProfile.consents, ...pendingConfirmation } }
           : mappedProfile);
         setProfileLoadError(null);
@@ -260,8 +267,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           } catch { /* brak storage — pomijamy parę */ }
           const mappedProfile = mapAppUserProfile(userId, syncedProfile, authProfileSeed);
           const pendingConfirmation = confirmedConsentRef.current?.uid === userId
-            ? confirmedConsentRef.current.mirror
+            ? reconcileConsentConfirmation(confirmedConsentRef.current.mirror, mappedProfile.consents)
             : null;
+          confirmedConsentRef.current = pendingConfirmation ? { uid: userId, mirror: pendingConfirmation } : null;
           setProfile(pendingConfirmation
             ? { ...mappedProfile, consents: { ...mappedProfile.consents, ...pendingConfirmation } }
             : mappedProfile);
