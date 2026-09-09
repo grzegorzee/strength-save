@@ -1,0 +1,13 @@
+{
+  "operation": "create draft monthly subscription (no activation, no charge)",
+  "http": 400,
+  "response": {
+    "error": {
+      "code": 400,
+      "message": "Cannot create a subscription without first registering a payments profile for the developer account.",
+      "status": "FAILED_PRECONDITION"
+    }
+  },
+  "price_conversion_http": 400,
+  "price_conversion_error": "FAILED_PRECONDITION"
+}

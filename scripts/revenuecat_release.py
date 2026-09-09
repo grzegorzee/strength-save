@@ -155,7 +155,7 @@ def required_status(state):
             })
     return {
         "appleApp": (apps_by_type.get("app_store") or {}).get("id"),
-        "googleApp": (apps_by_type.get("google_play") or {}).get("id"),
+        "googleApp": (apps_by_type.get("play_store") or apps_by_type.get("google_play") or {}).get("id"),
         "entitlement": (state["entitlement"] or {}).get("lookup_key"),
         "offering": (state["offering"] or {}).get("lookup_key"),
         "currentOffering": bool((state["offering"] or {}).get("is_current")),
@@ -178,7 +178,7 @@ def cmd_status():
 
 def ensure_google_products(state):
     google_app = next(
-        (item for item in state["apps"] if item.get("type") == "google_play"),
+        (item for item in state["apps"] if item.get("type") in ("play_store", "google_play")),
         None,
     )
     if not google_app:
@@ -187,6 +187,9 @@ def ensure_google_products(state):
             "Internal + service credentials; skrypt celowo nie tworzy pustej aplikacji.",
             2,
         )
+    details = google_app.get("play_store") or google_app.get("google_play") or {}
+    if not details.get("play_service_account_credentials_configured"):
+        die("KROK USERA: podlacz credentials Play przed tworzeniem produktow RevenueCat", 2)
     products_by_store = {
         item.get("store_identifier"): item for item in state["products"]
     }

@@ -1,0 +1,18 @@
+{
+  "checks": [
+    {
+      "resource": "/entitlements?limit=100",
+      "http": 200
+    },
+    {
+      "resource": "/customers/nonexistent-release-permission-check-20260909/active_entitlements?limit=100",
+      "http": 404
+    },
+    {
+      "resource": "/customers/nonexistent-release-permission-check-20260909/subscriptions?limit=100&environment=sandbox",
+      "http": 404
+    }
+  ],
+  "customer": "nonexistent audit identifier; read-only, no records created",
+  "body_logged": false
+}

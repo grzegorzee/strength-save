@@ -1,0 +1,41 @@
+{
+  "appleApp": "app04502c737f",
+  "googleApp": "appe7c441de60",
+  "entitlement": "pro",
+  "offering": "default",
+  "currentOffering": true,
+  "rows": [
+    {
+      "package": "$rc_monthly",
+      "platform": "apple",
+      "storeIdentifier": "strengthsave_pro_monthly",
+      "productId": "proda62028ebff",
+      "inEntitlement": true,
+      "inPackage": true
+    },
+    {
+      "package": "$rc_monthly",
+      "platform": "google",
+      "storeIdentifier": "strengthsave_pro_monthly:monthly",
+      "productId": "prodd5eb59bb49",
+      "inEntitlement": true,
+      "inPackage": true
+    },
+    {
+      "package": "$rc_annual",
+      "platform": "apple",
+      "storeIdentifier": "strengthsave_pro_yearly",
+      "productId": "prod02e67d51c4",
+      "inEntitlement": true,
+      "inPackage": true
+    },
+    {
+      "package": "$rc_annual",
+      "platform": "google",
+      "storeIdentifier": "strengthsave_pro_yearly:yearly",
+      "productId": "prodaf90222f06",
+      "inEntitlement": true,
+      "inPackage": true
+    }
+  ]
+}

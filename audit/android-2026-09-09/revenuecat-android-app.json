@@ -1,0 +1,14 @@
+{
+  "created_at": 1788980157942,
+  "custom_url_scheme": "rc-e7c441de60",
+  "id": "appe7c441de60",
+  "name": "Strength Save (Google Play)",
+  "object": "app",
+  "play_store": {
+    "custom_url_scheme": "rc-e7c441de60",
+    "package_name": "com.grzegorzjasionowicz.strengthsave",
+    "play_service_account_credentials_configured": true
+  },
+  "project_id": "proj67cb081f",
+  "type": "play_store"
+}

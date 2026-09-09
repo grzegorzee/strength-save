@@ -111,6 +111,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_REVENUECAT_APPLE_API_KEY: ${{ secrets.VITE_REVENUECAT_APPLE_API_KEY }}
+          VITE_REVENUECAT_GOOGLE_API_KEY: ${{ secrets.VITE_REVENUECAT_GOOGLE_API_KEY }}
 
       - run: npm run ios:simulator:smoke
 
