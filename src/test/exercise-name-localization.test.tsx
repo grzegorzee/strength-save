@@ -23,6 +23,9 @@ vi.mock('@/hooks/useActivities', () => ({
 vi.mock('@/lib/workout-read-store', () => ({
   fetchWorkoutRange: vi.fn(async () => []),
 }));
+vi.mock('@/lib/activity-read-store', () => ({
+  fetchAllTimeActivityHistory: vi.fn(async () => ({ workouts: fixtures.workouts, activities: [] })),
+}));
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ plan: [] }),
 }));
@@ -81,13 +84,13 @@ describe('exercise name localization sequence (Z156)', () => {
     expect(en.queryByText(/Przysiad ze sztangą/)).toBeNull();
   });
 
-  it('AllTimeStatsSheet: ulubione ćwiczenie w EN bez polskiej nazwy', () => {
+  it('AllTimeStatsSheet: ulubione ćwiczenie w EN bez polskiej nazwy', async () => {
     localStorage.setItem('app-language', 'en');
     const view = render(withProviders(
-      <AllTimeStatsSheet open onOpenChange={() => {}} workouts={fixtures.workouts as WorkoutSession[]} />,
+      <AllTimeStatsSheet open uid="u1" onOpenChange={() => {}} workouts={fixtures.workouts as WorkoutSession[]} />,
     ));
 
-    expect(view.getAllByText(/Barbell Squat/).length).toBeGreaterThan(0);
+    expect((await view.findAllByText(/Barbell Squat/)).length).toBeGreaterThan(0);
     expect(view.queryByText(/Przysiad ze sztangą/)).toBeNull();
   });
 });

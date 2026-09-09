@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo, useMemo, Fragment } from 'react';
+import { useState, useEffect, useRef, memo, useMemo, useId, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -78,7 +78,7 @@ async function exerciseCompleteHaptic() {
 // Z129.2: jeden rozmiar chipa dla całego paska. flex-1 wyrównuje szerokości,
 // zero ramek 1px — granicę robi tło (No-Line Rule, docs/DESIGN.md).
 // Minimum 44 pt: kontrolki są używane jedną ręką w ruchu na siłowni.
-const chipClass = 'inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors';
+const chipClass = 'inline-flex min-h-11 min-w-0 max-w-full flex-1 flex-wrap items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold [overflow-wrap:anywhere] transition-colors';
 
 const incompleteSetMessageKey = (tracking: TrackingType): TranslationKey => {
   switch (tracking) {
@@ -322,6 +322,8 @@ const ExerciseCardInner = ({
   };
   // Z129.2: pusty stan przypiętej notatki żyje w menu, nie w karcie.
   const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
+  const [targetReasonExpanded, setTargetReasonExpanded] = useState(false);
+  const targetReasonId = useId();
   // Z130 → Z171: REFERENCJA serii czekającej na potwierdzenie usunięcia (null = brak
   // dialogu). Indeks był kruchy: sets potrafią się podmienić (hydracja draftu) między
   // otwarciem dialogu a potwierdzeniem i USUŃ kasował złą serię.
@@ -736,15 +738,17 @@ const ExerciseCardInner = ({
   // czasu; POPRZ. węższe (0.8fr), pole czasu szersze (1.2fr): na 393 px zostaje
   // ~44/67 px, "1:30" bold 16px mieści się bez przewijania. wdd (3 pola liczbowe)
   // nie ma miejsca na kolejną kolumnę: odliczanie idzie w pasku pod aktywną serią.
+  // Keep control columns as wide as their rem-sized buttons when text is enlarged.
+  // The table scrolls locally if the complete row no longer fits the phone.
   const gridCols = tracking === 'duration'
-    ? 'grid-cols-[26px_minmax(0,0.8fr)_minmax(0,1.2fr)_44px_44px_44px]'
+    ? 'grid-cols-[26px_minmax(0,0.8fr)_minmax(0,1.2fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
     : tracking === 'weight_distance_duration'
-      ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_44px_44px]'
+      ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
       : tracking === 'assisted_bodyweight'
-        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_44px_44px]'
+        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
         : isBodyweight
-          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_44px_44px]'
-          : 'grid-cols-[24px_minmax(28px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_44px_44px]';
+          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
+          : 'grid-cols-[24px_minmax(28px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {
@@ -1114,8 +1118,8 @@ const ExerciseCardInner = ({
       allCompleted && !restActive && "opacity-50"
     )}>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-3 p-3 pr-4 exercise-card-header">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-x-2 gap-y-1 px-3 py-2.5 exercise-card-header">
+        <div className="flex items-center gap-2.5 min-w-0">
           {/* Z128.2: miniatura tylko gdy JEST animacja. Pusty kwadrat 92×72 z ikoną
               hantla zabierał szerokość tytułowi, nie niosąc żadnej informacji. */}
           {animationUrl && (
@@ -1176,37 +1180,7 @@ const ExerciseCardInner = ({
           )}
 
           <div className="min-w-0">
-            <h2 className="break-words font-heading text-lg font-bold leading-tight">{localizedName}</h2>
-            {/* Fala 2 (2026-08-20, mockup 2a): jedna mono linia metadanych.
-                B-T2 bez zmian: estymacja zawsze z widocznym źródłem (formatEst1RMBadge). */}
-            <p className="mt-1 font-mono text-[11px] uppercase leading-snug tracking-[0.06em] text-muted-foreground" title={t('card.maxLiftTitle')}>
-              {(() => {
-                const badges = buildRecordBadges(historicalBest);
-                // Naprawa r3 (2026-08-21, sędzia struktury): jednostka wagi RAZ,
-                // przy pierwszej wartości ("3 SERII · 1RM 79 KG · 63×8 · MAX 63") —
-                // powtarzana przy każdej liczbie łamała mono linię na dwie
-                // z zawinięciem w środku członu ("63 / KG×8") na 390 px.
-                // Iteracja 3 pętli wizualnej: zwarty stopień mono 11px mieści
-                // standardowy przypadek w JEDNEJ linii, a NBSP
-                // wewnątrz członów gwarantuje, że dłuższe dane łamią się wyłącznie
-                // na separatorach między członami, nigdy w środku członu.
-                // B-T2 bez zmian: źródło estymacji nadal widoczne (formatEst1RMBadge).
-                let unitShown = false;
-                const fmtWeight = (kg: number) => {
-                  const value = Math.round(toDisplay(kg));
-                  if (unitShown) return String(value);
-                  unitShown = true;
-                  return `${value} ${unit}`;
-                };
-                return [
-                  t('card.setsCount', { n: workingSets.length }),
-                  badges.est1RM ? formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight) : null,
-                  badges.maxLift ? formatMaxLiftBadge(badges.maxLift, t('card.maxLift'), fmtWeight) : null,
-                ].filter((segment): segment is string => Boolean(segment))
-                  .map((segment) => segment.replace(/ /g, '\u00A0'))
-                  .join(' · ');
-              })()}
-            </p>
+            <h2 className="break-words font-heading text-base font-semibold leading-snug">{localizedName}</h2>
             {(livePRWeight != null || (FEATURE_FLAGS.intervalTimers && intervalSpec)) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {livePRWeight != null && (
@@ -1220,7 +1194,7 @@ const ExerciseCardInner = ({
                 {FEATURE_FLAGS.intervalTimers && intervalSpec && (
                   <button
                     onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                    className="inline-flex min-h-11 min-w-11 items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                   >
                     <Timer className="h-3 w-3" />
                     {intervalSpec.label}
@@ -1280,27 +1254,59 @@ const ExerciseCardInner = ({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Pełna szerokość dla metadanych: miniatura i menu nie wymuszają
+            trzech wierszy. Źródło estymacji i rzeczywisty Max pozostają widoczne. */}
+        <p className="col-span-2 font-mono text-[11px] uppercase leading-snug tracking-normal text-muted-foreground" title={t('card.maxLiftTitle')}>
+          {(() => {
+            const badges = buildRecordBadges(historicalBest);
+            let unitShown = false;
+            const fmtWeight = (kg: number) => {
+              const value = Math.round(toDisplay(kg));
+              if (unitShown) return String(value);
+              unitShown = true;
+              return `${value} ${unit}`;
+            };
+            return [
+              t('card.setsCount', { n: workingSets.length }),
+              badges.est1RM ? formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight) : null,
+              badges.maxLift ? formatMaxLiftBadge(badges.maxLift, t('card.maxLift'), fmtWeight) : null,
+            ].filter((segment): segment is string => Boolean(segment))
+              .map((segment) => segment.replace(/ /g, '\u00A0'))
+              .join(' · ');
+          })()}
+        </p>
       </div>
 
-      {/* ── Fala 2 (2026-08-20): TARGET BOX (kaskada celu) + ostatnia notatka
-          z poprzedniej sesji. Uzasadnienie celu tylko przed pierwszą odhaczoną
-          serią (jak dawny blok metadanych w nagłówku). ── */}
+      {/* Cel pozostaje nad seriami; szczegóły na żądanie także w trakcie treningu.
+          Ostrzeżenie o bólu jest zawsze jawne, bez dodatkowego kliknięcia. */}
       {(targetBox || lastNote) && (
-        <div className="space-y-2 px-4 pt-3.5 sm:px-5">
+        <div className="space-y-1.5 px-3 pt-2 sm:px-4">
           {targetBox && (
             <div
               data-testid="exercise-card-target"
-              className={cn('flex items-start gap-2.5 rounded-xl px-3 py-2.5', targetToneClass[targetBox.tone])}
+              className={cn('rounded-lg px-2.5', targetToneClass[targetBox.tone])}
             >
-              <Target className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <div className="min-w-0">
-                <p className="font-heading text-[15px] font-bold leading-tight">
-                  <span>{targetBox.label}</span>: {targetBox.value}
+              <div className="flex min-h-11 items-center gap-2">
+                <Target className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <p className="min-w-0 flex-1 py-1.5 text-sm leading-snug">
+                  <span>{targetBox.label}</span>: <strong className="font-semibold tabular-nums">{targetBox.value}</strong>
                 </p>
-                {targetBox.reason && completedSets === 0 && (
-                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{targetBox.reason}</p>
+                {targetBox.reason && targetBox.tone !== 'destructive' && (
+                  <button
+                    type="button"
+                    className="-mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-lg opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+                    aria-label={t('card.targetReason')}
+                    aria-expanded={targetReasonExpanded}
+                    aria-controls={targetReasonId}
+                    onClick={() => setTargetReasonExpanded(expanded => !expanded)}
+                  >
+                    <Info className="h-4 w-4" aria-hidden />
+                  </button>
                 )}
               </div>
+              {targetBox.reason && (targetBox.tone === 'destructive' || targetReasonExpanded) && (
+                <p id={targetReasonId} className="pb-2.5 text-xs leading-snug text-muted-foreground">{targetBox.reason}</p>
+              )}
             </div>
           )}
           {lastNote && (
@@ -1314,9 +1320,9 @@ const ExerciseCardInner = ({
 
       {/* ── Pinned note (Z103/B-T4): trwała notatka NAD seriami — user ma ją
           przeczytać PRZED pierwszą serią (ustawienia maszyny, wskazówki), nie
-          odkrywać po treningu pod Add set. Edycja nadal wyłącznie z menu ⋯. */}
+          odkrywać po treningu pod Add set. Edycja dostępna w wierszu i menu ⋯. */}
       {(hasPinnedNote || pinnedNoteOpen) && (
-        <div className="px-5 pt-4" data-testid="pinned-note-slot">
+        <div className="px-3 pt-2 sm:px-4" data-testid="pinned-note-slot">
           <PinnedNoteSection
             exerciseName={exercise.name}
             pinnedNote={pinnedNote}
@@ -1328,8 +1334,11 @@ const ExerciseCardInner = ({
 
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
       <div
-        className="px-2 pt-4 pb-2 phone:px-4 sm:px-5"
+        className="overflow-x-auto overscroll-x-contain px-2 pt-2.5 pb-2 phone:px-4 sm:px-5"
         data-testid="set-table"
+        tabIndex={0}
+        role="region"
+        aria-label={`${localizedName}: ${t('card.setsCount', { n: workingSets.length })}`}
       >
         {/* Naprawa r1 (2026-08-21): "pierwszy raz" RAZ nad tabelą zamiast
             klipowanego powtórzenia w każdej komórce POPRZ. (Z130 zachowane:
@@ -1339,6 +1348,7 @@ const ExerciseCardInner = ({
             {t('card.firstTime')}
           </p>
         )}
+        <div className="min-w-[20rem]">
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
           <div
@@ -1403,6 +1413,7 @@ const ExerciseCardInner = ({
           const globalIndex = sets.indexOf(set);
           return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
+        </div>
 
         {completionError && (
           <p
@@ -1452,7 +1463,7 @@ const ExerciseCardInner = ({
           {/* Z129.2: trzy chipy tej samej wielkości, każdy z etykietą. Dotąd rząd
               mieszał nagie ikony (%, dysk) z etykietowanymi, bez flex-wrap — po
               ikonie nie było widać, że dysk to kalkulator talerzy. */}
-          <div className="flex items-stretch gap-1.5" data-testid="exercise-card-chips">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] items-stretch gap-1.5" data-testid="exercise-card-chips">
             {(() => {
               // Z108 / X38 WP-A: chip „Rozgrzewka" pierwszy od lewej, dla weight_reps
               // gdy w karcie NIE MA żadnej serii W. Zawsze dodaje jeden pusty

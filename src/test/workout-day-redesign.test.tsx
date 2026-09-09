@@ -3,7 +3,7 @@
 // mono meta linia bez zmyślonych wartości, licznik done w nagłówku tabeli.
 // Sticky REST i tap w korpus paska: src/test/rest-bar.test.tsx (harness właściciela).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, within } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -106,8 +106,10 @@ describe('target box: kaskada celu w jednym boxie (fala 2)', () => {
     expect(within(card).queryByText(/Cel/)).toBeNull();
   });
 
-  it('uzasadnienie celu znika po pierwszej odhaczonej serii (jak dawny blok metadanych)', () => {
+  it('uzasadnienie celu jest na żądanie przed i po pierwszej odhaczonej serii', () => {
     const fresh = renderCard({ savedSets: [workingSet()], nextAdvice });
+    expect(within(fresh.card).queryByText(/dołóż 2,5 kg/)).toBeNull();
+    fireEvent.click(within(fresh.card).getByRole('button', { name: 'Wyjaśnienie celu' }));
     expect(within(fresh.card).getByText(/dołóż 2,5 kg/)).toBeTruthy();
 
     const inProgress = renderCard({
@@ -115,6 +117,8 @@ describe('target box: kaskada celu w jednym boxie (fala 2)', () => {
       nextAdvice,
     });
     expect(within(inProgress.card).queryByText(/dołóż 2,5 kg/)).toBeNull();
+    fireEvent.click(within(inProgress.card).getByRole('button', { name: 'Wyjaśnienie celu' }));
+    expect(within(inProgress.card).getByText(/dołóż 2,5 kg/)).toBeTruthy();
     // Sam cel (wartość) nadal widoczny.
     expect(within(inProgress.card).getByText(/82\.5/)).toBeTruthy();
   });

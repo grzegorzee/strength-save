@@ -408,7 +408,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).getByTestId('set-grid-header').className).toContain('gap-1');
       expect(within(card).getByTestId('set-grid-header').className).toContain('phone:gap-2');
       const grids = Array.from(card.querySelectorAll('div.grid'));
-      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[24px_minmax(28px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_44px_44px]'));
+      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[24px_minmax(28px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'));
       // Nagłówek + wiersz serii — minimum 2 gridy z nowym szablonem.
       expect(withTemplate.length).toBeGreaterThanOrEqual(2);
     });
@@ -435,7 +435,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(domIndex(card, addSet)).toBeLessThan(domIndex(card, metricsChip));
       // Pełna szerokość, w tym samym kontenerze co tabela serii.
       expect(addSet.className).toContain('w-full');
-      expect(rowOf(lastRepsInput).parentElement).toBe(addSet.parentElement);
+      expect(rowOf(lastRepsInput).closest('[data-testid="set-table"]')).toBe(addSet.parentElement);
     });
 
     it('przy 10 seriach roboczych przycisk jest nieaktywny i podaje powód', () => {
