@@ -41,19 +41,19 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 145,
+    "build": 144,
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/ios/testflight-145.json",
-    "verifiedDelivery": "pending-build-and-store-readback"
+    "deliveryEvidence": "release/ios/testflight-144.json",
+    "verifiedDelivery": "valid-approved-in-beta-testing-both-groups"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 51,
+    "versionCode": 50,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/android/internal-2026-09-09-51/artifact.json",
-    "verifiedDelivery": "pending-build-and-store-readback",
-    "playDeliveryEvidence": "release/android/internal-2026-09-09-51/play-delivery.json",
+    "deliveryEvidence": "release/android/internal-2026-09-09/artifact.json",
+    "verifiedDelivery": "internal-completed-verified-through-api-with-matching-aab-sha256",
+    "playDeliveryEvidence": "release/android/internal-2026-09-09/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
     "apiAccess": {
@@ -62,9 +62,8 @@
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
       "evidence": "release/android/internal-2026-09-09/play-api-check.json",
-      "checkCommand": "uv run scripts/google_play_check.py --expect-version 51"
-    },
-    "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 50"
+    }
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",
@@ -77,6 +76,6 @@
   },
   "smoke": {
     "physicalIos": "pending-owner-testflight-test",
-    "physicalAndroid": "owner-reported-layout-bug-on-Huawei-Android10-build50; fixed-candidate51-needs-device-confirmation"
+    "physicalAndroid": "pending-tester-installation-and-device-qa"
   }
 }

@@ -2,7 +2,12 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Wydanie po feedbacku z iPhone’a 2026-09-09:** TestFlight `1.0.0 (144)`
+> **Kandydat po feedbacku Huawei 2026-09-09:** poprawiony układ 360 px i starszego
+> WebView, ikona Android, podpis Play w Firebase i obsługa płatności. Wersje
+> źródłowe iOS145 / Android51; dystrybucja wymaga jeszcze odczytu sklepów.
+> [Raport, warunki zgodne z iOS i blokada profilu płatności](docs/ANDROID-2026-09-09.md).
+
+> **Poprzednie wydanie po feedbacku z iPhone’a 2026-09-09:** TestFlight `1.0.0 (144)`
 > ma status VALID, APPROVED i IN_BETA_TESTING w obu grupach testerów.
 > Poprawiono synchronizację, zwartość Dzisiaj/karty ćwiczenia, superserie,
 > nawigację timera i uwzględnienie cardio. [Raport i scenariusze testów](docs/FEEDBACK-2026-09-09.md).

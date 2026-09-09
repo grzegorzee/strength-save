@@ -5,11 +5,50 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-09 (poprawki z iPhone’a, wydanie 144/50)
+**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, kandydat 145/51)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-09: Huawei Android 10, aktualna ikona i wspólne PRO
+
+Właściciel zgłosił ogromne, nierówne wiersze serii na Huawei P30 Pro przy
+standardowym tekście oraz starą ikonę. Źródłem układu był próg container query
+303 px przy tabeli 288 px i fallback dzielący metadane na pół szerokości.
+Poprawka daje przy ekranie 360 px wiersz 60 px (wcześniej 132 px), a bez obsługi
+container queries 80,5 px. Niezmiennik: plan zachowuje pełną listę ćwiczeń,
+draft i serie; zmieniono tylko układ. Osobno uporządkowano notatkę dnia.
+Android miał stare zasoby launchera i splash; aktualne pochodzą z tej samej
+ikony co iOS. Dopisano brakujące certyfikaty Play Signing w Firebase,
+zachowując wszystkie dotychczasowe wpisy.
+
+Płatność oczekująca ma własny stan, a zarządzanie subskrypcją prowadzi do sklepu
+zakupu. Webhook odczytuje autorytatywne PRO z RevenueCat dla obu środowisk,
+żeby wygaśnięcie w jednym sklepie nie odebrało dostępu z drugiego; błędy API
+zostawiają stan i umożliwiają retry. Audyt i testy: `audit/android-2026-09-09/`.
+
+Na jawne życzenie właściciela warunki Android odpowiadają iOS: miesięcznie
+14,99 PLN / 3,99 USD i 7 dni próby; rocznie 119,99 PLN / 31,99 USD i 14 dni.
+Odczytano rzeczywisty katalog iOS w 175 regionach. Utworzono aplikację Google
+w RevenueCat, powiązano oba produkty z istniejącymi pro/default, przygotowano
+klucz publiczny Android także w CI. Naprawiono rozpoznawanie oficjalnego typu
+`play_store` w CLI. Dedykowany klucz service account wymagany przez RevenueCat
+jest poza repo w chronionym pliku; publikacja Play nadal korzysta z krótkich
+tokenów ADC. Dodano temu kontu wymagane role Pub/Sub i Monitoring, bez zmiany
+pozostałych bindingów. Google odmawia tworzenia subskrypcji bez profilu
+płatności sprzedawcy. To nadal blokuje sprzedaż, nie instalację testową.
+
+Weryfikacja źródeł: pełny frontend 4175 PASS / 16 wcześniejszych SKIP,
+typecheck PASS, lint 0 błędów / 15 wcześniejszych ostrzeżeń, build + budżet
+bundle + start dist PASS. Backend 563 PASS / 15 testów integracyjnych poza tym
+runnerem. Układ 34 scenariusze Chromium/WebKit, dodatkowo 12 zakup/wznowienie
+oraz 4 plan → wyjście → szybki → powrót → koniec → sync PASS. Nowe bramki
+Android mają oddzielne 19 testów PASS. Telefonu Huawei nie mamy podłączonego;
+kwalifikacja starszego WebView jest testem fallbacku, nie fizycznego urządzenia.
+Kandydaci: iOS145 / Android51, wersja marketingowa pozostaje 1.0.0.
+Wynik publikacji zostanie wpisany osobno po odczycie sklepów.
+Szczegóły i kroki właściciela: `docs/ANDROID-2026-09-09.md`.
 
 ### 2026-09-09: działający Google Play API przez krótkie tokeny konta technicznego
 
