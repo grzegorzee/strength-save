@@ -42,19 +42,19 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 146,
+    "build": 147,
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/ios/testflight-146.json",
-    "verifiedDelivery": "VALID / APPROVED / IN_BETA_TESTING in both TestFlight groups; signed IPA and232runtimefiles verified"
+    "deliveryEvidence": "release/ios/testflight-147.json",
+    "verifiedDelivery": "pending history-value visibility correction build"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 52,
+    "versionCode": 53,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/android/internal-2026-09-09-52/artifact.json",
-    "verifiedDelivery": "internal/completed52; exact AABhash verified by independent fresh APIreadback",
-    "playDeliveryEvidence": "release/android/internal-2026-09-09-52/play-delivery.json",
+    "deliveryEvidence": "release/android/internal-2026-09-09-53/artifact.json",
+    "verifiedDelivery": "pending history-value visibility correction build",
+    "playDeliveryEvidence": "release/android/internal-2026-09-09-53/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
     "apiAccess": {
@@ -63,7 +63,7 @@
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
       "evidence": "release/android/internal-2026-09-09-52/play-api-check.json",
-      "checkCommand": "uv run scripts/google_play_check.py --expect-version 52"
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 53"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
   },
@@ -87,5 +87,5 @@
       "priorBackgroundEvidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
     }
   },
-  "previousDeliverySnapshot": "release/history/release-train-145-51.json"
+  "previousDeliverySnapshot": "release/history/release-train-146-52.json"
 }
