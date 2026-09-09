@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-09-09T19:28:21.263887+00:00",
+  "method": "GET",
+  "path": "/v1/apps/6777446137/subscriptionGracePeriod",
+  "http": 200,
+  "resource": {
+    "id": "6777446137",
+    "type": "subscriptionGracePeriods",
+    "attributes": {
+      "optIn": false,
+      "sandboxOptIn": false,
+      "duration": null,
+      "renewalType": null
+    }
+  }
+}

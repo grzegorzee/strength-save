@@ -35,6 +35,8 @@ def money(currency, amount):
 
 def build_catalog(reference, conversions):
     """Use identical retail prices where both stores support the same currency."""
+    if reference.get('gracePeriod', {}).get('optIn') is not False:
+        raise ValueError('Unknown or changed iOS grace period needs a reviewed policy')
     catalog = []
     today = date.today().isoformat()
     for key, (apple_period, period, apple_trial, trial, days, en, pl) in POLICY.items():
@@ -76,7 +78,7 @@ def build_catalog(reference, conversions):
                 trial_regions.append(code)
         if not regions or not trial_regions:
             raise ValueError('No common priced regions with a verified iOS trial')
-        base = {'basePlanId': key, 'autoRenewingBasePlanType': {'billingPeriodDuration': period}, 'regionalConfigs': regions}
+        base = {'basePlanId': key, 'autoRenewingBasePlanType': {'billingPeriodDuration': period, 'gracePeriodDuration': 'P0D'}, 'regionalConfigs': regions}
         subscription = {'packageName': PACKAGE_NAME, 'productId': product, 'basePlans': [base], 'listings': [
             {'languageCode': 'en-US', 'title': en, 'description': 'Full access to Strength Save PRO.'},
             {'languageCode': 'pl-PL', 'title': pl, 'description': 'Pełny dostęp do Strength Save PRO.'},

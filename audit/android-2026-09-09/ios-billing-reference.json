@@ -8610,5 +8610,15 @@
     "ZWE": {
       "currency": "USD"
     }
+  },
+  "gracePeriod": {
+    "optIn": false,
+    "sandboxOptIn": false,
+    "duration": null,
+    "renewalType": null
+  },
+  "gracePeriodReadback": {
+    "checkedAt": "2026-09-09T19:28:21.263887+00:00",
+    "evidence": "audit/android-2026-09-09/ios-grace-reference.json"
   }
 }

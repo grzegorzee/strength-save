@@ -7,7 +7,7 @@ class BillingParityTests(unittest.TestCase):
         products={}
         for key,period,trial,amount in [('monthly','ONE_MONTH','ONE_WEEK','14.99'),('yearly','ONE_YEAR','TWO_WEEKS','119.99')]:
             products[key]={'attributes':{'productId':'strengthsave_pro_'+key,'subscriptionPeriod':period},'prices':[{'territory':'POL','price':amount,'startDate':None}],'offers':[{'attributes':{'duration':trial,'offerMode':'FREE_TRIAL','numberOfPeriods':1,'endDate':None},'relationships':{'territory':{'data':{'id':'POL'}}}}]}
-        return {'territories':{'POL':{'currency':'PLN'}},'products':products}
+        return {'territories':{'POL':{'currency':'PLN'}},'products':products,'gracePeriod':{'optIn':False,'sandboxOptIn':False}}
     def conversion(self):
         return {k:{'regionVersion':{'version':'current'},'convertedRegionPrices':{'PL':{'price':money('PLN','19.00')},'US':{'price':money('USD','4.00')}}} for k in ['monthly','yearly']}
     def test_actual_ios_prices_override_store_conversion(self):
@@ -62,4 +62,14 @@ class BillingParityTests(unittest.TestCase):
         for actual in [money('CHF', '3.01'), money('CHF', '4'), money('USD', '3'), {'units': '3'}]:
             self.assertFalse(subset_matches(expected, actual))
         self.assertFalse(subset_matches({'recurrenceCount': 1}, {}))
+
+    def test_disabled_ios_grace_disables_optional_google_grace(self):
+        for item in build_catalog(self.reference(), self.conversion()):
+            self.assertEqual(item['subscription']['basePlans'][0]['autoRenewingBasePlanType']['gracePeriodDuration'], 'P0D')
+
+    def test_unknown_or_changed_ios_grace_requires_review(self):
+        for grace in [{}, {'optIn': True}, {'optIn': None}]:
+            ref = self.reference();ref['gracePeriod'] = grace
+            with self.assertRaisesRegex(ValueError, 'grace'):
+                build_catalog(ref, self.conversion())
 if __name__=='__main__':unittest.main()
