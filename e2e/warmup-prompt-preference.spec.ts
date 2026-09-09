@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+  auditScreenshotPath,
   blockFirebase,
   clearWorkoutDraftAfterAppUnload,
   clearWorkoutDraftDb,
@@ -33,12 +34,12 @@ test.describe('Rozgrzewka opcjonalna: preferencja warmupPrompt (X37 WP-B)', () =
     await blockFirebase(page);
   });
 
-  test('Dashboard -> trening z planu: propozycja na świeży start, pominięcie nie wraca przy resume i nie przechodzi na nową sesję', async ({ page }, testInfo) => {
+  test('Dashboard -> trening z planu: propozycja na świeży start, pominięcie nie wraca przy resume i nie przechodzi na nową sesję', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     await page.getByTestId('dashboard-primary-action').click();
     await expect(page.getByTestId('prestart-sheet')).toBeVisible();
-    await page.screenshot({ path: `audit/launch-2026-09-06/warmup-followup-shots/${testInfo.project.name}-planned-prompt.png` });
+    await page.screenshot({ path: auditScreenshotPath('warmup-planned-prompt.png') });
     await page.getByTestId('prestart-skip').click();
     await expectSessionStarted(page);
 
