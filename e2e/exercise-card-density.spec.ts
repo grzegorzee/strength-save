@@ -14,6 +14,8 @@ const assertTouchTarget = async (control: Locator) => {
 };
 
 for (const scenario of [
+  { width: 375, height: 812, rootFontPx: 16, suffix: '375x812' },
+  { width: 390, height: 844, rootFontPx: 16, suffix: '390x844' },
   { width: 393, height: 852, rootFontPx: 16, suffix: '393x852' },
   { width: 320, height: 852, rootFontPx: 20, suffix: '320x852-text125' },
   { width: 320, height: 852, rootFontPx: 32, suffix: '320x852-text200' },
@@ -90,6 +92,9 @@ for (const scenario of [
       const header = element.querySelector('.exercise-card-header')!;
       const headerStyle = getComputedStyle(header);
       const targetStyle = getComputedStyle(target);
+      const row = table.querySelector('.exercise-set-row')!;
+      const rowBounds = row.getBoundingClientRect();
+      const previous = row.querySelector('[data-field-label="Poprz."]')!;
       return {
         viewport: { width: innerWidth, height: innerHeight },
         rootFontPx: getComputedStyle(document.documentElement).fontSize,
@@ -108,6 +113,19 @@ for (const scenario of [
         noteHeight: note.getBoundingClientRect().height,
         tableOffsetFromCardTop: table.getBoundingClientRect().top - top,
         counter: element.querySelector('[data-testid="set-grid-header"]')!.textContent,
+        firstRowHeight: rowBounds.height,
+        previousText: previous.textContent,
+        previousOverflow: previous.scrollWidth - previous.clientWidth,
+        firstRowControls: [...row.querySelectorAll('input, button')].map((control) => {
+          const bounds = control.getBoundingClientRect();
+          return {
+            label: control.getAttribute('aria-label'),
+            width: bounds.width,
+            height: bounds.height,
+            centerY: bounds.top + bounds.height / 2,
+            contained: bounds.left >= rowBounds.left && bounds.right <= rowBounds.right,
+          };
+        }),
         controlsOutsideCard: [...element.querySelectorAll('button')].flatMap((button) => {
           const bounds = button.getBoundingClientRect();
           return bounds.width > 0 && (bounds.left < cardBounds.left - 1 || bounds.right > cardBounds.right + 1)
@@ -119,6 +137,19 @@ for (const scenario of [
     expect(facts.headingFullText).toBe(exerciseName);
     expect(facts.headingOverflow).toBeLessThanOrEqual(1);
     expect(facts.horizontalOverflow).toBeLessThanOrEqual(1);
+    if (scenario.rootFontPx === 16) {
+      const centers = facts.firstRowControls.map((control) => control.centerY);
+      expect(facts.firstRowHeight).toBeLessThanOrEqual(64);
+      expect(facts.previousText).toBe('60×10');
+      expect(facts.previousOverflow).toBeLessThanOrEqual(0);
+      expect(facts.firstRowControls).toHaveLength(4);
+      expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+      for (const control of facts.firstRowControls) {
+        expect(control.contained).toBe(true);
+        expect(control.width).toBeGreaterThanOrEqual(control.label?.endsWith(', kg') ? 56 : 44);
+        expect(control.height).toBeGreaterThanOrEqual(44);
+      }
+    }
     if (scenario.rootFontPx === 32) {
       expect(facts.headingFontPx).toBe('32px');
       expect(facts.headingWidth).toBeGreaterThanOrEqual(facts.headingAvailableWidth - 1);

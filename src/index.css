@@ -379,7 +379,8 @@ All colors MUST be HSL.
     flex-wrap: wrap;
   }
 
-  @container exercise-sets (min-width: 20rem) {
+  /* 303px at normal text: 20+39+56+44+44+44 columns, 40 gaps, 16 padding. */
+  @container exercise-sets (min-width: 18.9375rem) {
     .exercise-set-row.exercise-set-row,
     .exercise-set-header.exercise-set-header {
       display: grid;
