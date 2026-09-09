@@ -11,6 +11,21 @@
 
 ## DECYZJE
 
+### 2026-09-09: samodzielna konfiguracja Firebase dla mock E2E w CI
+
+Run `34394114934` zakończył quality po limicie 45 minut podczas masowych błędów
+mock E2E. Czysty checkout nie ma lokalnego `.env`, a kroki mock/WebKit nie
+otrzymywały konfiguracji Firebase. Świeży serwer z takim środowiskiem odtworzył
+`auth/invalid-api-key` przed wyrenderowaniem aplikacji. Dodano sześć syntetycznych
+wartości tylko do tych dwóch kroków; produkcyjny build i emulator zachowują
+dotychczasową konfigurację. Reporter `line` zapisuje błędy przed końcowym
+podsumowaniem, więc timeout nie pozbawi następnego biegu diagnozy.
+
+Ten sam test profilu przeszedł RED→GREEN, a test treningu kill→resume przeszedł
+z zachowaniem zapisanych serii. Pełny zdalny CI wymaga nowego biegu; stary
+anulowany run pozostaje czerwonym dowodem, nie wynikiem PASS.
+Szczegóły: `audit/android-2026-09-09/ci-e2e-bootstrap.md`.
+
 ### 2026-09-09: poprawna etykieta liczby serii w obu językach
 
 Ostatni przegląd zdjęcia wykazał dodatkową literówkę gramatyczną: karta i jej

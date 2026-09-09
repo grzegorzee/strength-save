@@ -68,15 +68,30 @@ jobs:
       - run: npm run build
         working-directory: functions
 
-      - run: npm run e2e:mock
+      # Firebase initializes before the fake E2E user. A clean checkout has no
+      # local .env; these synthetic values allow startup without production keys.
+      # Line output preserves each failure even if the job stops before summary.
+      - run: npm run e2e:mock -- --reporter=line
         env:
           CI: 'true'
           VITE_E2E_MODE: 'true'
+          VITE_FIREBASE_API_KEY: fake-api-key
+          VITE_FIREBASE_AUTH_DOMAIN: localhost
+          VITE_FIREBASE_PROJECT_ID: demo-strength-e2e
+          VITE_FIREBASE_STORAGE_BUCKET: demo-strength-e2e.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID: '1234567890'
+          VITE_FIREBASE_APP_ID: '1:1234567890:web:e2e'
 
-      - run: npm run e2e:webkit
+      - run: npm run e2e:webkit -- --reporter=line
         env:
           CI: 'true'
           VITE_E2E_MODE: 'true'
+          VITE_FIREBASE_API_KEY: fake-api-key
+          VITE_FIREBASE_AUTH_DOMAIN: localhost
+          VITE_FIREBASE_PROJECT_ID: demo-strength-e2e
+          VITE_FIREBASE_STORAGE_BUCKET: demo-strength-e2e.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID: '1234567890'
+          VITE_FIREBASE_APP_ID: '1:1234567890:web:e2e'
 
       - run: npm run e2e:emulator
         env:
