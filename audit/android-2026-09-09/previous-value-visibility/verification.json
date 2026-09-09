@@ -1,0 +1,919 @@
+{
+  "originalCiSource": "75401daab404edcf71212234ca68f1e7386496db",
+  "status": "TARGETED_PASS_SOURCE_FROZEN",
+  "sourceFileSha256": {
+    "src/components/ExerciseCard.tsx": "aa57f1c449468d8eaade99236006effab192b35bddb2268c109a27e4aef8a33a",
+    "src/index.css": "eba7be214e8bd2ddab82f76231da65ac57f02c38a417d8724c7cfb32294addf2"
+  },
+  "before": {
+    "viewport": 375,
+    "previousText": "100×10",
+    "cellWidth": 39,
+    "textRangeWidth": 46.6875,
+    "textRightOverflow": 7.6875,
+    "observed": "100…",
+    "regressionTestsFailed": 2
+  },
+  "checks": {
+    "densityAndV3": {
+      "passed": 72,
+      "failed": 0,
+      "browsers": [
+        "chromium",
+        "webkit"
+      ]
+    },
+    "androidModernAndNoContainerQueries": {
+      "passed": 12,
+      "failed": 0,
+      "widths": [
+        360,
+        375,
+        393
+      ],
+      "browsers": [
+        "chromium",
+        "webkit"
+      ]
+    },
+    "unit": {
+      "passed": 65,
+      "failed": 0,
+      "files": 4
+    },
+    "typecheck": "PASS",
+    "targetedLint": "PASS",
+    "browserTotal": {
+      "passed": 88,
+      "failed": 0
+    }
+  },
+  "metrics": {
+    "chromium": {
+      "375x812": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 38.90625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "375x812-previous100": {
+        "previousText": "100×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 46.6875,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "375x812-previous315": {
+        "previousText": "315×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 46.6875,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "375x812-previous27_5": {
+        "previousText": "27.5×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 26.578125,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "390x844": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 38.90625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 46,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "393x852": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48.5,
+        "previousTextWidth": 38.90625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 48.5,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "320x852-text125": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 45.578125,
+        "previousTextWidth": 29.1875,
+        "previousOverflow": 0,
+        "firstRowHeight": 161.5,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 75.59375,
+            "height": 60,
+            "centerY": 401.375,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 60.578125,
+            "height": 60,
+            "centerY": 401.375,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 55,
+            "height": 55,
+            "centerY": 468.875,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 55,
+            "height": 55,
+            "centerY": 468.875,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "320x852-text200": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 140,
+        "previousTextWidth": 77.8125,
+        "previousOverflow": 0,
+        "firstRowHeight": 593,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 176,
+            "height": 96,
+            "centerY": 1175.75,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 176,
+            "height": 96,
+            "centerY": 1312.25,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 88,
+            "height": 88,
+            "centerY": 1420.25,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 88,
+            "height": 88,
+            "centerY": 1524.25,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      }
+    },
+    "webkit": {
+      "375x812": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 38.90625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "375x812-previous100": {
+        "previousText": "100×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 46.6875,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "375x812-previous315": {
+        "previousText": "315×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 46.6875,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "375x812-previous27_5": {
+        "previousText": "27.5×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 26.56640625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "390x844": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48,
+        "previousTextWidth": 38.90625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 46,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "393x852": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 48.5,
+        "previousTextWidth": 38.90625,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 48.5,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "320x852-text125": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 45.578125,
+        "previousTextWidth": 29.1796875,
+        "previousOverflow": 0,
+        "firstRowHeight": 161.5,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 75.578125,
+            "height": 60,
+            "centerY": 402.375,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 60.578125,
+            "height": 60,
+            "centerY": 402.375,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 55,
+            "height": 55,
+            "centerY": 469.875,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 55,
+            "height": 55,
+            "centerY": 469.875,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      },
+      "320x852-text200": {
+        "previousText": "60×10",
+        "previousTextContained": true,
+        "previousCellWidth": 140,
+        "previousTextWidth": 77.8125,
+        "previousOverflow": 0,
+        "firstRowHeight": 593,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 176,
+            "height": 96,
+            "centerY": 1215.25,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 176,
+            "height": 96,
+            "centerY": 1351.75,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 88,
+            "height": 88,
+            "centerY": 1459.75,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 88,
+            "height": 88,
+            "centerY": 1563.75,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0,
+        "coldResume": "PASS",
+        "pinnedEditAndSave": "PASS"
+      }
+    }
+  },
+  "limits": [
+    "Desktop browser rendering, not physical iOS/Android workout QA.",
+    "Comma geometry probe is synthetic: the current formatter uses a dot in both locales.",
+    "Preferred wrapping is before ×; unusually long numbers may use break-words."
+  ],
+  "linux": {
+    "image": "mcr.microsoft.com/playwright:v1.59.1-noble",
+    "imageId": "sha256:fc1610b07935476ac20219b7911f6bbe47ac861523635845ba0bc7cc5f0277c4",
+    "repoDigests": [
+      "mcr.microsoft.com/playwright@sha256:b0ab6f3cb99aa7803adbc14d9027ec1785fc6e433b97e134e0f8fe61683b6b53"
+    ],
+    "os": "linux",
+    "architecture": "amd64",
+    "host": "macOS ARM64; Docker runs the Linux amd64 browser",
+    "mountScope": "Only isolated fixture/helper/config files and their synthetic evidence, no secrets or repository root",
+    "beforeMode": "Exact pre-fix grid columns, 8px gap, nowrap/truncate declarations replayed on the first real row; remaining app uses current frozen source",
+    "before": {
+      "previousBounds": {
+        "left": 72,
+        "right": 111,
+        "width": 39,
+        "clientWidth": 39,
+        "scrollWidth": 40
+      },
+      "previousRange": {
+        "left": 72,
+        "right": 112,
+        "width": 40
+      },
+      "previousStyle": {
+        "font": "",
+        "fontFamily": "\"Inter Variable\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "fontsStatus": "loaded"
+      },
+      "previousOverflow": 1,
+      "previousText": "60×10"
+    },
+    "red": {
+      "failed": 1
+    },
+    "green": {
+      "passed": 4,
+      "failed": 0,
+      "durationSeconds": 33.4
+    },
+    "finalMetrics": [
+      {
+        "previousText": "60×10",
+        "previousCellWidth": 48,
+        "previousTextWidth": 40,
+        "previousTextContained": true,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0
+      },
+      {
+        "previousText": "100×10",
+        "previousCellWidth": 48,
+        "previousTextWidth": 48,
+        "previousTextContained": true,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0
+      },
+      {
+        "previousText": "315×10",
+        "previousCellWidth": 48,
+        "previousTextWidth": 48,
+        "previousTextContained": true,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0
+      },
+      {
+        "previousText": "27.5×10",
+        "previousCellWidth": 48,
+        "previousTextWidth": 27,
+        "previousTextContained": true,
+        "previousOverflow": 0,
+        "firstRowHeight": 60,
+        "firstRowControls": [
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+            "width": 56,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+            "width": 44,
+            "height": 48,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Zaznacz serię jako zrobioną (aktywna)",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          },
+          {
+            "label": "Usuń serię",
+            "width": 44,
+            "height": 44,
+            "centerY": 273.625,
+            "contained": true
+          }
+        ],
+        "horizontalOverflow": 0
+      }
+    ]
+  }
+}

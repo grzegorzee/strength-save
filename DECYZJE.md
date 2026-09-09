@@ -5,11 +5,38 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, wydanie 145/51)
+**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, kandydat 147/53)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-09: pełna poprzednia wartość serii na ciasnym ekranie
+
+Pełny CI po bootstrap fixie ujawnił granicę kolumny Poprz. przy 375 px.
+Mac mieścił 60×10 w 39 px z zapasem zaledwie 0,094 px, a zwykły wynik
+100×10 już wychodził o 7,69 px i był pokazywany jako 100…. Niezmiennik:
+cały poprzedni wynik ma być czytelny; źródło, kolejność i wartości serii
+oraz minimalne pola dotyku pozostają bez zmian.
+
+Podniesiono minimum kolumny do 48 px. Tylko dla kontenera 303–312 px
+odstęp zmniejszono z 8 do 6 px, zachowując minimum pól i kontrolek.
+Usunięto ukrywanie cyfr przez truncate; opcjonalny punkt łamania przed
+× zachowuje pełny ciężar ułamkowy bez zmniejszania fontu i bez zmiany
+textContent. Nie zmieniano formattera ani zapisanych danych treningu.
+
+Regresje 100×10 i 315×10 odtworzyły błąd przed poprawką. Sprawdzenie
+DOM Range obejmuje całą liczbę, także 27.5×10 oraz defensywnie glif przecinka;
+celowe obcięcie do 8 px jest nadal wykrywane. Scoped unit 65/65, typecheck,
+Chromium i WebKit przechodzą. Linux potwierdził rzeczywiste 40 px tekstu
+w starej komórce 39 px (RED), następnie 4/4 PASS po zmianie. Łącznie
+88/88 testów przeglądarkowych. Pełny frontend: 4184 PASS, 16 SKIP,
+486 plików; typecheck, lint (0 błędów, 15 wcześniejszych ostrzeżeń),
+build, budżet i dist smoke PASS. Tymczasową reprodukcję Linux usunięto
+z obszaru lint przez przeniesienie poza repo; źródła bez zmian.
+Pakiety Android 53 / iOS 147 w przygotowaniu. Wersja produktu 1.0.0.
+Dowody: `audit/android-2026-09-09/previous-value-visibility/REPORT.md`.
+
 
 ### 2026-09-09: finalne Android 52 i TestFlight 146 po korekcie etykiet
 

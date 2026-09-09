@@ -401,14 +401,14 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(weightInput.className).toContain('min-w-0');
       expect(repsInput.className).toContain('px-1');
 
-      // Na wąskim iPhonie PREV może się skurczyć (nie poniżej 39 px, pełne 60×10 na 375 px), ale KG zachowuje co najmniej 56 px,
+      // Na wąskim iPhonie PREV zachowuje 48 px (dłuższy wynik zawija się przed ×), a KG co najmniej 56 px,
       // więc 31.5/122.5 nie nachodzi na sąsiednie kolumny. Bazowy padding/gap jest
       // ciaśniejszy do 359 px, aby POPRZ. nie zapadało się do zera na ekranie 320 px.
       expect(within(card).getByTestId('set-table').className).toContain('px-2');
       expect(within(card).getByTestId('set-grid-header').className).toContain('gap-1');
       expect(within(card).getByTestId('set-grid-header').className).toContain('phone:gap-2');
       const grids = Array.from(card.querySelectorAll('div.grid'));
-      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[minmax(20px,24px)_minmax(39px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'));
+      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[minmax(20px,24px)_minmax(48px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'));
       // Nagłówek + wiersz serii — minimum 2 gridy z nowym szablonem.
       expect(withTemplate.length).toBeGreaterThanOrEqual(2);
     });

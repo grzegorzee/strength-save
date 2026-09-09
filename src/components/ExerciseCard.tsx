@@ -748,7 +748,7 @@ const ExerciseCardInner = ({
         ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
         : isBodyweight
           ? 'grid-cols-[26px_minmax(0,1fr)_1fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
-          : 'grid-cols-[minmax(20px,24px)_minmax(39px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]';
+          : 'grid-cols-[minmax(20px,24px)_minmax(48px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {
@@ -997,6 +997,7 @@ const ExerciseCardInner = ({
       );
     }
     const prevHint = !isWarmupRow ? getPreviousHint(workingIndex) : null;
+    const previousHintParts = prevHint?.split('×');
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
     // Naprawa r2 (2026-08-21): obrys akcentowy na inputach KG/POWT., nie na wierszu.
     const activeInputClass = isActive ? 'accent-ring' : undefined;
@@ -1034,8 +1035,10 @@ const ExerciseCardInner = ({
         {/* PREVIOUS — naprawa r1 (2026-08-21): brak historii = "—" w komórce
             (ucinane "pierws..." per wiersz wyglądało jak błąd renderowania);
             komunikat "pierwszy raz" z Z130 przenosi się raz, nad tabelę. */}
-        <span data-field-label={t('card.colPrevious')} className="truncate text-center text-xs tabular-nums text-muted-foreground">
-          {isWarmupRow ? '-' : (prevHint || '-')}
+        <span data-field-label={t('card.colPrevious')} className="min-w-0 break-words text-center text-xs leading-4 tabular-nums text-muted-foreground">
+          {isWarmupRow ? '-' : previousHintParts?.length === 2 ? (
+            <>{previousHintParts[0]}<wbr />{`×${previousHintParts[1]}`}</>
+          ) : (prevHint || '-')}
         </span>
 
         {/* KG (non-bodyweight) */}

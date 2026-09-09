@@ -4,7 +4,7 @@ import { blockFirebase, navigateAndWait, setE2EPlanMeta, skipPreStartWarmup } fr
 
 const exerciseName = 'Martwy Ciąg Rumuński (RDL)';
 const noteKey = 'martwy-ciag-rumunski-rdl';
-const outputDir = 'audit/feedback-2026-09-09/exercise-card';
+const outputDir = process.env.E2E_EXERCISE_CARD_OUTPUT_DIR ?? 'audit/feedback-2026-09-09/exercise-card';
 
 const assertTouchTarget = async (control: Locator) => {
   const box = await control.boundingBox();
@@ -15,12 +15,17 @@ const assertTouchTarget = async (control: Locator) => {
 
 for (const scenario of [
   { width: 375, height: 812, rootFontPx: 16, suffix: '375x812' },
+  { width: 375, height: 812, rootFontPx: 16, previousWeight: 100, suffix: '375x812-previous100' },
+  { width: 375, height: 812, rootFontPx: 16, previousWeight: 315, suffix: '375x812-previous315' },
+  { width: 375, height: 812, rootFontPx: 16, previousWeight: 27.5, suffix: '375x812-previous27_5' },
   { width: 390, height: 844, rootFontPx: 16, suffix: '390x844' },
   { width: 393, height: 852, rootFontPx: 16, suffix: '393x852' },
   { width: 320, height: 852, rootFontPx: 20, suffix: '320x852-text125' },
   { width: 320, height: 852, rootFontPx: 32, suffix: '320x852-text200' },
 ]) {
   test(`RDL target, pinned note and working sets remain readable and editable: ${scenario.suffix}`, async ({ page }, testInfo) => {
+    const previousWeight = scenario.previousWeight ?? 60;
+    const targetWeight = previousWeight + 2.5;
     await blockFirebase(page);
     await page.route('**/cloudfunctions.net/**', (route) => route.abort());
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
@@ -36,7 +41,7 @@ for (const scenario of [
       id: 'density-previous', userId: 'e2e-test-user', dayId: 'density-day', date: '2026-09-02',
       completed: true, durationSec: 3600, revision: 1,
       exercises: [{ exerciseId: 'density-rdl', name: exerciseName,
-        sets: Array.from({ length: 3 }, () => ({ reps: 10, weight: 60, completed: true })),
+        sets: Array.from({ length: 3 }, () => ({ reps: 10, weight: previousWeight, completed: true })),
       }],
     }];
     await page.addInitScript(({ exerciseName, noteKey, rootFontPx, initialWorkouts }) => {
@@ -65,12 +70,12 @@ for (const scenario of [
     const firstWeight = card.getByRole('textbox', { name: /Set 1, kg/ });
     const tableHeader = card.getByTestId('set-grid-header');
     await expect(target).toContainText('Cel tygodnia');
-    await expect(target).toContainText('62.5 kg');
+    await expect(target).toContainText(`${targetWeight} kg`);
     await expect(target).toContainText('×8');
     await expect(note).toHaveText('Pin nr6');
     await expect(tableHeader).toContainText('0/3');
     await expect(firstWeight).toBeEnabled();
-    await expect(firstWeight).toHaveValue('62.5');
+    await expect(firstWeight).toHaveValue(String(targetWeight));
 
     // Align the card below the actual app header, as after an ordinary scroll.
     await card.evaluate((element) => {
@@ -95,7 +100,14 @@ for (const scenario of [
       const row = table.querySelector('.exercise-set-row')!;
       const rowBounds = row.getBoundingClientRect();
       const previous = row.querySelector('[data-field-label="Poprz."]')!;
+      const previousBounds = previous.getBoundingClientRect();
+      const previousTextRange = document.createRange();
+      previousTextRange.selectNodeContents(previous);
+      const previousTextBounds = previousTextRange.getBoundingClientRect();
       return {
+        previousTextContained: previousTextBounds.left >= previousBounds.left && previousTextBounds.right <= previousBounds.right && previousTextBounds.top >= previousBounds.top && previousTextBounds.bottom <= previousBounds.bottom,
+        previousTextWidth: previousTextBounds.width,
+        previousCellWidth: previousBounds.width,
         viewport: { width: innerWidth, height: innerHeight },
         rootFontPx: getComputedStyle(document.documentElement).fontSize,
         headingFontPx: getComputedStyle(heading).fontSize,
@@ -140,8 +152,9 @@ for (const scenario of [
     if (scenario.rootFontPx === 16) {
       const centers = facts.firstRowControls.map((control) => control.centerY);
       expect(facts.firstRowHeight).toBeLessThanOrEqual(64);
-      expect(facts.previousText).toBe('60×10');
+      expect(facts.previousText).toBe(`${previousWeight}×10`);
       expect(facts.previousOverflow).toBeLessThanOrEqual(0);
+      expect(facts.previousTextContained).toBe(true);
       expect(facts.firstRowControls).toHaveLength(4);
       expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
       for (const control of facts.firstRowControls) {
@@ -149,6 +162,36 @@ for (const scenario of [
         expect(control.width).toBeGreaterThanOrEqual(control.label?.endsWith(', kg') ? 56 : 44);
         expect(control.height).toBeGreaterThanOrEqual(44);
       }
+    }
+    if (previousWeight === 27.5) {
+      const decimalProbe = await card.locator('.exercise-set-row').first().locator('[data-field-label="Poprz."]').evaluate((element) => {
+        // The current formatter uses a dot in both locales. Exercise the comma's
+        // geometry too, without changing the stored value or production formatter.
+        const weightText = element.firstChild!;
+        const original = weightText.textContent!;
+        const style = (element as HTMLElement).style;
+        const savedStyle = element.getAttribute('style');
+        const inspect = () => {
+          const box = element.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const text = range.getBoundingClientRect();
+          return text.left >= box.left && text.right <= box.right && text.top >= box.top && text.bottom <= box.bottom;
+        };
+        weightText.textContent = original.replace('.', ',');
+        const commaText = element.textContent;
+        const commaVisible = inspect();
+        // A real clipped value must fail the same Range-based visibility test.
+        style.width = '8px';
+        style.whiteSpace = 'nowrap';
+        style.overflow = 'hidden';
+        const clippedVisible = inspect();
+        weightText.textContent = original;
+        if (savedStyle === null) element.removeAttribute('style');
+        else element.setAttribute('style', savedStyle);
+        return { commaText, commaVisible, clippedVisible };
+      });
+      expect(decimalProbe).toEqual({ commaText: '27,5×10', commaVisible: true, clippedVisible: false });
     }
     if (scenario.rootFontPx === 32) {
       expect(facts.headingFontPx).toBe('32px');
@@ -174,7 +217,7 @@ for (const scenario of [
     await edit.click();
     await expect(reason).toBeVisible();
     await expect(card.getByTestId('pinned-note-input')).toHaveValue('Pin nr6');
-    await expect(firstWeight).toHaveValue('62.5');
+    await expect(firstWeight).toHaveValue(String(targetWeight));
     await expect(tableHeader).toContainText('0/3');
     await card.getByTestId('pinned-note-machine-input').fill('Ustawienie maszyny: siedzisko 4, oparcie 2');
     await card.getByTestId('pinned-note-input').fill('Pin nr6 — pas na trzeciej dziurce, spokojne opuszczanie i pełny zakres ruchu.');
@@ -190,9 +233,9 @@ for (const scenario of [
     expect(saved.note).toContain('Pin nr6 — pas na trzeciej dziurce');
     expect(saved.machineSettings).toBe('Ustawienie maszyny: siedzisko 4, oparcie 2');
     await page.reload();
-    await expect(target).toContainText('62.5 kg');
+    await expect(target).toContainText(`${targetWeight} kg`);
     await expect(target).toContainText('×8');
-    await expect(firstWeight).toHaveValue('62.5');
+    await expect(firstWeight).toHaveValue(String(targetWeight));
     await expect(note).toHaveText(saved.note);
     await expect(tableHeader).toContainText('0/3');
     await expect(page.getByTestId('prestart-skip')).toHaveCount(0);
@@ -224,8 +267,8 @@ for (const scenario of [
       // An unfinished set is removed immediately; confirmation protects completed sets.
       await remove.click();
       await expect(tableHeader).toContainText('0/2');
-      await expect(target).toContainText('62.5 kg');
-      await expect(firstWeight).toHaveValue('62.5');
+      await expect(target).toContainText(`${targetWeight} kg`);
+      await expect(firstWeight).toHaveValue(String(targetWeight));
       const calculator = card.getByTestId('plate-calculator-open');
       await calculator.scrollIntoViewIfNeeded();
       const contained = await calculator.evaluate((button) => {

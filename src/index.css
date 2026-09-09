@@ -397,7 +397,7 @@ All colors MUST be HSL.
     flex-wrap: wrap;
   }
 
-  /* 303px at normal text: 20+39+56+44+44+44 columns, 40 gaps, 16 padding. */
+  /* Keep the compact row at 303px; its narrowest layout uses smaller gaps below. */
   @container exercise-sets (min-width: 18.9375rem) {
     .exercise-set-row.exercise-set-row,
     .exercise-set-header.exercise-set-header {
@@ -429,6 +429,15 @@ All colors MUST be HSL.
 
     .exercise-set-header > span:nth-last-child(2) {
       display: flex;
+    }
+  }
+
+  /* 20+48+56+44+44+44 columns + 30 gaps + 16 padding = 302px.
+     Previous values stay readable without taking space from controls. */
+  @container exercise-sets (min-width: 18.9375rem) and (max-width: 19.5rem) {
+    .exercise-set-row.exercise-set-row,
+    .exercise-set-header.exercise-set-header {
+      column-gap: 0.375rem;
     }
   }
 
