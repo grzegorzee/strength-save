@@ -87,12 +87,19 @@ for (const scenario of [
       const target = element.querySelector('[data-testid="exercise-card-target"]')!;
       const note = element.querySelector('[data-testid="pinned-note-section"]')!;
       const cardBounds = element.getBoundingClientRect();
+      const header = element.querySelector('.exercise-card-header')!;
+      const headerStyle = getComputedStyle(header);
+      const targetStyle = getComputedStyle(target);
       return {
         viewport: { width: innerWidth, height: innerHeight },
         rootFontPx: getComputedStyle(document.documentElement).fontSize,
         headingFontPx: getComputedStyle(heading).fontSize,
         headingFullText: heading.textContent,
         headingOverflow: heading.scrollWidth - heading.clientWidth,
+        headingWidth: heading.getBoundingClientRect().width,
+        headingAvailableWidth: header.getBoundingClientRect().width - parseFloat(headerStyle.paddingLeft) - parseFloat(headerStyle.paddingRight),
+        targetTextWidth: target.querySelector('p')!.getBoundingClientRect().width,
+        targetAvailableWidth: target.getBoundingClientRect().width - parseFloat(targetStyle.paddingLeft) - parseFloat(targetStyle.paddingRight),
         horizontalOverflow: document.documentElement.scrollWidth - innerWidth,
         cardTop: top,
         cardHeaderHeight: element.querySelector('.exercise-card-header')!.getBoundingClientRect().height,
@@ -112,6 +119,11 @@ for (const scenario of [
     expect(facts.headingFullText).toBe(exerciseName);
     expect(facts.headingOverflow).toBeLessThanOrEqual(1);
     expect(facts.horizontalOverflow).toBeLessThanOrEqual(1);
+    if (scenario.rootFontPx === 32) {
+      expect(facts.headingFontPx).toBe('32px');
+      expect(facts.headingWidth).toBeGreaterThanOrEqual(facts.headingAvailableWidth - 1);
+      expect(facts.targetTextWidth).toBeGreaterThanOrEqual(facts.targetAvailableWidth - 1);
+    }
     if (scenario.rootFontPx <= 20) expect(facts.tableOffsetFromCardTop).toBeLessThan(scenario.rootFontPx === 16 ? 240 : 340);
 
     const directory = `${outputDir}/${testInfo.project.name}`;
@@ -156,13 +168,12 @@ for (const scenario of [
     let removalHitbox = null;
     if (scenario.rootFontPx > 16) {
       const table = card.getByTestId('set-table');
-      await table.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
-      expect(await table.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      expect(await table.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
       const remove = card.getByRole('button', { name: 'Usuń serię', exact: true }).first();
       // Cold resume restores the window scroll after rendering the draft. Re-align
       // until restoration settles before measuring the real, unobscured hitbox.
       await expect.poll(async () => {
-        await remove.scrollIntoViewIfNeeded();
+        await remove.evaluate((button) => button.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
         removalHitbox = await remove.evaluate((button) => {
           const box = button.getBoundingClientRect();
           const clip = button.closest('[data-testid="set-table"]')!.getBoundingClientRect();
@@ -196,5 +207,67 @@ for (const scenario of [
       await expect(page.getByRole('dialog')).toBeVisible();
     }
     await writeFile(`${directory}/rdl-${scenario.suffix}.json`, JSON.stringify({ ...facts, targetExplanation: 'PASS', pinnedEditAndSave: 'PASS', coldResume: 'PASS', initialWorkingSets: '0/3', removalHitbox }, null, 2));
+  });
+}
+
+for (const rootFontPx of [20, 32]) {
+  test(`all tracking fields and actions fit without horizontal scrolling at ${rootFontPx}px text`, async ({ page }, testInfo) => {
+    await blockFirebase(page);
+    await page.route('**/cloudfunctions.net/**', (route) => route.abort());
+    await page.setViewportSize({ width: 320, height: 852 });
+    const exercises = [
+      { name: exerciseName, sets: '1 x 8-10' },
+      { name: 'Podciąganie na drążku podchwytem', sets: '1 x 8-10' },
+      { name: 'Podciąganie wspomagane na maszynie', sets: '1 x 8-10' },
+      { name: 'Plank', sets: '1 x 45s' },
+      { name: "Spacer farmera (Farmer's Walk)", sets: '1 x 45s' },
+    ];
+    await setE2EPlanMeta(page, {
+      startDate: '2026-08-31', durationWeeks: 10,
+      days: [{ id: 'reflow-day', dayName: 'Środa', weekday: 'wednesday', focus: 'Full Body',
+        exercises: exercises.map((exercise, index) => ({ ...exercise, id: `reflow-${index}`, instructions: [] })),
+      }],
+    });
+    await page.addInitScript((fontSize) => {
+      localStorage.setItem('app-language', 'pl');
+      document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = `${fontSize}px`; });
+    }, rootFontPx);
+    await navigateAndWait(page, '/workout/reflow-day');
+    await page.getByRole('button', { name: 'Rozpocznij trening', exact: true }).click();
+    await skipPreStartWarmup(page);
+    for (const toastClose of await page.locator('[toast-close]').all()) await toastClose.click();
+    const measurements = [];
+    for (const exercise of exercises) {
+      const card = page.locator('.exercise-card').filter({ has: page.getByRole('heading', { name: exercise.name, exact: true }) });
+      const table = card.getByTestId('set-table');
+      await expect(card).toBeVisible();
+      expect(await table.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+      const row = card.locator('.exercise-set-row').first();
+      const controls = row.locator('input, button');
+      for (const control of await controls.all()) {
+        await control.scrollIntoViewIfNeeded();
+        const bounds = await control.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const row = element.closest('.exercise-set-row')!.getBoundingClientRect();
+          return { width: box.width, height: box.height, contained: box.left >= row.left && box.right <= row.right };
+        });
+        expect(bounds.contained).toBe(true);
+        expect(bounds.width).toBeGreaterThanOrEqual(44);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+        measurements.push({ exercise: exercise.name, label: await control.getAttribute('aria-label'), ...bounds });
+      }
+      const firstInput = row.locator('input').first();
+      await firstInput.fill('12');
+      await firstInput.blur();
+      await expect(firstInput).toHaveValue('12');
+      await row.getByRole('button', { name: 'Usuń serię', exact: true }).click();
+      await expect(page.getByTestId('remove-set-confirm')).toBeVisible();
+      await page.getByTestId('remove-set-cancel').click();
+      await expect(card.getByTestId('set-grid-header')).toContainText('0/1');
+      await expect(firstInput).toHaveValue('12');
+    }
+    const directory = `${outputDir}/${testInfo.project.name}`;
+    await mkdir(directory, { recursive: true });
+    await writeFile(`${directory}/reflow-tracking-${rootFontPx}.json`, JSON.stringify(measurements, null, 2));
   });
 }

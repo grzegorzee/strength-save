@@ -739,7 +739,7 @@ const ExerciseCardInner = ({
   // ~44/67 px, "1:30" bold 16px mieści się bez przewijania. wdd (3 pola liczbowe)
   // nie ma miejsca na kolejną kolumnę: odliczanie idzie w pasku pod aktywną serią.
   // Keep control columns as wide as their rem-sized buttons when text is enlarged.
-  // The table scrolls locally if the complete row no longer fits the phone.
+  // Narrow tables reflow into labelled fields and actions without horizontal scrolling.
   const gridCols = tracking === 'duration'
     ? 'grid-cols-[26px_minmax(0,0.8fr)_minmax(0,1.2fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
     : tracking === 'weight_distance_duration'
@@ -775,6 +775,15 @@ const ExerciseCardInner = ({
 
   // Wiersz serii dla nowych typów śledzenia (Z105) — osobna gałąź, ścieżka
   // weight_reps/bodyweight_reps renderuje się dokładnie jak dotąd.
+  // On narrow cards each field retains its label when rows wrap. display:contents
+  // keeps the existing single-row grid at ordinary phone widths.
+  const renderSetField = (fieldLabel: string, field: React.ReactNode, isDurationField = false) => (
+    <div className={cn('exercise-set-field', isDurationField && 'exercise-set-duration')}>
+      <span className="exercise-set-field-label">{fieldLabel}</span>
+      {field}
+    </div>
+  );
+
   const renderTrackedSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
     // Z128.1: złoto rozgrzewki było tylko na starej ścieżce — teraz na obu.
@@ -799,7 +808,7 @@ const ExerciseCardInner = ({
         // WP-E (X37): cel spotlightu toura pierwszego treningu (tylko aktywna seria).
         data-tour={isActive ? 'set-inputs' : undefined}
         className={cn(
-          'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
+          'exercise-set-row grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
           // Z128.1: ukończona seria = wypełnione tło (widoczne z odległości ręki),
           // aktywna = tint tła + obrys na inputach. Wykluczają się: aktywna to
@@ -810,7 +819,7 @@ const ExerciseCardInner = ({
           isActive && 'ring-1 ring-primary/70',
         )}
       >
-        <span className={cn(
+        <span data-field-label={t('card.colSet')} className={cn(
           'select-none text-center text-sm font-extrabold',
           isWarmupRow
             ? 'text-[11px] tracking-wide text-[hsl(var(--ec-warmup-gold))]'
@@ -824,13 +833,13 @@ const ExerciseCardInner = ({
             "pierws..." w każdym wierszu wyglądało jak błąd renderowania);
             informacja "pierwszy raz" idzie raz, nad tabelą. */}
         {tracking !== 'weight_distance_duration' && (
-          <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
+          <span data-field-label={t('card.colPrevious')} className="truncate text-center text-xs tabular-nums text-muted-foreground">
             {isWarmupRow ? '-' : (prevHint || '-')}
           </span>
         )}
 
         {tracking === 'weight_distance_duration' && (
-          <DecimalInput
+          renderSetField(unit, <DecimalInput
             value={displayWeight}
             onCommit={(n) => handleSetChange(globalIndex, 'weight', fromInput(n))}
             onClear={() => handleSetChange(globalIndex, 'weight', 0)}
@@ -838,14 +847,14 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
-          />
+          />)
         )}
 
         {/* Bug 6 (X30): dystans przez DecimalInput jak waga wyżej — type="number"
             + parseFloat||0 robiło z "20,5" cichy zapis 0 m (ta sama klasa co Z178).
             Dystans kanonicznie w metrach — commit bez fromInput. */}
         {tracking === 'weight_distance_duration' && (
-          <DecimalInput
+          renderSetField(t('card.colDistance'), <DecimalInput
             value={set.distanceM || ''}
             onCommit={(n) => handleSetChange(globalIndex, 'distanceM', n)}
             onClear={() => handleSetChange(globalIndex, 'distanceM', 0)}
@@ -853,11 +862,11 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
-          />
+          />)
         )}
 
         {tracking === 'assisted_bodyweight' && (
-          <DecimalInput
+          renderSetField(t('card.colAssist'), <DecimalInput
             value={displayAssist}
             onCommit={(n) => handleSetChange(globalIndex, 'assistWeight', fromInput(n))}
             onClear={() => handleSetChange(globalIndex, 'assistWeight', 0)}
@@ -865,11 +874,11 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
-          />
+          />)
         )}
 
         {tracking === 'assisted_bodyweight' && (
-          <Input
+          renderSetField(t('card.colReps'), <Input
             type="number"
             inputMode="numeric"
             min={0}
@@ -879,7 +888,7 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
-          />
+          />)
         )}
 
         {(tracking === 'duration' || tracking === 'weight_distance_duration') && (() => {
@@ -888,7 +897,7 @@ const ExerciseCardInner = ({
           // licznik zamiast pola. wdd: samo pole (odliczanie w pasku pod wierszem).
           const targetSec = countdownTargetFor(set, workingIndex);
           const durationInput = (
-            <DurationInput
+            renderSetField(t('card.colDuration'), <DurationInput
               valueSec={set.durationSec}
               onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
               disabled={!isEditable}
@@ -897,7 +906,7 @@ const ExerciseCardInner = ({
               secondLabel={t('card.seconds')}
               placeholder={formatDurationSec(targetSec)}
               className={cn(warmupInputClass, activeInputClass)}
-            />
+            />, true)
           );
           if (tracking !== 'duration') return durationInput;
           return (
@@ -1004,7 +1013,7 @@ const ExerciseCardInner = ({
         // WP-E (X37): cel spotlightu toura pierwszego treningu (tylko aktywna seria).
         data-tour={isActive ? 'set-inputs' : undefined}
         className={cn(
-          'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
+          'exercise-set-row grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
           // Z128.1: patrz renderTrackedSetRow — ta sama reguła tła na obu ścieżkach.
           set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
@@ -1013,7 +1022,7 @@ const ExerciseCardInner = ({
         )}
       >
         {/* SET */}
-        <span className={cn(
+        <span data-field-label={t('card.colSet')} className={cn(
           'select-none text-center text-sm font-extrabold',
           isWarmupRow
             ? 'text-[11px] tracking-wide text-[hsl(var(--ec-warmup-gold))]'
@@ -1025,13 +1034,13 @@ const ExerciseCardInner = ({
         {/* PREVIOUS — naprawa r1 (2026-08-21): brak historii = "—" w komórce
             (ucinane "pierws..." per wiersz wyglądało jak błąd renderowania);
             komunikat "pierwszy raz" z Z130 przenosi się raz, nad tabelę. */}
-        <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
+        <span data-field-label={t('card.colPrevious')} className="truncate text-center text-xs tabular-nums text-muted-foreground">
           {isWarmupRow ? '-' : (prevHint || '-')}
         </span>
 
         {/* KG (non-bodyweight) */}
         {!isBodyweight && (
-          <DecimalInput
+          renderSetField(unit, <DecimalInput
             value={displayWeight}
             onCommit={(n) => handleSetChange(globalIndex, 'weight', fromInput(n))}
             onClear={() => handleSetChange(globalIndex, 'weight', 0)}
@@ -1043,11 +1052,11 @@ const ExerciseCardInner = ({
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
               activeInputClass,
             )}
-          />
+          />)
         )}
 
         {/* REPS */}
-        <Input
+        {renderSetField(t('card.colReps'), <Input
           type="number"
           inputMode="numeric"
           min={0}
@@ -1063,7 +1072,7 @@ const ExerciseCardInner = ({
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
             activeInputClass,
           )}
-        />
+        />)}
 
         {/* Done checkmark */}
         <div className="flex justify-center">
@@ -1119,7 +1128,7 @@ const ExerciseCardInner = ({
     )}>
       {/* ── Header ── */}
       <div className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-x-2 gap-y-1 px-3 py-2.5 exercise-card-header">
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="exercise-card-heading-group flex items-center gap-2.5 min-w-0">
           {/* Z128.2: miniatura tylko gdy JEST animacja. Pusty kwadrat 92×72 z ikoną
               hantla zabierał szerokość tytułowi, nie niosąc żadnej informacji. */}
           {animationUrl && (
@@ -1179,7 +1188,7 @@ const ExerciseCardInner = ({
             </button>
           )}
 
-          <div className="min-w-0">
+          <div className="exercise-card-name min-w-0">
             <h2 className="break-words font-heading text-base font-semibold leading-snug">{localizedName}</h2>
             {(livePRWeight != null || (FEATURE_FLAGS.intervalTimers && intervalSpec)) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -1218,7 +1227,7 @@ const ExerciseCardInner = ({
             <button
               type="button"
               aria-label={t('card.moreActions')}
-              className="-mr-2 grid h-11 w-11 shrink-0 place-items-center self-start rounded-lg text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="exercise-card-menu -mr-2 grid h-11 w-11 shrink-0 place-items-center self-start rounded-lg text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
@@ -1286,7 +1295,7 @@ const ExerciseCardInner = ({
               data-testid="exercise-card-target"
               className={cn('rounded-lg px-2.5', targetToneClass[targetBox.tone])}
             >
-              <div className="flex min-h-11 items-center gap-2">
+              <div className="exercise-card-target-row flex min-h-11 items-center gap-2">
                 <Target className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <p className="min-w-0 flex-1 py-1.5 text-sm leading-snug">
                   <span>{targetBox.label}</span>: <strong className="font-semibold tabular-nums">{targetBox.value}</strong>
@@ -1334,9 +1343,8 @@ const ExerciseCardInner = ({
 
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
       <div
-        className="overflow-x-auto overscroll-x-contain px-2 pt-2.5 pb-2 phone:px-4 sm:px-5"
+        className="exercise-set-table px-2 pt-2.5 pb-2 phone:px-4 sm:px-5"
         data-testid="set-table"
-        tabIndex={0}
         role="region"
         aria-label={`${localizedName}: ${t('card.setsCount', { n: workingSets.length })}`}
       >
@@ -1348,11 +1356,11 @@ const ExerciseCardInner = ({
             {t('card.firstTime')}
           </p>
         )}
-        <div className="min-w-[20rem]">
+        <div>
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
           <div
-            className={cn("grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
+            className={cn("exercise-set-header grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
             data-testid="set-grid-header"
           >
             <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
@@ -1384,7 +1392,7 @@ const ExerciseCardInner = ({
           </div>
         ) : (
         <div
-          className={cn("grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
+          className={cn("exercise-set-header grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
           data-testid="set-grid-header"
         >
           <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>

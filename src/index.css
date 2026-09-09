@@ -248,6 +248,7 @@ All colors MUST be HSL.
   }
 
   .exercise-card {
+    container: exercise-card / inline-size;
     border-radius: 24px;
     position: relative;
     overflow: hidden;
@@ -268,6 +269,147 @@ All colors MUST be HSL.
      to samo 0 0% 15%, więc wygląd ciemnego motywu bez zmian. */
   .exercise-card-header {
     background: hsl(var(--surface-highest));
+  }
+
+  /* Large text in a genuinely narrow card gets the full line for its name and
+     target. Thumbnail/menu and target details remain available on their own row. */
+  @container exercise-card (max-width: 12rem) {
+    .exercise-card-header.exercise-card-header {
+      grid-template-columns: minmax(0, 1fr) max(44px, 2.75rem);
+    }
+
+    .exercise-card-heading-group.exercise-card-heading-group {
+      display: contents;
+    }
+
+    .exercise-card-name {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
+    .exercise-card-heading-group > button {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .exercise-card-menu.exercise-card-menu {
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: end;
+      margin-right: 0;
+    }
+
+    .exercise-card-target-row.exercise-card-target-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) max(44px, 2.75rem);
+      row-gap: 0;
+    }
+
+    .exercise-card-target-row > p {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
+    .exercise-card-target-row > button {
+      justify-self: end;
+      margin-right: 0;
+    }
+  }
+
+  .exercise-set-table {
+    container: exercise-sets / inline-size;
+  }
+
+  /* Safe fallback for older WebViews: labelled fields and actions wrap. Modern
+     containers restore the unchanged grid only when its complete row fits. */
+  .exercise-set-row.exercise-set-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+
+  .exercise-set-row > * {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 5rem;
+  }
+
+  .exercise-set-row > span[data-field-label] {
+    flex-basis: calc(50% - 0.5rem);
+  }
+
+  .exercise-set-row > .flex {
+    flex: 1 0 max(44px, 2.75rem);
+  }
+
+  .exercise-set-row > .exercise-set-duration {
+    flex-basis: 7rem;
+  }
+
+  .exercise-set-duration input {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .exercise-set-field-label,
+  .exercise-set-row > span[data-field-label]::before {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .exercise-set-row > span[data-field-label]::before {
+    content: attr(data-field-label);
+  }
+
+  .exercise-set-header.exercise-set-header {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .exercise-set-header > span:not(:last-child) {
+    display: none;
+  }
+
+  .exercise-set-table [data-testid="set-countdown-strip"] {
+    flex-wrap: wrap;
+  }
+
+  @container exercise-sets (min-width: 20rem) {
+    .exercise-set-row.exercise-set-row,
+    .exercise-set-header.exercise-set-header {
+      display: grid;
+    }
+
+    .exercise-set-row.exercise-set-row {
+      margin-bottom: 0;
+    }
+
+    .exercise-set-duration input {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .exercise-set-field {
+      display: contents;
+    }
+
+    .exercise-set-field-label,
+    .exercise-set-row > span[data-field-label]::before {
+      display: none;
+    }
+
+    .exercise-set-header > span:not(:last-child) {
+      display: block;
+    }
+
+    .exercise-set-header > span:nth-last-child(2) {
+      display: flex;
+    }
   }
 
   .exercise-card-input {
