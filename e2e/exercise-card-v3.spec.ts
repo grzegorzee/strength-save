@@ -1,5 +1,15 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { blockFirebase, navigateAndWait, expectPageRendered, setE2EAuthScenario, skipPreStartWarmupIfShown } from './helpers';
+
+// Wide cards label columns once; narrow cards label each field in its own row.
+// Select exactly one visible label for the first row, never a hidden global label.
+const expectVisibleFieldLabel = async (card: Locator, label: string) => {
+  const globalLabel = card.getByTestId('set-grid-header').getByText(label, { exact: true });
+  const rowLabel = card.locator('.exercise-set-row').first().getByText(label, { exact: true });
+  const visibleLabel = globalLabel.or(rowLabel).and(card.locator(':visible'));
+  await expect(visibleLabel).toHaveCount(1);
+  await expect(visibleLabel).toBeVisible();
+};
 
 test.describe('ExerciseCard — Kinetic Precision', () => {
   test.beforeEach(async ({ page }) => {
@@ -56,9 +66,8 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
 
     const firstCard = page.locator('.exercise-card').first();
 
-    // Grid headers
-    await expect(firstCard.getByText('Powt.')).toBeVisible();
-    await expect(firstCard.getByText('kg')).toBeVisible();
+    await expectVisibleFieldLabel(firstCard, 'Powt.');
+    await expectVisibleFieldLabel(firstCard, 'kg');
   });
 
   test('320px: POPRZ. pozostaje czytelne, a 122.5 kg nie powoduje wewnętrznego overflow', async ({ page }) => {
@@ -67,21 +76,31 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
-    const header = firstCard.getByTestId('set-grid-header');
-    const weightInput = firstCard.locator('input[aria-label*="kg"]').first();
-    await expect(header).toBeVisible();
-    const measurements = await header.evaluate((element) => {
-      const previous = Array.from(element.children).find(child => child.textContent?.trim() === 'Poprz.');
-      const input = element.parentElement?.querySelector('input[aria-label*="kg"]') as HTMLInputElement | null;
+    const table = firstCard.getByTestId('set-table');
+    const row = table.locator('.exercise-set-row').first();
+    const weightInput = row.locator('input[aria-label*="kg"]');
+    await expect(row.locator('[data-field-label="Poprz."]')).toBeVisible();
+    const measurements = await row.evaluate((element) => {
+      const previous = element.querySelector('[data-field-label="Poprz."]')!;
+      const previousLabel = getComputedStyle(previous, '::before');
+      const input = element.querySelector('input[aria-label*="kg"]')!;
+      const table = element.closest('[data-testid="set-table"]')!;
       return {
-        previousWidth: previous?.getBoundingClientRect().width ?? 0,
-        clientWidth: element.clientWidth,
-        scrollWidth: element.scrollWidth,
-        inputWidth: input?.getBoundingClientRect().width ?? 0,
+        previousLabel: previousLabel.content.replace(/^["']|["']$/g, ''),
+        previousLabelDisplay: previousLabel.display,
+        previousWidth: previous.getBoundingClientRect().width,
+        previousClientWidth: previous.clientWidth,
+        previousScrollWidth: previous.scrollWidth,
+        clientWidth: table.clientWidth,
+        scrollWidth: table.scrollWidth,
+        inputWidth: input.getBoundingClientRect().width,
       };
     });
 
+    expect(measurements.previousLabel).toBe('Poprz.');
+    expect(measurements.previousLabelDisplay).toBe('block');
     expect(measurements.previousWidth).toBeGreaterThanOrEqual(28);
+    expect(measurements.previousScrollWidth).toBeLessThanOrEqual(measurements.previousClientWidth);
     expect(measurements.scrollWidth).toBeLessThanOrEqual(measurements.clientWidth);
     expect(measurements.inputWidth).toBeGreaterThanOrEqual(56);
     await expect(weightInput).toBeVisible();
@@ -148,11 +167,31 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(warmupInput).toHaveValue('');
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
 
-    // Nagłówek kolumny SET nad wierszem W, wiersz W nad serią roboczą 1.
-    const setHeaderBox = await firstCard.getByText('Ser.', { exact: true }).first().boundingBox();
-    const warmupBox = await firstCard.getByText('W', { exact: true }).boundingBox();
-    const set1Box = await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().boundingBox();
-    expect(setHeaderBox!.y).toBeLessThan(warmupBox!.y);
+    // Etykieta serii nad W (globalna w siatce, lokalna w reflow), W przed serią 1.
+    const setHeader = firstCard.getByTestId('set-grid-header').getByText('Ser.', { exact: true });
+    const warmupLabel = firstCard.getByText('W', { exact: true });
+    await expect(warmupLabel).toBeVisible();
+    const warmupBox = await warmupLabel.boundingBox();
+    const set1Box = await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).boundingBox();
+    if (await setHeader.isVisible()) {
+      const setHeaderBox = await setHeader.boundingBox();
+      expect(setHeaderBox!.y).toBeLessThan(warmupBox!.y);
+    } else {
+      const localLabel = await warmupLabel.evaluate((element) => {
+        const labelStyle = getComputedStyle(element, '::before');
+        const value = document.createRange();
+        value.selectNodeContents(element);
+        return {
+          text: labelStyle.content.replace(/^["']|["']$/g, ''),
+          display: labelStyle.display,
+          labelTop: element.getBoundingClientRect().top,
+          valueTop: value.getBoundingClientRect().top,
+        };
+      });
+      expect(localLabel.text).toBe('Ser.');
+      expect(localLabel.display).toBe('block');
+      expect(localLabel.labelTop).toBeLessThan(localLabel.valueTop);
+    }
     expect(warmupBox!.y).toBeLessThan(set1Box!.y);
   });
 

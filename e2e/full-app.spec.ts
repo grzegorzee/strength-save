@@ -1143,6 +1143,13 @@ test.describe('Typy serii (Z105)', () => {
   });
 
   test('plank (czas), farmer walk (kg+dystans+czas) i asysta renderują właściwe pola; zapis do draftu', async ({ page }) => {
+    const expectVisibleFieldLabel = async (card: ReturnType<typeof page.locator>, label: string) => {
+      const globalLabel = card.getByTestId('set-grid-header').getByText(label, { exact: true });
+      const firstRowLabel = card.locator('.exercise-set-row').first().getByText(label, { exact: true });
+      const visibleLabel = globalLabel.or(firstRowLabel).and(card.locator(':visible'));
+      await expect(visibleLabel).toHaveCount(1);
+      await expect(visibleLabel).toBeVisible();
+    };
     await navigateAndWait(page, '/');
     await clearWorkoutDraftDb(page, 'e2e-test-user');
     await page.getByTestId('quick-workout-start').click();
@@ -1158,7 +1165,7 @@ test.describe('Typy serii (Z105)', () => {
     await dialog.getByPlaceholder(/Szukaj|Find/).fill('plank');
     await dialog.getByText('Plank', { exact: true }).click();
     const plankCard = page.locator('.exercise-card').first();
-    await expect(plankCard.getByText('Czas', { exact: true })).toBeVisible();
+    await expectVisibleFieldLabel(plankCard, 'Czas');
     const plankTime = plankCard.getByRole('group', { name: /Plank, Set 1, Czas/ });
     await plankTime.getByRole('textbox', { name: /Minuty/ }).fill('1');
     await plankTime.getByRole('textbox', { name: /Sekundy/ }).fill('30');
@@ -1170,7 +1177,7 @@ test.describe('Typy serii (Z105)', () => {
     await dialog.getByPlaceholder(/Szukaj|Find/).fill('spacer farmera');
     await dialog.getByText("Spacer farmera (Farmer's Walk)").click();
     const farmerCard = page.locator('.exercise-card').nth(1);
-    await expect(farmerCard.getByText('Dystans', { exact: true })).toBeVisible();
+    await expectVisibleFieldLabel(farmerCard, 'Dystans');
     await farmerCard.getByRole('textbox', { name: /Set 1, kg/ }).fill('24');
     // Bug 6 (X30): dystans to DecimalInput (type="text") — textbox, nie spinbutton.
     await farmerCard.getByRole('textbox', { name: /Set 1, Dystans/ }).fill('40');
@@ -1181,7 +1188,7 @@ test.describe('Typy serii (Z105)', () => {
     await dialog.getByPlaceholder(/Szukaj|Find/).fill('wspomagane');
     await dialog.getByText('Podciąganie wspomagane na maszynie').click();
     const assistCard = page.locator('.exercise-card').nth(2);
-    await expect(assistCard.getByText('Asysta', { exact: true })).toBeVisible();
+    await expectVisibleFieldLabel(assistCard, 'Asysta');
     await assistCard.getByRole('textbox', { name: /Set 1, Asysta/ }).fill('25');
     await assistCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).fill('8');
 
@@ -1788,7 +1795,19 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     await expect(backCard.getByLabel(/Set 1, Powt\./).first()).toHaveValue('7');
 
     await expect(backCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
-    const setHeader = await backCard.getByText('Ser.', { exact: true }).first().boundingBox();
+    const globalSetLabel = backCard.getByTestId('set-grid-header').getByText('Ser.', { exact: true });
+    const localSetLabel = backCard.locator('.exercise-set-row').first().locator('[data-field-label="Ser."]');
+    const globalSetLabelVisible = await globalSetLabel.isVisible();
+    const visibleSetLabel = globalSetLabelVisible ? globalSetLabel : localSetLabel;
+    await expect(visibleSetLabel).toBeVisible();
+    if (!globalSetLabelVisible) {
+      const label = await localSetLabel.evaluate((element) => {
+        const style = getComputedStyle(element, '::before');
+        return { text: style.content.replace(/^["']|["']$/g, ''), display: style.display };
+      });
+      expect(label).toEqual({ text: 'Ser.', display: 'block' });
+    }
+    const setHeader = await visibleSetLabel.boundingBox();
     const firstSet = await backCard.getByLabel(/Set 1, Powt\./).first().boundingBox();
     const addSet = await backCard.getByRole('button', { name: /Dodaj serię/i }).boundingBox();
     expect(setHeader!.y).toBeLessThan(firstSet!.y);
