@@ -92,6 +92,17 @@ describe('Powered by Strava przy danych dostawcy', () => {
   });
 });
 
+describe('manualna karta cardio: nazwa i edycja dostępna z klawiatury', () => {
+  it('Enter otwiera edycję bez szukania małej ikony', () => {
+    const edit = vi.fn();
+    const manual: UnifiedActivity = { ...activity, id: 'manual-keyboard', source: 'manual', name: 'Pływanie spokojne na długim basenie' };
+    renderWithProviders(<StravaActivityCard activity={manual} onEdit={edit} />);
+    const card = screen.getByRole('button', { name: /Pływanie spokojne/ });
+    fireEvent.keyDown(card, { key: 'Enter' });
+    expect(edit).toHaveBeenCalledOnce();
+  });
+});
+
 describe('kanoniczny link View on Strava', () => {
   it('buduje URL ze stravaId i otwiera go poza WebView z ochroną opener', () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);

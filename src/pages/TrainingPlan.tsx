@@ -4,6 +4,8 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
+import { WeekReportCard } from '@/components/WeekReportCard';
+import { useWeekActivitySummary } from '@/hooks/useWeekActivitySummary';
 import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -178,7 +180,7 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
 const TrainingPlan = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
-  const { uid, canUseStrava } = useCurrentUser();
+  const { uid, canUseStrava, profile } = useCurrentUser();
   const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { plan: trainingPlan, isLoaded: planIsLoaded, isCustom, planError, hasServerSnapshot: planFromServer, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
   const { toast } = useToast();
@@ -443,6 +445,16 @@ const TrainingPlan = () => {
   // treningi) + wyznaczenie dnia NASTĘPNY (najwyżej jeden w widocznym tygodniu).
   const selectedWeekStartISO = formatLocalDate(selectedWeekStart);
   const selectedWeekEndISO = formatLocalDate(selectedWeekEnd);
+  const weekActivityRefresh = useMemo(() => JSON.stringify([
+    workouts.filter(w => w.date >= selectedWeekStartISO && w.date <= selectedWeekEndISO)
+      .map(w => [w.id, w.revision, w.updatedAt, w.completed, w.durationSec]),
+    unifiedActivities.filter(a => a.date >= selectedWeekStartISO && a.date <= selectedWeekEndISO)
+      .map(a => [a.id, a.source, a.type, a.date, a.movingTime, a.elapsedTime]),
+  ]), [workouts, unifiedActivities, selectedWeekStartISO, selectedWeekEndISO]);
+  const { summary: weekActivity, status: weekActivityStatus, retry: retryWeekActivity } = useWeekActivitySummary(
+    planIsLoaded && cyclesLoaded ? uid : '', selectedWeekStartISO, selectedWeekEndISO,
+    Boolean(canUseStrava && profile?.uid === uid && profile.stravaConnected), weekActivityRefresh,
+  );
   const dayLoadMap = useMemo(
     () => buildDayLoadMap(workouts, selectedWeekStartISO, selectedWeekEndISO),
     [workouts, selectedWeekStartISO, selectedWeekEndISO],
@@ -617,6 +629,17 @@ const TrainingPlan = () => {
         />
       )}
 
+      <div data-testid="plan-activity-summary" className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-surface-low px-4 py-3 text-sm">
+        {weekActivity ? <>
+        <span className="font-semibold">{t('trainingplan.activity.total', { n: weekActivity.totalSessions })}</span>
+        <span className="text-muted-foreground">{t('trainingplan.activity.strength', { n: weekActivity.strengthSessions })}</span>
+        <span className="text-muted-foreground">{t('trainingplan.activity.cardio', { n: weekActivity.cardioSessions })}{weekActivity.cardioMinutes > 0 && ` · ${weekActivity.cardioMinutes} min`}</span>
+        </> : weekActivityStatus === 'error' ? <>
+          <span role="alert" className="text-muted-foreground">{t('trainingplan.activity.error')}</span>
+          <Button variant="ghost" size="sm" className="min-h-11" onClick={retryWeekActivity}>{t('history.retryLoad')}</Button>
+        </> : <span role="status" className="text-muted-foreground">{t('trainingplan.activity.loading')}</span>}
+      </div>
+
       {/* ── S4: nawigacja tygodnia (mono zakres + okrągłe strzałki, mockup) ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 min-w-0">
@@ -765,6 +788,7 @@ const TrainingPlan = () => {
                       <div key={`activity-${activity.id}`} className="mb-2">
                         <StravaActivityCard
                           activity={activity}
+                          showDate={false}
                           onEdit={activity.source === 'manual'
                             ? () => setCardioDialog({ open: true, edit: unifiedToManual(activity) })
                             : undefined}
@@ -929,6 +953,16 @@ const TrainingPlan = () => {
           weekStart={getStartOfPlanWeek(new Date())}
           maxHR={stravaConnection.estimatedMaxHR}
           plannedWeekdays={selectedWeekTrainingDates.map((s) => weekdayOfDate(s.date))}
+        />
+      )}
+
+      {!isHistoricalWeek && (
+        <WeekReportCard
+          planDays={trainingPlan}
+          workouts={workouts}
+          currentWeek={hookCurrentWeek}
+          planStartDate={planStartDate}
+          progression={progression}
         />
       )}
 

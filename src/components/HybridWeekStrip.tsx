@@ -80,7 +80,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
           {/* Z148: pasek dostaje WŁASNY mikronagłówek — "Plan tygodnia" nad sekcją
               zostaje nagłówkiem listy kart dni (to ona jest planem), a ten pasek
               mówi wprost, że pokazuje WYKONANE obciążenie. */}
-          <div className="mb-2 flex items-baseline justify-between gap-2">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               {t('hybrid.stripTitle')}
             </span>
@@ -108,15 +108,9 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
                     className="flex h-11 w-full max-w-[26px] flex-col justify-end overflow-hidden rounded-sm"
                     data-testid={`strip-bar-${d.date}`}
                   >
-                    {/* Naprawa r2 (2026-08-21): cardio przez token --fitness-cyan
-                        (jeden odcień semantyczny cardio w całej apce, nie legacy hex).
-                        Naprawa r3 (sędzia akcentu): cardio rozróżnione DRUGIM kanałem
-                        (obrys + rozjaśnione wypełnienie), nie samym odcieniem — przy
-                        akcencie sky primary i cyan różnią się o ~15 stopni hue i pełne
-                        wypełnienia były nierozróżnialne. Obrys przez inset shadow
-                        (nie border), żeby nie zjadał wysokości 1-3 px słupków. */}
+                    {/* Wypełnienie z delikatną fakturą odróżnia cardio także przy niebieskim akcencie. */}
                     <div
-                      className="w-full bg-fitness-cyan/25 shadow-[inset_0_0_0_1.5px_hsl(var(--fitness-cyan))]"
+                      className="w-full cardio-load-fill"
                       style={{ height: cardioH }}
                     />
                     <div className="w-full bg-primary" style={{ height: strengthH }} />
@@ -137,8 +131,8 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
               {t('hybrid.strength')}
             </span>
             <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-muted-foreground">
-              {/* Naprawa r3: kropka legendy jak słupek — obrys, nie pełne wypełnienie. */}
-              <span className="h-1.5 w-1.5 rounded-full bg-fitness-cyan/25 shadow-[inset_0_0_0_1px_hsl(var(--fitness-cyan))]" />
+              {/* Ta sama faktura co słupek cardio, bez ciężkiego obrysu. */}
+              <span className="h-1.5 w-1.5 rounded-[1px] cardio-load-fill" />
               {t('hybrid.cardio')}
             </span>
           </div>

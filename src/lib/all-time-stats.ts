@@ -101,3 +101,37 @@ export const buildAllTimeStats = (workouts: WorkoutSession[]): AllTimeStats => {
     ),
   };
 };
+
+/** Saved manual entries and imported Strava activities represent completed activity. */
+export interface StatsActivity {
+  id: string;
+  userId: string;
+  source: 'manual' | 'strava';
+  type: string;
+  stravaId?: number;
+  movingTime?: number;
+  elapsedTime?: number;
+}
+
+/** Cardio never changes strength volume, PRs, sets or training streaks. */
+export const buildAllTimeActivityStats = (workouts: WorkoutSession[], activities: StatsActivity[]) => {
+  const strength = buildAllTimeStats(workouts);
+  const seen = new Set<string>();
+  let cardioCount = 0;
+  let cardioDurationSec = 0;
+  for (const activity of activities) {
+    const type = activity.type.toLowerCase();
+    // Strava may mirror the strength session already saved by Strength Save.
+    if (type === 'weighttraining' || type === 'crossfit') continue;
+    const key = `${activity.source}:${activity.source === 'strava' && activity.stravaId
+      ? activity.stravaId : activity.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cardioCount += 1;
+    const duration = activity.movingTime ?? activity.elapsedTime;
+    if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
+      cardioDurationSec += duration;
+    }
+  }
+  return { strength, activityCount: strength.workoutCount + cardioCount, cardioCount, cardioDurationSec };
+};

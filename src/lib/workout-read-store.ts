@@ -3,6 +3,7 @@ import {
   documentId,
   getDocs,
   getDocsFromCache,
+  getDocsFromServer,
   limit,
   onSnapshot,
   orderBy,
@@ -552,7 +553,7 @@ export const fetchWorkoutHistoryPage = async (
     pageSize?: number;
     /** E-T5: 'cache' czyta wyłącznie z lokalnego cache Firestore (pierwsze malowanie
      * bez czekania na serwer przy słabym zasięgu); default = jak dotąd (server-first). */
-    source?: 'cache' | 'default';
+    source?: 'cache' | 'default' | 'server';
   } = {},
 ): Promise<WorkoutHistoryPage> => {
   if (!userId) return { workouts: [], nextCursor: null };
@@ -579,6 +580,8 @@ export const fetchWorkoutHistoryPage = async (
       // Brak danych w cache (pierwsze uruchomienie) — hook czeka na serwer.
       return { workouts: [], nextCursor: null, cacheMiss: true };
     }
+  } else if (options.source === 'server') {
+    snapshot = await getDocsFromServer(historyQuery);
   } else {
     snapshot = await getDocs(historyQuery);
   }

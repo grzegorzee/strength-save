@@ -457,3 +457,9 @@ All colors MUST be HSL.
     touch-action: manipulation;
   }
 }
+
+/* Cardio: wypełnienie zamiast pustej obwódki; faktura zachowuje drugi kanał rozróżnienia. */
+.cardio-load-fill {
+  background-color: hsl(var(--fitness-cyan) / 0.75);
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, hsl(var(--background) / 0.25) 3px 4px);
+}

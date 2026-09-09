@@ -22,6 +22,7 @@ const brokenDocWithDate = (id: string, date: string): FakeDoc => ({
 
 const pages: FakeDoc[][] = [];
 const getDocsMock = vi.hoisted(() => vi.fn());
+const getDocsFromServerMock = vi.hoisted(() => vi.fn());
 const startAfterCalls: unknown[][] = [];
 
 vi.mock('@/lib/firebase', () => ({ db: {} }));
@@ -30,6 +31,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => 'collection'),
   documentId: vi.fn(() => '__name__'),
   getDocs: getDocsMock,
+  getDocsFromServer: getDocsFromServerMock,
   limit: vi.fn((n: number) => ({ type: 'limit', n })),
   onSnapshot: vi.fn(() => () => undefined),
   orderBy: vi.fn(() => 'orderBy'),
@@ -46,7 +48,17 @@ describe('Z218 — fetchWorkoutHistoryPage: kursor bez duplikatów i luk', () =>
     pages.length = 0;
     startAfterCalls.length = 0;
     getDocsMock.mockReset();
+    getDocsFromServerMock.mockReset();
     getDocsMock.mockImplementation(async () => ({ docs: pages.shift() ?? [] }));
+  });
+
+  it('all-time server source never returns a short cached page as complete history', async () => {
+    getDocsMock.mockResolvedValue({ docs: [validDoc('cached', '2026-08-01')] });
+    getDocsFromServerMock.mockRejectedValueOnce(new Error('offline'));
+    await expect(fetchWorkoutHistoryPage('u1', { source: 'server' })).rejects.toThrow('offline');
+    expect(getDocsMock).not.toHaveBeenCalled();
+    getDocsFromServerMock.mockResolvedValueOnce({ docs: [validDoc('server', '2026-07-01')] });
+    expect((await fetchWorkoutHistoryPage('u1', { source: 'server' })).workouts.map((w) => w.id)).toEqual(['server']);
   });
 
   it('uszkodzony dokument w środku strony odpada z wyników, ale nie przerywa paginacji', async () => {

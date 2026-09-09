@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 
-// Z216: sheet importuje fetchWorkoutRange — mock odcina inicjalizację firebase w jsdom.
-vi.mock('@/lib/workout-read-store', () => ({
-  fetchWorkoutRange: vi.fn(async () => []),
+vi.mock('@/contexts/UserContext', () => ({
+  useCurrentUser: () => ({ uid: 'u1', canUseStrava: false, profile: { uid: 'u1', stravaConnected: false } }),
 }));
-import { fetchWorkoutRange } from '@/lib/workout-read-store';
+vi.mock('@/lib/activity-read-store', () => ({ fetchAllTimeActivityHistory: vi.fn() }));
+import { fetchAllTimeActivityHistory } from '@/lib/activity-read-store';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
@@ -27,36 +27,42 @@ const workout = (id: string, date: string): WorkoutSession => ({
   }],
 } as unknown as WorkoutSession);
 
-const renderSheet = (uid?: string) => render(
+const renderSheet = (uid: string | null = 'u1') => render(
   <LanguageProvider>
     <UnitProvider>
       <AllTimeStatsSheet
         open
         onOpenChange={() => {}}
         workouts={[workout('w1', '2026-06-01'), workout('w2', '2026-06-08')]}
-        uid={uid}
+        uid={uid ?? undefined}
       />
     </UnitProvider>
   </LanguageProvider>,
 );
 
-// T23-1: bez uid sheet nie dociąga pełnej historii i liczy tylko okno 'recent'
-// listenera (zaniżone "Twoje liczby") — Dashboard musi przekazywać uid jak AppHeader.
+beforeEach(() => {
+  vi.mocked(fetchAllTimeActivityHistory).mockReset().mockResolvedValue({
+    workouts: [workout('w1', '2026-06-01'), workout('w2', '2026-06-08')], activities: [],
+  });
+});
+
+// All-time figures require an authenticated owner and a complete read.
 describe('AllTimeStatsSheet pełna historia (Z216/T23-1)', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('app-language', 'pl');
-    vi.mocked(fetchWorkoutRange).mockClear();
   });
 
-  it('z uid dociąga pełną historię przez fetchWorkoutRange', () => {
-    renderSheet('u1');
-    expect(fetchWorkoutRange).toHaveBeenCalledWith('u1', expect.anything());
+  it('z uid dociąga pełną historię na żądanie', async () => {
+    const view = renderSheet('u1');
+    expect(fetchAllTimeActivityHistory).toHaveBeenCalledWith('u1', expect.anything());
+    await view.findByTestId('stat-activities');
   });
 
-  it('bez uid nie woła fetchWorkoutRange (fallback na okno listenera)', () => {
-    renderSheet();
-    expect(fetchWorkoutRange).not.toHaveBeenCalled();
+  it('bez uid nie czyta ani nie pokazuje danych poprzedniego listenera', () => {
+    const view = renderSheet(null);
+    expect(fetchAllTimeActivityHistory).not.toHaveBeenCalled();
+    expect(view.queryByTestId('stat-workouts')).not.toBeInTheDocument();
   });
 });
 
@@ -66,27 +72,27 @@ describe('AllTimeStatsSheet tiles (Z158)', () => {
     localStorage.setItem('app-language', 'pl');
   });
 
-  it('kafel ulubionego ćwiczenia: pełny tekst, bez truncate, pełna szerokość', () => {
+  it('kafel ulubionego ćwiczenia: pełny tekst, bez truncate, pełna szerokość', async () => {
     const view = renderSheet();
 
-    const value = view.getByText('Wyciskanie hantla po skosie w górę');
+    const value = await view.findByText('Wyciskanie hantla po skosie w górę');
     expect(value.classList.contains('truncate')).toBe(false);
     expect(value.classList.contains('break-words')).toBe(true);
     expect(value.closest('.col-span-2')).not.toBeNull();
   });
 
-  it('kafel "Trenujesz od" ma pełną szerokość i zawijanie', () => {
+  it('kafel "Trenujesz od" ma pełną szerokość i zawijanie', async () => {
     const view = renderSheet();
 
-    const value = view.getByText(/1 czerwca 2026/);
+    const value = await view.findByText(/1 czerwca 2026/);
     expect(value.classList.contains('truncate')).toBe(false);
     expect(value.closest('.col-span-2')).not.toBeNull();
   });
 
-  it('kafle liczbowe zostają bez zmian (truncate + tabular-nums)', () => {
+  it('kafle liczbowe zostają bez zmian (truncate + tabular-nums)', async () => {
     const view = renderSheet();
 
-    const setsLabel = view.getByText('Serie');
+    const setsLabel = await view.findByText('Serie');
     const tile = setsLabel.parentElement as HTMLElement;
     const value = tile.querySelector('p:nth-child(2)') as HTMLElement;
     expect(value.classList.contains('truncate')).toBe(true);
