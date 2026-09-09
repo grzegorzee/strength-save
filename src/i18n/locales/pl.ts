@@ -1672,6 +1672,7 @@ export const pl = {
   'paywall.privacy': 'Prywatność',
   'paywall.purchaseError': 'Nie udało się przetworzyć zakupu. Spróbuj ponownie.',
   'paywall.purchasePending': 'Zakup przyjęty. PRO aktywuje się za chwilę.',
+  'paywall.paymentPending': 'Płatność oczekuje na potwierdzenie. Dokończ ją zgodnie z instrukcjami sklepu.',
   'paywall.loadError': 'Nie udało się pobrać planów. Sprawdź połączenie.',
   'paywall.retry': 'Spróbuj ponownie',
   'paywall.webNote': 'Subskrypcję PRO kupisz w aplikacji mobilnej Strength Save na iOS lub Androidzie.',

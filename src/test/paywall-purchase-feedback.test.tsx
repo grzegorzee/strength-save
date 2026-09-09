@@ -26,6 +26,7 @@ const purchaseFixture = vi.hoisted(() => ({
 const purchaseSpy = vi.hoisted(() =>
   vi.fn(async () => ({ customerInfo: { entitlements: { active: purchaseFixture.active } } })),
 );
+const telemetrySpy = vi.hoisted(() => vi.fn());
 
 const yearlyPkg = vi.hoisted(() => ({
   identifier: '$rc_annual',
@@ -34,9 +35,10 @@ const yearlyPkg = vi.hoisted(() => ({
 }));
 
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => true, getPlatform: () => 'ios' },
+  Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' },
 }));
 vi.mock('@revenuecat/purchases-capacitor', () => ({
+  PURCHASES_ERROR_CODE: { PAYMENT_PENDING_ERROR: '20' },
   Purchases: {
     getOfferings: vi.fn(async () => ({ current: { availablePackages: [yearlyPkg] } })),
     purchasePackage: purchaseSpy,
@@ -64,7 +66,7 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ plan: [], planDurationWeeks: 12 }),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: toastSpy }) }));
-vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
+vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: telemetrySpy }));
 vi.mock('@/lib/exercise-media', () => ({ getPaywallHeroUrl: () => 'https://cdn.example/hero.webp' }));
 
 import Paywall from '@/pages/Paywall';
@@ -91,10 +93,38 @@ beforeEach(() => {
   toastSpy.mockClear();
   refreshSpy.mockClear();
   purchaseSpy.mockClear();
+  telemetrySpy.mockClear();
   purchaseFixture.active = {};
 });
 
 describe('feedback po zakupie na paywallu (bug 47 / X30)', () => {
+  it.each(['20', 20])('pending payment (%s) keeps access closed and explains store confirmation without a failed purchase', async (code) => {
+    purchaseSpy.mockRejectedValueOnce({ code, userCancelled: false });
+    renderPaywall();
+    await clickBuy();
+
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith({
+      title: 'Płatność oczekuje na potwierdzenie. Dokończ ją zgodnie z instrukcjami sklepu.',
+    }));
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(telemetrySpy).not.toHaveBeenCalledWith('u1', 'purchase_failed');
+    expect(refreshSpy).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Przywróć zakupy' })).toBeEnabled();
+  });
+
+  it('a real store failure still shows an error and cancellation stays silent', async () => {
+    purchaseSpy.mockRejectedValueOnce({ code: '10', userCancelled: false });
+    renderPaywall();
+    await clickBuy();
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
+    expect(telemetrySpy).toHaveBeenCalledWith('u1', 'purchase_failed');
+    toastSpy.mockClear();
+    purchaseSpy.mockRejectedValueOnce({ code: '1', userCancelled: true });
+    await clickBuy();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Przejdź na PRO' })).toBeEnabled());
+    expect(toastSpy).not.toHaveBeenCalled();
+  });
+
   it('sukces zakupu BEZ aktywnego entitlementu => toast "zakup przyjęty", bez fałszywej nawigacji', async () => {
     renderPaywall();
     await clickBuy();

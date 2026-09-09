@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Purchases, type PurchasesPackage } from '@revenuecat/purchases-capacitor';
+import { Purchases, PURCHASES_ERROR_CODE, type PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import { ArrowLeft, Check, Crown, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toggleButtonClasses } from '@/components/ui/chip-button';
@@ -125,7 +125,14 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
     } catch (error) {
       const cancelled = typeof error === 'object' && error !== null
         && 'userCancelled' in error && (error as { userCancelled?: boolean }).userCancelled;
-      if (!cancelled) {
+      const pending = typeof error === 'object' && error !== null && 'code' in error
+        && String(error.code) === PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR;
+      if (pending) {
+        // Play may finish payment outside the app. Only CustomerInfo/webhook can
+        // grant PRO; pending is an instruction to complete payment, not a failure.
+        await refresh();
+        toast({ title: t('paywall.paymentPending') });
+      } else if (!cancelled) {
         if (uid) trackTelemetryEvent(uid, 'purchase_failed'); // Z222: funnel
         toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
       }
