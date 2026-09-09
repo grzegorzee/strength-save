@@ -1,0 +1,80 @@
+{
+  "checked_at": "2026-09-09T19:19:35.690799+00:00",
+  "source_commit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "unit": {
+    "files_passed": 485,
+    "passed": 4175,
+    "skipped": 16,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 15
+  },
+  "production_build": "PASS",
+  "bundle_budget": "PASS",
+  "dist_smoke": "PASS",
+  "browser": {
+    "layout_chromium_webkit_passed": 34,
+    "paywall_and_resume_passed": 12,
+    "plan_quick_plan_finish_sync_passed": 4,
+    "failed": 0,
+    "scope": "Targeted Chromium/WebKit; actual native Huawei not available"
+  },
+  "additional_android_resource_and_preflight_tests": {
+    "passed": 19,
+    "failed": 0
+  },
+  "python": {
+    "play_publish": 19,
+    "revenuecat_setup": 3,
+    "billing_parity": 11
+  },
+  "notes": [
+    "Full frontend run preceded final new Android preflight file; its 19 targeted tests and complete typecheck passed separately.",
+    "First build rejected missing declaration for new preflight module; declaration supplied and final build, bundle budget and dist smoke passed.",
+    "Merchant profile prevents real Google trial purchase; no charges or customer test writes.",
+    "Catalog-only follow-up copies the live iOS disabled grace setting as Google P0D; two RED\u2192GREEN tests. No app artifact changes or live product activation."
+  ],
+  "logs": {
+    "unit": {
+      "local_path": "/tmp/strength-android-51-vitest.log",
+      "sha256": "bd8bcab3bbe74dbbf9645892141925d852e9dbaebdfcabd333acda41a62c4883"
+    },
+    "typecheck": {
+      "local_path": "/tmp/strength-android-51-typecheck.log",
+      "sha256": "f581e2ea11f93d357b746d228a3476b72ea9b1abbbf75411d0855970397e23f5"
+    },
+    "lint": {
+      "local_path": "/tmp/strength-android-51-lint.log",
+      "sha256": "3b924e8cc634040e8d6332e483fb439cedeb8b80504fb84e4fcc33889957f160"
+    },
+    "build": {
+      "local_path": "/tmp/strength-android-51-build.log",
+      "sha256": "2692010adbe177a5453360db2becaab2f9f3df7b33903c125c0498965d62d600"
+    },
+    "flows": {
+      "local_path": "/tmp/strength-android-51-flows.log",
+      "sha256": "0838b482fddbb59e2cb0f0f3aeb0cbae028028af2209bf8d0512ea6cb1b375e9"
+    },
+    "plan_sequence": {
+      "local_path": "/tmp/strength-android-51-plan-sequence.log",
+      "sha256": "ce0127b128a9661fe724c86f640fe697ec890dcde81fba911ae4680250c2847f"
+    },
+    "parity_red": {
+      "local_path": "/tmp/strength-parity-money-red.log",
+      "sha256": "690767ff7273e91741f9627e97525ca02296ff67daedead54784108b7180dc3b"
+    },
+    "parity_green": {
+      "local_path": "/tmp/strength-parity-money-green.log",
+      "sha256": "203e8d11dc9529763cb172c4d4acdffe3b67db7d123ed6f2223ef9c377a8923b"
+    }
+  },
+  "final_document_and_release_contracts": {
+    "passed": 20,
+    "files": 4,
+    "failed": 0,
+    "log_sha256": "b54f2273d8cc0967713e2f5004d0daccd454daa49ff2d8dc73bdda2a423e28a4"
+  }
+}

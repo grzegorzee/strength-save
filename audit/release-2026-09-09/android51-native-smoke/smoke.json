@@ -1,0 +1,53 @@
+{
+  "completedAtUtc": "2026-09-09T19:27:25.810369+00:00",
+  "artifact": "upload-key signed Android APK51; not Play App Signing",
+  "sourceCommit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "reviewMethod": "adb native commands, system dumps and manual review of actual emulator screenshots; no browser mocks",
+  "checks": [
+    {
+      "id": "fresh_signed_install",
+      "status": "PASS",
+      "evidence": "APK SHA256, v2 signature and upload certificate verified; install Success; installed versionCode51/versionName1.0.0."
+    },
+    {
+      "id": "cold_start_icon_splash_login",
+      "status": "PASS",
+      "evidence": "am start reported COLD, Status ok, TotalTime1288ms. Launcher, native splash and logged-out first screen reviewed in screenshots."
+    },
+    {
+      "id": "native_keyboard_and_back",
+      "status": "PASS",
+      "evidence": "AOSP LatinIME opened for email and password; synthetic values entered without submit. Android Back changed mInputShown true to false; form visible and usable."
+    },
+    {
+      "id": "home_background_resume",
+      "status": "PASS",
+      "evidence": "15s at launcher then HOT return; same PID2526 and both synthetic form values retained."
+    },
+    {
+      "id": "system_sleep_resume",
+      "status": "PASS",
+      "evidence": "KEYCODE_SLEEP -> Dozing,15s wait, wake -> Awake; same PID2526 and form values retained. Focused field may restore IME, which Back dismisses again."
+    },
+    {
+      "id": "form_back_navigation",
+      "status": "PASS",
+      "evidence": "In-app Back returned from email form to logged-out method chooser."
+    },
+    {
+      "id": "app_crash_observation",
+      "status": "PASS",
+      "evidence": "Crash logcat buffer is empty at end of smoke; application process remains alive throughout resume tests."
+    }
+  ],
+  "crashBufferBytes": 0,
+  "syntheticEmail": "native51@example.invalid",
+  "submittedLogin": false,
+  "createdAccount": false,
+  "workoutWrites": false,
+  "applicationPidUnchanged": true,
+  "physicalHuaweiAndroid10": "NOT RUN",
+  "purchaseAndPlayBilling": "NOT RUN: AOSP image has no Play Store",
+  "authenticatedWorkoutAndHealth": "NOT RUN",
+  "coldProcessDeathRecoveryWithUnsavedForm": "NOT RUN: this bounded smoke checks fresh cold launch and same-process background/sleep resume"
+}

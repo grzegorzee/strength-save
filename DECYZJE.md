@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, kandydat 145/51)
+**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, wydanie 145/51)
 
 ---
 
@@ -49,8 +49,16 @@ kwalifikacja starszego WebView jest testem fallbacku, nie fizycznego urządzenia
 Dodatkowy przegląd CLI wykrył pomijanie zerowych units/nanos przez Google
 ProtoJSON. Walidator cen normalizuje te zera wyłącznie w Money; test regresji
 RED → GREEN, 9/9 testów katalogu, bez dopuszczenia zmiany kwoty lub waluty.
+Odczyt ASC `subscriptionGracePeriod` potwierdził wyłączony grace na iOS
+(production i sandbox). Katalog Play ma jawnie P0D, a zmieniony/nieznany stan
+iOS zatrzymuje przygotowanie katalogu do przeglądu. 11/11 testów parytetu PASS;
+Google minimum 24h silent grace pozostaje różnicą platformy.
 Kandydaci: iOS145 / Android51, wersja marketingowa pozostaje 1.0.0.
-Wynik publikacji zostanie wpisany osobno po odczycie sklepów.
+Publikacja zakończona: Android51 internal/completed, hash potwierdzony przez
+API; iOS145 VALID/APPROVED/IN_BETA_TESTING w obu grupach. Web i pojedynczy
+webhook wdrożone i zweryfikowane. Native APK51 cold start/klawiatura/Back/
+Home/screen-off resume PASS na izolowanym API35, bez realnego konta.
+Numery wersji, podpisy i odczyty: `release/release-train.json`.
 Szczegóły i kroki właściciela: `docs/ANDROID-2026-09-09.md`.
 
 ### 2026-09-09: działający Google Play API przez krótkie tokeny konta technicznego

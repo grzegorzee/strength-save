@@ -1,0 +1,532 @@
+{
+  "schemaVersion": 1,
+  "status": "deployed_verified",
+  "startedAt": "2026-09-09T19:19:49.312060+00:00",
+  "project": "fittracker-workouts",
+  "account": "g.jasionowicz@gmail.com",
+  "region": "us-central1",
+  "sourceCommit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "targets": [
+    "functions:revenuecatWebhook"
+  ],
+  "sourceSha256": {
+    "functions/src/revenuecat.ts": "7d27ba63704545d019718c87c4c8322b2ca29f25e711a31362de67bcbc3022d2",
+    "functions/src/revenuecat-transfer.ts": "206adceb37a186d02ca1b7f8b5d2452d6e3fb0de9f26857b03b0cac7f494e937",
+    "functions/lib/revenuecat.js": "cf0f960e677c7c752ae1ea3f0c0610cb14e37fa4f4a57fbe2ea831d264fc261d",
+    "functions/lib/revenuecat-transfer.js": "eebcc89e58c0c5fb5108ff8ae522234bca3a1303e36c721f25ec2a40682404b9",
+    "functions/lib/index.js": "016816fadceb18a9388b713bbfeba5aed7bd30e815b5f12125ce2499780651d5"
+  },
+  "before": {
+    "functions": [
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/recordConsent",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:45.600560519Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/createApiKey",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.773510669Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/rebuildWorkoutAggregate",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:51.440755384Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/unlinkLinkedDevice",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.996522619Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/requestEmailVerificationCode",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.202981258Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/verifyEmailCode",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.673695624Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminRevokeAllDevices",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.874862444Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/photoReminder",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:31.896647422Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/revenuecatWebhook",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:30.358650397Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/revokeApiKey",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:41.870822774Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminDeleteUser",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.356850792Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminGetUserLogs",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.400605481Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/listApiKeys",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.702550580Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminSendPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:28.775797434Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/listWaitlistEntries",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.762565289Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/syncUserProfile",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.983121129Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/createBugReport",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:48.087073981Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/revokeInvite",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:51.225653160Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminPairStart",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:29.053276225Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminUserRepair",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:22.986899972Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminIngest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.061765002Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/finalizeBugReport",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:39.594051004Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/onWorkoutWrittenAggregate",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:30.540841884Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/resumeDeletionOperations",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.984313198Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/dailyTrainingReminder",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:25.911761501Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminUpdateBugReport",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.606196438Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/stravaAuthUrl",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.491685839Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/reportAppleWatchStatus",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.785211384Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/listInvites",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:29.794835686Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/cleanupExpiredSesEvents",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:47.873963801Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminRevokeDevice",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:24.773583286Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/unregisterPushToken",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.559684837Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/dailyErrorDigest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:53.840543808Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/syncWorkoutV2",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:53.566037476Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/emailWorkoutHistory",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:41.823178139Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/reducedModeEndingPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.601692296Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/weeklyDigest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.828167304Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminDevices",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.744526150Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/stravaScheduledSync",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:43.724208533Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/stravaDisconnect",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.150414743Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/vacationEndingPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.574483344Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/exportUserDataApi",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:51:59.290264565Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/reconcilePendingSesEvents",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:48.213132788Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/cleanupStaleBugReports",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.054962413Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/deleteOwnAccount",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.670705902Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/rotateApiKey",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:54.478202218Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminBroadcastEmail",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.405054355Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminGrantSubscription",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:16.252272508Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/dailyCostDigest",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:38.555628163Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/emailWorkoutSummary",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:55.759123993Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/updateUserAccess",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:21.861363795Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminPair",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:22.414891455Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminResendVerification",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:29.141031572Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/registerPushToken",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.543311462Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/linkedDevices",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.344184552Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminSendUserEmail",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.655920997Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/listAuthAuditLogs",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:27.304185099Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/sesEventsWebhook",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:46.760584612Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/createInvite",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:49:44.628350936Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/garminDay",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.809855350Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/restoreWorkoutBackupV3",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-09T12:52:50.745628837Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/createWaitlistEntry",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:23.281043829Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/activityRollup",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.986185409Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/onWorkoutCompletedPrPush",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:44.618199106Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/stravaCallback",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:52.794616343Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/redeemInvite",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:26.346771872Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/stravaSync",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:39.579397825Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminGetBugReportScreenshotUrl",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:42.473519878Z"
+      },
+      {
+        "name": "projects/fittracker-workouts/locations/us-central1/functions/adminRevokeSubscription",
+        "state": "ACTIVE",
+        "updateTime": "2026-09-07T14:50:35.646993721Z"
+      }
+    ],
+    "webhook": {
+      "buildConfig": {
+        "build": "projects/283539506094/locations/us-central1/builds/6aa91f02-5aaf-45c6-a1d5-828d98e0cdcb",
+        "entryPoint": "revenuecatWebhook",
+        "runtime": "nodejs22",
+        "source": {
+          "storageSource": {
+            "bucket": "gcf-v2-sources-283539506094-us-central1",
+            "generation": "1788792587077661",
+            "object": "revenuecatWebhook/function-source.zip"
+          }
+        }
+      },
+      "name": "projects/fittracker-workouts/locations/us-central1/functions/revenuecatWebhook",
+      "serviceConfig": {
+        "revision": "revenuecatwebhook-00030-fov",
+        "secretEnvironmentVariables": [
+          {
+            "key": "REVENUECAT_WEBHOOK_AUTH",
+            "projectId": "fittracker-workouts",
+            "secret": "REVENUECAT_WEBHOOK_AUTH",
+            "version": "1"
+          },
+          {
+            "key": "REVENUECAT_SERVER_API_KEY",
+            "projectId": "fittracker-workouts",
+            "secret": "REVENUECAT_SERVER_API_KEY",
+            "version": "1"
+          }
+        ],
+        "uri": "https://revenuecatwebhook-lpqyxdvkna-uc.a.run.app"
+      },
+      "state": "ACTIVE",
+      "updateTime": "2026-09-07T14:50:30.358650397Z"
+    }
+  },
+  "catalogReview": {
+    "existingTestsPassed": 9,
+    "iosReference": "audit/android-2026-09-09/ios-billing-reference.json",
+    "prices": {
+      "monthly": {
+        "PLN": "14.99",
+        "USD": "3.99",
+        "trial": "P7D"
+      },
+      "yearly": {
+        "PLN": "119.99",
+        "USD": "31.99",
+        "trial": "P14D"
+      }
+    },
+    "apiContract": "Create/offer/activation/conversion paths and fields match official Google REST documentation",
+    "finding": "Money nanos=0 may be omitted by ProtoJSON; strict subset comparison rejects semantically equal integer prices. Reproduced locally, forwarded to root for correction. 24 integer-price regions per product in reference.",
+    "applyExecuted": false,
+    "liveCatalogBlocker": "Root confirmed missing Play payments profile; no catalog activation attempted",
+    "findingStatus": "Root fixed Money zero-field normalization; independently reran 9 tests PASS. No apply.",
+    "scriptSha256": "6f7481d9ce8b3aa377fcefe5cd2c0425a0b371d8d5563b76b247aa8e9f9e6b49",
+    "testsSha256": "f918d58435fe951e11c67bd1e0d03700819af5a318929db96c3f36446eac29b7"
+  },
+  "realCustomerDataAccessed": false,
+  "chargesOrPurchasesInitiated": false,
+  "completedAt": "2026-09-09T19:22:26.215910+00:00",
+  "deployExitCode": 0,
+  "after": {
+    "webhook": {
+      "buildConfig": {
+        "build": "projects/283539506094/locations/us-central1/builds/a40f16d3-e567-4735-b2c1-47d026ae4256",
+        "entryPoint": "revenuecatWebhook",
+        "runtime": "nodejs22",
+        "source": {
+          "storageSource": {
+            "bucket": "gcf-v2-sources-283539506094-us-central1",
+            "generation": "1788981544991507",
+            "object": "revenuecatWebhook/function-source.zip"
+          }
+        }
+      },
+      "name": "projects/fittracker-workouts/locations/us-central1/functions/revenuecatWebhook",
+      "serviceConfig": {
+        "revision": "revenuecatwebhook-00031-vil",
+        "secretEnvironmentVariables": [
+          {
+            "key": "REVENUECAT_WEBHOOK_AUTH",
+            "projectId": "fittracker-workouts",
+            "secret": "REVENUECAT_WEBHOOK_AUTH",
+            "version": "1"
+          },
+          {
+            "key": "REVENUECAT_SERVER_API_KEY",
+            "projectId": "fittracker-workouts",
+            "secret": "REVENUECAT_SERVER_API_KEY",
+            "version": "1"
+          }
+        ],
+        "uri": "https://revenuecatwebhook-lpqyxdvkna-uc.a.run.app"
+      },
+      "state": "ACTIVE",
+      "updateTime": "2026-09-09T19:20:48.716875227Z"
+    },
+    "functionCount": 69,
+    "activeFunctions": 69,
+    "changedFunctions": [
+      "revenuecatWebhook"
+    ],
+    "unchangedFunctions": 68,
+    "secretBindingsUnchanged": true,
+    "cloudBuild": {
+      "createTime": "2026-09-09T19:19:05.458612524Z",
+      "finishTime": "2026-09-09T19:19:49.783065Z",
+      "id": "a40f16d3-e567-4735-b2c1-47d026ae4256",
+      "sourceProvenance": {},
+      "status": "SUCCESS"
+    },
+    "sourceProvenance": {
+      "storageSource": {
+        "bucket": "gcf-v2-sources-283539506094-us-central1",
+        "generation": "1788981544991507",
+        "object": "revenuecatWebhook/function-source.zip"
+      },
+      "archiveSha256": "a29e6604c34233c0d2d278933cb4b8082739de1a79cb31174b353156448ee365",
+      "selectedCodeFiles": [
+        {
+          "local": "functions/src/revenuecat.ts",
+          "archiveMember": "src/revenuecat.ts",
+          "expectedSha256": "7d27ba63704545d019718c87c4c8322b2ca29f25e711a31362de67bcbc3022d2",
+          "actualSha256": "7d27ba63704545d019718c87c4c8322b2ca29f25e711a31362de67bcbc3022d2",
+          "matches": true
+        },
+        {
+          "local": "functions/src/revenuecat-transfer.ts",
+          "archiveMember": "src/revenuecat-transfer.ts",
+          "expectedSha256": "206adceb37a186d02ca1b7f8b5d2452d6e3fb0de9f26857b03b0cac7f494e937",
+          "actualSha256": "206adceb37a186d02ca1b7f8b5d2452d6e3fb0de9f26857b03b0cac7f494e937",
+          "matches": true
+        },
+        {
+          "local": "functions/lib/revenuecat.js",
+          "archiveMember": "lib/revenuecat.js",
+          "expectedSha256": "cf0f960e677c7c752ae1ea3f0c0610cb14e37fa4f4a57fbe2ea831d264fc261d",
+          "actualSha256": "cf0f960e677c7c752ae1ea3f0c0610cb14e37fa4f4a57fbe2ea831d264fc261d",
+          "matches": true
+        },
+        {
+          "local": "functions/lib/revenuecat-transfer.js",
+          "archiveMember": "lib/revenuecat-transfer.js",
+          "expectedSha256": "eebcc89e58c0c5fb5108ff8ae522234bca3a1303e36c721f25ec2a40682404b9",
+          "actualSha256": "eebcc89e58c0c5fb5108ff8ae522234bca3a1303e36c721f25ec2a40682404b9",
+          "matches": true
+        },
+        {
+          "local": "functions/lib/index.js",
+          "archiveMember": "lib/index.js",
+          "expectedSha256": "016816fadceb18a9388b713bbfeba5aed7bd30e815b5f12125ce2499780651d5",
+          "actualSha256": "016816fadceb18a9388b713bbfeba5aed7bd30e815b5f12125ce2499780651d5",
+          "matches": true
+        }
+      ],
+      "allSelectedCodeMatches": true
+    },
+    "unauthorizedSmokeHttp": 401
+  },
+  "logs": [
+    "audit/android-2026-09-09/backend-deploy.log",
+    "audit/android-2026-09-09/catalog-cross-review-tests.log"
+  ]
+}

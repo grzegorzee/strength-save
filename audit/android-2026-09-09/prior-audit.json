@@ -1,0 +1,109 @@
+{
+  "report_kind": "iphone-feedback-fix-and-release",
+  "date": "2026-09-09",
+  "run_at": "2026-09-09T13:38:13.053058+00:00",
+  "score": null,
+  "core_quality_score": null,
+  "release_ready": false,
+  "score_scope": "Targeted reproduction of six owner iPhone screenshots; no numeric whole-app score assigned.",
+  "prior_audit": "audit/feedback-2026-09-09/prior-audit.json",
+  "report": "docs/FEEDBACK-2026-09-09.md",
+  "evidence_root": "audit/feedback-2026-09-09",
+  "versions": {
+    "marketing": "1.0.0",
+    "ios_current_project_version": 144,
+    "android_version_code": 50
+  },
+  "decision": "Feedback fixes shipped: iOS144 VALID/APPROVED and IN_BETA_TESTING in both groups; web and backend verified live; Android50 published by owner and independently verified through Play API with matching AAB SHA256. API authentication configured; public launch and physical-device QA remain separate.",
+  "checks": {
+    "backend": {
+      "status": "PASS",
+      "functions_unit": 549,
+      "functions_integration": 15,
+      "firestore_rules": 326,
+      "storage_rules": 44,
+      "typecheck": "PASS",
+      "build": "PASS"
+    },
+    "frontend": {
+      "unit": {
+        "passed": 4160,
+        "skipped": 16,
+        "failed": 0,
+        "files_passed": 483
+      },
+      "typecheck": "PASS",
+      "lint": {
+        "errors": 0,
+        "warnings": 15,
+        "note": "Existing Fast Refresh export warnings"
+      },
+      "production_build": "PASS",
+      "bundle_budget": "PASS",
+      "dist_smoke": "PASS",
+      "full_browser_suite": {
+        "full_run_passed": 677,
+        "full_run_failed": 11,
+        "full_run_total": 688,
+        "final_targeted_passed": 28,
+        "final_targeted_failed": 0,
+        "all_failed_scenarios_passed_on_targeted_rerun": true,
+        "no_timeout_or_skip_changes": true,
+        "evidence": "audit/feedback-2026-09-09/browser-verification.json"
+      },
+      "evidence": "audit/feedback-2026-09-09/delivery-gates.json",
+      "firebase_emulator_browser": {
+        "passed": 18,
+        "failed": 0,
+        "evidence": "audit/feedback-2026-09-09/final-emulator.json"
+      }
+    }
+  },
+  "physical_qa_owner_response": "Owner will test through TestFlight; not run by agent.",
+  "deferred_backend_findings": [],
+  "delivery": {
+    "public_stores_published": false,
+    "web_deployed": true,
+    "backend": {
+      "status": "deployed-verified",
+      "receipt": "audit/release-2026-09-09/backend-phase2.receipt.json"
+    },
+    "source": {
+      "pushed_to": "main",
+      "commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
+      "ci_run": "https://github.com/grzegorzee/strength-save/actions/runs/34357160280",
+      "ci_status": "in_progress",
+      "ci_evidence": "audit/release-2026-09-09/ci-status.json"
+    },
+    "web_receipt": "audit/release-2026-09-09/web-delivery.json",
+    "android": {
+      "version_code": 50,
+      "status": "internal-completed-verified-through-api",
+      "play_upload": "completed-by-owner-in-play-console",
+      "receipt": "release/android/internal-2026-09-09/artifact.json",
+      "play_receipt": "release/android/internal-2026-09-09/play-delivery.json",
+      "internal_test_url": "https://play.google.com/apps/internaltest/4699979891077312306",
+      "api_access": "verified-short-lived-service-account-impersonation",
+      "api_receipt": "release/android/internal-2026-09-09/play-api-check.json",
+      "aab_sha256_matches_play": true
+    },
+    "ios": {
+      "build": 144,
+      "status": "VALID-APPROVED-IN_BETA_TESTING-both-groups",
+      "receipt": "release/ios/testflight-144.json",
+      "what_to_test_matches": true
+    }
+  },
+  "backend_closed_findings": [
+    "B10",
+    "B11",
+    "B12",
+    "B3 Firestore"
+  ],
+  "source_commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
+  "test_distribution_ready": {
+    "ios": true,
+    "android_artifact": true,
+    "android_play_uploaded": true
+  }
+}

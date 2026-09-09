@@ -1,109 +1,154 @@
 {
-  "report_kind": "iphone-feedback-fix-and-release",
+  "report_kind": "android-huawei-fixes-and-billing-parity",
   "date": "2026-09-09",
-  "run_at": "2026-09-09T13:38:13.053058+00:00",
+  "run_at": "2026-09-09T19:33:30.425260+00:00",
   "score": null,
   "core_quality_score": null,
   "release_ready": false,
-  "score_scope": "Targeted reproduction of six owner iPhone screenshots; no numeric whole-app score assigned.",
-  "prior_audit": "audit/feedback-2026-09-09/prior-audit.json",
-  "report": "docs/FEEDBACK-2026-09-09.md",
-  "evidence_root": "audit/feedback-2026-09-09",
+  "score_scope": "Bounded Android owner-feedback and billing parity audit; no invented whole-app score.",
+  "prior_audit": "audit/android-2026-09-09/prior-audit.json",
+  "report": "docs/ANDROID-2026-09-09.md",
+  "evidence_root": "audit/android-2026-09-09",
   "versions": {
     "marketing": "1.0.0",
-    "ios_current_project_version": 144,
-    "android_version_code": 50
+    "ios_current_project_version": 145,
+    "android_version_code": 51
   },
-  "decision": "Feedback fixes shipped: iOS144 VALID/APPROVED and IN_BETA_TESTING in both groups; web and backend verified live; Android50 published by owner and independently verified through Play API with matching AAB SHA256. API authentication configured; public launch and physical-device QA remain separate.",
+  "decision": "Fixes delivered to Android Internal Testing51 and TestFlight145; web and one billing webhook deployed. Google merchant payments profile prevents product activation; physical Huawei and real license-test purchases remain unverified.",
   "checks": {
-    "backend": {
-      "status": "PASS",
-      "functions_unit": 549,
-      "functions_integration": 15,
-      "firestore_rules": 326,
-      "storage_rules": 44,
-      "typecheck": "PASS",
-      "build": "PASS"
-    },
     "frontend": {
+      "checked_at": "2026-09-09T19:19:35.690799+00:00",
+      "source_commit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
       "unit": {
-        "passed": 4160,
+        "files_passed": 485,
+        "passed": 4175,
         "skipped": 16,
-        "failed": 0,
-        "files_passed": 483
+        "failed": 0
       },
       "typecheck": "PASS",
       "lint": {
         "errors": 0,
-        "warnings": 15,
-        "note": "Existing Fast Refresh export warnings"
+        "existing_warnings": 15
       },
       "production_build": "PASS",
       "bundle_budget": "PASS",
       "dist_smoke": "PASS",
-      "full_browser_suite": {
-        "full_run_passed": 677,
-        "full_run_failed": 11,
-        "full_run_total": 688,
-        "final_targeted_passed": 28,
-        "final_targeted_failed": 0,
-        "all_failed_scenarios_passed_on_targeted_rerun": true,
-        "no_timeout_or_skip_changes": true,
-        "evidence": "audit/feedback-2026-09-09/browser-verification.json"
-      },
-      "evidence": "audit/feedback-2026-09-09/delivery-gates.json",
-      "firebase_emulator_browser": {
-        "passed": 18,
+      "browser": {
+        "layout_chromium_webkit_passed": 34,
+        "paywall_and_resume_passed": 12,
+        "plan_quick_plan_finish_sync_passed": 4,
         "failed": 0,
-        "evidence": "audit/feedback-2026-09-09/final-emulator.json"
+        "scope": "Targeted Chromium/WebKit; actual native Huawei not available"
+      },
+      "additional_android_resource_and_preflight_tests": {
+        "passed": 19,
+        "failed": 0
+      },
+      "python": {
+        "play_publish": 19,
+        "revenuecat_setup": 3,
+        "billing_parity": 11
+      },
+      "notes": [
+        "Full frontend run preceded final new Android preflight file; its 19 targeted tests and complete typecheck passed separately.",
+        "First build rejected missing declaration for new preflight module; declaration supplied and final build, bundle budget and dist smoke passed.",
+        "Merchant profile prevents real Google trial purchase; no charges or customer test writes.",
+        "Catalog-only follow-up copies the live iOS disabled grace setting as Google P0D; two RED→GREEN tests. No app artifact changes or live product activation."
+      ],
+      "logs": {
+        "unit": {
+          "local_path": "/tmp/strength-android-51-vitest.log",
+          "sha256": "bd8bcab3bbe74dbbf9645892141925d852e9dbaebdfcabd333acda41a62c4883"
+        },
+        "typecheck": {
+          "local_path": "/tmp/strength-android-51-typecheck.log",
+          "sha256": "f581e2ea11f93d357b746d228a3476b72ea9b1abbbf75411d0855970397e23f5"
+        },
+        "lint": {
+          "local_path": "/tmp/strength-android-51-lint.log",
+          "sha256": "3b924e8cc634040e8d6332e483fb439cedeb8b80504fb84e4fcc33889957f160"
+        },
+        "build": {
+          "local_path": "/tmp/strength-android-51-build.log",
+          "sha256": "2692010adbe177a5453360db2becaab2f9f3df7b33903c125c0498965d62d600"
+        },
+        "flows": {
+          "local_path": "/tmp/strength-android-51-flows.log",
+          "sha256": "0838b482fddbb59e2cb0f0f3aeb0cbae028028af2209bf8d0512ea6cb1b375e9"
+        },
+        "plan_sequence": {
+          "local_path": "/tmp/strength-android-51-plan-sequence.log",
+          "sha256": "ce0127b128a9661fe724c86f640fe697ec890dcde81fba911ae4680250c2847f"
+        },
+        "parity_red": {
+          "local_path": "/tmp/strength-parity-money-red.log",
+          "sha256": "690767ff7273e91741f9627e97525ca02296ff67daedead54784108b7180dc3b"
+        },
+        "parity_green": {
+          "local_path": "/tmp/strength-parity-money-green.log",
+          "sha256": "203e8d11dc9529763cb172c4d4acdffe3b67db7d123ed6f2223ef9c377a8923b"
+        }
       }
+    },
+    "backend": {
+      "unit_passed": 563,
+      "integration_skipped_in_ordinary_runner": 15,
+      "scope": "Local ordinary runner skips integration; separate Functions emulator and Rules CI steps subsequently passed for source73.",
+      "typecheck": "PASS",
+      "build": "PASS",
+      "evidence": "audit/android-2026-09-09/billing-source-receipt.json"
+    },
+    "native_smoke": {
+      "status": "PASS",
+      "evidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json",
+      "actual": "AOSP API35, 360dp, font1.0, local upload-key release APK",
+      "physical_Huawei_Android10": "NOT RUN"
     }
   },
-  "physical_qa_owner_response": "Owner will test through TestFlight; not run by agent.",
-  "deferred_backend_findings": [],
   "delivery": {
     "public_stores_published": false,
-    "web_deployed": true,
-    "backend": {
-      "status": "deployed-verified",
-      "receipt": "audit/release-2026-09-09/backend-phase2.receipt.json"
-    },
-    "source": {
-      "pushed_to": "main",
-      "commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
-      "ci_run": "https://github.com/grzegorzee/strength-save/actions/runs/34357160280",
-      "ci_status": "in_progress",
-      "ci_evidence": "audit/release-2026-09-09/ci-status.json"
-    },
-    "web_receipt": "audit/release-2026-09-09/web-delivery.json",
+    "build_source_commit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+    "source_pushed_to": "main",
     "android": {
-      "version_code": 50,
-      "status": "internal-completed-verified-through-api",
-      "play_upload": "completed-by-owner-in-play-console",
-      "receipt": "release/android/internal-2026-09-09/artifact.json",
-      "play_receipt": "release/android/internal-2026-09-09/play-delivery.json",
-      "internal_test_url": "https://play.google.com/apps/internaltest/4699979891077312306",
-      "api_access": "verified-short-lived-service-account-impersonation",
-      "api_receipt": "release/android/internal-2026-09-09/play-api-check.json",
-      "aab_sha256_matches_play": true
+      "version_code": 51,
+      "status": "internal/completed",
+      "receipt": "release/android/internal-2026-09-09-51/artifact.json",
+      "play_receipt": "release/android/internal-2026-09-09-51/play-delivery.json",
+      "independent_readback": "release/android/internal-2026-09-09-51/play-api-check.json",
+      "internal_test_url": "https://play.google.com/apps/internaltest/4699979891077312306"
     },
     "ios": {
-      "build": 144,
-      "status": "VALID-APPROVED-IN_BETA_TESTING-both-groups",
-      "receipt": "release/ios/testflight-144.json",
-      "what_to_test_matches": true
+      "build": 145,
+      "status": "VALID / APPROVED / IN_BETA_TESTING both groups",
+      "receipt": "release/ios/testflight-145.json"
+    },
+    "web": {
+      "status": "deployed-live-byte-verified",
+      "receipt": "audit/android-2026-09-09/web-delivery.json"
+    },
+    "backend": {
+      "status": "one-webhook-deployed-verified; other68unchanged",
+      "receipt": "audit/android-2026-09-09/backend-delivery.json"
     }
   },
-  "backend_closed_findings": [
-    "B10",
-    "B11",
-    "B12",
-    "B3 Firestore"
-  ],
-  "source_commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
-  "test_distribution_ready": {
-    "ios": true,
-    "android_artifact": true,
-    "android_play_uploaded": true
-  }
+  "billing": {
+    "ios_reference": "audit/android-2026-09-09/ios-billing-reference.json",
+    "google_revenuecat_app": "connected-and-products-mapped",
+    "google_store_products": "NOT CREATED: merchant payments profile required",
+    "live_purchase": "NOT RUN",
+    "license_tester_status": "NOT VERIFIED",
+    "rtdn": "NOT CONNECTED/TESTED",
+    "parity_policy": {
+      "monthly": "14.99PLN/3.99USD,7day trial",
+      "yearly": "119.99PLN/31.99USD,14day trial",
+      "optional_grace": "P0D to match disabled iOS; Google mandatory silent grace remains"
+    },
+    "blocker_receipt": "audit/android-2026-09-09/play-billing-precondition.json"
+  },
+  "public_launch_remaining": [
+    "Merchant payments profile and activation/readback of prepared Google products",
+    "License tester purchase/trial/renewal/cancel/restore and RTDN test",
+    "Physical Huawei Android10 confirmation",
+    "Final public-store metadata/declarations/reviewer access and production subscription approval"
+  ]
 }

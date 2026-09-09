@@ -1,0 +1,10 @@
+{
+  "apkPath": "/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/android/app/build/outputs/apk/release/app-release.apk",
+  "sizeBytes": 19792757,
+  "sha256": "aa4f137654ba63617b07b8a8c001e71868e6e91fb4669f0a7e94899ad70e57fe",
+  "versionCode": 51,
+  "versionName": "1.0.0",
+  "sourceCommit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "signer": "local release upload key; not Google Play App Signing",
+  "expectedSignerCertSha256": "8f65cb13ad7b7dfe0871ddaacec3b3a4524b90a48ee0953c6c37ba9be37a9c65"
+}

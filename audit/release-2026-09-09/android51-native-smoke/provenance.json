@@ -1,0 +1,16 @@
+{
+  "recordedAtUtc": "2026-09-09T19:11:11.039834+00:00",
+  "avd": "strength_android51_smoke_20260909",
+  "serial": "emulator-5562",
+  "api": "35",
+  "androidVersion": "15",
+  "fingerprint": "Android/sdk_phone64_arm64/emu64a:15/AE3A.240806.019/12368160:userdebug/test-keys",
+  "abi": "arm64-v8a",
+  "screen": "Physical size: 1080x2400",
+  "density": "Physical density: 480",
+  "fontScale": "1.0",
+  "ime": "com.android.inputmethod.latin/.LatinIME",
+  "applicationBeforeInstall": "",
+  "playStorePackage": "",
+  "webView": "Current WebView Update Service state\n  Current WebView package (name, version): (com.android.webview, 124.0.6367.219)\n  Minimum targetSdkVersion: 33\n  Minimum WebView version code: 636771901\n  Number of relros started: 1\n  Number of relros finished: 1\n  WebView package dirty: false\n  Any WebView package installed: true\n  Preferred WebView package (name, version): (com.android.webview, 124.0.6367.219)\n  WebView packages:\n    Valid package com.android.webview (versionName: 124.0.6367.219, versionCode: 636771901, targetSdkVersion: 34) is  installed/enabled for all users"
+}

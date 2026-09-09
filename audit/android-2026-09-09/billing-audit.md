@@ -1,6 +1,6 @@
 # Android subscription audit — 2026-09-09
 
-Scope: source review and synthetic tests for Android/iOS RevenueCat identity, purchase, trial, restore, management and webhook access. Target phone supplied by user: Huawei P30 Pro / Android 10. No real customer documents, purchases, charges or private key values were accessed. Root owns live Google Play/RevenueCat setup and release 51. This report records source verification; the changed webhook has **not yet been deployed**.
+Scope: source review and synthetic tests for Android/iOS RevenueCat identity, purchase, trial, restore, management and webhook access. Target phone supplied by user: Huawei P30 Pro / Android 10. No real customer documents, purchases, charges or private key values were accessed. Root owns live Google Play/RevenueCat setup and release 51. The webhook was subsequently deployed from source `73f435d4` and verified: see [backend-delivery.json](backend-delivery.json). Only `revenuecatWebhook` changed; the other 68 functions retained their update times and all 69 are ACTIVE. Both secret bindings are unchanged. This report preserves the source test results below.
 
 ## Findings and fixes
 

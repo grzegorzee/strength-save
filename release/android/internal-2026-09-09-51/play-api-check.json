@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-09-09T19:28:46.447239+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production"
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "1.0.0 (51)",
+            "versionCodes": [
+              "51"
+            ],
+            "releaseNotes": [
+              {
+                "language": "pl-PL",
+                "text": "Poprawiony układ wpisywania serii na małych ekranach i starszych WebView. Aktualna ikona i ekran startowy. Czytelniejsza notatka treningu. Poprawki logowania Google i obsługi subskrypcji. Sprawdź wpisywanie serii, wyjście i powrót do treningu oraz synchronizację po odzyskaniu sieci.\n"
+              },
+              {
+                "language": "en-US",
+                "text": "Improved set entry on small screens and older WebViews. Updated app icon and launch screen. Clearer workout notes. Fixes for Google sign-in and subscription handling. Please test set entry, leaving and resuming a workout, and synchronization after reconnecting.\n"
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 51,
+        "sha1": "5b8c19430f8a5d518427bcad9d84dd473f910495",
+        "sha256": "559bc0d5f891b85e07762ffda94a14a115ca13d73ecf4cd608ed41c91da702f2"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}

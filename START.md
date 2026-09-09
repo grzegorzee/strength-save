@@ -2,10 +2,15 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Kandydat po feedbacku Huawei 2026-09-09:** poprawiony układ 360 px i starszego
-> WebView, ikona Android, podpis Play w Firebase i obsługa płatności. Wersje
-> źródłowe iOS145 / Android51; dystrybucja wymaga jeszcze odczytu sklepów.
-> [Raport, warunki zgodne z iOS i blokada profilu płatności](docs/ANDROID-2026-09-09.md).
+> **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (51)** opublikowany
+> w Google Play Internal Testing przez API, `completed` i hash pakietu potwierdzone.
+> iOS **1.0.0 (145)**: VALID / APPROVED / IN_BETA_TESTING w obu grupach TestFlight.
+> Poprawiono wiersze serii 360 px/starszego WebView, ikonę/splash Androida,
+> podpis Play w Firebase i obsługę PRO między sklepami. Web i webhook wdrożone.
+> [Aktualizacja Androida](https://play.google.com/apps/internaltest/4699979891077312306).
+> [Raport, testy i warunki płatności](docs/ANDROID-2026-09-09.md).
+> Zakupy Google nadal wymagają profilu płatności właściciela i testu sklepowego;
+> fizyczny Huawei Android10 pozostaje do potwierdzenia po aktualizacji.
 
 > **Poprzednie wydanie po feedbacku z iPhone’a 2026-09-09:** TestFlight `1.0.0 (144)`
 > ma status VALID, APPROVED i IN_BETA_TESTING w obu grupach testerów.

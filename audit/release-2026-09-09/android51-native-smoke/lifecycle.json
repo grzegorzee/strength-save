@@ -1,0 +1,26 @@
+{
+  "recordedAtUtc": "2026-09-09T19:24:48.900755+00:00",
+  "pidBefore": "2526",
+  "backClosedKeyboard": true,
+  "backgroundSeconds": 15,
+  "screenOffSeconds": 15,
+  "backgroundResumedActivity": [
+    "topResumedActivity=ActivityRecord{d106ea6 u0 com.android.launcher3/.uioverrides.QuickstepLauncher t7}"
+  ],
+  "homeResume": "Starting: Intent { cmp=com.grzegorzjasionowicz.strengthsave/.MainActivity }\nWarning: Activity not started, its current task has been brought to the front\nStatus: ok\nLaunchState: HOT\nActivity: com.grzegorzjasionowicz.strengthsave/.MainActivity\nTotalTime: 331\nWaitTime: 336\nComplete",
+  "pidAfterHome": "2526",
+  "screenOffPowerState": [
+    "mWakefulness=Dozing",
+    "mWakefulnessChanging=true"
+  ],
+  "wakeResume": "Starting: Intent { cmp=com.grzegorzjasionowicz.strengthsave/.MainActivity }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.grzegorzjasionowicz.strengthsave/.MainActivity\nTotalTime: 0\nWaitTime: 2\nComplete",
+  "pidAfterScreenOff": "2526",
+  "finalPowerState": [
+    "mWakefulness=Awake",
+    "mWakefulnessChanging=false"
+  ],
+  "finalResumedActivity": [
+    "topResumedActivity=ActivityRecord{7b9cc0 u0 com.grzegorzjasionowicz.strengthsave/.MainActivity t8}"
+  ],
+  "applicationPidUnchanged": true
+}

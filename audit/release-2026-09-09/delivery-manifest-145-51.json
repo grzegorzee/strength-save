@@ -1,0 +1,68 @@
+{
+  "kind": "verified-android-feedback-release-delivery",
+  "recorded_at": "2026-09-09T19:37:33.134724+00:00",
+  "build_source_commit": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "build_source_tree": "82728079f89a7be29c92beaa81130d4ebc52187f",
+  "versions": {
+    "product": "1.0.0",
+    "ios": 145,
+    "android": 51
+  },
+  "receipts": {
+    "ios": {
+      "path": "release/ios/testflight-145.json",
+      "sha256": "636c4a2747b78295699acdf51326a94c9fd9da8675b97b528049b0172d6057dd"
+    },
+    "android": {
+      "path": "release/android/internal-2026-09-09-51/artifact.json",
+      "sha256": "2a42457017ccf7f9e476d2ac3535acb8081cb7efaa4cc16247e96ec75a24fbf7"
+    },
+    "android_play": {
+      "path": "release/android/internal-2026-09-09-51/play-delivery.json",
+      "sha256": "5292a01c47ba8bf9fa213ee7cc47829fd8789218ac0a0f1141358ecf8f902c54"
+    },
+    "android_play_readback": {
+      "path": "release/android/internal-2026-09-09-51/play-api-check.json",
+      "sha256": "bac9a839e940af8cfa68faf5ea8b2d764b7ae81b1ee6be4f5f2fafe0fb1d5890"
+    },
+    "android_native_smoke": {
+      "path": "audit/release-2026-09-09/android51-native-smoke/smoke.json",
+      "sha256": "f632873a5a41b71f70d44f1cf376015b2c8b5e89c6c7acaeabea597bb159cadf"
+    },
+    "web": {
+      "path": "audit/android-2026-09-09/web-delivery.json",
+      "sha256": "b5e9f3011d79b56e46a401e69988f2c21adbf2e8f0a818232df794754bb9b7af"
+    },
+    "backend": {
+      "path": "audit/android-2026-09-09/backend-delivery.json",
+      "sha256": "b26808f118222a554521169f1ec9d34e8c1f4686c1de22bea3f3d4310d3af9d2"
+    },
+    "frontend_gates": {
+      "path": "audit/android-2026-09-09/frontend-gates.json",
+      "sha256": "fb79f839285acc5d9d3565dc0e54290a056b0efa5da00c89c71173a13a0e4d9e"
+    },
+    "billing_source": {
+      "path": "audit/android-2026-09-09/billing-source-receipt.json",
+      "sha256": "ef08cb3ec5259c101a3e70196fd04c587d9208036378971ffeb3e3424f795151"
+    },
+    "google_billing_blocker": {
+      "path": "audit/android-2026-09-09/play-billing-precondition.json",
+      "sha256": "1186c01807793ee04da8539ef672ce0b2e07d9790faa007528814209102e7748"
+    }
+  },
+  "native_asset_parity": {
+    "files": 232,
+    "bytes": 9897300,
+    "sha256": "9907de83dd47e3bdac502470c2897757e274db767bd633cd8a1d772429bfcfc5"
+  },
+  "ios_status": "VALID / APPROVED / IN_BETA_TESTING both groups",
+  "android_status": "internal/completed 51; AAB SHA256 matched by independent fresh API readback",
+  "web_status": "deployed and live HTML/SW/entry assets matched final production dist",
+  "backend_status": "revenuecatWebhook deployed/verified; other68unchanged",
+  "physical_huawei_android10": "NOT RUN; owner test after update",
+  "native_emulator": "PASS API35 360dp standard font1.0; upload-key APK, not Play-signed APK",
+  "public_store_release": false,
+  "billing_products_live": false,
+  "billing_blocker": "merchant payments profile required; see report for license-test and RTDN gates",
+  "scope": "Artifacts built from recorded source73. Subsequent commits change only catalog tooling, its tests and delivery evidence; they are not represented as rebuilt app artifacts."
+}

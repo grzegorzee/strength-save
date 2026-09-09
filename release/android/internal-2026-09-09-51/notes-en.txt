@@ -1,0 +1,1 @@
+Improved set entry on small screens and older WebViews. Updated app icon and launch screen. Clearer workout notes. Fixes for Google sign-in and subscription handling. Please test set entry, leaving and resuming a workout, and synchronization after reconnecting.

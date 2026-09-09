@@ -30,21 +30,22 @@
   "web": {
     "url": "https://app.strengthsave.app/",
     "state": "requires-current-source-and-live-provenance-verification",
-    "deliveryEvidence": "audit/release-2026-09-09/web-delivery.json",
+    "deliveryEvidence": "audit/android-2026-09-09/web-delivery.json",
     "verifiedDelivery": "deployed-live-html-service-worker-and-entry-assets-byte-verified"
   },
   "functions": {
     "project": "fittracker-workouts",
     "state": "requires-current-deployment-verification",
-    "deliveryEvidence": "audit/release-2026-09-09/backend-phase2.receipt.json",
-    "verifiedDelivery": "phase2-strict-restore-and-firestore-rules-deployed-verified"
+    "deliveryEvidence": "audit/android-2026-09-09/backend-delivery.json",
+    "verifiedDelivery": "revenuecatWebhook-authoritative-cross-store-access-deployed-verified; prior-phase2-preserved",
+    "priorDeliveryEvidence": "audit/release-2026-09-09/backend-phase2.receipt.json"
   },
   "ios": {
     "version": "1.0.0",
     "build": 145,
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/ios/testflight-145.json",
-    "verifiedDelivery": "pending-build-and-store-readback"
+    "verifiedDelivery": "VALID / APPROVED / IN_BETA_TESTING both groups"
   },
   "android": {
     "version": "1.0.0",
@@ -52,7 +53,7 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/android/internal-2026-09-09-51/artifact.json",
-    "verifiedDelivery": "pending-build-and-store-readback",
+    "verifiedDelivery": "internal/completed version51 and uploaded AAB SHA256 independently verified through Play API",
     "playDeliveryEvidence": "release/android/internal-2026-09-09-51/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
@@ -61,7 +62,7 @@
       "serviceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
-      "evidence": "release/android/internal-2026-09-09/play-api-check.json",
+      "evidence": "release/android/internal-2026-09-09-51/play-api-check.json",
       "checkCommand": "uv run scripts/google_play_check.py --expect-version 51"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
@@ -77,6 +78,12 @@
   },
   "smoke": {
     "physicalIos": "pending-owner-testflight-test",
-    "physicalAndroid": "owner-reported-layout-bug-on-Huawei-Android10-build50; fixed-candidate51-needs-device-confirmation"
-  }
+    "physicalAndroid": "owner-reported-layout-bug-on-Huawei-Android10-build50; fixed-candidate51-needs-device-confirmation",
+    "androidEmulator": {
+      "status": "PASS",
+      "device": "isolated API35 360dp, standard font1.0",
+      "evidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
+    }
+  },
+  "previousDeliverySnapshot": "release/history/release-train-144-50.json"
 }

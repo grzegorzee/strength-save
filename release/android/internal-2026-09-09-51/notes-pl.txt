@@ -1,0 +1,1 @@
+Poprawiony układ wpisywania serii na małych ekranach i starszych WebView. Aktualna ikona i ekran startowy. Czytelniejsza notatka treningu. Poprawki logowania Google i obsługi subskrypcji. Sprawdź wpisywanie serii, wyjście i powrót do treningu oraz synchronizację po odzyskaniu sieci.
