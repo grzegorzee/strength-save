@@ -127,7 +127,7 @@ describe('target box: kaskada celu w jednym boxie (fala 2)', () => {
 describe('mono meta linia nagłówka (fala 2)', () => {
   it('bez historicalBest linia ma tylko liczbę serii — zero zmyślonych 1RM/Max', () => {
     const { card } = renderCard({ savedSets: [workingSet(), workingSet(), workingSet()] });
-    expect(within(card).getByText('3 serii')).toBeTruthy();
+    expect(within(card).getByText('Serie: 3')).toBeTruthy();
     expect(within(card).queryByText(/1RM/)).toBeNull();
     expect(within(card).queryByText(/Max/)).toBeNull();
   });
