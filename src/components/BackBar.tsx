@@ -20,7 +20,7 @@ export const BackBar = ({ onBack, title }: BackBarProps) => {
   return (
     <div
       data-testid="back-bar"
-      className="kinetic-glass fixed inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2 rounded-2xl px-2 py-1.5 shadow-[0_20px_40px_rgba(0,0,0,0.45)] md:hidden"
+      className="kinetic-glass-sheet fixed inset-x-3 bottom-[var(--mobile-nav-clearance,calc(6rem+env(safe-area-inset-bottom)+8px))] z-40 flex items-center gap-2 rounded-2xl px-2 py-1.5 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden"
     >
       <button
         type="button"

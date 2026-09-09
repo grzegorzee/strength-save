@@ -174,31 +174,31 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
         // w sesji): inset-x-3 + pełne zaokrąglenie jak nav, safe-area zbędna
         // (nie dotyka krawędzi). Rezerwę wyznacza zmierzona wysokość paska
         // nawigacji (--mobile-nav-clearance), bo etykiety przy skali 200%
-        // przerastają stałą wartość; 6rem zostaje jako fallback. Na md wraca
-        // do krawędzi ekranu jak dotąd.
-        className="fixed inset-x-3 bottom-[var(--mobile-nav-clearance,calc(6rem+env(safe-area-inset-bottom)))] z-50 rounded-2xl bg-surface-low px-4 pt-3 pb-3 md:inset-x-0 md:bottom-0 md:rounded-b-none md:rounded-t-2xl md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+        // przerastają stałą wartość. Ten sam desktop-shell co nav: sam breakpoint
+        // szerokości md chował pasek POD navem na telefonie w landscape.
+        className="fixed inset-x-3 bottom-[var(--mobile-nav-clearance,calc(6rem+env(safe-area-inset-bottom)+8px))] z-50 rounded-2xl bg-surface-low px-4 pt-3 pb-3 desktop-shell:inset-x-0 desktop-shell:bottom-0 desktop-shell:rounded-b-none desktop-shell:rounded-t-2xl desktop-shell:pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         data-testid="rest-bar"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Korpus paska = tap-obszar ustawień timera (wymóg właściciela). */}
           <button
             type="button"
             onClick={onOpenSettings}
             aria-label={t('rest.bar.openSettings')}
             data-testid="rest-bar-settings"
-            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
+            className="flex min-h-11 min-w-0 flex-[1_1_8rem] flex-wrap items-center gap-x-2 gap-y-1 text-left"
           >
             <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
               {t('rest.bar.title')}
             </span>
-            <span className="shrink-0" data-testid="rest-bar-hero">
-              <span className={cn('block font-heading text-base font-bold leading-none tabular-nums', done ? 'text-fitness-success' : 'text-primary')}>
+            <span className="min-w-0 max-w-full" data-testid="rest-bar-hero">
+              <span className={cn('block break-words font-heading text-base font-bold leading-snug tabular-nums', done ? 'text-fitness-success' : 'text-primary')}>
                 {label}
               </span>
               {/* Runna p.1 (B3): "Następne: X kg × N" — pierwsza nieodhaczona
                   seria robocza ćwiczenia przerwy (liczy WorkoutDay). */}
               {!done && nextSetLabel && (
-                <span className="mt-1 block max-w-[140px] truncate text-[11px] leading-none text-muted-foreground">
+                <span className="mt-1 block max-w-full break-words text-[11px] leading-snug text-muted-foreground">
                   {t('rest.bar.next', { value: nextSetLabel })}
                 </span>
               )}
@@ -210,22 +210,24 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
               />
             </span>
           </button>
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            aria-label={t('rest.bar.expand')}
-            data-testid="rest-bar-expand"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface-highest text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Maximize2 className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="chip-mono min-h-11 shrink-0 px-3 font-bold text-foreground"
-          >
-            {t('rest.bar.skip')}
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              aria-label={t('rest.bar.expand')}
+              data-testid="rest-bar-expand"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface-highest text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="chip-mono min-h-11 shrink-0 px-3 font-bold text-foreground"
+            >
+              {t('rest.bar.skip')}
+            </button>
+          </div>
         </div>
       </div>
 

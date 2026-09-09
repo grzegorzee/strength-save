@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, Calendar, Trophy, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { maskEmail, readEmailVisible } from '@/lib/mask-email';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { addAppStateListener } from '@/lib/app-lifecycle';
 import appIcon from '@/assets/app-icon.png';
 
 interface AppNavigationProps {
@@ -81,31 +82,52 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
   // Dolny pasek rośnie z systemową skalą tekstu (etykiety zawijają się na
   // 2 linie przy 200%), więc stała rezerwa w px pod sticky CTA prędzej czy
   // później pęka. Pasek publikuje swoją realną wysokość (wraz z odsunięciem
-  // od dołu) jako --mobile-nav-clearance; konsumenci mają fallback 7rem.
+  // od dołu i 8 px przerwy) jako --mobile-nav-clearance.
   const mobileNavRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const nav = mobileNavRef.current;
     const root = document.documentElement;
     if (!nav) {
       root.style.removeProperty('--mobile-nav-clearance');
       return;
     }
+    let disposed = false;
     const update = () => {
+      if (disposed) return;
       const rect = nav.getBoundingClientRect();
       if (rect.height <= 0) {
         // desktop-shell chowa pasek przez CSS — wracamy do fallbacku.
         root.style.removeProperty('--mobile-nav-clearance');
         return;
       }
-      root.style.setProperty('--mobile-nav-clearance', `${Math.ceil(window.innerHeight - rect.top)}px`);
+      // Fixed bottom i rozmiar elementu są w tym samym układzie odniesienia.
+      // innerHeight - rect.top miesza je po pan/resize visualViewport w WKWebView.
+      // Klawiaturę obsługuje istniejący flow; nie dodajemy jej wysokości drugi raz.
+      const bottom = Number.parseFloat(window.getComputedStyle(nav).bottom);
+      const clearance = Math.ceil(rect.height + (Number.isFinite(bottom) ? Math.max(0, bottom) : 0) + 8);
+      root.style.setProperty('--mobile-nav-clearance', `${clearance}px`);
     };
     update();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
     observer?.observe(nav);
+    const viewport = window.visualViewport;
+    const fonts = document.fonts;
+    const removeAppStateListener = addAppStateListener(isActive => { if (isActive) update(); });
     window.addEventListener('resize', update);
+    window.addEventListener('pageshow', update);
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    fonts?.addEventListener('loadingdone', update);
+    void fonts?.ready.then(update);
     return () => {
+      disposed = true;
       observer?.disconnect();
+      removeAppStateListener();
       window.removeEventListener('resize', update);
+      window.removeEventListener('pageshow', update);
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+      fonts?.removeEventListener('loadingdone', update);
       root.style.removeProperty('--mobile-nav-clearance');
     };
   }, [hideMobileNav]);
@@ -274,7 +296,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
       {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background to-background/0 desktop-shell:hidden" />}
 
       {!hideMobileNav && (
-        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
+        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} className="kinetic-glass-sheet fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
           {mainNavItems.map((item) => (
             <NavLink
               key={`mobile-${item.to}`}
@@ -285,7 +307,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                 <>
                   {/* Pigułka stałej szerokości tylko pod ikoną — każda pozycja podświetla się tak samo. */}
                   <span className={cn(
-                    "flex h-9 w-14 items-center justify-center rounded-full transition-colors",
+                    "flex h-9 w-full max-w-14 items-center justify-center rounded-full transition-colors",
                     isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                   )}>
                     <item.icon className="h-5 w-5" />
