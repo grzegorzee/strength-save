@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import Mock
-from google_play_subscriptions import build_catalog, money, apply_catalog
+from google_play_subscriptions import build_catalog, money, apply_catalog, subset_matches
 
 class BillingParityTests(unittest.TestCase):
     def reference(self):
@@ -51,4 +51,15 @@ class BillingParityTests(unittest.TestCase):
     def test_money_uses_exact_decimal_nanos(self):
         self.assertEqual(money('PLN','119.99'),{'currencyCode':'PLN','units':'119','nanos':990000000})
         with self.assertRaises(ValueError):money('PLN','-1')
+
+    def test_play_money_omitted_zero_scalars_are_equivalent(self):
+        self.assertTrue(subset_matches(money('CHF', '3.00'), {'currencyCode': 'CHF', 'units': '3'}))
+        self.assertTrue(subset_matches(money('CHF', '0.50'), {'currencyCode': 'CHF', 'nanos': 500000000}))
+        self.assertTrue(subset_matches(money('CHF', '0'), {'currencyCode': 'CHF'}))
+
+    def test_money_normalization_still_rejects_price_or_currency_drift(self):
+        expected = money('CHF', '3.00')
+        for actual in [money('CHF', '3.01'), money('CHF', '4'), money('USD', '3'), {'units': '3'}]:
+            self.assertFalse(subset_matches(expected, actual))
+        self.assertFalse(subset_matches({'recurrenceCount': 1}, {}))
 if __name__=='__main__':unittest.main()

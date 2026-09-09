@@ -102,6 +102,14 @@ def api(session, method, url, **kwargs):
 
 def subset_matches(expected, actual):
     if isinstance(expected, dict):
+        # Google Money is ProtoJSON: zero units/nanos may be omitted on readback.
+        if 'currencyCode' in expected and set(expected) <= {'currencyCode', 'units', 'nanos'}:
+            if not isinstance(actual, dict) or actual.get('currencyCode') != expected['currencyCode']:
+                return False
+            try:
+                return all(int(expected.get(k, 0)) == int(actual.get(k, 0)) for k in ('units', 'nanos'))
+            except (TypeError, ValueError):
+                return False
         return isinstance(actual, dict) and all(k in actual and subset_matches(v, actual[k]) for k, v in expected.items())
     if isinstance(expected, list):
         # Region/listing order returned by Play is not stable.

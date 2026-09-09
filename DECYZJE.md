@@ -46,6 +46,9 @@ runnerem. Układ 34 scenariusze Chromium/WebKit, dodatkowo 12 zakup/wznowienie
 oraz 4 plan → wyjście → szybki → powrót → koniec → sync PASS. Nowe bramki
 Android mają oddzielne 19 testów PASS. Telefonu Huawei nie mamy podłączonego;
 kwalifikacja starszego WebView jest testem fallbacku, nie fizycznego urządzenia.
+Dodatkowy przegląd CLI wykrył pomijanie zerowych units/nanos przez Google
+ProtoJSON. Walidator cen normalizuje te zera wyłącznie w Money; test regresji
+RED → GREEN, 9/9 testów katalogu, bez dopuszczenia zmiany kwoty lub waluty.
 Kandydaci: iOS145 / Android51, wersja marketingowa pozostaje 1.0.0.
 Wynik publikacji zostanie wpisany osobno po odczycie sklepów.
 Szczegóły i kroki właściciela: `docs/ANDROID-2026-09-09.md`.
