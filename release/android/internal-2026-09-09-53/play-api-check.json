@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-09-09T21:03:49.110609+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production"
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "1.0.0 (53)",
+            "versionCodes": [
+              "53"
+            ],
+            "releaseNotes": [
+              {
+                "language": "pl-PL",
+                "text": "Poprawiona czytelność poprzednich serii, np. 100 × 10, na wąskich ekranach. Zachowane pełne nazwy ćwiczeń i superserii, czytelniejsze karty treningu, nowa ikona Androida oraz poprawiona etykieta liczby serii. Sprawdź poprzednie wyniki, zmianę ciężaru i powtórzeń oraz przerwanie i wznowienie treningu.\n"
+              },
+              {
+                "language": "en-US",
+                "text": "Previous sets, such as 100 × 10, are now easier to read on narrow screens. Includes complete exercise and superset names, clearer workout cards, the updated Android icon and corrected set-count labels. Please check previous results, weight and rep entry, and interrupting and resuming a workout.\n"
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 53,
+        "sha1": "9b49bd7e5742030c9add5f9266c44ba0f78276f3",
+        "sha256": "7899341fc6cbc6a352aa7b4c8b4a3f08ba6ece7ebad2fb7b18f259ddfe8f1634"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}

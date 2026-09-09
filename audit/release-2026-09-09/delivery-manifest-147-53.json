@@ -1,0 +1,149 @@
+{
+  "kind": "verified-android-feedback-release-delivery",
+  "recorded_at": "2026-09-09T21:19:31.783818+00:00",
+  "build_source_commit": "6cf6374805346ad595d9cf6566a6e916614ca1c7",
+  "build_source_tree": "83e5e6ae847ee36368c18246689b87e498ec1d2a",
+  "versions": {
+    "product": "1.0.0",
+    "ios": 147,
+    "android": 53
+  },
+  "previous_delivery_manifest": "audit/release-2026-09-09/delivery-manifest-146-52.json",
+  "receipts": {
+    "ios": {
+      "path": "release/ios/testflight-147.json",
+      "sha256": "1228ce9fc5ed8aa3fca9d9a8f89f4327983c0e1fc83e91417a02c37f95760041"
+    },
+    "android": {
+      "path": "release/android/internal-2026-09-09-53/artifact.json",
+      "sha256": "d07dad23ae6c78169b412c949df30f359d6b301db6b5fb2db6a9ffcb1a3ac4e7"
+    },
+    "android_play": {
+      "path": "release/android/internal-2026-09-09-53/play-delivery.json",
+      "sha256": "aef0fe91d8c8fa072b24a1dc8d411f16f83dbc9beb1e16722253ca8d9346afba"
+    },
+    "android_play_readback": {
+      "path": "release/android/internal-2026-09-09-53/play-api-check.json",
+      "sha256": "ee89c368cc2cd08e62ed466865ac5d7967910feafb542380b4adc0ded39b75d3"
+    },
+    "android_native_smoke": {
+      "path": "audit/release-2026-09-09/android53-native-smoke/smoke.json",
+      "sha256": "89c8c30a6e7e340166e1c440f61fba1aec2813dca1e81885961f608de1534b51"
+    },
+    "prior_android_background_keyboard_smoke": {
+      "path": "audit/release-2026-09-09/android51-native-smoke/smoke.json",
+      "sha256": "f632873a5a41b71f70d44f1cf376015b2c8b5e89c6c7acaeabea597bb159cadf"
+    },
+    "web": {
+      "path": "audit/android-2026-09-09/web-delivery-53.json",
+      "sha256": "2f21721f636d0bc14b43eecb6eadc46e67bff2ab81765dc30034ad694de265c5"
+    },
+    "backend": {
+      "path": "audit/android-2026-09-09/backend-delivery.json",
+      "sha256": "b26808f118222a554521169f1ec9d34e8c1f4686c1de22bea3f3d4310d3af9d2"
+    },
+    "frontend_gates": {
+      "path": "audit/android-2026-09-09/frontend-gates-53.json",
+      "sha256": "1eb24aa892c3538242998081d7cb83c0cb308119733e25095ececc39a103048c"
+    },
+    "ci": {
+      "path": "audit/android-2026-09-09/ci-status-53.json",
+      "sha256": "afa2b7560e83f6b2b0dbb8c35540875a558125b962933699abad1bc2813e46c5"
+    },
+    "previous_history_clipping_ci": {
+      "path": "audit/android-2026-09-09/ci-status-52.json",
+      "sha256": "8cf0ed991cf5de0c9f6d1afb2ded46ba5ad4be4eb03d5aa5eb43c3160c8da570"
+    },
+    "history_visibility_regression": {
+      "path": "audit/android-2026-09-09/previous-value-visibility/verification.json",
+      "sha256": "989938ac38861d075b2fdfb6a6247b778805221c270018240d2b7640957a3220"
+    },
+    "ci_original_failure": {
+      "path": "audit/android-2026-09-09/ci-status.json",
+      "sha256": "704217f606de7330dc6048bbbff554f8198cb37d23552fab94ce39af43858f9a"
+    },
+    "ci_bootstrap_reproduction": {
+      "path": "audit/android-2026-09-09/ci-e2e-bootstrap.json",
+      "sha256": "9246ad8313a5451506163f6b21f089f4d5342b4b042e544e4fe79dd525bd7825"
+    },
+    "billing_source": {
+      "path": "audit/android-2026-09-09/billing-source-receipt.json",
+      "sha256": "ef08cb3ec5259c101a3e70196fd04c587d9208036378971ffeb3e3424f795151"
+    },
+    "google_billing_blocker": {
+      "path": "audit/android-2026-09-09/play-billing-precondition.json",
+      "sha256": "1186c01807793ee04da8539ef672ce0b2e07d9790faa007528814209102e7748"
+    }
+  },
+  "native_asset_parity": {
+    "files": 232,
+    "bytes": 9897678,
+    "sha256": "9f53b56ddaa8a94c9cb639eecd7aefd925b4c75935cb226a726a9552da53004b"
+  },
+  "ios_status": "VALID / APPROVED / IN_BETA_TESTING both groups",
+  "android_status": "internal/completed53; exact AABhash independently verified",
+  "web_status": "deployed and live HTML/SW/entry assets matched final production dist",
+  "backend_status": "earlier verified revenuecatWebhook revision00031-vil retained; no redundant deployment",
+  "physical_huawei_android10": "NOT RUN; owner test after update",
+  "native_emulator": "PASS API35 360dp local upload-key APK53 update/cold-start; prior51 background/keyboard smoke separately preserved",
+  "public_store_release": false,
+  "billing_products_live": false,
+  "billing_blocker": "merchant payments profile required; license-test and RTDN gates remain",
+  "scope": "Final app bundles built from frozen source6cf63748. Later delivery evidence/docs commits do not change the bundled application. Old51/145 and52/146 receipts preserved. CI outcome is recorded separately without reclassifying the original failed run as PASS.",
+  "ci_result": {
+    "conclusion": "success",
+    "counts": {
+      "frontend": {
+        "filesPassed": 486,
+        "passed": 4184,
+        "skipped": 16,
+        "failed": 0,
+        "total": 4200
+      },
+      "functions": {
+        "filesPassed": 53,
+        "filesSkipped": 1,
+        "passed": 563,
+        "skipped": 15,
+        "failed": 0,
+        "total": 578
+      },
+      "functionsRegistrationEmulator": {
+        "filesPassed": 1,
+        "passed": 15,
+        "failed": 0
+      },
+      "rules": {
+        "firestorePassed": 326,
+        "storagePassed": 44,
+        "failed": 0
+      },
+      "mockE2E": {
+        "browser": "chromium",
+        "workers": 2,
+        "passed": 359,
+        "failed": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "duration": "7.6m"
+      },
+      "webkitE2E": {
+        "workers": 1,
+        "passed": 9,
+        "failed": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "duration": "24.2s"
+      },
+      "emulatorE2E": {
+        "workers": 1,
+        "passed": 18,
+        "failed": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "duration": "54.7s"
+      }
+    }
+  },
+  "cleanup": "Task emulator5562 left running because automatic safety-pretooluse rejected stop as shutdown/reboot; no bypass."
+}

@@ -1,0 +1,1 @@
+Poprawiona czytelność poprzednich serii, np. 100 × 10, na wąskich ekranach. Zachowane pełne nazwy ćwiczeń i superserii, czytelniejsze karty treningu, nowa ikona Androida oraz poprawiona etykieta liczby serii. Sprawdź poprzednie wyniki, zmianę ciężaru i powtórzeń oraz przerwanie i wznowienie treningu.

@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, kandydat 147/53)
+**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, wydanie 147/53)
 
 ---
 
@@ -34,8 +34,34 @@ w starej komórce 39 px (RED), następnie 4/4 PASS po zmianie. Łącznie
 486 plików; typecheck, lint (0 błędów, 15 wcześniejszych ostrzeżeń),
 build, budżet i dist smoke PASS. Tymczasową reprodukcję Linux usunięto
 z obszaru lint przez przeniesienie poza repo; źródła bez zmian.
-Pakiety Android 53 / iOS 147 w przygotowaniu. Wersja produktu 1.0.0.
-Dowody: `audit/android-2026-09-09/previous-value-visibility/REPORT.md`.
+Źródło `6cf6374805346ad595d9cf6566a6e916614ca1c7` wypchnięto na main.
+Web 53 wdrożono i porównano żywe HTML, SW oraz wejściowe JS/CSS z buildem.
+Android 53 opublikowano w Google Play Internal Testing: COMPLETED, upload
+i dwa niezależne odczyty właściwego AAB potwierdzone. iOS 147 ma potwierdzone
+VALID/APPROVED/IN_BETA_TESTING w obu grupach, autoNotify i zgodne en-US
+„co testować”. Podpisy trzech targetów oraz zgodność 232 plików runtime IPA
+z końcowym buildem PASS. Wersja produktu pozostaje 1.0.0.
+Podpisany APK 53 przeszedł aktualizację z 52 na zachowanym dysku AVD,
+cold start w 1014 ms, kontrolę zainstalowanego hasha i widoczności logowania,
+bez crasha. To AOSP API 35, bez logowania, zakupów i zapisów treningu;
+nie powtórzono pełnego background smoke APK 51 ani testu fizycznego Huawei.
+Pełny CI 34404197421 zakończył się SUCCESS: Quality z mock E2E, WebKit
+i emulatorami Firebase, Android i symulator iOS PASS. Pominięto tylko dwa
+warunkowe zadania deploy; faktyczne wdrożenia mają osobne dowody.
+Końcowe liczby CI: frontend 4184 PASS / 16 SKIP w 486 plikach; Functions
+563 PASS / 15 integracyjnych SKIP, a osobny runner tych integracji 15/15 PASS.
+Reguły Firestore 326/326 i Storage 44/44 PASS. E2E Chromium 359/359,
+WebKit 9/9 oraz emulatorów Firebase 18/18 PASS, bez FAIL, flaky i SKIP.
+Historycznych błędów 52/146 ani testu background/resume na APK 51
+nie przedstawiamy jako wyniku nowego pakietu.
+Dowody: `audit/android-2026-09-09/previous-value-visibility/REPORT.md`,
+`audit/android-2026-09-09/frontend-gates-53.json`,
+`audit/android-2026-09-09/web-delivery-53.json`,
+`release/android/internal-2026-09-09-53/play-delivery.json`,
+`release/android/internal-2026-09-09-53/play-api-check.json`,
+`audit/release-2026-09-09/android53-native-smoke/smoke.json`,
+`release/ios/testflight-147.json`,
+[końcowy receipt CI](audit/android-2026-09-09/ci-status-53.json).
 
 
 ### 2026-09-09: finalne Android 52 i TestFlight 146 po korekcie etykiet
@@ -63,7 +89,8 @@ ponownego wdrożenia backendu. Aktywację produktów Google blokuje wymagany
 profil sprzedawcy. Warunki przygotowano zgodnie z odczytem iOS, w tym P0D
 dla opcjonalnego grace. Pełny CI po naprawie bootstrapu: 354 PASS / 2 FAIL.
 Obok starego selektora etykiety potwierdzono ucięcie poprzedniego wyniku
-100×10 na 375 px; następuje osobna poprawka dla 53/147. Dodatkowe bramki
+60×10 na Linux przy 375 px; dalsza reprodukcja objęła 100×10. Osobną poprawkę
+53/147 opisano powyżej. Dodatkowe bramki tego wcześniejszego źródła
 WebKit 9/9 i emulatorów Firebase 18/18 przeszły lokalnie.
 
 Automatyczna kontrola odrzuciła zamknięcie izolowanego emulatora jako

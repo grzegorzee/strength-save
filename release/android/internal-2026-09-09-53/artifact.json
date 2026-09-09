@@ -1,0 +1,1081 @@
+{
+  "verified_at": "2026-09-09T21:00:54.247428+00:00",
+  "source_commit": "6cf6374805346ad595d9cf6566a6e916614ca1c7",
+  "artifact": {
+    "path": "android/app/build/outputs/bundle/release/app-release.aab",
+    "bytes": 18769348,
+    "sha256": "7899341fc6cbc6a352aa7b4c8b4a3f08ba6ece7ebad2fb7b18f259ddfe8f1634",
+    "versionCode": "53",
+    "versionName": "1.0.0",
+    "packageName": "com.grzegorzjasionowicz.strengthsave",
+    "minSdkVersion": "26",
+    "targetSdkVersion": "36"
+  },
+  "build": {
+    "configuration": "Release",
+    "jdk": 21,
+    "task": ":app:bundleRelease :app:assembleRelease --no-daemon",
+    "status": "PASS",
+    "bundletool_validation": "PASS"
+  },
+  "signing": {
+    "jar_verification": "PASS",
+    "full_payload_verification": {
+      "JarFile_full_payload_signature_verification": "PASS",
+      "signed_payload_entries": 1338,
+      "all_match_existing_upload_certificate": true
+    },
+    "zip_structure": {
+      "zip_entries": 1341,
+      "duplicate_names": 0,
+      "crc_checks": "PASS",
+      "local_header_names_and_compression_match_central_directory": "PASS",
+      "manifest_index": 1340,
+      "manifest_is_first": false
+    },
+    "certificate_matches_existing_upload_keystore": true,
+    "certificate_sha256": "8F:65:CB:13:AD:7B:7D:FE:08:71:DD:AA:CE:C3:B3:A4:52:4B:90:A4:8E:E0:95:3C:6C:37:BA:9B:E3:7A:9C:65",
+    "trust_note": "Certificate matches the previously verified existing upload key. Upload key is self-signed; expected Java trust-chain/timestamp warnings are not Play App Signing validation. JarFile verifies every payload entry independently of ZIP manifest order.",
+    "jarsigner_log": "audit/release-2026-09-09/android-53-jar-signature.log"
+  },
+  "asset_parity": {
+    "mobile-dist": {
+      "files": 232,
+      "bytes": 9897678,
+      "sha256": "9f53b56ddaa8a94c9cb639eecd7aefd925b4c75935cb226a726a9552da53004b"
+    },
+    "android-project": {
+      "files": 232,
+      "bytes": 9897678,
+      "sha256": "9f53b56ddaa8a94c9cb639eecd7aefd925b4c75935cb226a726a9552da53004b"
+    },
+    "signed-aab": {
+      "files": 232,
+      "bytes": 9897678,
+      "sha256": "9f53b56ddaa8a94c9cb639eecd7aefd925b4c75935cb226a726a9552da53004b"
+    }
+  },
+  "revenuecat_google_sdk_key_sha256": "6a7f8aefb1c8b24dab724a30190ea59f533fb289a381086b627bb433d1d81dd9",
+  "asset_hash_algorithm": "SHA256 of compact UTF-8 JSON sorted rows [relativePath, byteLength, fileSHA256]. All mobile dist runtime files included; Finder .DS_Store excluded; generated Cordova stubs recorded separately.",
+  "native_generated_extras": {
+    "mobile-dist": {},
+    "android-project": {
+      "cordova.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "cordova_plugins.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    },
+    "signed-aab": {
+      "cordova.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "cordova_plugins.js": [
+        0,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
+    }
+  },
+  "packaged_launcher_branding": [
+    {
+      "source": "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "aab_entry": "base/res/mipmap-hdpi-v4/ic_launcher.png",
+      "visible_pixels_match": true,
+      "sha256": "a3c77241eb028159ddd548a99fca5ba84673de87103d3d6f896a7ee06e984012"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png",
+      "aab_entry": "base/res/mipmap-hdpi-v4/ic_launcher_foreground.png",
+      "visible_pixels_match": true,
+      "sha256": "41b9bac6614eb1d4e8a403bf513363a245c8aac179caefeff37306c2239d28ba"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-hdpi/ic_launcher_monochrome.png",
+      "aab_entry": "base/res/mipmap-hdpi-v4/ic_launcher_monochrome.png",
+      "visible_pixels_match": true,
+      "sha256": "b5876be211403cce810e19a3617d1d8f455a7f6088bdf7b470b1f3d4dffabb40"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+      "aab_entry": "base/res/mipmap-hdpi-v4/ic_launcher_round.png",
+      "visible_pixels_match": true,
+      "sha256": "dbbd8a6987e12811148099cb2077a483a3681d7013c74bf6cf8f7ac265e804b6"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-ldpi/ic_launcher.png",
+      "aab_entry": "base/res/mipmap-ldpi-v4/ic_launcher.png",
+      "visible_pixels_match": true,
+      "sha256": "b3e15aea6f0e09916dc6f5cce034a11a991fbf9ee7f7b47a53ce50bc3bc1b210"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-ldpi/ic_launcher_foreground.png",
+      "aab_entry": "base/res/mipmap-ldpi-v4/ic_launcher_foreground.png",
+      "visible_pixels_match": true,
+      "sha256": "2d7e1e4fe2a746b4907b2783495e9b38afa771c154a9b4bf6bcc7f42ab28bfe8"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-ldpi/ic_launcher_monochrome.png",
+      "aab_entry": "base/res/mipmap-ldpi-v4/ic_launcher_monochrome.png",
+      "visible_pixels_match": true,
+      "sha256": "730bb2deadffa89664373a2ee9823e548e3f43cfaef3a23d476225175a0391ff"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-ldpi/ic_launcher_round.png",
+      "aab_entry": "base/res/mipmap-ldpi-v4/ic_launcher_round.png",
+      "visible_pixels_match": true,
+      "sha256": "fc89efdebd37757fb0d3195e19e4cba20b68526dbb043b9c4a7ed40f2d058bc4"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "aab_entry": "base/res/mipmap-mdpi-v4/ic_launcher.png",
+      "visible_pixels_match": true,
+      "sha256": "bacf23d0ab47bdd2c130e65c6dd72e65c7f7ada272f27db659551c720445b05d"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png",
+      "aab_entry": "base/res/mipmap-mdpi-v4/ic_launcher_foreground.png",
+      "visible_pixels_match": true,
+      "sha256": "125918f291bfe3cecd5304eb255cb7fae75a4f954e6d709471b8c7a358be3bda"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-mdpi/ic_launcher_monochrome.png",
+      "aab_entry": "base/res/mipmap-mdpi-v4/ic_launcher_monochrome.png",
+      "visible_pixels_match": true,
+      "sha256": "3154db5dedb584839aca328395c2a02d3a2d78ff76a7ce34b9f0bd4e8f2e793a"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+      "aab_entry": "base/res/mipmap-mdpi-v4/ic_launcher_round.png",
+      "visible_pixels_match": true,
+      "sha256": "d72c1f993290b4f3135161066cc3d91b5a0c2058c525eaa000f4dbe291a37461"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "aab_entry": "base/res/mipmap-xhdpi-v4/ic_launcher.png",
+      "visible_pixels_match": true,
+      "sha256": "0465e3d5af1901d124ec4867e304db8cc386cd24ebf2356df1d314a7c038a7a0"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png",
+      "aab_entry": "base/res/mipmap-xhdpi-v4/ic_launcher_foreground.png",
+      "visible_pixels_match": true,
+      "sha256": "70c70918b34b5b8165e84246e21ea0160b4fd5c3b69401026c0baa29e31b0a1b"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xhdpi/ic_launcher_monochrome.png",
+      "aab_entry": "base/res/mipmap-xhdpi-v4/ic_launcher_monochrome.png",
+      "visible_pixels_match": true,
+      "sha256": "882be57c261a1098d68214a7fb118e4fbf2a4f7fcff39a447b64e9bf4f05ed05"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+      "aab_entry": "base/res/mipmap-xhdpi-v4/ic_launcher_round.png",
+      "visible_pixels_match": true,
+      "sha256": "e568b599a45b09cc5cc6537f64cf7de4bd6d0272eee113dc4c881b213f411835"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "aab_entry": "base/res/mipmap-xxhdpi-v4/ic_launcher.png",
+      "visible_pixels_match": true,
+      "sha256": "ef2afa0f7fd771592e28802e1c4e7d6f6651681426e2fecb34835acb2c042f5a"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png",
+      "aab_entry": "base/res/mipmap-xxhdpi-v4/ic_launcher_foreground.png",
+      "visible_pixels_match": true,
+      "sha256": "edea39e2679e7fd02f20074d0ca53c91f4f580bd603d584433964211451112d4"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_monochrome.png",
+      "aab_entry": "base/res/mipmap-xxhdpi-v4/ic_launcher_monochrome.png",
+      "visible_pixels_match": true,
+      "sha256": "87ef860862ffca3022e76a9723d4742e6501a95a0da4eb8a3aa232b76c8bdfa7"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+      "aab_entry": "base/res/mipmap-xxhdpi-v4/ic_launcher_round.png",
+      "visible_pixels_match": true,
+      "sha256": "b0f00c5aaab337b295ec45c347ad6454fbe7cb461d8d0c52a7c6218c80a45724"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "aab_entry": "base/res/mipmap-xxxhdpi-v4/ic_launcher.png",
+      "visible_pixels_match": true,
+      "sha256": "3bdf08b29e7381375fdb08776a2a7ef6317d800103bf3646042c2bfd9faf098d"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png",
+      "aab_entry": "base/res/mipmap-xxxhdpi-v4/ic_launcher_foreground.png",
+      "visible_pixels_match": true,
+      "sha256": "6f6609e352434155164e56240600b528f22df4a47435d62fdedbf9700a37b422"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_monochrome.png",
+      "aab_entry": "base/res/mipmap-xxxhdpi-v4/ic_launcher_monochrome.png",
+      "visible_pixels_match": true,
+      "sha256": "c142713e4f3b155bdf35d6de9691631bc72376de53bf5725a2bb31d9fb1ef56a"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+      "aab_entry": "base/res/mipmap-xxxhdpi-v4/ic_launcher_round.png",
+      "visible_pixels_match": true,
+      "sha256": "ebd423ad573baf40b6e09069063504d702e98354ce2e080ea64ed30f2917b0ed"
+    }
+  ],
+  "previous_artifact_preserved": {
+    "path": "/tmp/strength-release-20260909/android-history/strength-save-1.0.0-52.aab",
+    "versionCode": "52",
+    "sha256": "7d07f2bb0fb42f5c0eb696c9487496abce658830f21ccd24124401eb74dc4070",
+    "apk_path": "/tmp/strength-release-20260909/android-history/strength-save-1.0.0-52.apk",
+    "apk_sha256": "fcd8fafceef1ad4fedc302152fa964a0e0ea4d438d98b7ff659d7d860b35de06"
+  },
+  "alignment_16k": {
+    "aab_requested_zip_alignment": "PAGE_ALIGNMENT_16K",
+    "all_64bit_elf_load_segments": "PASS",
+    "libraries": [
+      {
+        "path": "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+        "sha256": "d3e48717c9aa147e0ab21063ba0e8e0211cabf8bf40b222640829519edbf58e1",
+        "elf_bits": 64,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 4544,
+            "virtual_address": 20928,
+            "alignment": 16384
+          },
+          {
+            "offset": 5160,
+            "virtual_address": 37928,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/arm64-v8a/libimage_processing_util_jni.so",
+        "sha256": "3e0071afcdc7e321f839e196d266014182f18d0988e4455acc9857a085b2184e",
+        "elf_bits": 64,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 26048,
+            "virtual_address": 42432,
+            "alignment": 16384
+          },
+          {
+            "offset": 26984,
+            "virtual_address": 59752,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/arm64-v8a/libsurface_util_jni.so",
+        "sha256": "ee3f0d56f81cc0a301db32dc4fd51274c3216733b4c40172768e38bc5049a265",
+        "elf_bits": 64,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 2448,
+            "virtual_address": 18832,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/armeabi-v7a/libdatastore_shared_counter.so",
+        "sha256": "716c5d8d2cac8ca0edf65da8f139c7886b726ac79d542a14edeb94994ba6d3dc",
+        "elf_bits": 32,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 2704,
+            "virtual_address": 19088,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": false
+      },
+      {
+        "path": "base/lib/armeabi-v7a/libimage_processing_util_jni.so",
+        "sha256": "e48e356bbe1902ae9a66178a4a0141c993b82ee9f70dde52ad83e4af3eca984f",
+        "elf_bits": 32,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 18352,
+            "virtual_address": 34736,
+            "alignment": 16384
+          },
+          {
+            "offset": 18848,
+            "virtual_address": 51616,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": false
+      },
+      {
+        "path": "base/lib/armeabi-v7a/libsurface_util_jni.so",
+        "sha256": "f110d6a305fef5be5664d58cfb054366b002bc516066b4ec880c38a68428756f",
+        "elf_bits": 32,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 1760,
+            "virtual_address": 18144,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": false
+      },
+      {
+        "path": "base/lib/x86/libdatastore_shared_counter.so",
+        "sha256": "cd4a1649e2c8350703146f94a6ee2bf4c3c8c9f172159f805b61a4a2abdf0659",
+        "elf_bits": 32,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 3600,
+            "virtual_address": 19984,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": false
+      },
+      {
+        "path": "base/lib/x86/libimage_processing_util_jni.so",
+        "sha256": "f5bdd537631cce21ad038a6737775540a7aef1f5a3d1fdc26c469f6c1ae73010",
+        "elf_bits": 32,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 36352,
+            "virtual_address": 52736,
+            "alignment": 16384
+          },
+          {
+            "offset": 36876,
+            "virtual_address": 69644,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": false
+      },
+      {
+        "path": "base/lib/x86/libsurface_util_jni.so",
+        "sha256": "6b5d033063bc125d99706f14f0ded08b3f0058f53f5a3d17d134e7d2ea75db11",
+        "elf_bits": 32,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 2144,
+            "virtual_address": 18528,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": false
+      },
+      {
+        "path": "base/lib/x86_64/libdatastore_shared_counter.so",
+        "sha256": "fb6c9208988c49ae94943bc3236fa763ba584722e044fa4ea9a12d2941027105",
+        "elf_bits": 64,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 3872,
+            "virtual_address": 20256,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/x86_64/libimage_processing_util_jni.so",
+        "sha256": "676e3e280c10dcb9b71ef5bb727552610dc73c7ec85af54c7c898f82785c33d7",
+        "elf_bits": 64,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 45392,
+            "virtual_address": 61776,
+            "alignment": 16384
+          },
+          {
+            "offset": 46080,
+            "virtual_address": 78848,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/x86_64/libsurface_util_jni.so",
+        "sha256": "cd425e10a365fb3695e53f1e46227d44d89f14854da4f1258ef079c80c752339",
+        "elf_bits": 64,
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 2544,
+            "virtual_address": 18928,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      }
+    ],
+    "generated_apks": [
+      {
+        "path_in_apk_set": "splits/base-af.apk",
+        "bytes": 20826,
+        "sha256": "4f4415540506e3f749af42513beafca8aa1bef1f7930963ac11c0551951128e3",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-am.apk",
+        "bytes": 24922,
+        "sha256": "9b67b648a867a0dc8e5a9144a35b8711b097e8ca9d363230bc584e65c72927bf",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ar.apk",
+        "bytes": 24922,
+        "sha256": "c9ec52975a8601816b93711877973942e046010ab61170b68b76ee2d94a6180e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-arm64_v8a.apk",
+        "bytes": 78373,
+        "sha256": "1753b2f716247edf6745dd877a9e5e651ed11b43113cf0ac529133f0c1521f20",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-armeabi_v7a.apk",
+        "bytes": 78379,
+        "sha256": "68294f631f6a56b15f4733d25b0e6aee6bf9061a07ff07c71c576c2cb7a20410",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-as.apk",
+        "bytes": 24922,
+        "sha256": "673eccfa84ad0493fbcdaf12c4c478153dbb0d4337ce70b06d4b2e0ce293fff5",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-az.apk",
+        "bytes": 20826,
+        "sha256": "d90e5a2cfb86f8b0b8b885ec9da2393ddbb77ec81963871726d112408023ad6b",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-be.apk",
+        "bytes": 24922,
+        "sha256": "b853dc288cf443f00f4f1138ddcc58eb6088e81e1a7eb8664de23b39b1fefe77",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-bg.apk",
+        "bytes": 24922,
+        "sha256": "91974dc023d33b9f84f763f0414a1c54c9f49fa46d0aa1a0d90daf4c74c1d1a7",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-bn.apk",
+        "bytes": 24922,
+        "sha256": "554c6c806fcbf16cc61b1aceb541e3ba6b0934eb054954a6d30bdba11dcceab1",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-bs.apk",
+        "bytes": 20826,
+        "sha256": "f694f038e821932016a1e77e73976e3bf1c56ebeb2c3cf3d42bbd9d0da41842c",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ca.apk",
+        "bytes": 20826,
+        "sha256": "15da9090b59d21ce4aa93566bc242d85e5f57866bce39b3b08ae6e84b6aaa89a",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-cs.apk",
+        "bytes": 20826,
+        "sha256": "6ee5933d1b4f9501e34120c131b05ae8a043e262ecd2d241b8164d037d9e9f76",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-da.apk",
+        "bytes": 20826,
+        "sha256": "74d8f0f433f59e494546b6d7c35299fc5628a3de53e13cc66ee3f8f20e5eb11e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-de.apk",
+        "bytes": 20826,
+        "sha256": "1ae98cb5e5f4550a0e9f36a9b5c8dc3046ed30c801658292990885bd3ef4953b",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-el.apk",
+        "bytes": 24922,
+        "sha256": "352850943694ac5089f91e80417c4bcccc7e11577f446ade78fc8e2122d8092f",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-en.apk",
+        "bytes": 41306,
+        "sha256": "ffc77fc010612aed4921ab7e044e8cb144af85eb6ccadc23cdc3d3dfb9b2e558",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-es.apk",
+        "bytes": 29018,
+        "sha256": "1aa5853f6fce41a50d1f4ad1ed3b5d986f75bfbecec3618e5462916f8456e5b0",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-et.apk",
+        "bytes": 20826,
+        "sha256": "42730115ff1bcdfc99b78b8d1c4855ab9eb7eceb3b8e614b687cd2d99eb892a4",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-eu.apk",
+        "bytes": 20826,
+        "sha256": "16a6efba0417e27112486db4fedfcd7996584d7785c1f0229aa33136811a6066",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-fa.apk",
+        "bytes": 24922,
+        "sha256": "9a9a070ee1e3cd8f1dda581799749f0c85033afd508c6fea6a7b82782d3f7838",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-fi.apk",
+        "bytes": 20826,
+        "sha256": "7f6371045e63325e7355d7823ca8010d7c7a636842da509a6f8ef3ffb953884e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-fr.apk",
+        "bytes": 29018,
+        "sha256": "7353bfc96f98daacc6b37ddfbee95fe8790525cbb6e615c4bd5d00a10d04039c",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-gl.apk",
+        "bytes": 20826,
+        "sha256": "832c06c6de2f8137f57d4435638b2e579ba879e0e8b6f45a4ee771a1e32636b2",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-gu.apk",
+        "bytes": 24922,
+        "sha256": "7caed07c816a602cc7b90bbee2510ef40fc3f6d938f732f15289dfadd5ad08f9",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-hdpi.apk",
+        "bytes": 71035,
+        "sha256": "0b3455bbbcf5ce6fea24a6204018dfe368ab95ae984d6ac12c7b6d9e61fd058d",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-hi.apk",
+        "bytes": 24922,
+        "sha256": "df8c918a23ff1e61716844966dd3b88903456477562c844e1df0c8948e505734",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-hr.apk",
+        "bytes": 20826,
+        "sha256": "baf6ef6dae5c3fb62834438969cbef986d8a500719bb9ad9a4488845e53dcbb4",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-hu.apk",
+        "bytes": 20826,
+        "sha256": "3ff265adfc23aba5099668136ddb7e1049fee3586210e8e027b03da1851cdddb",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-hy.apk",
+        "bytes": 24922,
+        "sha256": "49aab9ab0f5beb942dfec280a0ef73f260c8896e41978a2b0c1f1542224efa20",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-in.apk",
+        "bytes": 20826,
+        "sha256": "41e195a033ca9d9b661903e1dd2aa6182944f022401cacb473ca081506f257d3",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-is.apk",
+        "bytes": 20826,
+        "sha256": "f303e9af89f6a71fe87a20e5e36a53d515835f22d7ccdf00e5b601a88275c79f",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-it.apk",
+        "bytes": 20826,
+        "sha256": "4120d73a203a8a6845f5c7ae5ea51104980b664198b18a46a4da8b11380ab903",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-iw.apk",
+        "bytes": 24922,
+        "sha256": "b91a36c060038095e0f244befa09578fc2c896b0e3ac93bd6b54bbce1bd0ad81",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ja.apk",
+        "bytes": 24922,
+        "sha256": "b09b46d4e629a9bb102004cb403fa8c949aa6924ce1e81cb3a70815a449ab725",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ka.apk",
+        "bytes": 24922,
+        "sha256": "2f879aa88703dcf30e4f5fa13a19d1dc1920fae674005e9750490aa2abd92462",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-kk.apk",
+        "bytes": 24922,
+        "sha256": "4beb915aacac0bbd5084beae925aa43d42240d024f92a9f938ea153c715daaa7",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-km.apk",
+        "bytes": 24922,
+        "sha256": "b6871e4e6e29b0afaa5343041649f457477b4545a2025f3d2215bbc806d7327e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-kn.apk",
+        "bytes": 24922,
+        "sha256": "50dde7521742d8efa1036f6bcbf4228451827bc243e3107cb217d598ca640db6",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ko.apk",
+        "bytes": 20826,
+        "sha256": "c30647d66f06a60bf6f663325a1a407407978964d33b6e7031bbd328f9a28d99",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ky.apk",
+        "bytes": 24922,
+        "sha256": "b41cba5c7a45a987f662af9ec8b422c9d0fde38eb8a35504c9137c66b5b1fa1a",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ldpi.apk",
+        "bytes": 76649,
+        "sha256": "63cd006eab7e86fe7ac12c3dfa868f8aea3f324077a19f03d4671620e694198f",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-lo.apk",
+        "bytes": 24922,
+        "sha256": "8a8114d701fd3afaa4eceabe61ab39503c20c8b67f08bc0506e286844199b759",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-lt.apk",
+        "bytes": 24922,
+        "sha256": "6394e12825eebf459e399cc6b642e75803158f9219ccfb9bcf20d302700f4329",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-lv.apk",
+        "bytes": 24922,
+        "sha256": "2180350fefe997a4231b980c633507046f6eafec4830c3d91396c5ff682e602b",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-master.apk",
+        "bytes": 18560568,
+        "sha256": "2c342c8d51df424ff224909555f7da282ba096546d643d8af24c1dec00c5df78",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-master_2.apk",
+        "bytes": 36406840,
+        "sha256": "75cd6c490f18c1ef5d968bef3d98a5992af9608baa0db38d0adb142f164ae4ee",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-mdpi.apk",
+        "bytes": 58747,
+        "sha256": "34dad6a1f5c26d23f7f015d861381c2d2c693915a32a70d3f3510b6d36434e62",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-mk.apk",
+        "bytes": 24922,
+        "sha256": "cb97b9fe92ae8e0cd9767ec4d98e2d6dd699adf6e54c8a3426dd82d3b5c259e4",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ml.apk",
+        "bytes": 29018,
+        "sha256": "3099e6778407cc4dc7172fe34d2a8c0b98e024f783382976a5fb20a3ad4f46be",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-mn.apk",
+        "bytes": 24922,
+        "sha256": "22a80c2ce6abbc98977acf472ee3599aa935dcef24f5ec0d18dc466a3d537d1a",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-mr.apk",
+        "bytes": 24922,
+        "sha256": "6c5c3bc06d4f41b29558771cc94cd6337ccb605913f853de199018b493d24288",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ms.apk",
+        "bytes": 20826,
+        "sha256": "2363f1804cf2538d233c989c46e4a46a36f0ea432374bd53dc558c152e10b324",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-my.apk",
+        "bytes": 29018,
+        "sha256": "fc94fc8d4f6fe803997ccbbd983cc91804023251f07910a364fe86f9be2e81ac",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-nb.apk",
+        "bytes": 20826,
+        "sha256": "c5daea1744b7b55b2db3f5c93a8a38e3d7a66b5db443deb6d583f9661f465934",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ne.apk",
+        "bytes": 24922,
+        "sha256": "683755d8ad9b504f9a955e49e33bc3c82c15a5b7d268d4ccf284762f4eed73db",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-nl.apk",
+        "bytes": 20826,
+        "sha256": "9e65dcacfac367567f8b42428358cf46a02a9f6eefe629c9ce3a1bdb208ea816",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-or.apk",
+        "bytes": 24922,
+        "sha256": "53255bebc1ef596727fba7fc9bc176bc061c897874c2c1419a817855fc862a15",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-pa.apk",
+        "bytes": 24922,
+        "sha256": "fa234f5dbcff57fc612fd4cb5b3dfbeea9ac4aaf8a185863fb43acb452240a37",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-pl.apk",
+        "bytes": 20826,
+        "sha256": "b5dfeb44cfa99162b69bc48451344d72f3a3da44e9dc192bf0289b239dd8fb96",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-pt.apk",
+        "bytes": 29018,
+        "sha256": "88c6b521ada43b1110e5e0168a697b2b7c3b5dce1b1e27f7ffddb91ca54da1d3",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ro.apk",
+        "bytes": 20826,
+        "sha256": "0d47f9fa58d2512a9421df33591c13885f3de74bd2370adce7b2edadc507aa67",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ru.apk",
+        "bytes": 24922,
+        "sha256": "44275d9d6eaa66ed6bac8155c174ecc29ed84db8b2576961fee94019b8c9dd6f",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-si.apk",
+        "bytes": 24922,
+        "sha256": "474c15baeded30b98b9118ca02e9453966ef0cf665dc893023a8d27977a391c2",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-sk.apk",
+        "bytes": 20826,
+        "sha256": "187fcfe0569ee9d0b84b8d05099660f69aab93b77d5ae7b677869b221af7b457",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-sl.apk",
+        "bytes": 20826,
+        "sha256": "51031db4d49747b58665a45cc763adc1b2aa2886ebde0323fa7deb67cca3da71",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-sq.apk",
+        "bytes": 20826,
+        "sha256": "34765961a0dbd817d3cf852707090c0dbf4d2bb28cd1c6abd46e1b15241f7fe7",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-sr.apk",
+        "bytes": 29018,
+        "sha256": "3c09fd13d0032abfa24e7478a28259a32471548fa16686251f8e50fee2f69089",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-sv.apk",
+        "bytes": 20826,
+        "sha256": "83f35b633cefba41607994d28fbaa3388074896c7ca80308bbc527fbb571bf89",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-sw.apk",
+        "bytes": 20826,
+        "sha256": "a9d6ad0ab7b9ed6d8b6202ad11ec732ecb94321aab3a24459d435ccd4e8ca835",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ta.apk",
+        "bytes": 29018,
+        "sha256": "88e15ae476e9909e88199b552397dcc628a30738d4c781e2e5cd1f4a7c1104f5",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-te.apk",
+        "bytes": 24922,
+        "sha256": "332b7aba72f45088ef7a4b2ca62db96d9d4e9464e731d12fb867b644e81f14eb",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-th.apk",
+        "bytes": 24922,
+        "sha256": "8fe15cf9045dc63bbb53adc6922b0e2db31194509c20b87eecd572a9be867780",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-tl.apk",
+        "bytes": 20826,
+        "sha256": "67ee6fcf223b1dcabe12a04809fc0bc52e71a11432a1d879e079356fe955e422",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-tr.apk",
+        "bytes": 20826,
+        "sha256": "bfcefa0a4a5937bb18e231c96fee3b255a67894ce6500283a3427ec3412ade3e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-tvdpi.apk",
+        "bytes": 108601,
+        "sha256": "dd127d3196874da54efd1306a3ef0c009c1f2da6d1a029577e8d347fff064de1",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-uk.apk",
+        "bytes": 24922,
+        "sha256": "e5693ec11d5a6971bf566b673dd7f8999cb785ce3f7f023f33c55105715a3997",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-ur.apk",
+        "bytes": 24922,
+        "sha256": "710079b790dc49eb1ec55dfc242ba419c854209131c949e9d3093ea1ad422a60",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-uz.apk",
+        "bytes": 20826,
+        "sha256": "ff845158d658f3b6df334a1b6f24f457695cd30074169a4926b49ae4918cfd6e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-vi.apk",
+        "bytes": 24922,
+        "sha256": "16c3f111af41571970a3cdc2bf94dcf4a9756d641c2cb4544f18d2f14edec4ee",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-x86.apk",
+        "bytes": 94739,
+        "sha256": "0a1c66cafce7818d9afa0ba6ff5763c9c086568ee26482af6ea69e856c6b5965",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-x86_64.apk",
+        "bytes": 94748,
+        "sha256": "cf8d10a6eb67f904a71787cffa4ca58b44ebd1ad9892f3f11f6e7c7130ae4801",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-xhdpi.apk",
+        "bytes": 83370,
+        "sha256": "dc8ff555598011ca87640f539c29b9aa73bb685e62b2c924745080a9a56d66eb",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-xxhdpi.apk",
+        "bytes": 120275,
+        "sha256": "dfb2294b1fd0aa76dfa0884d3db6224d6689f3f94e44c963ebf11d5256124559",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-xxxhdpi.apk",
+        "bytes": 157154,
+        "sha256": "2dabc915b27566fcdfafe2320070a35b8b2004614b42d074fac435deb837b56e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-zh.apk",
+        "bytes": 33114,
+        "sha256": "eea6e64621c97942a906199ebb5269b6e25df8bc85d7f515c4763d0a1632849e",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "path_in_apk_set": "splits/base-zu.apk",
+        "bytes": 20826,
+        "sha256": "ab63e516758a45e00dbf59cec8725ddfde4900d2daa5dd498a4ec153838e28ae",
+        "zipalign_16k": "PASS"
+      }
+    ],
+    "physical_16k_device_test": "NOT RUN"
+  },
+  "verification_apk_set": {
+    "path": "/tmp/strength-release-20260909/android53-verification/strength-save-53-verification.apks",
+    "sha256": "8b1254f3862be4702b15839b4860eaa398e14f9ba21e0f641c53206c96550ea1",
+    "signing": "Local debug signing for packaging verification only; not uploaded or installed; distinct from Play App Signing."
+  },
+  "tooling": {
+    "bundletool_version": "1.18.3",
+    "bundletool_sha256": "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29",
+    "zipalign_sdk_build_tools": "36.0.0"
+  },
+  "logs_directory": "audit/release-2026-09-09",
+  "distribution": {
+    "access_preflight": {
+      "method": "Read-only generatedApks(50) with short-lived service-account impersonation",
+      "http_status": 200,
+      "evidence": "audit/feedback-2026-09-09/android-branding/play-firebase-signing.json"
+    },
+    "track": "internal",
+    "upload": "COMPLETED",
+    "live_highest_versionCode": 53,
+    "blockers": [],
+    "publication_owner": "Coordinating agent; published using Google Play Developer API",
+    "production_release": "NOT REQUESTED / NOT PERFORMED",
+    "publication_evidence": "release/android/internal-2026-09-09-53/play-delivery.json",
+    "publication_readback_verified": true,
+    "independent_readback_evidence": "release/android/internal-2026-09-09-53/play-api-check.json"
+  },
+  "runtime_installation": "PASS: signed APK53 update from52, installed hash, cold start1014ms and logged-out UI on isolated AOSP API35/360dp; no crash. Full keyboard/background smoke51 separately preserved. Not physical Huawei Android10, Play-signed APK, store purchase or16KB runtime test.",
+  "local_signed_release_apk": {
+    "path": "/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/android/app/build/outputs/apk/release/app-release.apk",
+    "versionCode": 53,
+    "versionName": "1.0.0",
+    "bytes": 19792997,
+    "sha256": "7ca6322cb4dd71ecaf45b7bc0778bb18e115ad3acf57109f975f56dfbf3f7aa8",
+    "certificate_sha256": "8f65cb13ad7b7dfe0871ddaacec3b3a4524b90a48ee0953c6c37ba9be37a9c65",
+    "signing": "Existing local upload key; not Play App Signing",
+    "apksigner": "PASS",
+    "zipalign_16k": "PASS",
+    "mobile_dist_runtime_parity": "PASS",
+    "runtime_files": 232,
+    "source_commit": "6cf6374805346ad595d9cf6566a6e916614ca1c7"
+  },
+  "release_cli_preflight": "PASS",
+  "release_notes": {
+    "pl": {
+      "path": "release/android/internal-2026-09-09-53/whats-new-pl.txt",
+      "characters": 301,
+      "sha256": "2d6a9b28c39dbf079274c9847a7f2c752f90badb011a5a23d40f5f3a4304c28b"
+    },
+    "en": {
+      "path": "release/android/internal-2026-09-09-53/whats-new-en.txt",
+      "characters": 295,
+      "sha256": "33e4a8ba3bb25f047df8a5442edd2998642333d7d970840cbc08c66d9e3722b5"
+    }
+  },
+  "native_smoke": {
+    "status": "PASS",
+    "evidence": "audit/release-2026-09-09/android53-native-smoke/smoke.json",
+    "scope": "Update52to53 and cold-start only; AOSP API35 360dp local upload-key APK; physical Huawei Android10 remains untested",
+    "prior_background_keyboard_evidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
+  }
+}

@@ -2,11 +2,20 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (52)** opublikowany
-> w Google Play Internal Testing przez API, `completed` i hash pakietu potwierdzone.
-> iOS **1.0.0 (146)**: VALID / APPROVED / IN_BETA_TESTING w obu grupach TestFlight.
+> **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (53)** ze źródła
+> `6cf63748` opublikowany w Google Play Internal Testing; `COMPLETED` i hash AAB
+> potwierdzone dwoma odczytami. iOS **1.0.0 (147)**: VALID / APPROVED /
+> IN_BETA_TESTING w obu grupach TestFlight, autoNotify włączone.
+> Poprzednie 52/146 już dostarczono do testerów.
 > Poprawiono wiersze serii 360 px/starszego WebView, ikonę/splash Androida,
-> podpis Play w Firebase i obsługę PRO między sklepami. Web i webhook wdrożone.
+> podpis Play w Firebase i obsługę PRO między sklepami. W 53/147 naprawiono też
+> przycinanie poprzednich wyników: 88/88 testów przeglądarkowych, w tym Linux;
+> pełny frontend 4184 PASS / 16 SKIP. Web 53 i webhook wdrożone i zweryfikowane.
+> Końcowy CI 34404197421: SUCCESS — Quality, Android i symulator iOS PASS;
+> pominięto tylko dwa warunkowe zadania deploy. Wcześniejsze błędy CI zachowano w raporcie.
+> E2E CI: Chromium 359/359, WebKit 9/9, Firebase 18/18 PASS, bez flaky i SKIP.
+> [Końcowy dowód CI](audit/android-2026-09-09/ci-status-53.json).
+> APK 53: aktualizacja z 52 i cold start na AOSP API 35 PASS, bez logowania.
 > [Aktualizacja Androida](https://play.google.com/apps/internaltest/4699979891077312306).
 > [Raport, testy i warunki płatności](docs/ANDROID-2026-09-09.md).
 > Zakupy Google nadal wymagają profilu płatności właściciela i testu sklepowego;

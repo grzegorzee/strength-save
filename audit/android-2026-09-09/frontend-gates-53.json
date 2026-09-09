@@ -1,0 +1,54 @@
+{
+  "checked_at": "2026-09-09T20:58:51.261824+00:00",
+  "source_commit": "6cf6374805346ad595d9cf6566a6e916614ca1c7",
+  "unit": {
+    "files_passed": 486,
+    "passed": 4184,
+    "skipped": 16,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 15
+  },
+  "production_build": "PASS",
+  "bundle_budget": "PASS",
+  "dist_smoke": "PASS",
+  "browser": {
+    "passed": 88,
+    "failed": 0,
+    "evidence": "audit/android-2026-09-09/previous-value-visibility/verification.json",
+    "scope": "Final source targeted Chromium/WebKit + official Ubuntu Noble Chromium; no physical Huawei test"
+  },
+  "logs": {
+    "unit": {
+      "local_path": "/tmp/strength-android-53-vitest.log",
+      "sha256": "73acc64ac21d78b0d8a04eff66de77c6b06a659581e3c7cbfe38fccf2f7a8ee9"
+    },
+    "typecheck": {
+      "local_path": "/tmp/strength-android-53-typecheck.log",
+      "sha256": "f581e2ea11f93d357b746d228a3476b72ea9b1abbbf75411d0855970397e23f5"
+    },
+    "lint": {
+      "local_path": "/tmp/strength-android-53-lint.log",
+      "sha256": "3b924e8cc634040e8d6332e483fb439cedeb8b80504fb84e4fcc33889957f160"
+    },
+    "build": {
+      "local_path": "/tmp/strength-android-53-build.log",
+      "sha256": "a375e9e0fe4d2f23faf4152b6d51e8e2f1ece0a42a789b733a312887943dc37f"
+    }
+  },
+  "notes": [
+    "Initial lint found no-self-assign only in a temporary Linux reproduction fixture. Moved the finished fixture outside repo and reran full lint successfully; no production/test fix needed.",
+    "Full remote CI tracked separately in ci-status-53.json; earlier source CI failures are preserved."
+  ],
+  "final_release_metadata_contracts": {
+    "files": 4,
+    "passed": 20,
+    "failed": 0,
+    "local_log": "/tmp/strength-53-final-release-contracts.log",
+    "sha256": "990ce402562a11a9f871eac318a38162e861344a2256dcf6e4e54412da96303f"
+  },
+  "independent_billing_report_review": "PASS against stored iOS price/trial/grace references and actual merchant precondition; no live purchase implied"
+}

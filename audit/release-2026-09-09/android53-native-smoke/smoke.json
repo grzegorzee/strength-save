@@ -1,0 +1,60 @@
+{
+  "completedAtUtc": "2026-09-09T21:04:10.473814+00:00",
+  "status": "PASS",
+  "sourceCommit": "6cf6374805346ad595d9cf6566a6e916614ca1c7",
+  "artifact": {
+    "path": "android/app/build/outputs/apk/release/app-release.apk",
+    "versionCode": 53,
+    "versionName": "1.0.0",
+    "sha256": "7ca6322cb4dd71ecaf45b7bc0778bb18e115ad3acf57109f975f56dfbf3f7aa8",
+    "installed_apk_hash_matches": true,
+    "signing": "Existing local upload key; not Play App Signing"
+  },
+  "priorInstall": {
+    "versionCode": 52,
+    "sha256": "fcd8fafceef1ad4fedc302152fa964a0e0ea4d438d98b7ff659d7d860b35de06",
+    "avd": "strength_android51_smoke_20260909",
+    "serial": "emulator-5562",
+    "prior_disk_data_preserved": true
+  },
+  "environment": {
+    "avd": "strength_android51_smoke_20260909",
+    "serial": "emulator-5562",
+    "android": "15",
+    "api": 35,
+    "flavor": "AOSP ARM64, no Play Store",
+    "logicalViewportDp": "360x800"
+  },
+  "checks": {
+    "upgrade_52_to_53_adb_r": "PASS",
+    "prior_52_installed_hash_matches": true,
+    "installed_version_53": "PASS",
+    "cold_start": "PASS",
+    "cold_start_total_time_ms": 1014,
+    "logged_out_ui_visible": "PASS; actual screenshot manually reviewed: Strength Save with Google/Apple/email sign-in choices and legal links",
+    "process_alive_at_end": true,
+    "process_pid": 2015,
+    "crash_buffer_empty": true
+  },
+  "screenshot": {
+    "path": "audit/release-2026-09-09/android53-native-smoke/logged-out-53.png",
+    "sha256": "2519bae7eb3d2a96d90dc089eb6d9d6b1605116416094d4489d10e3df7319b75"
+  },
+  "submittedLogin": false,
+  "createdAccount": false,
+  "workoutWrites": false,
+  "prior51And52SmokePreserved": true,
+  "limits": [
+    "Bounded signed-APK update-install and cold-start delta only; full keyboard/background smoke51 was not repeated",
+    "Not a physical Huawei Android10/EMUI11 test",
+    "Not a Play-signed APK, store billing or 16KB-device runtime test",
+    "Authenticated previous-set column is covered by separate browser tests; this native smoke remains logged out"
+  ],
+  "ownedEmulatorLifecycle": {
+    "initialState": "No adb device or running AVD process found at start of53 task",
+    "action": "Started the same task-owned AVD with existing disk data and no wipe/snapshot; actual APK52 was verified before upgrade",
+    "finalState": "Running; adb reports device; app process alive at final check",
+    "stopAttemptedThisTask": false,
+    "historicalCleanupNote": "The earlier stop request during52 smoke was rejected by safety-pretooluse; no alternate stop action or bypass was attempted"
+  }
+}

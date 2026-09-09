@@ -30,7 +30,7 @@
   "web": {
     "url": "https://app.strengthsave.app/",
     "state": "requires-current-source-and-live-provenance-verification",
-    "deliveryEvidence": "audit/android-2026-09-09/web-delivery-52.json",
+    "deliveryEvidence": "audit/android-2026-09-09/web-delivery-53.json",
     "verifiedDelivery": "deployed-live-html-service-worker-and-entry-assets-byte-verified"
   },
   "functions": {
@@ -45,7 +45,7 @@
     "build": 147,
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/ios/testflight-147.json",
-    "verifiedDelivery": "pending history-value visibility correction build"
+    "verifiedDelivery": "VALID / APPROVED / IN_BETA_TESTING in both TestFlight groups; signed IPA and 232 runtime files verified"
   },
   "android": {
     "version": "1.0.0",
@@ -53,7 +53,7 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/android/internal-2026-09-09-53/artifact.json",
-    "verifiedDelivery": "pending history-value visibility correction build",
+    "verifiedDelivery": "internal/completed 53; exact AAB hash verified by independent fresh API readback",
     "playDeliveryEvidence": "release/android/internal-2026-09-09-53/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
@@ -62,7 +62,7 @@
       "serviceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
-      "evidence": "release/android/internal-2026-09-09-52/play-api-check.json",
+      "evidence": "release/android/internal-2026-09-09-53/play-api-check.json",
       "checkCommand": "uv run scripts/google_play_check.py --expect-version 53"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
@@ -78,12 +78,12 @@
   },
   "smoke": {
     "physicalIos": "pending-owner-testflight-test",
-    "physicalAndroid": "Huawei Android10 build50 defect fixed in52; physical-device confirmation pending",
+    "physicalAndroid": "Huawei Android10 build50 defect fixed in53; physical-device confirmation pending",
     "androidEmulator": {
       "status": "PASS",
-      "device": "isolatedAPI35 360dp",
-      "evidence": "audit/release-2026-09-09/android52-native-smoke/smoke.json",
-      "scope": "52 update/cold-start; prior51 keyboard/background smoke separately preserved",
+      "device": "isolated API35 360dp",
+      "evidence": "audit/release-2026-09-09/android53-native-smoke/smoke.json",
+      "scope": "53 update/cold-start; prior51 keyboard/background smoke separately preserved",
       "priorBackgroundEvidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
     }
   },

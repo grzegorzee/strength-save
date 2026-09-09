@@ -1,0 +1,533 @@
+{
+  "capturedAt": "2026-09-09T21:18:36.827113+00:00",
+  "runId": 34404197421,
+  "url": "https://github.com/grzegorzee/strength-save/actions/runs/34404197421",
+  "sourceSha": "6cf6374805346ad595d9cf6566a6e916614ca1c7",
+  "release": {
+    "marketingVersion": "1.0.0",
+    "iosBuild": 147,
+    "androidVersionCode": 53
+  },
+  "status": "completed",
+  "conclusion": "success",
+  "createdAt": "2026-09-09T20:58:10Z",
+  "updatedAt": "2026-09-09T21:16:23Z",
+  "jobs": [
+    {
+      "name": "quality",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T20:58:13Z",
+      "completedAt": "2026-09-09T21:16:22Z",
+      "steps": [
+        {
+          "completedAt": "2026-09-09T20:58:15Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-09T20:58:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:22Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-09T20:58:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:24Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-09T20:58:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:24Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-java@v4",
+          "number": 4,
+          "startedAt": "2026-09-09T20:58:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:38Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 5,
+          "startedAt": "2026-09-09T20:58:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:43Z",
+          "conclusion": "success",
+          "name": "Run npm ci --prefix functions",
+          "number": 6,
+          "startedAt": "2026-09-09T20:58:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:00Z",
+          "conclusion": "success",
+          "name": "Run npm i -g firebase-tools@15",
+          "number": 7,
+          "startedAt": "2026-09-09T20:58:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:36Z",
+          "conclusion": "success",
+          "name": "Run npx playwright install --with-deps chromium webkit",
+          "number": 8,
+          "startedAt": "2026-09-09T20:59:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:57Z",
+          "conclusion": "success",
+          "name": "Run npm run typecheck",
+          "number": 9,
+          "startedAt": "2026-09-09T20:59:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:00:10Z",
+          "conclusion": "success",
+          "name": "Run npm run lint",
+          "number": 10,
+          "startedAt": "2026-09-09T20:59:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:05:32Z",
+          "conclusion": "success",
+          "name": "Run npm run test -- --coverage",
+          "number": 11,
+          "startedAt": "2026-09-09T21:00:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:05:41Z",
+          "conclusion": "success",
+          "name": "Run npm --prefix functions test",
+          "number": 12,
+          "startedAt": "2026-09-09T21:05:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:05:57Z",
+          "conclusion": "success",
+          "name": "Run npm run test:functions:emulator",
+          "number": 13,
+          "startedAt": "2026-09-09T21:05:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:06:13Z",
+          "conclusion": "success",
+          "name": "Run npm run test:rules",
+          "number": 14,
+          "startedAt": "2026-09-09T21:05:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:06:51Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 15,
+          "startedAt": "2026-09-09T21:06:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:06:51Z",
+          "conclusion": "success",
+          "name": "Run npm run check:bundle-budget",
+          "number": 16,
+          "startedAt": "2026-09-09T21:06:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:06:58Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 17,
+          "startedAt": "2026-09-09T21:06:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:14:36Z",
+          "conclusion": "success",
+          "name": "Run npm run e2e:mock -- --reporter=line",
+          "number": 18,
+          "startedAt": "2026-09-09T21:06:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:15:02Z",
+          "conclusion": "success",
+          "name": "Run npm run e2e:webkit -- --reporter=line",
+          "number": 19,
+          "startedAt": "2026-09-09T21:14:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:16:19Z",
+          "conclusion": "success",
+          "name": "Run npm run e2e:emulator",
+          "number": 20,
+          "startedAt": "2026-09-09T21:15:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:16:19Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-java@v4",
+          "number": 38,
+          "startedAt": "2026-09-09T21:16:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:16:20Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 39,
+          "startedAt": "2026-09-09T21:16:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:16:20Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 40,
+          "startedAt": "2026-09-09T21:16:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:16:20Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 41,
+          "startedAt": "2026-09-09T21:16:20Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "ios-simulator-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T20:58:19Z",
+      "completedAt": "2026-09-09T21:13:04Z",
+      "steps": [
+        {
+          "completedAt": "2026-09-09T20:58:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-09T20:58:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:29Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-09T20:58:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:33Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-09T20:58:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:49Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 4,
+          "startedAt": "2026-09-09T20:58:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:06Z",
+          "conclusion": "success",
+          "name": "Run npm run preflight:ios-release && npm run build:mobile && npx cap sync ios",
+          "number": 5,
+          "startedAt": "2026-09-09T20:58:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:12:42Z",
+          "conclusion": "success",
+          "name": "Run npm run ios:simulator:smoke",
+          "number": 6,
+          "startedAt": "2026-09-09T20:59:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:12:43Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 11,
+          "startedAt": "2026-09-09T21:12:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:12:44Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 12,
+          "startedAt": "2026-09-09T21:12:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:12:55Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-09-09T21:12:44Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "android-debug-build",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T20:58:14Z",
+      "completedAt": "2026-09-09T21:02:58Z",
+      "steps": [
+        {
+          "completedAt": "2026-09-09T20:58:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-09T20:58:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:25Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-09T20:58:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:31Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-09T20:58:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:58:31Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-java@v4",
+          "number": 4,
+          "startedAt": "2026-09-09T20:58:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:06Z",
+          "conclusion": "success",
+          "name": "Run android-actions/setup-android@v4",
+          "number": 5,
+          "startedAt": "2026-09-09T20:58:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:22Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 6,
+          "startedAt": "2026-09-09T20:59:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:33Z",
+          "conclusion": "success",
+          "name": "Run npm run build:mobile",
+          "number": 7,
+          "startedAt": "2026-09-09T20:59:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:59:34Z",
+          "conclusion": "success",
+          "name": "Run npx cap sync android",
+          "number": 8,
+          "startedAt": "2026-09-09T20:59:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:02:56Z",
+          "conclusion": "success",
+          "name": "Run ./gradlew -Dorg.gradle.java.home=\"$JAVA_HOME\" :app:assembleDebug --no-daemon",
+          "number": 9,
+          "startedAt": "2026-09-09T20:59:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:02:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-java@v4",
+          "number": 16,
+          "startedAt": "2026-09-09T21:02:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:02:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 17,
+          "startedAt": "2026-09-09T21:02:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:02:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 18,
+          "startedAt": "2026-09-09T21:02:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T21:02:56Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-09-09T21:02:56Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "firebase-contract-deploy",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-09-09T21:16:22Z",
+      "completedAt": "2026-09-09T21:16:22Z",
+      "steps": []
+    },
+    {
+      "name": "build-and-deploy",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-09-09T21:16:22Z",
+      "completedAt": "2026-09-09T21:16:22Z",
+      "steps": []
+    }
+  ],
+  "counts": {
+    "frontend": {
+      "filesPassed": 486,
+      "passed": 4184,
+      "skipped": 16,
+      "failed": 0,
+      "total": 4200
+    },
+    "functions": {
+      "filesPassed": 53,
+      "filesSkipped": 1,
+      "passed": 563,
+      "skipped": 15,
+      "failed": 0,
+      "total": 578
+    },
+    "functionsRegistrationEmulator": {
+      "filesPassed": 1,
+      "passed": 15,
+      "failed": 0
+    },
+    "rules": {
+      "firestorePassed": 326,
+      "storagePassed": 44,
+      "failed": 0
+    },
+    "mockE2E": {
+      "browser": "chromium",
+      "workers": 2,
+      "passed": 359,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "duration": "7.6m"
+    },
+    "webkitE2E": {
+      "workers": 1,
+      "passed": 9,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "duration": "24.2s"
+    },
+    "emulatorE2E": {
+      "workers": 1,
+      "passed": 18,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "duration": "54.7s"
+    }
+  },
+  "completedLogSummaries": {
+    "Run npm run test -- --coverage": [
+      "Test Files  486 passed (486)",
+      "Tests  4184 passed | 16 skipped (4200)"
+    ],
+    "Run npm --prefix functions test": [
+      "Test Files  53 passed | 1 skipped (54)",
+      "Tests  563 passed | 15 skipped (578)"
+    ],
+    "Run npm run test:functions:emulator": [
+      "Test Files  1 passed (1)",
+      "Tests  15 passed (15)"
+    ],
+    "Run npm run test:rules": [
+      "Wszystkie 326 testów reguł przeszło.",
+      "44/44 storage rules tests passed."
+    ],
+    "Run npm run e2e:mock -- --reporter=line": [
+      "Running 359 tests using 2 workers",
+      "359 passed (7.6m)"
+    ],
+    "Run npm run e2e:webkit -- --reporter=line": [
+      "Running 9 tests using 1 worker",
+      "9 passed (24.2s)"
+    ],
+    "Run npm run e2e:emulator": [
+      "Running 18 tests using 1 worker",
+      "18 passed (54.7s)"
+    ]
+  },
+  "failures": [],
+  "priorRunsPreserved": [
+    {
+      "runId": 34394114934,
+      "conclusion": "cancelled",
+      "receipt": "ci-status.json"
+    },
+    {
+      "runId": 34399987321,
+      "conclusion": "failure",
+      "receipt": "ci-status-52.json"
+    }
+  ],
+  "scope": [
+    "This receipt certifies the exact source commit and completed GitHub jobs, not later documentation commits.",
+    "Conditional Firebase and Pages deploy jobs were skipped; store/web distribution is evidenced separately.",
+    "CI native jobs cover a simulator smoke and Android debug build, not physical-device workout behavior."
+  ],
+  "sanitization": {
+    "rawLogsStored": false,
+    "secretValuesIncluded": false,
+    "sourceOrTestsModifiedWhileMonitoring": false
+  }
+}
