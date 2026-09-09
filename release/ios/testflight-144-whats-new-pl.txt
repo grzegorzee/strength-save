@@ -1,0 +1,16 @@
+Poprawki po testach na iPhonie:
+• Dzisiaj: zwarty ekran z widocznymi akcjami Szybki trening i Dodaj cardio. Lista cardio i raport tygodnia są w Planie.
+• Synchronizacja: krótki status i Synchronizuj teraz. Baner pozostaje do potwierdzonego zapisu. Automatyczne ponowienie po powrocie sieci i wznowieniu aplikacji.
+• Plan dnia: jedna data, pełne nazwy ćwiczeń i czytelne superserie 5A/5B. Rozgrzewka i wskazówki są rozwijane.
+• Karta ćwiczenia: zwarty cel i przypięta notatka. Cel tygodnia zachowuje zakres powtórzeń z planu po rozpoczęciu i wznowieniu sesji.
+• Timer ma odstęp od dolnej nawigacji także w poziomie i przy większym tekście.
+• Plan i Twoje liczby uwzględniają pływanie oraz pozostałe cardio, z osobnym licznikiem i czasem. Statystyki siłowe nadal dotyczą siły.
+
+Co sprawdzić:
+1. Dzisiaj przed treningiem, po zakończeniu i w dzień wolny; dostępność obu szybkich akcji.
+2. Plan dnia z superserią: nazwy i numeracja A/B; rozwijanie rozgrzewki.
+3. RDL: cel, notatka, edycja, serie i timer po obrocie telefonu.
+4. Seria bez sieci → Dzisiaj → zgaszenie ekranu → powrót sieci → odblokowanie. Baner znika po zapisie; błąd pozwala ponowić.
+5. Trening z planu → wyjście → szybki trening → powrót do planu → zakończenie → synchronizacja. Wszystkie ćwiczenia i serie pozostają.
+6. Dodane pływanie 40 min pojawia się w Planie i Twoich liczbach, bez zmiany tonażu siłowego.
+7. Świeży trening proponuje rozgrzewkę bez powtórek, a odhaczenia przeżywają wznowienie.
