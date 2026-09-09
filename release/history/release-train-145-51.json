@@ -42,19 +42,19 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 146,
+    "build": 145,
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/ios/testflight-146.json",
-    "verifiedDelivery": "pending final copy-only rebuild"
+    "deliveryEvidence": "release/ios/testflight-145.json",
+    "verifiedDelivery": "VALID / APPROVED / IN_BETA_TESTING both groups"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 52,
+    "versionCode": 51,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/android/internal-2026-09-09-52/artifact.json",
-    "verifiedDelivery": "pending final copy-only rebuild",
-    "playDeliveryEvidence": "release/android/internal-2026-09-09-52/play-delivery.json",
+    "deliveryEvidence": "release/android/internal-2026-09-09-51/artifact.json",
+    "verifiedDelivery": "internal/completed version51 and uploaded AAB SHA256 independently verified through Play API",
+    "playDeliveryEvidence": "release/android/internal-2026-09-09-51/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
     "apiAccess": {
@@ -63,7 +63,7 @@
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
       "evidence": "release/android/internal-2026-09-09-51/play-api-check.json",
-      "checkCommand": "uv run scripts/google_play_check.py --expect-version 52"
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 51"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
   },
@@ -85,5 +85,5 @@
       "evidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
     }
   },
-  "previousDeliverySnapshot": "release/history/release-train-145-51.json"
+  "previousDeliverySnapshot": "release/history/release-train-144-50.json"
 }
