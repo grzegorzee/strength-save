@@ -52,7 +52,10 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/android/internal-2026-09-09/artifact.json",
-    "verifiedDelivery": "signed-aab-verified-upload-blocked-android-publisher-scope"
+    "verifiedDelivery": "available-to-internal-testers-owner-console-screenshots",
+    "playDeliveryEvidence": "release/android/internal-2026-09-09/play-delivery.json",
+    "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
+    "storeListingDefaultLanguage": "en-US"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",
@@ -65,6 +68,6 @@
   },
   "smoke": {
     "physicalIos": "pending-owner-testflight-test",
-    "physicalAndroid": "blocked-no-device-connected"
+    "physicalAndroid": "pending-tester-installation-and-device-qa"
   }
 }

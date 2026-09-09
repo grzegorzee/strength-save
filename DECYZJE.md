@@ -11,6 +11,25 @@
 
 ## DECYZJE
 
+### 2026-09-09: pierwsza publikacja Androida w testach wewnętrznych
+
+Właściciel utworzył aplikację w koncie organizacji Google Play, przesłał gotowy
+AAB 1.0.0 (50) i opublikował go przez panel. Zrzut Play Console pokazuje aktywną
+ścieżkę oraz „Dostępna dla testerów wewnętrznych”, opublikowano 9 wrz 16:37.
+Lista testerów jest zaznaczona i zawiera jednego użytkownika. Link przekazany
+przez właściciela: https://play.google.com/apps/internaltest/4699979891077312306.
+
+Jawna decyzja właściciela: domyślny język strony Google Play **en-US**.
+Bezpłatne pobranie aplikacji i osobna subskrypcja PRO. Produkt pozostaje 1.0.0;
+numer 50 został już użyty. Nie zmieniono kodu ani przygotowanego artefaktu.
+
+Wcześniejszy błąd HTTP403 dotyczył zakresu uwierzytelniania API; publikację
+przeprowadzono w zalogowanym panelu. Dostępu API nie uznano za naprawiony.
+Weryfikacja dystrybucji opiera się na zrzutach właściciela i podanym linku,
+bez deklaracji odczytu API ani testu instalacji. Dwa ostrzeżenia diagnostyczne
+nie zablokowały publikacji. Dowód i ograniczenia:
+`release/android/internal-2026-09-09/play-delivery.json`.
+
 ### 2026-09-09: poprawki po sześciu zrzutach z iPhone’a
 
 Właściciel zlecił natychmiastowe poprawki, push i nowe TestFlight, zachowując
@@ -63,7 +82,8 @@ dokładny podział zachowuje raport, bez deklarowania jednego zielonego pełnego
 
 iOS144: upload bez błędów, VALID, APPROVED, obie grupy IN_BETA_TESTING,
 What to Test zgodne. Android50: podpisany AAB, wszystkie wpisy podpisu i 16 KB
-zweryfikowane; Play upload pozostaje zablokowany zakresem dostępu (HTTP403).
+zweryfikowane; na tym etapie API blokowało upload zakresem dostępu (HTTP403).
+Późniejszą publikację Androida przez właściciela opisuje nowszy wpis powyżej.
 232 zasoby mobile dist, IPA i AAB są identyczne. Web wdrożono i porównano jego
 HTML, service worker oraz początkowe JS/CSS z produkcyjnym buildem. Dowody:
 `release/ios/testflight-144.json`, `release/android/internal-2026-09-09/artifact.json`,

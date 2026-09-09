@@ -6,8 +6,9 @@
 > ma status VALID, APPROVED i IN_BETA_TESTING w obu grupach testerów.
 > Poprawiono synchronizację, zwartość Dzisiaj/karty ćwiczenia, superserie,
 > nawigację timera i uwzględnienie cardio. [Raport i scenariusze testów](docs/FEEDBACK-2026-09-09.md).
-> Podpisany Android `1.0.0 (50)` jest gotowy; upload do Play blokuje brak
-> zakresu Android Publisher w obecnym dostępie (HTTP403).
+> Android `1.0.0 (50)` jest dostępny w testach wewnętrznych Google Play;
+> właściciel potwierdził publikację przez panel. [Link dla testerów](https://play.google.com/apps/internaltest/4699979891077312306).
+> Domyślny język strony Google Play: en-US. Dostęp API wymaga osobnej konfiguracji.
 > Web oraz etap2 backendu wdrożono i zweryfikowano. Dowody paczek i dystrybucji:
 > `release/release-train.json`. Fizycznego iPhone’a właściciel testuje przez
 > TestFlight; publiczna premiera pozostaje osobną bramką.

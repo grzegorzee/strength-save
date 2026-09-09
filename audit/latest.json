@@ -14,7 +14,7 @@
     "ios_current_project_version": 144,
     "android_version_code": 50
   },
-  "decision": "Feedback fixes shipped: iOS144 VALID/APPROVED and IN_BETA_TESTING in both groups; web and backend verified live; signed Android50 ready, Play upload blocked by missing access scope. Public-launch and physical-device QA remain separate.",
+  "decision": "Feedback fixes shipped: iOS144 VALID/APPROVED and IN_BETA_TESTING in both groups; web and backend verified live; Android50 published to internal testing by owner, confirmed by Play Console screenshots and opt-in link. API setup, public launch and physical-device QA remain separate.",
   "checks": {
     "backend": {
       "status": "PASS",
@@ -78,9 +78,12 @@
     "web_receipt": "audit/release-2026-09-09/web-delivery.json",
     "android": {
       "version_code": 50,
-      "status": "signed-aab-verified",
-      "play_upload": "blocked-existing-ADC-lacks-Android-Publisher-scope",
-      "receipt": "release/android/internal-2026-09-09/artifact.json"
+      "status": "available-to-internal-testers-owner-console-screenshots",
+      "play_upload": "completed-by-owner-in-play-console",
+      "receipt": "release/android/internal-2026-09-09/artifact.json",
+      "play_receipt": "release/android/internal-2026-09-09/play-delivery.json",
+      "internal_test_url": "https://play.google.com/apps/internaltest/4699979891077312306",
+      "api_access": "not-reverified-after-HTTP403-scope-error"
     },
     "ios": {
       "build": 144,
@@ -99,6 +102,6 @@
   "test_distribution_ready": {
     "ios": true,
     "android_artifact": true,
-    "android_play_uploaded": false
+    "android_play_uploaded": true
   }
 }
