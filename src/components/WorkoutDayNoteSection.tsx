@@ -48,24 +48,25 @@ export const WorkoutDayNoteSection = ({ dateISO, dayNote, onSave, showFutureHint
   return (
     <div className={cn('rounded-lg bg-surface-lowest px-3 py-2.5', className)} data-testid="workout-day-note-section">
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-          <StickyNote className="h-3 w-3" />
+        <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-medium leading-snug text-primary">
+          <StickyNote className="h-3 w-3 shrink-0" aria-hidden="true" />
           {t('daynote.title')}
-          {showFutureHint && (
-            <span className="font-semibold normal-case tracking-normal text-muted-foreground">{t('daynote.futureHint')}</span>
-          )}
-        </span>
+        </h3>
         {onSave && !isEditing && (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+            className="-mr-2 inline-flex min-h-11 min-w-11 shrink-0 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
             data-testid="workout-day-note-edit"
           >
             {hasNote ? t('common.edit') : t('daynote.add')}
           </button>
         )}
       </div>
+
+      {showFutureHint && (
+        <p className="text-xs leading-snug text-muted-foreground">{t('daynote.futureHint')}</p>
+      )}
 
       {!isEditing && hasNote && (
         <p className="mt-1.5 text-sm leading-snug whitespace-pre-wrap" data-testid="workout-day-note-text">{dayNote?.note}</p>
@@ -81,18 +82,18 @@ export const WorkoutDayNoteSection = ({ dateISO, dayNote, onSave, showFutureHint
             className="min-h-[60px] text-sm exercise-card-input !text-left"
             data-testid="workout-day-note-input"
           />
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={handleCancel}
-              className="rounded-lg px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              className="min-h-11 min-w-11 rounded-lg px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               {t('common.cancel')}
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+              className="min-h-11 min-w-11 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
               data-testid="workout-day-note-save"
             >
               {t('common.save')}

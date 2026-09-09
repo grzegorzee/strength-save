@@ -102,4 +102,12 @@ describe('WorkoutDayNoteSection (T10)', () => {
     renderSection({ onSave: vi.fn(), showFutureHint: true });
     expect(screen.getByText('(zobaczysz ją przy starcie treningu)')).toBeTruthy();
   });
+
+  it('future note has a concise heading separate from its explanation and edit action', () => {
+    renderSection({ onSave: vi.fn(), showFutureHint: true });
+    const heading = screen.getByRole('heading', { name: 'Notatka do tego treningu' });
+    const explanation = screen.getByText('(zobaczysz ją przy starcie treningu)');
+    expect(heading.contains(explanation)).toBe(false);
+    expect(heading.contains(screen.getByTestId('workout-day-note-edit'))).toBe(false);
+  });
 });

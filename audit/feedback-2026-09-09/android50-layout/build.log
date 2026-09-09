@@ -1,0 +1,199 @@
+
+> strength-save@1.0.0 prebuild
+> npm run typecheck
+
+
+> strength-save@1.0.0 typecheck
+> tsc --noEmit -p tsconfig.app.json
+
+
+> strength-save@1.0.0 build
+> vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 3964 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/firebase.ts is dynamically imported by /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/BodyCompareShareDialog.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/pwa-update-guard.ts but also statically imported by /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/EmailWorkoutDialog.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/ErrorBoundary.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/NotificationSettings.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/PreferenceSync.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/TimeZoneSync.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/WorkoutSettingsSheet.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/admin/AdminFeatureFlagsCard.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/contexts/UserContext.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useAuth.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useCustomExercises.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useExerciseNotes.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useFirebaseWorkouts.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useHardPaywall.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useManualActivities.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useOnlineStatus.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/usePlanCycles.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useStrava.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useTrainingPlan.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useWorkoutAggregate.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useWorkoutDayNotes.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/activity-read-store.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/admin-api.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/admin-audit.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/app-telemetry.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/bug-reports.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/consents-api.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/email-workout.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/error-telemetry.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/garmin-api.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/native-callable.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/protected-callable.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/push-notifications.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/registration-api.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/rest-preferences.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/user-events.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/warmup-prompt-sync.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/workout-delete.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/workout-read-store.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/Cycles.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/Measurements.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/NewPlan.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/Onboarding.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/Profile.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/WorkoutDay.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/AdminAuditLog.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/AdminBugReportsCard.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/AdminConsentsLog.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/AdminDashboard.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/AdminEmailsCard.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/AdminUserDetail.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/EmailLogRow.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/UserPlanEditor.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/admin/useAdminUserActions.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/error-telemetry.ts is dynamically imported by /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/pwa-update-guard.ts but also statically imported by /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/AutoSyncOnReconnect.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/ErrorBoundary.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/ExerciseCard.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/components/SyncCenterCard.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/contexts/UserContext.tsx, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/usePlanCycles.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/hooks/useTrainingPlan.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/global-error-telemetry.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/health-bridge.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/lib/workout-read-store.ts, /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/src/pages/WorkoutDay.tsx, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/manifest.webmanifest                                         0.49 kB
+dist/index.html                                                   1.23 kB │ gzip:   0.57 kB
+dist/assets/powered-by-strava-horizontal-white-Dm_QDcU-.svg       3.96 kB │ gzip:   1.65 kB
+dist/assets/connect-with-strava-orange-BDiDByy6.svg               4.61 kB │ gzip:   1.78 kB
+dist/assets/space-grotesk-latin-ext-wght-normal-D9tNdqV9.woff2   18.94 kB
+dist/assets/space-grotesk-latin-wght-normal-BhU9QXUp.woff2       22.29 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2               48.26 kB
+dist/assets/inter-latin-wght-italic-DpCbqKDY.woff2               51.83 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2           85.07 kB
+dist/assets/app-icon-DvQ4qLaY.png                                89.40 kB
+dist/assets/inter-latin-ext-wght-italic-0pjOp8NU.woff2           91.90 kB
+dist/assets/index-BPI_qwuI.css                                  107.84 kB │ gzip:  19.08 kB
+dist/assets/season-medals-EcOzSdMC.js                             0.08 kB │ gzip:   0.09 kB
+dist/assets/collapsible-B9MBy8kO.js                               0.10 kB │ gzip:   0.11 kB
+dist/assets/web-DtfYab7D.js                                       0.12 kB │ gzip:   0.13 kB
+dist/assets/index-BLfFr0vv.js                                     0.16 kB │ gzip:   0.16 kB
+dist/assets/index-Dd5O7xsS.js                                     0.16 kB │ gzip:   0.16 kB
+dist/assets/web-suDHCLLb.js                                       0.17 kB │ gzip:   0.16 kB
+dist/assets/index-CH18mbGz.js                                     0.18 kB │ gzip:   0.16 kB
+dist/assets/decimal-input-CMrozL-K.js                             0.21 kB │ gzip:   0.18 kB
+dist/assets/index-B5We32Tk.js                                     0.24 kB │ gzip:   0.18 kB
+dist/assets/minus-B1y-5GDv.js                                     0.29 kB │ gzip:   0.24 kB
+dist/assets/chevron-down-CuoebLSx.js                              0.30 kB │ gzip:   0.24 kB
+dist/assets/chevron-up-1SrnEdDZ.js                                0.30 kB │ gzip:   0.25 kB
+dist/assets/index-B6xVH8CW.js                                     0.30 kB │ gzip:   0.23 kB
+dist/assets/play-jgsrP0tj.js                                      0.30 kB │ gzip:   0.25 kB
+dist/assets/BarChart-CeQ4P6ow.js                                  0.32 kB │ gzip:   0.23 kB
+dist/assets/plus-CTg_2IHz.js                                      0.32 kB │ gzip:   0.25 kB
+dist/assets/feature-flags-CzmOKdlu.js                             0.32 kB │ gzip:   0.22 kB
+dist/assets/search-BsM9SKoN.js                                    0.34 kB │ gzip:   0.27 kB
+dist/assets/clock-DJkkx17z.js                                     0.35 kB │ gzip:   0.27 kB
+dist/assets/circle-check-big-BpyBnCdO.js                          0.36 kB │ gzip:   0.28 kB
+dist/assets/web-DPYuVf_V.js                                       0.36 kB │ gzip:   0.25 kB
+dist/assets/rotate-ccw-BvrwLT6L.js                                0.37 kB │ gzip:   0.29 kB
+dist/assets/circle-x-CBg2wHXd.js                                  0.37 kB │ gzip:   0.28 kB
+dist/assets/trending-up-Cq5EwXuM.js                               0.37 kB │ gzip:   0.28 kB
+dist/assets/trending-down-Dr-Hrn8B.js                             0.38 kB │ gzip:   0.28 kB
+dist/assets/mail-wA8Dbeao.js                                      0.38 kB │ gzip:   0.30 kB
+dist/assets/target-veRTTgSq.js                                    0.39 kB │ gzip:   0.26 kB
+dist/assets/ellipsis-BXU15rgS.js                                  0.39 kB │ gzip:   0.26 kB
+dist/assets/copy-Cs0_5akP.js                                      0.40 kB │ gzip:   0.31 kB
+dist/assets/activity-Dtn_TIWE.js                                  0.40 kB │ gzip:   0.30 kB
+dist/assets/percent-B2elq2CT.js                                   0.41 kB │ gzip:   0.29 kB
+dist/assets/timer-CfDjvSdz.js                                     0.41 kB │ gzip:   0.29 kB
+dist/assets/arrow-right-left-BzT3VvqB.js                          0.42 kB │ gzip:   0.30 kB
+dist/assets/camera-DALRsgx1.js                                    0.42 kB │ gzip:   0.31 kB
+dist/assets/zap-BuY2XCX-.js                                       0.43 kB │ gzip:   0.31 kB
+dist/assets/repeat-xofh44Qm.js                                    0.44 kB │ gzip:   0.30 kB
+dist/assets/pencil-hVXMLUP0.js                                    0.45 kB │ gzip:   0.32 kB
+dist/assets/flame-DNb4rjIc.js                                     0.45 kB │ gzip:   0.33 kB
+dist/assets/send-UM3vk6uh.js                                      0.46 kB │ gzip:   0.33 kB
+dist/assets/user-plus-CAMwbwEv.js                                 0.48 kB │ gzip:   0.33 kB
+dist/assets/useActivities-CjuxL_3G.js                             0.48 kB │ gzip:   0.28 kB
+dist/assets/heart-pulse-CNRvMQk-.js                               0.49 kB │ gzip:   0.35 kB
+dist/assets/refresh-ccw-C2R1Sac8.js                               0.49 kB │ gzip:   0.33 kB
+dist/assets/exercise-notes-BCjEJHxL.js                            0.52 kB │ gzip:   0.35 kB
+dist/assets/share-2-Dc_hOZtl.js                                   0.52 kB │ gzip:   0.33 kB
+dist/assets/trash-2-DTLiL6-5.js                                   0.53 kB │ gzip:   0.35 kB
+dist/assets/textarea-BG2GUXtB.js                                  0.55 kB │ gzip:   0.35 kB
+dist/assets/Chip-CA3wHvck.js                                      0.55 kB │ gzip:   0.36 kB
+dist/assets/badge-B__fhvxT.js                                     0.58 kB │ gzip:   0.37 kB
+dist/assets/calendar-range-BSkpQ8od.js                            0.58 kB │ gzip:   0.36 kB
+dist/assets/medal-DDaxPt2R.js                                     0.60 kB │ gzip:   0.38 kB
+dist/assets/chip-button-BTU6lc3Q.js                               0.63 kB │ gzip:   0.38 kB
+dist/assets/ios-BXqBLL4R.js                                       0.65 kB │ gzip:   0.37 kB
+dist/assets/sparkles-ByBS2Jpw.js                                  0.68 kB │ gzip:   0.40 kB
+dist/assets/workout-lookup-BxkbEG4g.js                            0.69 kB │ gzip:   0.43 kB
+dist/assets/NotFound-BnnTzd4R.js                                  0.71 kB │ gzip:   0.40 kB
+dist/assets/ConfirmDialog-Dhy62wjA.js                             0.73 kB │ gzip:   0.42 kB
+dist/assets/MeasurementReadError-DOz4t8AU.js                      0.81 kB │ gzip:   0.44 kB
+dist/assets/rest-defaults-D6Ih36v6.js                             0.82 kB │ gzip:   0.37 kB
+dist/assets/web-KF9kBBZX.js                                       0.85 kB │ gzip:   0.40 kB
+dist/assets/haptics-DjzKtx93.js                                   0.91 kB │ gzip:   0.54 kB
+dist/assets/EmptyState-DVAIHcxB.js                                0.93 kB │ gzip:   0.50 kB
+dist/assets/LocalizedDateInput-leBKDrpQ.js                        0.94 kB │ gzip:   0.53 kB
+dist/assets/label-Dpn_Qhdx.js                                     0.96 kB │ gzip:   0.62 kB
+dist/assets/web-UmkpWrtW.js                                       0.98 kB │ gzip:   0.49 kB
+dist/assets/StravaBranding-CSOEaEC_.js                            0.99 kB │ gzip:   0.57 kB
+dist/assets/web-CMNLJdVe.js                                       1.16 kB │ gzip:   0.55 kB
+dist/assets/web-MTILSm_B.js                                       1.17 kB │ gzip:   0.47 kB
+dist/assets/wrench-YlZLb0xS.js                                    1.22 kB │ gzip:   0.57 kB
+dist/assets/web-9ApbEvTP.js                                       1.25 kB │ gzip:   0.59 kB
+dist/assets/set-tracking-CMmR8Nxm.js                              1.29 kB │ gzip:   0.61 kB
+dist/assets/GroupTile-JQKLQVSY.js                                 1.29 kB │ gzip:   0.71 kB
+dist/assets/useCustomExercises-t6AG5999.js                        1.35 kB │ gzip:   0.70 kB
+dist/assets/post-plan-guide-SoUZ0TJl.js                           1.53 kB │ gzip:   0.73 kB
+dist/assets/watch-event-parser-BUsryz8i.js                        1.75 kB │ gzip:   0.74 kB
+dist/assets/prestart-warmup-RIr9wIBQ.js                           2.09 kB │ gzip:   0.74 kB
+dist/assets/index-DlYKjO0o.js                                     2.21 kB │ gzip:   0.99 kB
+dist/assets/native-callable-SwEoaW2s.js                           2.51 kB │ gzip:   1.33 kB
+dist/assets/share-export-CCzbcZA2.js                              2.68 kB │ gzip:   1.32 kB
+dist/assets/StravaCallback-Cp4BjkJg.js                            2.76 kB │ gzip:   1.14 kB
+dist/assets/switch-QRhymvjR.js                                    2.83 kB │ gzip:   1.36 kB
+dist/assets/dialog-gMVBOhwL.js                                    2.90 kB │ gzip:   1.20 kB
+dist/assets/workout-day-view-BuaKzZH0.js                          3.02 kB │ gzip:   1.58 kB
+dist/assets/MeasurementTrendChart-Dr-cXfWD.js                     3.07 kB │ gzip:   1.57 kB
+dist/assets/achievements-utils-CAbPgBHu.js                        3.16 kB │ gzip:   1.46 kB
+dist/assets/range-calendar-Cp5tacuI.js                            3.33 kB │ gzip:   1.29 kB
+dist/assets/UserPlanEditor-Da16pgXw.js                            3.35 kB │ gzip:   1.51 kB
+dist/assets/web-D1evX2gI.js                                       3.46 kB │ gzip:   1.11 kB
+dist/assets/export-cycle-options-Bde5qNQW.js                      3.62 kB │ gzip:   1.83 kB
+dist/assets/useManualActivities-ByxCpz8N.js                       3.77 kB │ gzip:   1.51 kB
+dist/assets/hybrid-load-ChGnkfJF.js                               4.05 kB │ gzip:   1.74 kB
+dist/assets/ExportWorkoutsDialog-BYhZrIbW.js                      4.07 kB │ gzip:   1.74 kB
+dist/assets/cycle-actions-DgbkoeEq.js                             4.25 kB │ gzip:   1.57 kB
+dist/assets/EmailWorkoutDialog-C7I8EMtb.js                        4.50 kB │ gzip:   2.00 kB
+dist/assets/PlanEditor-DnGTnkml.js                                4.64 kB │ gzip:   1.81 kB
+dist/assets/alert-dialog-DSRgzkWz.js                              5.66 kB │ gzip:   2.15 kB
+dist/assets/workbox-window.prod.es5-BBnX5xw4.js                   5.75 kB │ gzip:   2.36 kB
+dist/assets/VacationDialog-Cpam2etJ.js                            5.77 kB │ gzip:   1.69 kB
+dist/assets/useWorkoutHistoryPage-Ba6SjBhr.js                     5.95 kB │ gzip:   2.28 kB
+dist/assets/legal-links-DSKCVUM3.js                               6.02 kB │ gzip:   2.40 kB
+dist/assets/PlanNextStepCard-Bz5ANooh.js                          6.20 kB │ gzip:   1.92 kB
+dist/assets/DataManagement-B8yOT86C.js                            6.64 kB │ gzip:   2.42 kB
+dist/assets/ExerciseDetail-Duv8IhFf.js                            7.84 kB │ gzip:   2.73 kB
+dist/assets/Onboarding-Cghx0sq-.js                                8.07 kB │ gzip:   3.53 kB
+dist/assets/Login-B8qqi7bQ.js                                     8.47 kB │ gzip:   3.14 kB
+dist/assets/ExercisePicker-BzbmPiBU.js                            8.91 kB │ gzip:   3.00 kB
+dist/assets/web-BusmnN78.js                                       8.91 kB │ gzip:   3.08 kB
+dist/assets/StravaActivityCard-BKiskUH6.js                        9.52 kB │ gzip:   3.31 kB
+dist/assets/web-P5vw-v1c.js                                      10.01 kB │ gzip:   2.05 kB
+dist/assets/AreaChart-Dyj4Cq6h.js                                11.02 kB │ gzip:   4.08 kB
+dist/assets/Paywall-CbEPfxdu.js                                  11.32 kB │ gzip:   3.71 kB
+dist/assets/chart-config-CrUrHRNO.js                             11.42 kB │ gzip:   4.46 kB
+dist/assets/usePlanCycles-BFyD6gMt.js                            11.66 kB │ gzip:   4.57 kB
+dist/assets/PlanDaysEditor-Qw6CizF8.js                           11.74 kB │ gzip:   3.91 kB
+dist/assets/ExerciseLibrary-CjxgvJqS.js                          12.41 kB │ gzip:   4.13 kB
+dist/assets/EmailLogRow-CE5iueaV.js                              12.73 kB │ gzip:   4.64 kB
+dist/assets/DayPlan-DJaRQShG.js                                  12.80 kB │ gzip:   3.42 kB
+dist/assets/plan-prestart-CYI5Umn9.js                            12.88 kB │ gzip:   4.42 kB
+dist/assets/NewPlan-8Jw1K3iv.js                                  14.00 kB │ gzip:   5.29 kB
+dist/assets/share-utils-rc065hss.js                              14.12 kB │ gzip:   3.56 kB
+dist/assets/useTrainingPlan-B2y-Iml9.js                          19.22 kB │ gzip:   6.79 kB
+dist/assets/workout-preferences-BcUI3fZq.js                      19.95 kB │ gzip:   6.86 kB
+dist/assets/select-7YEqpbVP.js                                   21.25 kB │ gzip:   7.41 kB
+dist/assets/Analytics-Cb31tLXh.js                                21.33 kB │ gzip:   7.01 kB
+dist/assets/Cycles-C_M6o-fQ.js                                   21.45 kB │ gzip:   5.66 kB
+dist/assets/StravaTab-Q3bTEl3k.js                                23.35 kB │ gzip:   6.99 kB
+dist/assets/purify.es-CYR4BTuT.js                                28.93 kB │ gzip:  11.14 kB
+dist/assets/AdminUserDetail-CNfN8k2j.js                          29.16 kB │ gzip:   8.03 kB
+dist/assets/Achievements-CfMMlZwg.js                             31.42 kB │ gzip:   8.47 kB
+dist/assets/TrainingPlan-aSdR_XhH.js                             39.10 kB │ gzip:  11.97 kB
+dist/assets/Dashboard-2UxdPEsw.js                                40.08 kB │ gzip:  13.15 kB
+dist/assets/AnalyticsChartsTab-DQsAHjIv.js                       40.65 kB │ gzip:  12.26 kB
+dist/assets/planTemplates-DQAeOseB.js                            42.96 kB │ gzip:   8.70 kB
+dist/assets/useStrava-Dk9xwKZd.js                                45.18 kB │ gzip:  13.69 kB
+dist/assets/plan-cycle-choice-DW92yJL0.js                        45.64 kB │ gzip:  12.29 kB
+dist/assets/WorkoutHistory-BwKpXl8J.js                           49.35 kB │ gzip:  14.56 kB
+dist/assets/Measurements-CRHc6QmA.js                             67.08 kB │ gzip:  20.25 kB
+dist/assets/AdminDashboard-DaphFYow.js                           70.66 kB │ gzip:  16.86 kB
+dist/assets/Profile-3NkAhy4V.js                                 105.98 kB │ gzip:  30.28 kB
+dist/assets/exercise-details-en-C_1zJrGm.js                     131.78 kB │ gzip:  30.34 kB
+dist/assets/exercise-details-BKRtNvCj.js                        143.18 kB │ gzip:  34.43 kB
+dist/assets/react-vendor-DuJroiHx.js                            143.50 kB │ gzip:  46.02 kB
+dist/assets/index.es-rdil3Vba.js                                159.68 kB │ gzip:  53.57 kB
+dist/assets/WorkoutDay-h2diMP8G.js                              163.37 kB │ gzip:  47.81 kB
+dist/assets/html2canvas.esm-QH1iLAAe.js                         202.38 kB │ gzip:  48.04 kB
+dist/assets/html2canvas-pro.esm-CeFCdQ9N.js                     230.61 kB │ gzip:  57.52 kB
+dist/assets/generateCategoricalChart-DQAgJvfX.js                381.56 kB │ gzip: 105.55 kB
+dist/assets/AuthenticatedApp-Dh3zo0zq.js                        384.46 kB │ gzip: 115.90 kB
+dist/assets/jspdf.es.min-qcvOer_U.js                            390.60 kB │ gzip: 128.73 kB
+dist/assets/index-CKiw8SKJ.js                                   526.92 kB │ gzip: 167.33 kB
+dist/assets/firebase-DA7kdOZj.js                                776.45 kB │ gzip: 177.83 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 9.91s
+
+PWA v1.2.0
+mode      generateSW
+precache  173 entries (6564.08 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-12bd46aa.js

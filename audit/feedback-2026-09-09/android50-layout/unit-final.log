@@ -1,0 +1,36 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:98662) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:98660) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:98664) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:98661) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:98663) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:98666) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:98665) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ src/test/no-horizontal-scroll-guard.test.ts (2 tests) 77ms
+ ✓ src/test/workout-day-notes.test.tsx (14 tests) 342ms
+(node:98683) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ src/test/workout-day-view.test.ts (32 tests) 8ms
+ ✓ src/test/exercise-card-compact-context.test.tsx (4 tests) 480ms
+   ✓ compact workout context preserves the full training controls and information > opens and closes target explanation without changing any working set  362ms
+ ✓ src/test/exercise-card-decimal-input.test.tsx (7 tests) 547ms
+ ✓ src/test/exercise-card-completion.test.tsx (7 tests) 1015ms
+   ✓ ExerciseCard — ręczne ukończenie serii wymaga danych > nie zapisuje pustej serii i pokazuje jasną drogę wyjścia  328ms
+ ✓ src/test/exercise-card-duration.test.tsx (12 tests) 1962ms
+   ✓ ExerciseCard duration: cel odliczania jako placeholder pola czasu > bez historii i planu: cel wg poziomu (beginner 0:30, advanced 1:00, brak profilu 0:45)  402ms
+ ✓ src/test/exercise-card-layout.test.tsx (52 tests) 3789ms
+
+ Test Files  8 passed (8)
+      Tests  130 passed (130)
+   Start at  21:04:08
+   Duration  7.52s (transform 1.36s, setup 1.21s, collect 11.09s, tests 8.22s, environment 6.65s, prepare 2.53s)
+

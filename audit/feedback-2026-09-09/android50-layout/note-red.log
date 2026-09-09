@@ -1,0 +1,174 @@
+
+ RUN  v3.2.6 /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save
+
+(node:84947) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ src/test/workout-day-notes.test.tsx (14 tests | 1 failed) 85ms
+   ✓ workoutDayNoteDocId (T10) > jest deterministyczny: ta sama para (user, data) daje ten sam id 1ms
+   ✓ workoutDayNoteDocId (T10) > rozróżnia userów i daty 0ms
+   ✓ sanitizeWorkoutDayNote (T10) > trimuje notatkę 0ms
+   ✓ sanitizeWorkoutDayNote (T10) > obcina do 500 znaków 1ms
+   ✓ sanitizeWorkoutDayNote (T10) > brak note → pusty string (sygnał usunięcia, nie undefined) 0ms
+   ✓ shouldShowNoWorkoutCard (T10, niezmiennik zasady 5) > przeszła data bez sesji NADAL dostaje kartę noWorkoutForDate 0ms
+   ✓ shouldShowNoWorkoutCard (T10, niezmiennik zasady 5) > PRZYSZŁA data nie dostaje mylącej karty (to zaplanowany trening) 0ms
+   ✓ shouldShowNoWorkoutCard (T10, niezmiennik zasady 5) > dziś bez sesji: bez karty (jest przycisk startu) 0ms
+   ✓ shouldShowNoWorkoutCard (T10, niezmiennik zasady 5) > rozpoczęta sesja: nigdy 0ms
+   ✓ WorkoutDayNoteSection (T10) > pusta bez onSave: nie renderuje się 10ms
+   ✓ WorkoutDayNoteSection (T10) > pusta z onSave: pokazuje "Dodaj notatkę", zapis woła onSave z datą i treścią 16ms
+   ✓ WorkoutDayNoteSection (T10) > istniejąca notatka: tekst widoczny, cancel przywraca draft bez zapisu 6ms
+   ✓ WorkoutDayNoteSection (T10) > przyszła data: dopisek futureHint widoczny 2ms
+   × WorkoutDayNoteSection (T10) > future note has a concise heading separate from its explanation and edit action 47ms
+     → Unable to find an accessible element with the role "heading" and name "Notatka do tego treningu"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Dodaj notatkę":
+  [36m<button[39m
+    [33mclass[39m=[32m"-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"[39m
+    [33mdata-testid[39m=[32m"workout-day-note-edit"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"rounded-lg bg-surface-lowest px-3 py-2.5"[39m
+      [33mdata-testid[39m=[32m"workout-day-note-section"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between gap-2"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33mclass[39m=[32m"lucide lucide-sticky-note h-3 w-3"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M15 3v4a2 2 0 0 0 2 2h4"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [0mNotatka do tego treningu[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-semibold normal-case tracking-normal text-muted-foreground"[39m
+          [36m>[39m
+            [0m(zobaczysz ją przy starcie treningu)[0m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"[39m
+          [33mdata-testid[39m=[32m"workout-day-note-edit"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mDodaj notatkę[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/workout-day-notes.test.tsx > WorkoutDayNoteSection (T10) > future note has a concise heading separate from its explanation and edit action
+TestingLibraryElementError: Unable to find an accessible element with the role "heading" and name "Notatka do tego treningu"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Dodaj notatkę":
+  [36m<button[39m
+    [33mclass[39m=[32m"-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"[39m
+    [33mdata-testid[39m=[32m"workout-day-note-edit"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"rounded-lg bg-surface-lowest px-3 py-2.5"[39m
+      [33mdata-testid[39m=[32m"workout-day-note-section"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between gap-2"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33mclass[39m=[32m"lucide lucide-sticky-note h-3 w-3"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M15 3v4a2 2 0 0 0 2 2h4"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [0mNotatka do tego treningu[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-semibold normal-case tracking-normal text-muted-foreground"[39m
+          [36m>[39m
+            [0m(zobaczysz ją przy starcie treningu)[0m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"-mx-2 inline-flex min-h-11 items-center px-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"[39m
+          [33mdata-testid[39m=[32m"workout-day-note-edit"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mDodaj notatkę[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ getByRole node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/test/workout-day-notes.test.tsx:108:28
+    106|   it('future note has a concise heading separate from its explanation …
+    107|     renderSection({ onSave: vi.fn(), showFutureHint: true });
+    108|     const heading = screen.getByRole('heading', { name: 'Notatka do te…
+       |                            ^
+    109|     const explanation = screen.getByText('(zobaczysz ją przy starcie t…
+    110|     expect(heading.contains(explanation)).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  20:53:04
+   Duration  1.37s (transform 156ms, setup 72ms, collect 343ms, tests 85ms, environment 376ms, prepare 88ms)
+
