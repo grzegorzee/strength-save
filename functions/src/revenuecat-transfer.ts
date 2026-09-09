@@ -60,15 +60,20 @@ export async function readRevenueCatSubscription(
     eventTimestamp: Number.isFinite(event.event_timestamp_ms) ? event.event_timestamp_ms! : now,
     updatedAt: new Date(now).toISOString(),
   };
-  if (!pro) return { ...base, tier: 'none', status: 'expired', expiresAt: null, startedAt: null, productId: null, willRenew: false };
-  if (typeof pro.expires_at !== 'number' || !Number.isFinite(pro.expires_at)) throw new Error('INVALID_RC_PRO_EXPIRY');
-  const environment = event.environment === 'SANDBOX' ? 'sandbox' : 'production';
-  const subscriptions = await list(`${customerRoot}/subscriptions?limit=100&environment=${environment}`);
+  // TRANSFER may omit environment; a lifecycle event covers only one purchase.
+  // Read both environments so sandbox/Play expiration cannot erase App Store PRO.
+  const subscriptions = (await Promise.all(['production', 'sandbox'].map(async environment =>
+    (await list(`${customerRoot}/subscriptions?limit=100&environment=${environment}`))
+      .map((subscription): ObjectData & { environment: string } => ({ ...subscription, environment })),
+  ))).flat();
   const subscription = subscriptions.filter(sub => sub.gives_access === true
     && (object(sub.entitlements).items as unknown[] | undefined)?.some(ent => object(ent).id === proId))
     .sort((a, b) => Number(b.current_period_ends_at ?? 0) - Number(a.current_period_ends_at ?? 0))[0];
-  // No guessing an entitlement from a transfer payload lacking period/product fields.
-  if (!subscription || typeof subscription.product_id !== 'string') throw new Error('RC_SUBSCRIPTION_NOT_READY');
+  if (!pro && !subscription) return { ...base, tier: 'none', status: 'expired', expiresAt: null, startedAt: null, productId: null, willRenew: false };
+  // Both API views must agree before changing access. An incomplete read must
+  // retry, including a new purchase whose active entitlement is still catching up.
+  if (!pro || !subscription || typeof subscription.product_id !== 'string') throw new Error('RC_SUBSCRIPTION_NOT_READY');
+  if (typeof pro.expires_at !== 'number' || !Number.isFinite(pro.expires_at)) throw new Error('INVALID_RC_PRO_EXPIRY');
   const product = await get(`${root}/products/${encodeURIComponent(subscription.product_id)}`);
   if (typeof product.store_identifier !== 'string') throw new Error('INVALID_RC_PRODUCT');
   return {
@@ -78,8 +83,8 @@ export async function readRevenueCatSubscription(
     startedAt: typeof subscription.current_period_starts_at === 'number' ? new Date(subscription.current_period_starts_at).toISOString() : null,
     expiresAt: new Date(pro.expires_at).toISOString(),
     productId: product.store_identifier,
-    willRenew: subscription.auto_renewal_status === 'will_renew',
-    environment: environment.toUpperCase(),
+    willRenew: ['will_renew', 'will_change_product', 'has_already_renewed'].includes(String(subscription.auto_renewal_status)),
+    environment: subscription.environment.toUpperCase(),
     ...(typeof subscription.store === 'string' ? { store: subscription.store.toUpperCase() } : {}),
   };
 }

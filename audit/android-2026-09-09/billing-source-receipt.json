@@ -1,0 +1,64 @@
+{
+  "createdAt": "2026-09-09T19:04:53.186580+00:00",
+  "status": "source_verified_not_deployed",
+  "baseCommit": "dc68e3a6f4ade50bfb2442a893bce9db8ccc3dc3",
+  "deployOnly": [
+    "functions:revenuecatWebhook"
+  ],
+  "region": "us-central1",
+  "requiredExistingSecrets": [
+    "REVENUECAT_WEBHOOK_AUTH",
+    "REVENUECAT_SERVER_API_KEY"
+  ],
+  "newSecretsRequired": false,
+  "firestoreRulesChange": false,
+  "indexesChange": false,
+  "tests": {
+    "functionsUnit": {
+      "passed": 563,
+      "skipped": 15,
+      "filesPassed": 53,
+      "filesSkipped": 1
+    },
+    "revenuecatTargeted": {
+      "passed": 46,
+      "files": 4
+    },
+    "clientBilling": {
+      "passed": 57,
+      "files": 10
+    },
+    "profileAffected": {
+      "passed": 75,
+      "skipped": 9,
+      "files": 5
+    },
+    "clientTypecheck": "passed",
+    "functionsTypecheck": "passed",
+    "functionsBuild": "passed",
+    "clientScopedLint": "passed"
+  },
+  "red": {
+    "paymentPending": 2,
+    "subscriptionManagement": 7,
+    "snapshotWebhook": 7,
+    "transferMissingEnvironment": 1
+  },
+  "sourceSha256": {
+    "src/pages/Paywall.tsx": "4a6ae47beaea40757c982160f2ebc63fa15aa53ff044ff57d31f662765832790",
+    "src/pages/Profile.tsx": "75f43547b25c94bcdce8097579ad90198c244f660bdf74bd5589093da9249bc8",
+    "src/lib/purchases.ts": "687c5c2d18cf6563a8bd5abe39653ea8e2e0e4171a266a916949665899e089ef",
+    "src/lib/registration-api.ts": "00b084d8b8dcfda72c4725554635786395dbfc74a62fbba47e618820ae77efb8",
+    "src/lib/user-profile.ts": "2f72b9676f27852dc0bb6ea81838f92be5a4de0e43af3381d31de1582da46c8e",
+    "src/i18n/locales/pl.ts": "445b28a0a81d43b58f3b22614a630f03079f04b6021af072450e1f6e211e72e4",
+    "src/i18n/locales/en.ts": "e89307ab55ba3c028538af1952c868f74e520858c2c499747bae7a0befe9f05e",
+    "src/test/paywall-purchase-feedback.test.tsx": "bbdd0877b432fa6bdd819541f399f528af4e5b0730787693a298acd358d42f61",
+    "src/test/subscription-management.test.ts": "3fc13942ad75aef0597db14091d3f42caaf1f923e84b0cebad9be7ab3b7f9360",
+    "functions/src/revenuecat.ts": "7d27ba63704545d019718c87c4c8322b2ca29f25e711a31362de67bcbc3022d2",
+    "functions/src/revenuecat-transfer.ts": "206adceb37a186d02ca1b7f8b5d2452d6e3fb0de9f26857b03b0cac7f494e937",
+    "functions/src/revenuecat-transfer.test.ts": "6192114e70e77b5b1ac71af60bca411837b0d2c67c85f74bfb193b004e221c9a",
+    "functions/src/revenuecat-snapshot-webhook.test.ts": "df2b1b32e0cbe54fa75d4ba8f70562781fca25f87cffcb5ec828b69937ff19ed"
+  },
+  "realCustomerDataAccessed": false,
+  "purchasesOrChargesInitiated": false
+}

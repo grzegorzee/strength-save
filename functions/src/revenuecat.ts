@@ -248,10 +248,26 @@ export const revenuecatWebhook = onRequest(
       return;
     }
 
-    const subscription = mapEventToSubscription(event, new Date().toISOString());
-    if (!subscription) {
+    // An event describes one purchase, while PRO belongs to the RC customer
+    // across both stores. Expiration of one purchase must not revoke another.
+    const lifecycleEvents = new Set([
+      "INITIAL_PURCHASE", "RENEWAL", "UNCANCELLATION", "CANCELLATION", "BILLING_ISSUE",
+      "EXPIRATION", "PRODUCT_CHANGE", "SUBSCRIPTION_EXTENDED", "SUBSCRIPTION_PAUSED", "REFUND_REVERSED",
+    ]);
+    if (!lifecycleEvents.has(event.type ?? "")) {
       logger.info(`[revenuecat] Event ${event.type} bez wpływu na stan — pomijam`);
       res.status(200).json({ ok: true, skipped: "event-type" });
+      return;
+    }
+
+    let subscription: SubscriptionWrite;
+    try {
+      subscription = await readRevenueCatSubscription(uid, serverApiKey.value(), event);
+    } catch {
+      // Keep the last committed entitlement when RC is unavailable or its
+      // subscription and entitlement snapshots have not converged yet.
+      logger.error("[revenuecat] Customer reconciliation failed; retry required");
+      res.status(503).json({ ok: false, retry: "customer-reconciliation" });
       return;
     }
 
