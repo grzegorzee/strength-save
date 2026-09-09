@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-09-09T13:29:51.602390+00:00",
+  "url": "https://app.strengthsave.app/",
+  "source_commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
+  "gh_pages_commit": "7286b649f038e5d04fdba7d7a75bd1c3523f0900",
+  "checks": [
+    {
+      "path": "index.html",
+      "bytes": 1227,
+      "sha256": "e5660d292801dbc0acf8a13ab86e2b85131e6555fd59fed24e0c4059a3886f61",
+      "matches_dist": true
+    },
+    {
+      "path": "sw.js",
+      "bytes": 10503,
+      "sha256": "92ce6ff44f31b84e1826673157288f2397fe47920b40f17bcf27809e00319dc7",
+      "matches_dist": true
+    },
+    {
+      "path": "assets/index-jJIDWnBp.js",
+      "bytes": 525445,
+      "sha256": "08bae70490d0729764250a40efe960369a47ad12f57995d6306bb0abebc36c79",
+      "matches_dist": true
+    },
+    {
+      "path": "assets/index-CxipUY6w.css",
+      "bytes": 107546,
+      "sha256": "0eab4e92f4545f1abca3fdf519ce291d6aa6b05336cccfba22821e963502dc05",
+      "matches_dist": true
+    }
+  ],
+  "scope": "Exact live HTML, service worker and initially referenced JS/CSS match the production dist; no authenticated data touched."
+}

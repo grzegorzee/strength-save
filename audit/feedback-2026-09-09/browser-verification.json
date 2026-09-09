@@ -1,0 +1,32 @@
+{
+  "full_run": {
+    "source_commit": "a954f169f658facae305bf6fe33afa04e421bb41",
+    "passed": 677,
+    "failed": 11,
+    "total": 688,
+    "duration_minutes": 9.6,
+    "log": "final-gate-e2e.log",
+    "failure_analysis": "10 assertions selected obsolete or duplicate global headers after field reflow; one WebKit warmup wait reached the dialog at the 5s assertion deadline."
+  },
+  "final_targeted_run": {
+    "passed": 28,
+    "failed": 0,
+    "engines": [
+      "chromium",
+      "webkit"
+    ],
+    "density_cases": 14,
+    "flow_cases": 14,
+    "log": "exercise-card/compact-width-final-browser.log",
+    "covers_all_failed_scenarios": true,
+    "warmup_swap_timeout_changed": false,
+    "no_skips_or_product_timeout_changes": true,
+    "notes": "All previous failures and new 375/390 boundaries passed. Existing IDB, full plan sequence and cloud ACK assertions retained. This is a full run followed by a targeted correction run, not a claim of one completely green 692-case run.",
+    "source_commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829"
+  },
+  "emulator": {
+    "passed": 18,
+    "failed": 0,
+    "evidence": "final-emulator.json"
+  }
+}

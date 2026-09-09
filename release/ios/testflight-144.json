@@ -1,0 +1,170 @@
+{
+  "verified_at": "2026-09-09T13:31:41.651105+00:00",
+  "source_commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
+  "artifact": {
+    "path": "build/ios/export/App.ipa",
+    "bytes": 24220447,
+    "sha256": "9aa89fb2b7b80ea01224fdba81bbcc60dae1abcf767714c2ab8532d5f5329bb4",
+    "version": "1.0.0",
+    "build": 144
+  },
+  "signature": {
+    "codesign_deep_strict": "PASS",
+    "bundles": [
+      {
+        "path": "Payload/App.app",
+        "bundleId": "com.grzegorzjasionowicz.strengthsave",
+        "version": "1.0.0",
+        "build": "144",
+        "profileUUID": "d271cc27-a966-4f06-9b94-b26625a23bdf",
+        "profileExpiration": "2027-06-06T13:31:53",
+        "entitlementKeys": [
+          "application-identifier",
+          "aps-environment",
+          "beta-reports-active",
+          "com.apple.developer.applesignin",
+          "com.apple.developer.devicecheck.appattest-environment",
+          "com.apple.developer.healthkit",
+          "com.apple.developer.team-identifier",
+          "get-task-allow"
+        ],
+        "distribution": true
+      },
+      {
+        "path": "Payload/App.app/Watch/StrengthWatch.app",
+        "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp",
+        "version": "1.0.0",
+        "build": "144",
+        "profileUUID": "c5e3fbec-1016-4be3-bd62-c159d94d1d1e",
+        "profileExpiration": "2027-06-06T13:31:53",
+        "entitlementKeys": [
+          "application-identifier",
+          "beta-reports-active",
+          "com.apple.developer.healthkit",
+          "com.apple.developer.team-identifier",
+          "get-task-allow"
+        ],
+        "distribution": true
+      },
+      {
+        "path": "Payload/App.app/Watch/StrengthWatch.app/PlugIns/StrengthWatchWidgets.appex",
+        "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets",
+        "version": "1.0.0",
+        "build": "144",
+        "profileUUID": "1c4b92d8-203d-49c9-9771-d57488728925",
+        "profileExpiration": "2027-06-06T13:31:53",
+        "entitlementKeys": [
+          "application-identifier",
+          "beta-reports-active",
+          "com.apple.developer.team-identifier",
+          "get-task-allow"
+        ],
+        "distribution": true
+      }
+    ]
+  },
+  "asset_parity": {
+    "mobile-dist": {
+      "files": 232,
+      "bytes": 9895258,
+      "sha256": "cdda121cd362e4dcb678ca73eeacf4981c380f4036a5f38f79fe421abad76cc8"
+    },
+    "ios-project": {
+      "files": 232,
+      "bytes": 9895258,
+      "sha256": "cdda121cd362e4dcb678ca73eeacf4981c380f4036a5f38f79fe421abad76cc8"
+    },
+    "signed-ipa": {
+      "files": 232,
+      "bytes": 9895258,
+      "sha256": "cdda121cd362e4dcb678ca73eeacf4981c380f4036a5f38f79fe421abad76cc8"
+    }
+  },
+  "asset_hash_algorithm": "SHA256 of compact UTF-8 JSON sorted rows [relativePath, byteLength, fileSHA256]; .DS_Store excluded.",
+  "physical_qa": "pending-owner-testflight-test",
+  "store_verification": {
+    "checked_at": "2026-09-09T13:36:05.556876+00:00",
+    "build_id": "9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43",
+    "processingState": "VALID",
+    "groups": {
+      "internal": {
+        "id": "48daa230-813f-4bcc-8158-cc12e69d354c",
+        "contains_build": true
+      },
+      "external": {
+        "id": "4ad8388a-a717-42a6-b7a7-7aeb737d29e8",
+        "contains_build": true
+      }
+    },
+    "beta_details": {
+      "httpStatus": 200,
+      "data": {
+        "type": "buildBetaDetails",
+        "id": "9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43",
+        "attributes": {
+          "autoNotifyEnabled": true,
+          "internalBuildState": "IN_BETA_TESTING",
+          "externalBuildState": "IN_BETA_TESTING"
+        },
+        "relationships": {
+          "build": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/buildBetaDetails/9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43/relationships/build",
+              "related": "https://api.appstoreconnect.apple.com/v1/buildBetaDetails/9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43/build"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/buildBetaDetails/9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43"
+        }
+      }
+    },
+    "beta_review": {
+      "httpStatus": 200,
+      "data": {
+        "type": "betaAppReviewSubmissions",
+        "id": "9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43",
+        "attributes": {
+          "betaReviewState": "APPROVED",
+          "submittedDate": null
+        },
+        "relationships": {
+          "build": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions/9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43/relationships/build",
+              "related": "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions/9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43/build"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions/9fdefd5d-b7c5-46c9-9b35-b6d31ee68b43"
+        }
+      }
+    },
+    "localizations": {
+      "httpStatus": 200,
+      "data": [
+        {
+          "type": "betaBuildLocalizations",
+          "id": "773ec6ff-a622-4235-9af0-0562c73efaf7",
+          "attributes": {
+            "whatsNew": "Poprawki po testach na iPhonie:\n• Dzisiaj: zwarty ekran z widocznymi akcjami Szybki trening i Dodaj cardio. Lista cardio i raport tygodnia są w Planie.\n• Synchronizacja: krótki status i Synchronizuj teraz. Baner pozostaje do potwierdzonego zapisu. Automatyczne ponowienie po powrocie sieci i wznowieniu aplikacji.\n• Plan dnia: jedna data, pełne nazwy ćwiczeń i czytelne superserie 5A/5B. Rozgrzewka i wskazówki są rozwijane.\n• Karta ćwiczenia: zwarty cel i przypięta notatka. Cel tygodnia zachowuje zakres powtórzeń z planu po rozpoczęciu i wznowieniu sesji.\n• Timer ma odstęp od dolnej nawigacji także w poziomie i przy większym tekście.\n• Plan i Twoje liczby uwzględniają pływanie oraz pozostałe cardio, z osobnym licznikiem i czasem. Statystyki siłowe nadal dotyczą siły.\n\nCo sprawdzić:\n1. Dzisiaj przed treningiem, po zakończeniu i w dzień wolny; dostępność obu szybkich akcji.\n2. Plan dnia z superserią: nazwy i numeracja A/B; rozwijanie rozgrzewki.\n3. RDL: cel, notatka, edycja, serie i timer po obrocie telefonu.\n4. Seria bez sieci → Dzisiaj → zgaszenie ekranu → powrót sieci → odblokowanie. Baner znika po zapisie; błąd pozwala ponowić.\n5. Trening z planu → wyjście → szybki trening → powrót do planu → zakończenie → synchronizacja. Wszystkie ćwiczenia i serie pozostają.\n6. Dodane pływanie 40 min pojawia się w Planie i Twoich liczbach, bez zmiany tonażu siłowego.\n7. Świeży trening proponuje rozgrzewkę bez powtórek, a odhaczenia przeżywają wznowienie.",
+            "locale": "en-US"
+          },
+          "relationships": {
+            "build": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations/773ec6ff-a622-4235-9af0-0562c73efaf7/relationships/build",
+                "related": "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations/773ec6ff-a622-4235-9af0-0562c73efaf7/build"
+              }
+            }
+          },
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations/773ec6ff-a622-4235-9af0-0562c73efaf7"
+          }
+        }
+      ]
+    },
+    "what_to_test_matches": true
+  }
+}

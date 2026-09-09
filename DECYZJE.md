@@ -5,11 +5,69 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-07 (TestFlight 143, podpisany AAB49, backend etap 1)
+**Ostatnia aktualizacja:** 2026-09-09 (poprawki z iPhone’a, wydanie 144/50)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-09: poprawki po sześciu zrzutach z iPhone’a
+
+Właściciel zlecił natychmiastowe poprawki, push i nowe TestFlight, zachowując
+obecną stylistykę aplikacji. Poprzednie syntetyczne scenariusze audytu nie
+wykryły pokazanych kombinacji; historyczny wynik 10/10 nie jest oceną tego feedbacku.
+Nowy raport nie nadaje oceny liczbowej całej aplikacji. Root cause, niezmienniki,
+dowody i fizyczne scenariusze: `docs/FEEDBACK-2026-09-09.md`.
+
+- **Synchronizacja:** bezpośrednie ponowienie bez ukrywania banera; automatyczny
+  checkpoint po wyjściu z treningu i reconnect/resume. Naprawiono zbyt późny lock
+  oraz owner fence po wylogowaniu/unmount. Ten sam silnik rewizji/writeId i pełny
+  ACK; danych lokalnych nie czyści sam udany zapis częściowy.
+- **Dzisiaj i Plan:** tygodniowe cardio/raport przeniesione do Planu. Zwarty
+  Dashboard zachowuje obie szybkie akcje, powrót do innego dnia treningu i guard
+  oczekującego zapisu przed zmianą cyklu. Licznik historycznego tygodnia ma
+  odczyt w jego granicach, ładowanie i retry zamiast niepełnego zera.
+- **Plan dnia/superserie:** pojedyncza data, pełne nazwy, szczegóły na żądanie.
+  Para pochodzi z supersetGroup zamiast końcówki ID. Hydracja planu/cyklu
+  zachowuje metadane grupy, które wcześniejszy sanitizer usuwał.
+- **Karta ćwiczenia:** kompaktowe metryki, cel z wyjaśnieniem na żądanie,
+  notatka wraz z edycją. Ostrzeżenie bólu nadal zawsze widoczne. Przepis z planu
+  zachowuje zakres powtórzeń podczas startu/resume, niezależnie od liczby serii
+  w drafcie; dzięki temu cel progresji nie zmienia się po rozpoczęciu.
+- **Timer/nawigacja:** spójny breakpoint, pomiar wysokości i bezpiecznego
+  odstępu po resume; przerwa 8 px i zawijanie przy dużym tekście. Bez zmian
+  deadline, harmonogramu powiadomień, dźwięku i haptics.
+- **Statystyki:** wszystkie ukończone aktywności oraz osobne siłowe/cardio i czas.
+  Pełna historia na żądanie, bez limitu ostatnich 120/500; owner/abort fences.
+  Tonaż, serie i rekordy nadal wyłącznie siłowe.
+
+Każdy potwierdzony błąd miał odtworzenie przed poprawką. Weryfikacja obejmuje
+pełne bramki frontendowe, syntetyczne WebKit/Chromium, ekrany 375×667 i 393×852,
+obszary bezpieczne, poziom i duży tekst. Wyniki końcowe są w `audit/latest.json`.
+Fizycznego QA nie deklarujemy: właściciel przetestuje przez TestFlight.
+Wersja produktu 1.0.0 pozostaje bez zmian; nowe liczniki to 144/50.
+
+Zamknięto odroczony etap backendu: po 549 testach Functions, 15 integracyjnych,
+326 Firestore Rules i 44 Storage Rules wdrożono wyłącznie restoreWorkoutBackupV3,
+a następnie Firestore Rules. Aktywny kod i reguły odpowiadają testowanym hashom;
+69 funkcji ACTIVE, pozostałe 68 bez zmian, 14 indeksów READY. B10/B11/B12 oraz
+Firestore część B3 są wdrożone. Nie wykonywano migracji ani zapisów danych
+użytkowników. Dowód: `audit/release-2026-09-09/backend-phase2.receipt.json`.
+
+Wydanie z `6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829` wypchnięto na main.
+Końcowe bramki: 4160 testów frontendowych PASS (16 historycznych skipów),
+typecheck/lint/build, budżet i uruchomienie dist PASS; 18/18 sekwencji emulatora
+PASS. Pełny browser 677/688, następnie wszystkie 11 błędów dawnych asercji
+nagłówka/oczekiwania sprawdzono w końcowym 28/28 PASS bez zmiany timeoutów;
+dokładny podział zachowuje raport, bez deklarowania jednego zielonego pełnego biegu.
+
+iOS144: upload bez błędów, VALID, APPROVED, obie grupy IN_BETA_TESTING,
+What to Test zgodne. Android50: podpisany AAB, wszystkie wpisy podpisu i 16 KB
+zweryfikowane; Play upload pozostaje zablokowany zakresem dostępu (HTTP403).
+232 zasoby mobile dist, IPA i AAB są identyczne. Web wdrożono i porównano jego
+HTML, service worker oraz początkowe JS/CSS z produkcyjnym buildem. Dowody:
+`release/ios/testflight-144.json`, `release/android/internal-2026-09-09/artifact.json`,
+`audit/release-2026-09-09/web-delivery.json`. Publicznej wersji sklepowej nie wydano.
 
 ### 2026-09-07: TestFlight 143, podpisany Google Play AAB49 i backend etap 1
 

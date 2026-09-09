@@ -1,0 +1,34 @@
+# Android — wydanie testowe 2026-09-09
+
+**Podpisany AAB `1.0.0 (50)` jest gotowy lokalnie. Upload do Google Play nie został wykonany.** Źródła: `6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829`, ten sam zatwierdzony commit co wydanie iOS 144. Docelowy kanał Androida to Internal Testing; najwyższy użyty versionCode w Play pozostaje niepotwierdzony. Nie publikowano wersji produkcyjnej.
+
+## Artefakt i kontrole
+
+- [app-release.aab](../../../android/app/build/outputs/bundle/release/app-release.aab): **22 961 298 B**.
+- SHA256: `1238bbab28f61e526b9d07a334f381de77ae9822767e8f28c97473db78fca755`.
+- Odczytane z AAB: applicationId `com.grzegorzjasionowicz.strengthsave`, versionName `1.0.0`, versionCode `50`, minSdk `26`, targetSdk `36`.
+- `npx cap sync android` po gotowym wspólnym mobile buildzie — PASS. Podpisany `:app:bundleRelease --no-daemon` z JDK 21 — PASS, 30 s. Podczas tych kroków nie zmieniano źródeł, liczników ani mobilnego `dist`.
+- `bundletool validate` — PASS. Certyfikat podpisu odpowiada poprzednio zweryfikowanemu istniejącemu upload key; SHA256 certyfikatu i szczegóły są w [artifact.json](artifact.json).
+- Każdy z **1365 payload entries** przeszedł niezależną kryptograficzną weryfikację przez `JarFile`; wszystkie mają ten sam oczekiwany certyfikat. CRC ZIP, brak duplikatów oraz zgodność nazw i kompresji między nagłówkami lokalnymi a central directory — PASS.
+- Wszystkie **232 pliki runtime**, łącznie **9 895 258 B**, są identyczne w mobilnym `dist`, Android project assets i podpisanym AAB. Hash manifestu zawartości: `cdda121cd362e4dcb678ca73eeacf4981c380f4036a5f38f79fe421abad76cc8`. Receipt opisuje algorytm; wyklucza wyłącznie `.DS_Store` i osobno ujmuje wygenerowane stuby Cordova. Weryfikator ponownie sprawdził, że `dist` nie zmienił się podczas kontroli.
+- AAB żąda `PAGE_ALIGNMENT_16K`. Wszystkie segmenty PT_LOAD **6 bibliotek 64-bitowych** spełniają wyrównanie 16 KB. Bundletool utworzył **87 APK**, każdy przeszedł `zipalign -c -P 16 -v 4`.
+- Weryfikacyjne APK mają lokalny podpis debug wyłącznie do kontroli pakowania. Nie instalowano ich ani nie wysyłano; nie stanowią dowodu podpisu Play App Signing ani testu fizycznego urządzenia 16 KB.
+
+`jarsigner` zwrócił `jar verified` i kod 0. Podobnie jak przy buildzie 49, ostrzega o samopodpisanym upload certificate, timestampie, niechronionych atrybutach ZIP oraz czytniku `JarInputStream`, który oczekuje manifestu na początku archiwum. W tym AAB `META-INF/MANIFEST.MF` ma indeks 1367, na końcu ZIP. Dlatego każdy payload został dodatkowo zweryfikowany przez `JarFile`, z kontrolą całej struktury ZIP. Nie przepakowywano AAB. Akceptacja przez Google Play pozostaje osobnym krokiem.
+
+## Chronologia i dostęp
+
+Poprzedni podpisany AAB 49 zachowano przed budową w `/tmp/strength-release-20260909/android-history/strength-save-1.0.0-49.aab`; jego SHA256 nadal wynosi `69ab3c28ca9ca45e4872af92d900106f2890cf591f73104ef2e172dfec4d7e7f`. Ponowna weryfikacja wszystkich jego 1368 payload entries — PASS. Binaria i klucze nie są dodawane do Git.
+
+Aktualny preflight 2026-09-09 12:29:58 UTC potwierdził **HTTP 403 / ACCESS_TOKEN_SCOPE_INSUFFICIENT**. Użyto istniejącego ADC do read-only GET z celowo nieistniejącym edit ID `0`; nie logowano ponownie, nie rozszerzano scope, nie tworzono edycji i nie wykonywano uploadu. Sanitized wynik jest również osadzony w receipt. Dostępu przeglądarkowego w tym zadaniu nie próbowano ponownie.
+
+Po uzyskaniu istniejącego dostępu Play należy potwierdzić dostępność numeru 50 i upload certificate, a następnie wysłać dokładnie zweryfikowany AAB na Internal Testing. Jeśli numer jest zajęty, potrzebny będzie uzgodniony wyższy build. Wymagana będzie osobna weryfikacja instalacji ze sklepu i funkcji zależnych od Play App Signing. Nie wykonywano testów na rzeczywistym koncie.
+
+## Dowody lokalne
+
+- Pełny receipt: [artifact.json](artifact.json), weryfikacja zakończona 2026-09-09 13:30:52 UTC.
+- Logi: `audit/release-2026-09-09/android-50-*.log`; dostęp: `android-play-access.json`.
+- Weryfikator i zestaw APK: `/tmp/strength-release-20260909/`; JDK 21, bundletool 1.18.3 (wcześniej zweryfikowany digest oficjalnego wydania), Android SDK build-tools 36.0.0.
+- Dowód parity dotyczy zamrożonego mobilnego `dist` podczas budowy. Nie zastępuje go późniejszy build web; root zachował produkcyjny web osobno.
+
+Nie wykonywano commit, push, uploadu Play ani innych wdrożeń w tym zadaniu Androida.

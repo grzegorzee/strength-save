@@ -1,0 +1,57 @@
+{
+  "kind": "verified-feedback-release-delivery",
+  "recorded_at": "2026-09-09T13:41:07.547794+00:00",
+  "build_source_commit": "6de07c95a0d9eaa1d37a20fa9389e6bb9f4d2829",
+  "build_source_tree": "4de4c40f5bc9b842815259961939efd76b4e79d9",
+  "versions": {
+    "product": "1.0.0",
+    "ios": 144,
+    "android": 50
+  },
+  "receipts": {
+    "ios": {
+      "path": "release/ios/testflight-144.json",
+      "sha256": "a4c39d34d6f33468bd9f637e9b62b14939f2939cb39d89c2fd27eac028e48e29"
+    },
+    "android": {
+      "path": "release/android/internal-2026-09-09/artifact.json",
+      "sha256": "6e2f35bd3ce7c31cabd25895f3ec68f37b13ad0e40e7273d8815b673a408c90f"
+    },
+    "web": {
+      "path": "audit/release-2026-09-09/web-delivery.json",
+      "sha256": "2d675de9aa44f820c71f5d7ed93bee0e886fc96798a241f8001e75c3903f56e0"
+    },
+    "backend": {
+      "path": "audit/release-2026-09-09/backend-phase2.receipt.json",
+      "sha256": "7707eaf37ef0b342a5de23e7b5d82b819d2aeab03c6f11e9c3c5f3f75c51b097"
+    },
+    "frontend_gates": {
+      "path": "audit/feedback-2026-09-09/delivery-gates.json",
+      "sha256": "67861dd4dc8802a11664a3c1a90ffdbdc0f8d11c7917252785dcc8f37ed21660"
+    },
+    "browser_checks": {
+      "path": "audit/feedback-2026-09-09/browser-verification.json",
+      "sha256": "6f68c3fe84c058e5a73be50dd50b16832a95f2ccd2f7acb05a2594d34a15b0e1"
+    },
+    "firebase_browser": {
+      "path": "audit/feedback-2026-09-09/final-emulator.json",
+      "sha256": "b3deb6b072b73ad3eb6b0b4a11358cb716ef0c35fbe0da8d7db3d643eed26544"
+    }
+  },
+  "native_asset_parity": {
+    "files": 232,
+    "bytes": 9895258,
+    "sha256": "cdda121cd362e4dcb678ca73eeacf4981c380f4036a5f38f79fe421abad76cc8"
+  },
+  "ios_status": "VALID / APPROVED / both groups IN_BETA_TESTING",
+  "android_status": "signed-local-AAB; Play upload blocked by Android Publisher access scope",
+  "web_status": "live exact HTML/SW/entry assets verified",
+  "backend_status": "phase2 restore/Firestore Rules deployed and verified",
+  "public_store_release": false,
+  "physical_iphone_qa": "owner will test through TestFlight",
+  "ci": {
+    "run": "https://github.com/grzegorzee/strength-save/actions/runs/34357160280",
+    "status": "in_progress at capture; local release gates passed"
+  },
+  "scope": "Delivery receipt index for artifacts actually built from the recorded source commit. It does not claim later documentation commits were rebuilt into these artifacts."
+}

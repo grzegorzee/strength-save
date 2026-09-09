@@ -2,13 +2,15 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Wydanie testowe 2026-09-07:** TestFlight `1.0.0 (143)` ma status VALID,
-> APPROVED i IN_BETA_TESTING dla obu grup testerów. Podpisany Android AAB
-> `1.0.0 (49)` jest gotowy; upload do Play czeka na dostęp do konsoli.
-> Właściciel wykona próby fizycznego iPhone'a przez TestFlight. Dowody paczek
-> i dystrybucji wskazuje `release/release-train.json`. Publiczna premiera
-> pozostaje osobną bramką. Etapowanie backendu:
-> `audit/release-2026-09-07/backend-preflight.md`.
+> **Wydanie po feedbacku z iPhone’a 2026-09-09:** TestFlight `1.0.0 (144)`
+> ma status VALID, APPROVED i IN_BETA_TESTING w obu grupach testerów.
+> Poprawiono synchronizację, zwartość Dzisiaj/karty ćwiczenia, superserie,
+> nawigację timera i uwzględnienie cardio. [Raport i scenariusze testów](docs/FEEDBACK-2026-09-09.md).
+> Podpisany Android `1.0.0 (50)` jest gotowy; upload do Play blokuje brak
+> zakresu Android Publisher w obecnym dostępie (HTTP403).
+> Web oraz etap2 backendu wdrożono i zweryfikowano. Dowody paczek i dystrybucji:
+> `release/release-train.json`. Fizycznego iPhone’a właściciel testuje przez
+> TestFlight; publiczna premiera pozostaje osobną bramką.
 
 > **Audyt lokalnego kandydata 2026-09-06–07:** aktualne poprawki, dowody testów,
 > ograniczenia oraz kolejność wdrożenia są w
@@ -40,7 +42,7 @@
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
 | **Status** | kandydat 1.0.0; public release zablokowany do końcowych bramek |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-08-27 |
+| **Data aktualizacji** | 2026-09-09 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
 
 ---

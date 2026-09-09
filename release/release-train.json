@@ -29,7 +29,9 @@
   },
   "web": {
     "url": "https://app.strengthsave.app/",
-    "state": "requires-current-source-and-live-provenance-verification"
+    "state": "requires-current-source-and-live-provenance-verification",
+    "deliveryEvidence": "audit/release-2026-09-09/web-delivery.json",
+    "verifiedDelivery": "deployed-live-html-service-worker-and-entry-assets-byte-verified"
   },
   "functions": {
     "project": "fittracker-workouts",
@@ -42,7 +44,7 @@
     "build": 144,
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/ios/testflight-144.json",
-    "verifiedDelivery": "preparing-feedback-build"
+    "verifiedDelivery": "valid-approved-in-beta-testing-both-groups"
   },
   "android": {
     "version": "1.0.0",
@@ -50,7 +52,7 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/android/internal-2026-09-09/artifact.json",
-    "verifiedDelivery": "preparing-feedback-build"
+    "verifiedDelivery": "signed-aab-verified-upload-blocked-android-publisher-scope"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",

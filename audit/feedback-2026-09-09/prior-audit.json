@@ -1,0 +1,348 @@
+{
+  "score": 10,
+  "core_quality_score": 10,
+  "release_ready": false,
+  "date": "2026-09-07",
+  "run_started_date": "2026-09-06",
+  "run_at": "2026-09-07 14:57:45 UTC",
+  "base_commit": "3c9f975b40634e83472497b331b2d4ce53bafa0b",
+  "working_tree": "Audit fixes committed and pushed to main. Subsequent delivery documentation does not change the built application source.",
+  "seeded": true,
+  "scenarios_audited": [
+    "active-user",
+    "new-user",
+    "active-admin",
+    "unauthenticated",
+    "offline cached profile",
+    "account switch",
+    "consent revoke and late ACK"
+  ],
+  "score_scope": "Observed shared React UI/UX on synthetic mobile data in Chromium/WebKit, PL/EN, core routes, onboarding and error recovery. Native-only and store-release gates excluded from score per product-audit skill.",
+  "scoring_note": "No confirmed unresolved red/orange/yellow UI finding remains in the exercised scope. Harmonic model has no open UI penalties, hence 10. This does not certify absence of undiscovered defects or physical-device/store readiness. UI observations inherited from the prior audit; this follow-up verifies delivery and does not claim a new visual run.",
+  "decision": "TestFlight 143 available to both groups; signed Android49 prepared, upload pending console access. Public store launch remains pending physical QA and documented remaining gates.",
+  "summary": "Audit fixes are present in TestFlight143 and signed AAB49. Compatible backend phase1 is deployed. Strict server restore and Firestore Rules changes remain deliberately deferred for older clients.",
+  "blockers_red": [],
+  "orange": [],
+  "yellow": [],
+  "top_fixes": [],
+  "resolved_this_run": [
+    "W1-W4: complete snapshot ACK/hydration and canonical workout metrics; explicit empty notes/skips preserved.",
+    "W5-W9, WR01-WR02, B10-B12: CSV multiline/metrics, owner-scoped import/Undo, server restore/health consent and owner boundary.",
+    "B1-B3: recoverable account closure/purge leases with immediate access closure and unchanged deadline.",
+    "B4, B6-B8, CR3-CR4: RevenueCat identity, recoverable SDK queue and webhook transfer/reconciliation.",
+    "B5/B9, CR1-CR2: captured Health grants and owner fences through late callbacks and Strava commit.",
+    "NAT01-NAT05: native Health permissions/upsert identity and Android timer resources/exact-alarm recovery.",
+    "UX01-UX02: measurement save acknowledgement, duplicate-submit lock and field-level error recovery.",
+    "UX03: redundant onboarding/Profile/integration text reduced; first warmup description shortened.",
+    "UX04: reachable iOS login/register form above the system keyboard.",
+    "UX05: partial CSV import remains available in owner history for Undo after closing/reopening.",
+    "OB-W1-W3: preserved preview substitutions, locked pending save and current consent requirement on draft resume.",
+    "OB-N1/OB-N2/OB-N4: immediate authoritative consent confirmation, account intent and newer revocation wins.",
+    "OB-W4: durable onboarding operation prevents duplicate active cycles after lost ACK across week boundary.",
+    "WU01-WU02: no repeated arm-circle movement, fresh phone planned-start prompt, warmup-only resume and owner-scoped preference.",
+    "REL01-REL02/DOC01/DEP01: complete artifact fingerprinting, Android CI compile gate, explicit historical release evidence and targeted dependency patches.",
+    "B13: Firebase Admin modular ESM runtime imports validated against the actual SDK.",
+    "QA01-QA03 and final fixtures: isolated screenshots, stable calendar fixtures, native-build watcher exclusions and deterministic synthetic draft cleanup."
+  ],
+  "copy_measurement": {
+    "scope": "The same first four onboarding screens including options/buttons; excludes legal documents and the rest of the app.",
+    "pl": {
+      "before_words": 166,
+      "after_words": 126,
+      "reduction_percent_rounded": 24
+    },
+    "en": {
+      "before_words": 185,
+      "after_words": 133,
+      "reduction_percent_rounded": 28
+    },
+    "evidence": [
+      "audit/launch-2026-09-06/copy-before/copy.json",
+      "audit/launch-2026-09-06/copy-after/copy.json"
+    ]
+  },
+  "warmup_report_boundary": "Reproduced with synthetic sessions; fixes included in TestFlight143 and AAB49. No private workout was read or modified. Physical reproduction/acceptance remains with the owner through TestFlight.",
+  "checks": {
+    "frontend_full": {
+      "status": "PASS",
+      "passed": 4084,
+      "failed": 0,
+      "skipped": 16,
+      "files": 470,
+      "evidence": "audit/release-2026-09-07/frontend-tests.log",
+      "scope_note": "Full rerun after all fixes, final copy and version counters143/49."
+    },
+    "frontend_after_final_copy": {
+      "status": "PASS",
+      "passed": 69,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-warmup-copy-tests.log",
+      "scope_note": "Subset of full suite; not additional unique tests."
+    },
+    "chromium_full": {
+      "status": "PASS",
+      "passed": 330,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-e2e.log",
+      "scope_note": "Combined run had all Chromium passing and one WebKit fixture failure. Final copy/cleanup verified separately in both browsers."
+    },
+    "webkit_full": {
+      "status": "PASS",
+      "passed": 330,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-e2e-webkit.log",
+      "scope_note": "Full rerun after isolated-document cleanup fix and final copy."
+    },
+    "warmup_after_fixture_consolidation": {
+      "status": "PASS",
+      "passed": 24,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-warmup-e2e.log",
+      "scope_note": "12 Chromium +12 WebKit; two complete specs after removing analogous 250ms waits. Already included in 660 unique full-matrix scenarios."
+    },
+    "firebase_e2e": {
+      "status": "PASS",
+      "passed": 18,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-e2e-emulator.log",
+      "scope_note": "Actual Auth/Functions/Rules emulators after functional warmup fixes; synthetic accounts only."
+    },
+    "functions_unit": {
+      "status": "PASS",
+      "passed": 549,
+      "failed": 0,
+      "skipped": 15,
+      "evidence": "audit/release-2026-09-07/functions-tests.log"
+    },
+    "functions_integration": {
+      "status": "PASS",
+      "passed": 15,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-functions-emulator.log",
+      "scope_note": "15 emulator-required cases skipped in ordinary unit execution."
+    },
+    "firestore_rules": {
+      "status": "PASS",
+      "passed": 326,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-rules.log"
+    },
+    "storage_rules": {
+      "status": "PASS",
+      "passed": 44,
+      "failed": 0,
+      "evidence": "audit/launch-2026-09-06/final-rules.log"
+    },
+    "typecheck": {
+      "status": "PASS",
+      "evidence": [
+        "audit/launch-2026-09-06/final-typecheck.log",
+        "audit/launch-2026-09-06/final-production-build.log",
+        "audit/launch-2026-09-06/final-functions-typecheck.log",
+        "audit/release-2026-09-07/typecheck.log"
+      ]
+    },
+    "lint": {
+      "status": "PASS",
+      "errors": 0,
+      "preexisting_warnings": 15,
+      "evidence": [
+        "audit/launch-2026-09-06/final-lint.log",
+        "audit/launch-2026-09-06/final-copy-fixture-lint.log",
+        "audit/release-2026-09-07/lint.log"
+      ]
+    },
+    "production_build": {
+      "status": "PASS",
+      "evidence": "audit/launch-2026-09-06/final-production-build.log"
+    },
+    "functions_build": {
+      "status": "PASS",
+      "evidence": "audit/launch-2026-09-06/final-functions-build.log"
+    },
+    "bundle_budget": {
+      "status": "PASS",
+      "initial_js_bytes": 1447000,
+      "initial_js_limit_bytes": 1536000,
+      "chunk_limit_bytes": 819200,
+      "evidence": "audit/launch-2026-09-06/final-bundle-budget.log"
+    },
+    "production_startup": {
+      "status": "PASS",
+      "evidence": "audit/launch-2026-09-06/final-dist-smoke.log"
+    },
+    "production_cold_offline": {
+      "status": "PASS",
+      "evidence": "audit/launch-2026-09-06/final-dist-offline.log"
+    },
+    "no_emoji": {
+      "status": "PASS",
+      "evidence": "audit/launch-2026-09-06/final-no-emoji.log"
+    },
+    "ios_release_preflight": {
+      "status": "PASS",
+      "evidence": "audit/launch-2026-09-06/final-ios-preflight.log"
+    },
+    "npm_audit": {
+      "status": "PASS",
+      "root_vulnerabilities": 0,
+      "functions_vulnerabilities": 0,
+      "verified_date": "2026-09-07",
+      "evidence": [
+        "audit/launch-2026-09-06/npm-audit-root-after.json",
+        "audit/launch-2026-09-06/npm-audit-functions-after.json"
+      ]
+    },
+    "mobile_sync_and_native_builds": {
+      "status": "PASS",
+      "runtime_files_verified": 235,
+      "locations": 5,
+      "evidence": "audit/launch-2026-09-06/native-build-receipt.json",
+      "scope_note": "Fresh iOS simulator / Android debug builds after final copy; no signed distribution artifact or physical-device signoff."
+    },
+    "native_runtime_smoke": {
+      "status": "PASS_WITH_LIMITED_SCOPE",
+      "evidence": "audit/launch-2026-09-06/native-build-receipt.json",
+      "scope_note": "Fresh-build unauthenticated login/system keyboard on iPhone17/iOS26.5 simulator and Android API35 emulator. Predates only last firstWhy copy; not repeated after that edit."
+    },
+    "new_android_github_job": {
+      "status": "PASS",
+      "evidence": "https://github.com/grzegorzee/strength-save/actions/runs/34133948626",
+      "scope_note": "Android and iOS native jobs both passed on source3c9f975; full quality job still running at this snapshot."
+    },
+    "physical_devices": {
+      "status": "NOT_RUN",
+      "scenario_count": 22,
+      "evidence": "docs/LAUNCH-DEVICE-QA-2026-09-06.md"
+    },
+    "manifest": {
+      "status": "VERIFICATION_RECORDED_SEPARATELY",
+      "manifest": "audit/release-2026-09-07/final-manifest-143-49.json",
+      "scope_note": "Generated after delivery documentation commit; current signed IPA143/AAB49 only, old diagnostic APK/simulator excluded. Verification receipt is separate to avoid a hash cycle."
+    },
+    "signed_ios143": {
+      "status": "PASS",
+      "evidence": "release/ios/testflight-143.json",
+      "scope_note": "Signed distribution, three matching143 targets,235 runtime assets, VALID/APPROVED and both groups IN_BETA_TESTING."
+    },
+    "signed_android49": {
+      "status": "PASS",
+      "evidence": "release/android/internal-2026-09-07/artifact.json",
+      "scope_note": "Full payload signature,235 runtime assets,6x64-bit ELF and87 APK splits16KB verified; no Play upload."
+    },
+    "backend_phase1": {
+      "status": "PASS",
+      "evidence": "audit/release-2026-09-07/backend-deployment-receipt.json",
+      "scope_note": "68 functions updated,69ACTIVE,14READY indexes,RCsecretv1,Storage Rules; Firestore Rules/restore unchanged."
+    }
+  },
+  "evidence_root": "audit/launch-2026-09-06",
+  "native_not_covered": [
+    "Physical screen-off/suspend/resume, weak network and plan -> quick workout -> original plan -> finish -> sync.",
+    "Physical notification timing/sound/haptics, silent switch and Android Doze/exact-alarm delivery.",
+    "Physical HealthKit/Health Connect permission rejection/revoke/retry and stable record update.",
+    "Real StoreKit/Play Billing purchase, cancellation and restore on resulting signed build.",
+    "Physical Dynamic Type, VoiceOver/TalkBack, safe areas, sharing, camera and native provider login.",
+    "Runtime installation of final copy-only rebuild; prior native login/keyboard smoke recorded separately."
+  ],
+  "technical_debt_not_scored": [
+    "15 pre-existing Fast Refresh lint warnings without reproduced runtime impact.",
+    "16 intentionally skipped historical frontend compatibility cases."
+  ],
+  "required_before_submission": [
+    "Complete physical-device QA on TestFlight143/Play49, including screen-off/resume and interrupted workout sequence.",
+    "Obtain authorized Play Console/Publisher access, check highest versionCode, upload49 to internal testing, and verify store-installed signing/Integrity.",
+    "After client migration, deploy and verify strict restoreWorkoutBackupV3 and Firestore Rules together; B10/B11/B12 and B3 Rules closure remain deferred.",
+    "Rotate previously documented reviewer credential and keep it only in private review information.",
+    "Verify current store products/test purchases, signing fingerprints, App Check and listing/privacy/health declarations.",
+    "Review device findings and explicitly decide public store submission."
+  ],
+  "versions": {
+    "marketing": "1.0.0",
+    "ios_current_project_version": 143,
+    "android_version_code": 49,
+    "note": "iOS143 distributed through TestFlight; signed AAB49 ready but not uploaded to Play."
+  },
+  "screenshots": [
+    "audit/launch-2026-09-06/final-shots/chromium/active-admin_admin.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_cycles.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_dashboard.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_day.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_exercise-detail.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_exercises.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_history.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_measurements.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_new-plan.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_plan-edit.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_plan.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_profile.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_progress.png",
+    "audit/launch-2026-09-06/final-shots/chromium/active-user_workout.png",
+    "audit/launch-2026-09-06/final-shots/chromium/badges.png",
+    "audit/launch-2026-09-06/final-shots/chromium/charts.png",
+    "audit/launch-2026-09-06/final-shots/chromium/keyboard-custom-exercise.png",
+    "audit/launch-2026-09-06/final-shots/chromium/keyboard-plate-calculator.png",
+    "audit/launch-2026-09-06/final-shots/chromium/keyboard-report-bug.png",
+    "audit/launch-2026-09-06/final-shots/chromium/landscape_dashboard.png",
+    "audit/launch-2026-09-06/final-shots/chromium/landscape_history.png",
+    "audit/launch-2026-09-06/final-shots/chromium/landscape_profile.png",
+    "audit/launch-2026-09-06/final-shots/chromium/landscape_workout.png",
+    "audit/launch-2026-09-06/final-shots/chromium/new-user_onboarding.png",
+    "audit/launch-2026-09-06/final-shots/chromium/records.png",
+    "audit/launch-2026-09-06/final-shots/chromium/results.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-admin_admin.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_cycles.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_dashboard.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_day.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_exercise-detail.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_exercises.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_history.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_measurements.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_new-plan.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_plan-edit.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_plan.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_profile.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_progress.png",
+    "audit/launch-2026-09-06/final-shots/webkit/active-user_workout.png",
+    "audit/launch-2026-09-06/final-shots/webkit/badges.png",
+    "audit/launch-2026-09-06/final-shots/webkit/charts.png",
+    "audit/launch-2026-09-06/final-shots/webkit/keyboard-custom-exercise.png",
+    "audit/launch-2026-09-06/final-shots/webkit/keyboard-plate-calculator.png",
+    "audit/launch-2026-09-06/final-shots/webkit/keyboard-report-bug.png",
+    "audit/launch-2026-09-06/final-shots/webkit/landscape_dashboard.png",
+    "audit/launch-2026-09-06/final-shots/webkit/landscape_history.png",
+    "audit/launch-2026-09-06/final-shots/webkit/landscape_profile.png",
+    "audit/launch-2026-09-06/final-shots/webkit/landscape_workout.png",
+    "audit/launch-2026-09-06/final-shots/webkit/new-user_onboarding.png",
+    "audit/launch-2026-09-06/final-shots/webkit/records.png",
+    "audit/launch-2026-09-06/final-shots/webkit/results.png",
+    "audit/launch-2026-09-06/warmup-followup-shots/chromium-planned-prompt.png",
+    "audit/launch-2026-09-06/warmup-followup-shots/webkit-planned-prompt.png",
+    "audit/launch-2026-09-06/native-shots/final-android-email.png",
+    "audit/launch-2026-09-06/native-shots/final-android-keyboard.png",
+    "audit/launch-2026-09-06/native-shots/final-android-login.png",
+    "audit/launch-2026-09-06/native-shots/final-ios-keyboard.png",
+    "audit/launch-2026-09-06/native-shots/final-ios-login.png"
+  ],
+  "report": "docs/LAUNCH-AUDIT-2026-09-06.md",
+  "physical_checklist": "docs/LAUNCH-DEVICE-QA-2026-09-06.md",
+  "cleanup_note": "Audit Vite process stopped; owned Android AVD closed. Automatic approval review rejected simctl shutdown as shutdown/reboot, so the owned iOS simulator remains running.",
+  "report_kind": "release-followup-with-inherited-ui-audit",
+  "prior_audit": "audit/audit-2026-09-07T08-55-48Z.json",
+  "ui_audit_run_at": "2026-09-07 08:55:48 UTC",
+  "resolved_in_source_scope": "Resolved findings below refer to source changes, not universal production deployment. See deferred_backend_findings and backend receipt.",
+  "deferred_backend_findings": [
+    "B10 raw-client health boundary via stricter Firestore Rules",
+    "B11 Undo without sidecar via Firestore Rules",
+    "B12 intended-owner enforcement in restoreWorkoutBackupV3",
+    "B3 Firestore deletionPending guards"
+  ],
+  "delivery": {
+    "ios": "release/ios/testflight-143.json",
+    "android": "release/android/internal-2026-09-07/artifact.json",
+    "backend": "audit/release-2026-09-07/backend-deployment-receipt.json",
+    "public_stores_published": false,
+    "web_deployed": false
+  },
+  "physical_qa_owner_response": "Owner will test through TestFlight; no physical signoff inferred."
+}

@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-09-09T13:42:29.781423+00:00",
+  "status": "in_progress",
+  "conclusion": "",
+  "jobs": [
+    {
+      "name": "quality",
+      "status": "in_progress",
+      "conclusion": ""
+    },
+    {
+      "name": "android-debug-build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "ios-simulator-smoke",
+      "status": "in_progress",
+      "conclusion": ""
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+[
+  {
+    "engine": "chromium",
+    "width": 390,
+    "height": 844,
+    "textScale": 100,
+    "nav": {
+      "top": 752.25,
+      "bottom": 832,
+      "height": 79.75
+    },
+    "rest": {
+      "top": 676,
+      "bottom": 744,
+      "height": 68
+    },
+    "gap": 8.25,
+    "clearance": "100px",
+    "restBottom": "100px",
+    "navBottom": "12px",
+    "desktop": false
+  },
+  {
+    "engine": "chromium",
+    "width": 844,
+    "height": 390,
+    "textScale": 100,
+    "nav": {
+      "top": 298.25,
+      "bottom": 378,
+      "height": 79.75
+    },
+    "rest": {
+      "top": 222,
+      "bottom": 290,
+      "height": 68
+    },
+    "gap": 8.25,
+    "clearance": "100px",
+    "restBottom": "100px",
+    "navBottom": "12px",
+    "desktop": false
+  },
+  {
+    "engine": "chromium",
+    "width": 320,
+    "height": 568,
+    "textScale": 200,
+    "nav": {
+      "top": 386.5,
+      "bottom": 544,
+      "height": 157.5
+    },
+    "rest": {
+      "top": 138,
+      "bottom": 378,
+      "height": 240
+    },
+    "gap": 8.5,
+    "clearance": "190px",
+    "restBottom": "190px",
+    "navBottom": "24px",
+    "desktop": false
+  },
+  {
+    "engine": "webkit",
+    "width": 390,
+    "height": 844,
+    "textScale": 100,
+    "nav": {
+      "top": 752.25,
+      "bottom": 832,
+      "height": 79.75
+    },
+    "rest": {
+      "top": 676,
+      "bottom": 744,
+      "height": 68
+    },
+    "gap": 8.25,
+    "clearance": "100px",
+    "restBottom": "100px",
+    "navBottom": "12px",
+    "desktop": false
+  },
+  {
+    "engine": "webkit",
+    "width": 844,
+    "height": 390,
+    "textScale": 100,
+    "nav": {
+      "top": 298.25,
+      "bottom": 378,
+      "height": 79.75
+    },
+    "rest": {
+      "top": 222,
+      "bottom": 290,
+      "height": 68
+    },
+    "gap": 8.25,
+    "clearance": "100px",
+    "restBottom": "100px",
+    "navBottom": "12px",
+    "desktop": false
+  },
+  {
+    "engine": "webkit",
+    "width": 320,
+    "height": 568,
+    "textScale": 200,
+    "nav": {
+      "top": 386.5,
+      "bottom": 544,
+      "height": 157.5
+    },
+    "rest": {
+      "top": 138,
+      "bottom": 378,
+      "height": 240
+    },
+    "gap": 8.5,
+    "clearance": "190px",
+    "restBottom": "190px",
+    "navBottom": "24px",
+    "desktop": false
+  }
+]

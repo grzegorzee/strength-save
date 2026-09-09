@@ -1,0 +1,68 @@
+[
+  {
+    "check": "frontend-unit",
+    "command": [
+      "npm",
+      "run",
+      "test"
+    ],
+    "started_at": "2026-09-09T13:23:52.695254+00:00",
+    "finished_at": "2026-09-09T13:25:45.379215+00:00",
+    "exit_code": 0
+  },
+  {
+    "check": "typecheck",
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "started_at": "2026-09-09T13:25:45.379882+00:00",
+    "finished_at": "2026-09-09T13:25:56.730476+00:00",
+    "exit_code": 0
+  },
+  {
+    "check": "lint",
+    "command": [
+      "npm",
+      "run",
+      "lint"
+    ],
+    "started_at": "2026-09-09T13:25:56.730844+00:00",
+    "finished_at": "2026-09-09T13:26:07.524601+00:00",
+    "exit_code": 0
+  },
+  {
+    "check": "web-build",
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "started_at": "2026-09-09T13:26:07.525181+00:00",
+    "finished_at": "2026-09-09T13:26:28.376355+00:00",
+    "exit_code": 0
+  },
+  {
+    "check": "bundle-budget",
+    "command": [
+      "npm",
+      "run",
+      "check:bundle-budget"
+    ],
+    "started_at": "2026-09-09T13:26:28.376989+00:00",
+    "finished_at": "2026-09-09T13:26:28.596707+00:00",
+    "exit_code": 0
+  },
+  {
+    "check": "web-dist-smoke",
+    "command": [
+      "npm",
+      "run",
+      "check:dist-smoke"
+    ],
+    "started_at": "2026-09-09T13:26:28.597015+00:00",
+    "finished_at": "2026-09-09T13:26:29.420876+00:00",
+    "exit_code": 0
+  }
+]
