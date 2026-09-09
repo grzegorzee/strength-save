@@ -159,18 +159,23 @@ for (const scenario of [
       await table.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
       expect(await table.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
       const remove = card.getByRole('button', { name: 'Usuń serię', exact: true }).first();
-      await remove.scrollIntoViewIfNeeded();
-      removalHitbox = await remove.evaluate((button) => {
-        const box = button.getBoundingClientRect();
-        const clip = button.closest('[data-testid="set-table"]')!.getBoundingClientRect();
-        const x = box.left + box.width / 2;
-        const y = box.top + box.height / 2;
-        return {
-          width: Math.min(box.right, clip.right, innerWidth) - Math.max(box.left, clip.left, 0),
-          height: box.height,
-          centerReceivesTap: button.contains(document.elementFromPoint(x, y)),
-        };
-      });
+      // Cold resume restores the window scroll after rendering the draft. Re-align
+      // until restoration settles before measuring the real, unobscured hitbox.
+      await expect.poll(async () => {
+        await remove.scrollIntoViewIfNeeded();
+        removalHitbox = await remove.evaluate((button) => {
+          const box = button.getBoundingClientRect();
+          const clip = button.closest('[data-testid="set-table"]')!.getBoundingClientRect();
+          const x = box.left + box.width / 2;
+          const y = box.top + box.height / 2;
+          return {
+            width: Math.min(box.right, clip.right, innerWidth) - Math.max(box.left, clip.left, 0),
+            height: box.height,
+            centerReceivesTap: button.contains(document.elementFromPoint(x, y)),
+          };
+        });
+        return removalHitbox.centerReceivesTap;
+      }).toBe(true);
       expect(removalHitbox.width).toBeGreaterThanOrEqual(44);
       expect(removalHitbox.height).toBeGreaterThanOrEqual(44);
       expect(removalHitbox.centerReceivesTap).toBe(true);
