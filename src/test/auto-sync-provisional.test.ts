@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 // Z175: sesja provisional (start offline) musi promować się po powrocie online
@@ -77,7 +78,7 @@ const draft = (over: Record<string, unknown> = {}) => ({
 });
 
 const renderComponent = () =>
-  render(createElement(LanguageProvider, null, createElement(AutoSyncOnReconnect)));
+  render(createElement(MemoryRouter, { initialEntries: ['/workout/day-1'] }, createElement(LanguageProvider, null, createElement(AutoSyncOnReconnect))));
 
 beforeEach(() => {
   localStorage.clear();
@@ -100,7 +101,7 @@ describe('Z175: AutoSyncOnReconnect promuje provisional bez wchodzenia w trening
     expect(call[2]).toBe('checkpoint');
   });
 
-  it('niezmiennik: dirty draft remote BEZ finalSyncPending nie jest ruszany (obsługuje go WorkoutDay)', async () => {
+  it('niezmiennik: dirty draft remote BEZ finalSyncPending w żywym WorkoutDay nie jest ruszany', async () => {
     fixtures.drafts = [draft({ sessionOrigin: 'remote' })];
     renderComponent();
 

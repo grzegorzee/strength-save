@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 
@@ -29,6 +29,7 @@ vi.mock('@/lib/workout-sync-queue', async (importOriginal) => {
 });
 
 import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
+import { workoutDraftDb } from '@/lib/workout-draft-db';
 
 const makeDraft = (over: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft => ({
   sessionId: 's1',
@@ -90,6 +91,31 @@ describe('useSyncCenterEntries (Z52)', () => {
     const { result } = renderHook(() => useSyncCenterEntries('u1'));
 
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    expect(result.current.listedEntries).toEqual([]);
+  });
+
+  it('does not expose A entries or publish a late A scan after changing to B', async () => {
+    let finishA!: (value: ActiveWorkoutDraft[]) => void;
+    vi.mocked(workoutDraftDb.listDrafts).mockImplementationOnce(() => new Promise(resolve => { finishA = resolve; }));
+    const { result, rerender } = renderHook(({ uid }) => useSyncCenterEntries(uid), { initialProps: { uid: 'u1' } });
+    mockDrafts = [makeDraft({ sessionId: 'b', userId: 'u2' })];
+    rerender({ uid: 'u2' });
+    await waitFor(() => expect(result.current.listedEntries.map(e => e.sessionId)).toEqual(['b']));
+    await act(async () => { finishA([makeDraft({ sessionId: 'a' })]); });
+    expect(result.current.listedEntries.map(e => e.sessionId)).toEqual(['b']);
+  });
+
+  it('a slow older scan cannot restore a banner after a newer scan confirms no pending draft', async () => {
+    mockDrafts = [makeDraft()];
+    const { result } = renderHook(() => useSyncCenterEntries('u1'));
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    let finishOld!: (value: ActiveWorkoutDraft[]) => void;
+    vi.mocked(workoutDraftDb.listDrafts).mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }));
+    let oldScan!: Promise<void>;
+    act(() => { oldScan = result.current.reload(); });
+    mockDrafts = [];
+    await act(async () => { await result.current.reload(); });
+    await act(async () => { finishOld([makeDraft()]); await oldScan; });
     expect(result.current.listedEntries).toEqual([]);
   });
 

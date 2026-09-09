@@ -228,6 +228,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
 
   return (
     <HashRouter useTransitions={false}>
+      <AutoSyncOnReconnect />
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <ProductTelemetry />
       <AndroidBackHandler />
@@ -289,7 +290,6 @@ export default function AuthenticatedApp({ onLogout }: { onLogout: () => Promise
       <UserProvider>
         <TelemetryHeartbeat />
         <PushRegistrar />
-        <AutoSyncOnReconnect />
         <PreferenceSync />
         <TimeZoneSync />
         <AppRoutes onLogout={onLogout} />

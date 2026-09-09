@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useWorkoutSyncDeps } from '@/hooks/useWorkoutSyncDeps';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
@@ -17,7 +18,7 @@ import {
   isOfflineLikeWorkoutSyncError,
   isRevisionConflictError,
 } from '@/lib/workout-sync-conflict';
-import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
+import { syncWorkoutSession } from '@/lib/workout-sync-engine';
 import { reportClientError } from '@/lib/error-telemetry';
 import { cleanupLegacySyncLeftovers } from '@/lib/workout-sync-cleanup';
 import { addAppStateListener } from '@/lib/app-lifecycle';
@@ -29,8 +30,8 @@ import { notifyDeferredSyncSuccess } from '@/lib/sync-notification';
 // Przetwarza wpisy finalSyncPending (ukończone treningi, kind=final) ORAZ — od Z175 —
 // aktywne sesje provisional (start offline, kind=checkpoint): bez tego promocja
 // provisional→remote wymagała WEJŚCIA w ekran treningu i baner "rozpoczęty offline"
-// wisiał na Dashboardzie mimo sieci. Dirty drafty remote nadal obsługuje WYŁĄCZNIE
-// WorkoutDay (żywa sesja ma swój rytm checkpointów).
+// wisiał na Dashboardzie mimo sieci. Dirty remote w żywym WorkoutDay ma swój
+// rytm checkpointów; po wyjściu z tego ekranu przejmuje go AutoSync.
 // Konflikt wersji (WORKOUT_CONFLICT) zostaje
 // w kolejce do ręcznego rozwiązania dialogiem w treningu.
 //
@@ -52,11 +53,13 @@ type AutoSyncTrigger = 'start' | 'online' | 'app-active' | 'network' | 'timer' |
 
 export const AutoSyncOnReconnect = () => {
   const { uid } = useCurrentUser();
-  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer, workouts, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
+  const { pathname } = useLocation();
+  const isWorkoutRoute = pathname === '/workout' || pathname.startsWith('/workout/');
+  const { syncDeps, workouts, isLoaded: workoutsLoaded } = useWorkoutSyncDeps(uid);
   const { toast } = useToast();
   const { t } = useTranslation();
-  const runningRef = useRef(false);
-  const rerunRequestedRef = useRef(false);
+  const latest = useRef({ uid, syncDeps, toast, t });
+  latest.current = { uid, syncDeps, toast, t };
 
   // Z53: jednorazowe sprzątanie pozostałości sprzed R2 (guard w localStorage,
   // ustawiany po sukcesie). Fire-and-forget: porażka = retry przy kolejnym starcie.
@@ -65,71 +68,61 @@ export const AutoSyncOnReconnect = () => {
     cleanupLegacySyncLeftovers(uid, workouts).catch(() => {});
   }, [uid, workoutsLoaded, workouts]);
 
-  const syncDeps = useMemo<WorkoutSyncDeps>(() => ({
-    loadDraft: (ownerId, sessionId) => workoutDraftDb.loadDraft(ownerId, sessionId),
-    saveWorkout: batchSaveWorkout,
-    getFromServer: getWorkoutSessionFromServer,
-    createSession: createWorkoutSession,
-    markPromoted: (ownerId, remoteSessionId, sessionId, cloudState) =>
-      workoutDraftDb.markPromotedToRemote(ownerId, remoteSessionId, sessionId, cloudState),
-    markSynced: (ownerId, syncedAt, expectedDraftVersion, sessionId, cloudState) =>
-      workoutDraftDb.markDraftSynced(ownerId, syncedAt, expectedDraftVersion, sessionId, cloudState),
-    setCloudBaseline: (ownerId, sessionId, cloudState) =>
-      workoutDraftDb.setCloudBaseline(ownerId, sessionId, cloudState),
-    setPendingWrite: (ownerId, sessionId, pending) =>
-      workoutDraftDb.setPendingWrite(ownerId, sessionId, pending),
-    markHealthPending: (ownerId, sessionId, expectedVersion, cloudState) =>
-      workoutDraftDb.markHealthWritePending(ownerId, sessionId, expectedVersion, cloudState),
-    clearDraftIfVersion: (ownerId, sessionId, expectedVersion) =>
-      workoutDraftDb.clearActiveDraftIfVersion(ownerId, sessionId, expectedVersion),
-    queue: workoutSyncQueue,
-  }), [batchSaveWorkout, getWorkoutSessionFromServer, createWorkoutSession]);
-
   useEffect(() => {
     if (!uid) return;
     let disposed = false;
+    // The lock belongs to this owner/effect. A finishing A request must not
+    // swallow B's startup, and changing a snapshot callback must not cancel it.
+    let running = false;
+    let rerunRequested = false;
+    const isCurrent = () => !disposed && latest.current.uid === uid;
 
     const processQueue = async (trigger: AutoSyncTrigger): Promise<void> => {
-      if (disposed) return;
-      if (runningRef.current) {
+      if (!isCurrent()) return;
+      if (running) {
         // Zdarzenie w trakcie biegu: jeden dodatkowy przebieg po zakończeniu
         // (nie gubimy sygnału sieci, nie dublujemy zapisów).
-        rerunRequestedRef.current = true;
+        if (trigger !== 'timer') rerunRequested = true;
         return;
       }
-      if (trigger !== 'timer') {
-        workoutSyncQueue.resetBackoff(uid);
-      }
-
-      const [activeDrafts, queueEntries] = await Promise.all([
-        workoutDraftDb.listDrafts(uid),
-        Promise.resolve(workoutSyncQueue.list(uid)),
-      ]);
-      const conflictSessionIds = new Set(
-        queueEntries
-          .filter((entry) => isRevisionConflictError(entry.lastError))
-          .map((entry) => entry.sessionId),
-      );
-      // Bug 37 (X30) + WP-C (X38): `now` włącza backoff (full jitter, cap 60 s);
-      // ręczne "Ponów" w Sync Center dalej idzie bez backoffu.
-      const entries = collectRetryableSyncEntries(activeDrafts, queueEntries, { now: Date.now() })
-        .filter(({ entry }) => (entry.finalSyncPending || entry.sessionOrigin === 'provisional')
-          && !conflictSessionIds.has(entry.sessionId));
-      if (entries.length === 0) return;
-
-      runningRef.current = true;
+      // Acquire before IndexedDB awaits, not only before the first network write.
+      running = true;
       let synced = 0;
       let attempts = 0;
       try {
+        if (trigger !== 'timer') {
+          workoutSyncQueue.resetBackoff(uid);
+        }
+
+        const [activeDrafts, queueEntries] = await Promise.all([
+          workoutDraftDb.listDrafts(uid),
+          Promise.resolve(workoutSyncQueue.list(uid)),
+        ]);
+        if (!isCurrent()) return;
+        const conflictSessionIds = new Set(
+          queueEntries
+            .filter((entry) => isRevisionConflictError(entry.lastError))
+            .map((entry) => entry.sessionId),
+        );
+        // Bug 37 (X30) + WP-C (X38): `now` włącza backoff (full jitter, cap 60 s);
+        // ręczne "Ponów" w Sync Center dalej idzie bez backoffu.
+        const entries = collectRetryableSyncEntries(activeDrafts, queueEntries, { now: Date.now() })
+          .filter(({ entry }) => (entry.finalSyncPending || entry.sessionOrigin === 'provisional' || !isWorkoutRoute)
+            && !conflictSessionIds.has(entry.sessionId));
+        if (entries.length === 0) return;
+
         for (const { entry } of entries) {
-          if (disposed) break;
+          if (!isCurrent()) break;
+          const { syncDeps, toast, t } = latest.current;
           // Z175: aktywna sesja provisional dostaje checkpoint (promocja + baseline),
           // final zostaje wyłącznie dla ukończonych treningów.
           const kind = entry.finalSyncPending ? 'final' : 'checkpoint';
           // Treść do sygnału po syncu czytamy PRZED zapisem: udany final sprząta draft.
           const draftBefore = kind === 'final' ? await workoutDraftDb.loadDraft(uid, entry.sessionId) : null;
+          if (!isCurrent()) break;
           attempts += 1;
           const outcome = await syncWorkoutSession(uid, entry.sessionId, kind, syncDeps);
+          if (!isCurrent()) break;
           if (outcome.promotedSessionId) {
             trackTelemetryEvent(uid, 'provisional_session_promoted');
           }
@@ -187,19 +180,24 @@ export const AutoSyncOnReconnect = () => {
             });
           }
         }
+      } catch (error) {
+        // Keep durable data intact and release the lock even if local scanning
+        // or retry metadata fails; the next native resume/reconnect can recover.
+        if (isCurrent()) void reportClientError(uid, {
+          code: classifyWorkoutSyncError(error instanceof Error ? error.message : error),
+          phase: 'checkpoint',
+          detail: error instanceof Error ? error.message : String(error),
+        });
       } finally {
-        runningRef.current = false;
-      }
-
-      if (attempts > 0) {
-        trackTelemetryEvent(uid, 'sync_retry_auto', attempts);
-      }
-      if (synced > 0) {
-        window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
-      }
-      if (rerunRequestedRef.current && !disposed) {
-        rerunRequestedRef.current = false;
-        void processQueue('requested');
+        running = false;
+        if (isCurrent()) {
+          if (attempts > 0) trackTelemetryEvent(uid, 'sync_retry_auto', attempts);
+          if (attempts > 0 || synced > 0) window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
+          if (rerunRequested) {
+            rerunRequested = false;
+            void processQueue('requested');
+          }
+        }
       }
     };
 
@@ -228,7 +226,7 @@ export const AutoSyncOnReconnect = () => {
       removeNetwork();
       window.clearInterval(interval);
     };
-  }, [uid, syncDeps, toast, t]);
+  }, [uid, isWorkoutRoute]);
 
   return null;
 };

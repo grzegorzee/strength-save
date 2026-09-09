@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
@@ -22,25 +22,40 @@ export type ListedSyncEntry = {
 };
 
 export const useSyncCenterEntries = (uid: string) => {
-  const [drafts, setDrafts] = useState<ActiveWorkoutDraft[]>([]);
-  const [queueEntries, setQueueEntries] = useState<WorkoutSyncQueueEntry[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [storedDrafts, storeDrafts] = useState<ActiveWorkoutDraft[]>([]);
+  const [storedQueue, storeQueue] = useState<WorkoutSyncQueueEntry[]>([]);
+  const [loadedOwner, setLoadedOwner] = useState<string | null>(null);
+  const owner = useRef(uid);
+  owner.current = uid;
+  const scanVersion = useRef(0);
+  const isLoaded = loadedOwner === uid;
+  const drafts = useMemo(() => isLoaded ? storedDrafts : [], [isLoaded, storedDrafts]);
+  const queueEntries = useMemo(() => isLoaded ? storedQueue : [], [isLoaded, storedQueue]);
+  const setDrafts = useCallback<Dispatch<SetStateAction<ActiveWorkoutDraft[]>>>(next => {
+    if (owner.current === uid) storeDrafts(next);
+  }, [uid]);
+  const setQueueEntries = useCallback<Dispatch<SetStateAction<WorkoutSyncQueueEntry[]>>>(next => {
+    if (owner.current === uid) storeQueue(next);
+  }, [uid]);
 
   const reload = useCallback(async () => {
     if (!uid) return;
+    const scan = ++scanVersion.current;
     const loadedDrafts = await workoutDraftDb.listDrafts(uid);
-    setDrafts(loadedDrafts);
-    setQueueEntries(workoutSyncQueue.list(uid));
-    setIsLoaded(true);
+    if (owner.current !== uid || scan !== scanVersion.current) return;
+    storeDrafts(loadedDrafts);
+    storeQueue(workoutSyncQueue.list(uid));
+    setLoadedOwner(uid);
   }, [uid]);
 
   useEffect(() => {
-    void reload();
+    void reload().catch(() => {});
+    return () => { scanVersion.current += 1; };
   }, [reload]);
 
   useEffect(() => {
     const handleFocus = () => {
-      void reload();
+      void reload().catch(() => {});
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleFocus);

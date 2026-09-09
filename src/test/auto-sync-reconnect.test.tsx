@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 // WP-C (X38): incydent 2026-08-26. Szybki trening właściciela został w chmurze
@@ -98,7 +99,7 @@ const finalDraft = (over: Record<string, unknown> = {}) => ({
 });
 
 const renderComponent = () =>
-  render(createElement(LanguageProvider, null, createElement(AutoSyncOnReconnect)));
+  render(createElement(MemoryRouter, null, createElement(LanguageProvider, null, createElement(AutoSyncOnReconnect))));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 30));
 
