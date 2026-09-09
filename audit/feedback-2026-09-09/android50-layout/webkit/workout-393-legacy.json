@@ -1,0 +1,34 @@
+{
+  "previewRowHeight": 80.5,
+  "rootFont": "16px",
+  "rowHeight": 80.5,
+  "tableOverflow": 0,
+  "previous": "40×6",
+  "previousOverflow": 0,
+  "controls": [
+    {
+      "label": "Wyciskanie hantli nad głowę (Siedząc), Set 1, kg",
+      "width": 60,
+      "height": 48,
+      "contained": true
+    },
+    {
+      "label": "Wyciskanie hantli nad głowę (Siedząc), Set 1, Powt.",
+      "width": 48,
+      "height": 48,
+      "contained": true
+    },
+    {
+      "label": "Zaznacz serię jako zrobioną (aktywna)",
+      "width": 44,
+      "height": 44,
+      "contained": true
+    },
+    {
+      "label": "Usuń serię",
+      "width": 44,
+      "height": 44,
+      "contained": true
+    }
+  ]
+}

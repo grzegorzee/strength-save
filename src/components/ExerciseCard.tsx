@@ -777,8 +777,8 @@ const ExerciseCardInner = ({
   // weight_reps/bodyweight_reps renderuje się dokładnie jak dotąd.
   // On narrow cards each field retains its label when rows wrap. display:contents
   // keeps the existing single-row grid at ordinary phone widths.
-  const renderSetField = (fieldLabel: string, field: React.ReactNode, isDurationField = false) => (
-    <div className={cn('exercise-set-field', isDurationField && 'exercise-set-duration')}>
+  const renderSetField = (fieldLabel: string, field: React.ReactNode, kind?: 'duration' | 'reps') => (
+    <div className={cn('exercise-set-field', kind === 'duration' && 'exercise-set-duration', kind === 'reps' && 'exercise-set-reps')}>
       <span className="exercise-set-field-label">{fieldLabel}</span>
       {field}
     </div>
@@ -888,7 +888,7 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
-          />)
+          />, 'reps')
         )}
 
         {(tracking === 'duration' || tracking === 'weight_distance_duration') && (() => {
@@ -906,7 +906,7 @@ const ExerciseCardInner = ({
               secondLabel={t('card.seconds')}
               placeholder={formatDurationSec(targetSec)}
               className={cn(warmupInputClass, activeInputClass)}
-            />, true)
+            />, 'duration')
           );
           if (tracking !== 'duration') return durationInput;
           return (
@@ -1072,7 +1072,7 @@ const ExerciseCardInner = ({
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
             activeInputClass,
           )}
-        />)}
+        />, 'reps')}
 
         {/* Done checkmark */}
         <div className="flex justify-center">

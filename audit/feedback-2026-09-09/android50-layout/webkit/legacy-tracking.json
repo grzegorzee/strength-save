@@ -1,0 +1,149 @@
+[
+  {
+    "exercise": "Martwy Ciąg Rumuński (RDL)",
+    "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+    "width": 56.59375,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Martwy Ciąg Rumuński (RDL)",
+    "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+    "width": 44.59375,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Martwy Ciąg Rumuński (RDL)",
+    "label": "Zaznacz serię jako zrobioną (aktywna)",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie na drążku podchwytem",
+    "label": "Podciąganie na drążku podchwytem, Set 1, Powt.",
+    "width": 60.5,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie na drążku podchwytem",
+    "label": "Zaznacz serię jako zrobioną (aktywna)",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie na drążku podchwytem",
+    "label": "Usuń serię",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie wspomagane na maszynie",
+    "label": "Podciąganie wspomagane na maszynie, Set 1, Asysta",
+    "width": 56.59375,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie wspomagane na maszynie",
+    "label": "Podciąganie wspomagane na maszynie, Set 1, Powt.",
+    "width": 44.59375,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie wspomagane na maszynie",
+    "label": "Zaznacz serię jako zrobioną (aktywna)",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Podciąganie wspomagane na maszynie",
+    "label": "Usuń serię",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Plank",
+    "label": "Minuty",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Plank",
+    "label": "Sekundy",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Plank",
+    "label": "Start odliczania: Set 1, cel 0:45",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Plank",
+    "label": "Zaznacz serię jako zrobioną (aktywna)",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Plank",
+    "label": "Usuń serię",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Spacer farmera (Farmer's Walk)",
+    "label": "Spacer farmera (Farmer's Walk), Set 1, kg",
+    "width": 63,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Spacer farmera (Farmer's Walk)",
+    "label": "Spacer farmera (Farmer's Walk), Set 1, Dystans",
+    "width": 63,
+    "height": 48,
+    "contained": true
+  },
+  {
+    "exercise": "Spacer farmera (Farmer's Walk)",
+    "label": "Minuty",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Spacer farmera (Farmer's Walk)",
+    "label": "Sekundy",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Spacer farmera (Farmer's Walk)",
+    "label": "Zaznacz serię jako zrobioną (aktywna)",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  },
+  {
+    "exercise": "Spacer farmera (Farmer's Walk)",
+    "label": "Usuń serię",
+    "width": 44,
+    "height": 44,
+    "contained": true
+  }
+]

@@ -320,22 +320,40 @@ All colors MUST be HSL.
     container: exercise-sets / inline-size;
   }
 
-  /* Safe fallback for older WebViews: labelled fields and actions wrap. Modern
-     containers restore the unchanged grid only when its complete row fits. */
+  /* A 360px phone still has room for the full row if its table uses the same
+     8px side padding as smaller screens. Keep the 375px+ layout unchanged. */
+  @media (max-width: 374px) {
+    .exercise-set-table.exercise-set-table {
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+  }
+
+  /* Older WebViews ignore @container. Size their labelled fields intrinsically
+     so an ordinary phone gets one compact row; large text wraps naturally. */
   .exercise-set-row.exercise-set-row {
     display: flex;
     flex-wrap: wrap;
+    column-gap: 0.4375rem;
     margin-bottom: 0.5rem;
   }
 
   .exercise-set-row > * {
     min-width: 0;
     max-width: 100%;
-    flex: 1 1 5rem;
+    flex: 1 1 3.5rem;
   }
 
   .exercise-set-row > span[data-field-label] {
-    flex-basis: calc(50% - 0.5rem);
+    flex: 1 0 40px;
+  }
+
+  .exercise-set-row > span[data-field-label]:first-child {
+    flex: 0 0 22px;
+  }
+
+  .exercise-set-row > .exercise-set-reps {
+    flex-basis: 2.75rem;
   }
 
   .exercise-set-row > .flex {
@@ -388,6 +406,7 @@ All colors MUST be HSL.
 
     .exercise-set-row.exercise-set-row {
       margin-bottom: 0;
+      column-gap: 0.5rem;
     }
 
     .exercise-set-duration input {

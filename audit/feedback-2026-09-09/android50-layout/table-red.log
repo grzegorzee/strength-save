@@ -1,0 +1,54 @@
+
+Running 2 tests using 1 worker
+
+  ✘  1 [chromium] › e2e/android-workout-layout.spec.ts:48:3 › standard text 360px, modern engine: compact complete workout (2.8s)
+  ✘  2 [chromium] › e2e/android-workout-layout.spec.ts:48:3 › standard text 360px, without container queries: compact complete workout (1.2s)
+
+
+  1) [chromium] › e2e/android-workout-layout.spec.ts:48:3 › standard text 360px, modern engine: compact complete workout 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m64[39m
+    Received:    [31m132.5[39m
+
+      77 |     });
+      78 |     expect(facts.rootFont).toBe('16px');
+    > 79 |     expect(facts.rowHeight).toBeLessThanOrEqual(legacy ? 88 : 64);
+         |                             ^
+      80 |     expect(facts.tableOverflow).toBeLessThanOrEqual(0);
+      81 |     expect(facts.previous).toBe('40×6');
+      82 |     expect(facts.previousOverflow).toBeLessThanOrEqual(0);
+        at /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/e2e/android-workout-layout.spec.ts:79:29
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    audit/feedback-2026-09-09/android50-layout/red-results/android-workout-layout-sta-5766d-ne-compact-complete-workout-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: audit/feedback-2026-09-09/android50-layout/red-results/android-workout-layout-sta-5766d-ne-compact-complete-workout-chromium/error-context.md
+
+  2) [chromium] › e2e/android-workout-layout.spec.ts:48:3 › standard text 360px, without container queries: compact complete workout 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m88[39m
+    Received:    [31m132.5[39m
+
+      77 |     });
+      78 |     expect(facts.rootFont).toBe('16px');
+    > 79 |     expect(facts.rowHeight).toBeLessThanOrEqual(legacy ? 88 : 64);
+         |                             ^
+      80 |     expect(facts.tableOverflow).toBeLessThanOrEqual(0);
+      81 |     expect(facts.previous).toBe('40×6');
+      82 |     expect(facts.previousOverflow).toBeLessThanOrEqual(0);
+        at /Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/e2e/android-workout-layout.spec.ts:79:29
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    audit/feedback-2026-09-09/android50-layout/red-results/android-workout-layout-sta-66540-es-compact-complete-workout-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: audit/feedback-2026-09-09/android50-layout/red-results/android-workout-layout-sta-66540-es-compact-complete-workout-chromium/error-context.md
+
+  2 failed
+    [chromium] › e2e/android-workout-layout.spec.ts:48:3 › standard text 360px, modern engine: compact complete workout 
+    [chromium] › e2e/android-workout-layout.spec.ts:48:3 › standard text 360px, without container queries: compact complete workout 

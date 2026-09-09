@@ -1,0 +1,65 @@
+{
+  "viewport": {
+    "width": 320,
+    "height": 852
+  },
+  "rootFontPx": "20px",
+  "headingFontPx": "20px",
+  "headingFullText": "Martwy Ciąg Rumuński (RDL)",
+  "headingOverflow": 0,
+  "headingWidth": 127.5,
+  "headingAvailableWidth": 240,
+  "targetTextWidth": 132.5,
+  "targetAvailableWidth": 215,
+  "horizontalOverflow": 0,
+  "cardTop": 7.5,
+  "cardHeaderHeight": 127.625,
+  "targetHeight": 63.125,
+  "targetText": "Cel tygodnia: ×8 · 62.5 kg",
+  "noteHeight": 65,
+  "tableOffsetFromCardTop": 275.75,
+  "counter": "Ser.Poprz.kgPowt.0/3",
+  "firstRowHeight": 161.5,
+  "previousText": "60×10",
+  "previousOverflow": 3,
+  "firstRowControls": [
+    {
+      "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+      "width": 75.59375,
+      "height": 60,
+      "centerY": 386.25,
+      "contained": true
+    },
+    {
+      "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+      "width": 60.578125,
+      "height": 60,
+      "centerY": 386.25,
+      "contained": true
+    },
+    {
+      "label": "Zaznacz serię jako zrobioną (aktywna)",
+      "width": 55,
+      "height": 55,
+      "centerY": 453.75,
+      "contained": true
+    },
+    {
+      "label": "Usuń serię",
+      "width": 55,
+      "height": 55,
+      "centerY": 453.75,
+      "contained": true
+    }
+  ],
+  "controlsOutsideCard": [],
+  "targetExplanation": "PASS",
+  "pinnedEditAndSave": "PASS",
+  "coldResume": "PASS",
+  "initialWorkingSets": "0/3",
+  "removalHitbox": {
+    "width": 55,
+    "height": 55,
+    "centerReceivesTap": true
+  }
+}
