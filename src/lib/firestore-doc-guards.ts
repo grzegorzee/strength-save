@@ -166,6 +166,12 @@ const sanitizePlanExercise = (raw: unknown): Exercise | null => {
   const target = exercise as unknown as Record<string, unknown>;
   optionalString(target, 'videoUrl', raw.videoUrl);
   if (raw.isSuperset === true) target.isSuperset = true;
+  const supersetGroup = asString(raw.supersetGroup);
+  // Id grupy łączy ćwiczenia także po ponownym odczycie planu/cyklu.
+  // Nie skracamy identyfikatora: dwa różne długie id nie mogą stać się jedną grupą.
+  if (supersetGroup !== null && supersetGroup.trim().length > 0 && supersetGroup.length <= 120) {
+    exercise.supersetGroup = supersetGroup;
+  }
   return exercise;
 };
 

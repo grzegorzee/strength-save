@@ -173,6 +173,30 @@ describe('sanitizeTrainingPlanDays (P0)', () => {
     expect(days).toHaveLength(1);
     expect(days![0].exercises).toHaveLength(1);
   });
+
+  it('zachowuje parę superserii i pełną listę po odczycie oraz ponownej hydracji', () => {
+    const exercises = [
+      ...day().exercises,
+      { id: 'press-long-id', name: 'Wyciskanie hantli', sets: '3 × 10', instructions: [], isSuperset: true, supersetGroup: 'pair-one' },
+      { id: 'row-long-id', name: 'Wiosłowanie hantlem', sets: '3 × 12', instructions: [], isSuperset: true, supersetGroup: 'pair-one' },
+      { id: 'curl-long-id', name: 'Uginanie ramion', sets: '2 × 15', instructions: [], isSuperset: true, supersetGroup: 'pair-two' },
+    ];
+    const hydrated = sanitizeTrainingPlanDays([{ ...day(), exercises }]);
+    expect(hydrated?.[0].exercises).toEqual(exercises);
+    expect(sanitizeTrainingPlanDays(hydrated)?.[0].exercises).toEqual(exercises);
+  });
+
+  it('pomija uszkodzony identyfikator grupy bez usuwania ćwiczeń ani zmieniania ich id', () => {
+    const exercises = [null, 5, '', '   ', 'x'.repeat(121)].map((supersetGroup, index) => ({
+      ...day().exercises[0], id: `exercise-${index}`, isSuperset: true, supersetGroup,
+    }));
+    const hydrated = sanitizeTrainingPlanDays([{ ...day(), exercises }])![0].exercises;
+    expect(hydrated.map(exercise => exercise.id)).toEqual(exercises.map(exercise => exercise.id));
+    for (const exercise of hydrated) {
+      expect(exercise.isSuperset).toBe(true);
+      expect(exercise).not.toHaveProperty('supersetGroup');
+    }
+  });
 });
 
 describe('sanitizePlanCycleDoc (P0)', () => {
@@ -191,6 +215,16 @@ describe('sanitizePlanCycleDoc (P0)', () => {
   });
   it('poprawny cykl przechodzi z id', () => {
     expect(sanitizePlanCycleDoc('c1', cycle())?.id).toBe('c1');
+  });
+  it('odczyt cyklu zachowuje te same grupy superserii co odczyt planu', () => {
+    const saved = cycle();
+    const exercises = ['exercise-a', 'exercise-b'].map(id => ({
+      ...saved.days[0].exercises[0], id, isSuperset: true, supersetGroup: 'pair-one',
+    }));
+    const hydrated = sanitizePlanCycleDoc('c1', {
+      ...saved, days: [{ ...saved.days[0], exercises }],
+    });
+    expect(hydrated?.days[0].exercises).toEqual(exercises);
   });
   it('odrzuca zły status, brak userId, zepsute days', () => {
     expect(sanitizePlanCycleDoc('c1', { ...cycle(), status: 'weird' })).toBeNull();
