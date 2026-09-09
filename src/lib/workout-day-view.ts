@@ -57,13 +57,12 @@ export const buildDayFromDraft = (
         instructions: [],
       };
     }
-    const draftSets = draft.exerciseSets[exercise.id];
     return {
       ...exercise,
       name: names[exercise.id] || exercise.name,
-      // Etykieta z liczby serii tylko dla ćwiczeń realnie śledzonych w drafcie;
-      // nietknięte zostają z zakresem z planu ("4 x 6-8").
-      sets: draftSets ? workingSetsLabel(draftSets) : exercise.sets,
+      // Keep the prescription used by progression/timers ("3 x 8-10", "3 x 45s").
+      // ExerciseCard already counts actual working sets from savedSets; replacing
+      // the prescription with "3 serii" changes a live target into a MAX target.
     };
   });
 

@@ -38,13 +38,14 @@ describe('buildDayFromDraft — dzień planu (regresja incydentu 2026-07-20)', (
     expect(day.exercises.map((e) => e.id)).toEqual(['tpl-ex-29', 'tpl-ex-30', 'tpl-ex-31']);
   });
 
-  it('ćwiczenie dotknięte w drafcie dostaje etykietę z liczby serii (bez rozgrzewki)', () => {
+  it('ćwiczenie dotknięte w drafcie zachowuje preskrypcję planu niezależnie od faktycznej liczby serii', () => {
     const withWarmup: SetData[] = [
       { reps: 12, weight: 20, completed: true, isWarmup: true },
       ...sets(3),
     ];
     const day = buildDayFromDraft(planDay, { dayId: 'day-1', exerciseSets: { 'tpl-ex-29': withWarmup } });
-    expect(day.exercises[0].sets).toBe('3 serii');
+    expect(day.exercises[0].sets).toBe('4 x 6-8');
+    expect(withWarmup.filter((set) => !set.isWarmup)).toHaveLength(3);
     // Nietknięte zostaje z etykietą z planu.
     expect(day.exercises[1].sets).toBe('4 x 6-8');
   });
