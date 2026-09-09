@@ -40,6 +40,10 @@
     "android_play": {
       "path": "release/android/internal-2026-09-09/play-delivery.json",
       "sha256": "9e78f949450468d0993567b1352fd6f65968356058f617f136ffddc661c7352a"
+    },
+    "android_play_api": {
+      "path": "release/android/internal-2026-09-09/play-api-check.json",
+      "sha256": "96a8acec674cb4407afba3ee1b14e3fed4fea55eff4f7061da26861e2f6a9224"
     }
   },
   "native_asset_parity": {
@@ -48,7 +52,7 @@
     "sha256": "cdda121cd362e4dcb678ca73eeacf4981c380f4036a5f38f79fe421abad76cc8"
   },
   "ios_status": "VALID / APPROVED / both groups IN_BETA_TESTING",
-  "android_status": "available-to-internal-testers; owner Play Console screenshots confirm version 50 active; API access and physical installation not verified",
+  "android_status": "internal/completed version 50 verified through authenticated Play API; uploaded AAB SHA256 matches local signed artifact",
   "web_status": "live exact HTML/SW/entry assets verified",
   "backend_status": "phase2 restore/Firestore Rules deployed and verified",
   "public_store_release": false,
@@ -58,5 +62,5 @@
     "status": "in_progress at capture; local release gates passed"
   },
   "scope": "Delivery receipt index for artifacts actually built from the recorded source commit. It does not claim later documentation commits were rebuilt into these artifacts.",
-  "delivery_updated_at": "2026-09-09T14:45:21.129687+00:00"
+  "delivery_updated_at": "2026-09-09T18:32:10.649242+00:00"
 }

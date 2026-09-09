@@ -52,10 +52,18 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/android/internal-2026-09-09/artifact.json",
-    "verifiedDelivery": "available-to-internal-testers-owner-console-screenshots",
+    "verifiedDelivery": "internal-completed-verified-through-api-with-matching-aab-sha256",
     "playDeliveryEvidence": "release/android/internal-2026-09-09/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
-    "storeListingDefaultLanguage": "en-US"
+    "storeListingDefaultLanguage": "en-US",
+    "apiAccess": {
+      "status": "verified",
+      "serviceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+      "authentication": "ADC with short-lived service-account impersonation",
+      "scope": "https://www.googleapis.com/auth/androidpublisher",
+      "evidence": "release/android/internal-2026-09-09/play-api-check.json",
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 50"
+    }
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",

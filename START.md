@@ -8,7 +8,8 @@
 > nawigację timera i uwzględnienie cardio. [Raport i scenariusze testów](docs/FEEDBACK-2026-09-09.md).
 > Android `1.0.0 (50)` jest dostępny w testach wewnętrznych Google Play;
 > właściciel potwierdził publikację przez panel. [Link dla testerów](https://play.google.com/apps/internaltest/4699979891077312306).
-> Domyślny język strony Google Play: en-US. Dostęp API wymaga osobnej konfiguracji.
+> Domyślny język strony Google Play: en-US. Dostęp API działa; odczyt potwierdził
+> build 50, status completed oraz hash AAB. [Konfiguracja i komenda sprawdzająca](release/android/internal-2026-09-09/README.md).
 > Web oraz etap2 backendu wdrożono i zweryfikowano. Dowody paczek i dystrybucji:
 > `release/release-train.json`. Fizycznego iPhone’a właściciel testuje przez
 > TestFlight; publiczna premiera pozostaje osobną bramką.

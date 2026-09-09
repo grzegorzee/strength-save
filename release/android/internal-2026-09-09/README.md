@@ -4,7 +4,24 @@
 
 [Dołącz do testu i zainstaluj aplikację](https://play.google.com/apps/internaltest/4699979891077312306). Wymagane konto Google z zaznaczonej listy testerów, używane także w Sklepie Play na urządzeniu. Zrzut listy pokazuje jednego użytkownika. Domyślny język strony sklepowej: **en-US**, zgodnie z decyzją właściciela. Tymczasowa nazwa z dopiskiem `unreviewed` pozostaje do ukończenia konfiguracji i sprawdzenia aplikacji.
 
-Dowód dystrybucji: [play-delivery.json](play-delivery.json). Status pochodzi ze zrzutów właściciela i przekazanego przez niego linku, nie z odczytu API ani instalacji na urządzeniu.
+Pierwotny dowód dystrybucji: [play-delivery.json](play-delivery.json), oparty na zrzutach właściciela i przekazanym linku. Późniejszy niezależny odczyt API potwierdził wersję 50 na ścieżce `internal`, status `completed`, język en-US i identyczny SHA256 paczki: [play-api-check.json](play-api-check.json). Właściciel potwierdził, że link zaczął działać po początkowym opóźnieniu udostępnienia; nie oznacza to pełnego QA aplikacji na urządzeniu.
+
+## Dostęp API do kolejnych wydań — działa
+
+- Konto techniczne: `strength-save-play@fittracker-workouts.iam.gserviceaccount.com`; właściciel dodał je do Play Console z dostępem administratora.
+- Google Play Android Developer API jest włączone w `fittracker-workouts` (potwierdzono przez Service Usage API).
+- Skrypt korzysta z istniejącego **Application Default Credentials** użytkownika `g.jasionowicz@gmail.com`. Aktywne konto CLI `gcloud` to osobna konfiguracja; w tym środowisku nie należy zastępować ADC tokenem z `gcloud auth print-access-token`.
+- Na wskazanym koncie technicznym dodano i odczytano rolę `roles/iam.serviceAccountTokenCreator` dla tego użytkownika. Binding dotyczy wyłącznie tego service account. Nie zmieniono pozostałych bindingów ani ról projektowych.
+- Uwierzytelnianie: krótkie tokeny 900 s z zakresem `https://www.googleapis.com/auth/androidpublisher`; nie utworzono ani nie pobierano klucza prywatnego JSON. Bazowy plik ADC pozostaje niezmieniony.
+- Przygotowano [google_play_check.py](../../../scripts/google_play_check.py). Tworzy tymczasową edycję do odczytu ścieżek, paczek i języka, waliduje ją i usuwa; nigdy nie wysyła AAB ani nie zatwierdza edycji. Nie uruchamiać równocześnie z edycją tej aplikacji w Play Console.
+
+Z katalogu repozytorium:
+
+```sh
+uv run scripts/google_play_check.py --expect-version 50 --output /tmp/strength-save-play-check.json
+```
+
+Weryfikacja: 7 testów operacyjnych PASS, rzeczywisty odczyt ścieżki i hash paczki PASS, walidacja HTTP200, usunięcie edycji HTTP204. Testy obejmują sprzątanie po błędzie, odrzucenie niewłaściwej wersji lub statusu draft oraz brak zatwierdzenia edycji. Przy kolejnej publikacji zwiększyć versionCode powyżej 50, zachować wersję produktu 1.0.0 i istniejący upload key. Samo połączenie API nie omija kontroli nowej paczki ani zasad wybranej ścieżki.
 
 ## Artefakt i kontrole
 
@@ -24,7 +41,7 @@ Dowód dystrybucji: [play-delivery.json](play-delivery.json). Status pochodzi ze
 
 Poprzedni podpisany AAB 49 zachowano przed budową w `/tmp/strength-release-20260909/android-history/strength-save-1.0.0-49.aab`; jego SHA256 nadal wynosi `69ab3c28ca9ca45e4872af92d900106f2890cf591f73104ef2e172dfec4d7e7f`. Ponowna weryfikacja wszystkich jego 1368 payload entries — PASS. Binaria i klucze nie są dodawane do Git.
 
-Preflight przed ręcznym uploadem, 2026-09-09 12:29:58 UTC, potwierdził **HTTP 403 / ACCESS_TOKEN_SCOPE_INSUFFICIENT**. Użyto istniejącego ADC do read-only GET z celowo nieistniejącym edit ID `0`; nie logowano ponownie, nie rozszerzano scope, nie tworzono edycji i nie wykonywano uploadu przez API. Sanitized wynik jest również osadzony w historycznym receipt artefaktu. Publikacja przez panel nie potwierdza naprawy dostępu API; automatyzacja kolejnych wydań nadal wymaga jego konfiguracji.
+Preflight przed ręcznym uploadem, 2026-09-09 12:29:58 UTC, potwierdził **HTTP 403 / ACCESS_TOKEN_SCOPE_INSUFFICIENT**. Użyto istniejącego ADC do read-only GET z celowo nieistniejącym edit ID `0`; nie logowano ponownie, nie rozszerzano scope, nie tworzono edycji i nie wykonywano uploadu przez API. Sanitized wynik pozostaje w historycznym receipt artefaktu. Później rozwiązano dostęp przez dedykowane konto techniczne i krótkie tokeny, zgodnie z sekcją powyżej; historyczny błąd nie jest już aktualnym blockerem.
 
 Numer 50 jest już użyty w Google Play; kolejna paczka musi mieć wyższy versionCode. Wymagana pozostaje weryfikacja instalacji ze sklepu i funkcji zależnych od Play App Signing. Agent nie wykonywał testów na rzeczywistym koncie.
 

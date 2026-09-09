@@ -11,6 +11,28 @@
 
 ## DECYZJE
 
+### 2026-09-09: działający Google Play API przez krótkie tokeny konta technicznego
+
+Po pierwszej ręcznej publikacji właściciel włączył API, utworzył
+`strength-save-play@fittracker-workouts.iam.gserviceaccount.com` i nadał mu
+administratora w Play Console. Samo włączenie usługi nie naprawiło błędu
+`ACCESS_TOKEN_SCOPE_INSUFFICIENT` bazowego tokena ADC.
+
+Źródłowe ADC identyfikuje `g.jasionowicz@gmail.com` i pozwala zarządzać polityką
+tego service account. Dodano temu użytkownikowi `roles/iam.serviceAccountTokenCreator`
+wyłącznie na tym koncie technicznym, zachowując pozostałe bindingi i etag.
+Tokeny docelowe mają zakres androidpublisher i czas życia 900 s. Nie utworzono
+klucza prywatnego ani nie zmieniono bazowego ADC. CLI gcloud ma osobne konto;
+operacje publikowania mają korzystać z ADC i wskazanego konta technicznego.
+
+Rzeczywiste API: odczytano internal/completed dla wersji 50, en-US i SHA256
+identyczny z przygotowanym AAB. Walidacja edycji HTTP200, cleanup HTTP204;
+nie wykonywano uploadu ani commit edycji. Dowód:
+`release/android/internal-2026-09-09/play-api-check.json`.
+Powtarzalny check: `uv run scripts/google_play_check.py --expect-version 50`.
+7 testów operacyjnych PASS. Zmiany dotyczą narzędzia i dokumentacji, bez
+przebudowy aplikacji. Kolejny versionCode musi być większy niż 50.
+
 ### 2026-09-09: pierwsza publikacja Androida w testach wewnętrznych
 
 Właściciel utworzył aplikację w koncie organizacji Google Play, przesłał gotowy

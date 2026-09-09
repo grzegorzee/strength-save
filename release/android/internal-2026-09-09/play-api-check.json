@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-09-09T18:32:10.649242+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production"
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "50 (1.0.0)",
+            "versionCodes": [
+              "50"
+            ],
+            "releaseNotes": [
+              {
+                "language": "en-US",
+                "text": "  First Android internal test.\n\n  - Plan and log strength workouts.\n  - Track cardio activities and training progress.\n  - Use warm-ups, rest timers and offline workout saving.\n\n  Please test onboarding, workout completion and synchronization after reconnecting. Report any\n  crashes, layout issues or missing workout data."
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 50,
+        "sha1": "213a3a8031bc4ac68102e6cda3c7d6d81f0b6ed2",
+        "sha256": "1238bbab28f61e526b9d07a334f381de77ae9822767e8f28c97473db78fca755"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}

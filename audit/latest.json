@@ -14,7 +14,7 @@
     "ios_current_project_version": 144,
     "android_version_code": 50
   },
-  "decision": "Feedback fixes shipped: iOS144 VALID/APPROVED and IN_BETA_TESTING in both groups; web and backend verified live; Android50 published to internal testing by owner, confirmed by Play Console screenshots and opt-in link. API setup, public launch and physical-device QA remain separate.",
+  "decision": "Feedback fixes shipped: iOS144 VALID/APPROVED and IN_BETA_TESTING in both groups; web and backend verified live; Android50 published by owner and independently verified through Play API with matching AAB SHA256. API authentication configured; public launch and physical-device QA remain separate.",
   "checks": {
     "backend": {
       "status": "PASS",
@@ -78,12 +78,14 @@
     "web_receipt": "audit/release-2026-09-09/web-delivery.json",
     "android": {
       "version_code": 50,
-      "status": "available-to-internal-testers-owner-console-screenshots",
+      "status": "internal-completed-verified-through-api",
       "play_upload": "completed-by-owner-in-play-console",
       "receipt": "release/android/internal-2026-09-09/artifact.json",
       "play_receipt": "release/android/internal-2026-09-09/play-delivery.json",
       "internal_test_url": "https://play.google.com/apps/internaltest/4699979891077312306",
-      "api_access": "not-reverified-after-HTTP403-scope-error"
+      "api_access": "verified-short-lived-service-account-impersonation",
+      "api_receipt": "release/android/internal-2026-09-09/play-api-check.json",
+      "aab_sha256_matches_play": true
     },
     "ios": {
       "build": 144,
