@@ -30,6 +30,7 @@ export type AccountStatus = "pending_verification" | "active" | "suspended" | "d
 
 /** Kształt dokumentowego pola subskrypcji (subscription i storeSubscription w users/{uid}). */
 export interface AppSubscriptionDoc {
+  store?: string;
   tier?: string;
   status?: string;
   startedAt?: string | null;

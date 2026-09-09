@@ -9,6 +9,7 @@ import type { PaletteThemeV2 } from '@/lib/palette-theme';
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
 export interface SubscriptionState {
+  store?: string;
   tier: SubscriptionTier;
   status: 'active' | 'expired' | 'billing_issue' | 'cancelled' | 'none';
   /** Początek bieżącego okresu (webhook RC, purchased_at_ms) — brak w dokumentach sprzed 2026-08-11. */
@@ -30,6 +31,7 @@ export const mapSubscription = (raw: AppUserProfile['subscription']): Subscripti
     startedAt: raw.startedAt ?? null,
     expiresAt: raw.expiresAt ?? null,
     ...(raw.productId && { productId: raw.productId }),
+    ...(typeof raw.store === 'string' && { store: raw.store }),
     ...(raw.willRenew !== undefined && { willRenew: raw.willRenew }),
     ...(raw.updatedAt && { updatedAt: raw.updatedAt }),
   };

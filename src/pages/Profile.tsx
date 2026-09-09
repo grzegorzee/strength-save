@@ -14,6 +14,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES, type LanguageCode } from '@/i18n';
 import { deleteOwnAccount } from '@/lib/registration-api';
 import { useSubscription, isPaywallPlatform } from '@/hooks/useSubscription';
+import { getSubscriptionManagementUrl, isPurchasesUserCurrent } from '@/lib/purchases';
 import { summarizeSubscription, hasProPlan } from '@/lib/subscription-summary';
 import { dateLocale } from '@/i18n';
 import { SettingRow } from '@/components/kinetic/SettingRow';
@@ -869,7 +870,13 @@ const Profile = () => {
             compact
             icon={CreditCard}
             label={t('subscription.manage')}
-            onClick={() => window.open('https://apps.apple.com/account/subscriptions', '_blank')}
+            onClick={() => {
+              void getSubscriptionManagementUrl(uid, subscriptionInfo.subscription?.store)
+                .then(url => window.open(url, '_blank', 'noopener,noreferrer'))
+                .catch(() => {
+                  if (isPurchasesUserCurrent(uid)) toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
+                });
+            }}
           />
         )}
         {isPaywallPlatform() && !subscriptionInfo.isPro && (

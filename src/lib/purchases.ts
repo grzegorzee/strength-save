@@ -1,11 +1,50 @@
 import { Capacitor } from '@capacitor/core';
 import { Purchases, type PurchasesPackage, type SubscriptionOption } from '@revenuecat/purchases-capacitor';
+import { withTimeout } from '@/lib/promise-timeout';
 
 // RevenueCat: warstwa zakupów (iOS + Android). Web (invite-only) nie sprzedaje — wszystkie
 // funkcje są no-op poza platformą natywną, więc kod wywołujący nie musi sprawdzać platformy.
 // appUserID = uid Firebase, dzięki czemu webhook RC może pisać entitlement do users/{uid}.
 
 export const PRO_ENTITLEMENT = 'pro';
+
+const APPLE_SUBSCRIPTIONS = 'https://apps.apple.com/account/subscriptions';
+const GOOGLE_SUBSCRIPTIONS = 'https://play.google.com/store/account/subscriptions';
+
+function storeManagementUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    if (url.username || url.password) return null;
+    if (url.origin === 'https://apps.apple.com' && url.pathname === '/account/subscriptions') return APPLE_SUBSCRIPTIONS;
+    if (url.origin !== 'https://play.google.com' || url.pathname !== '/store/account/subscriptions') return null;
+    const safe = new URL(GOOGLE_SUBSCRIPTIONS);
+    for (const key of ['sku', 'package']) {
+      const parameter = url.searchParams.get(key);
+      if (parameter) safe.searchParams.set(key, parameter);
+    }
+    return safe.toString();
+  } catch { return null; }
+}
+
+/** Store management never changes billing; RevenueCat identifies the purchased store. */
+export async function getSubscriptionManagementUrl(uid: string, knownStore?: string): Promise<string> {
+  const generation = identityGeneration;
+  let store = knownStore;
+  let managementUrl: string | null = null;
+  try {
+    const { customerInfo } = await withTimeout(
+      readPurchasesForUser(uid, () => Purchases.getCustomerInfo()), 1500, 'Subscription management',
+    );
+    managementUrl = storeManagementUrl(customerInfo.managementURL);
+    store = customerInfo.entitlements.active[PRO_ENTITLEMENT]?.store ?? store;
+  } catch { /* Offline SDK: the current owner's server mirror still identifies the store. */ }
+  if (requestedUserId !== uid || generation !== identityGeneration) throw new Error('PURCHASES_IDENTITY_CHANGED');
+  if (managementUrl) return managementUrl;
+  if (store === 'APP_STORE' || store === 'MAC_APP_STORE') return APPLE_SUBSCRIPTIONS;
+  if (store === 'PLAY_STORE') return GOOGLE_SUBSCRIPTIONS;
+  return Capacitor.getPlatform() === 'android' ? GOOGLE_SUBSCRIPTIONS : APPLE_SUBSCRIPTIONS;
+}
 
 /**
  * Publiczny klucz RC per platforma sklepu. Web nigdy nie dostaje klucza (checkout tylko
