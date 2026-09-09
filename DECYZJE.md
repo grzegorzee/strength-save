@@ -11,6 +11,15 @@
 
 ## DECYZJE
 
+### 2026-09-09: poprawna etykieta liczby serii w obu językach
+
+Ostatni przegląd zdjęcia wykazał dodatkową literówkę gramatyczną: karta i jej
+etykieta dostępności korzystały ze stałego `{n} serii` / `{n} sets` bez odmiany.
+Stąd błędne „3 SERII” oraz angielskie „1 sets”. Zmieniono wyłącznie dwa teksty
+na „Serie: {n}” / „Sets: {n}”, poprawne przy każdej liczbie; bez zmiany danych,
+kontrolek lub algorytmu liczenia. Korektę obejmą końcowe paczki146/52,
+wersja marketingowa nadal1.0.0. Poprzednie podpisane145/51 zachowane.
+
 ### 2026-09-09: Huawei Android 10, aktualna ikona i wspólne PRO
 
 Właściciel zgłosił ogromne, nierówne wiersze serii na Huawei P30 Pro przy

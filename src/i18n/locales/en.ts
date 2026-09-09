@@ -1726,7 +1726,7 @@ export const en: Record<keyof typeof pl, string> = {
   'devices.integration.discarded': 'last session discarded',
   'devices.integration.unavailable': 'unavailable',
   'card.repsValue': '{n} reps',
-  'card.setsCount': '{n} sets',
+  'card.setsCount': 'Sets: {n}',
   'card.colSet': 'Set',
   'card.setAria': 'Set',
   'card.colPrevious': 'Prev.',

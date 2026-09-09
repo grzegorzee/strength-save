@@ -1748,7 +1748,7 @@ export const pl = {
   'devices.integration.discarded': 'ostatnią sesję odrzucono',
   'devices.integration.unavailable': 'niedostępne',
   'card.repsValue': '{n} powt.',
-  'card.setsCount': '{n} serii',
+  'card.setsCount': 'Serie: {n}',
   // Naprawa r2 (2026-08-21): nagłówek kolumny po polsku (kolumna ma 26px, stąd
   // skrót); setAria zostaje "Set" — aria-labels pól serii to kontrakt e2e
   // ("Set 1, kg" w kilkudziesięciu asercjach), zmiana rozjechałaby testy.
