@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-09-09T20:19:28.776557+00:00",
+  "track": "internal",
+  "artifact": {
+    "path": "/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/android/app/build/outputs/bundle/release/app-release.aab",
+    "versionCode": 52,
+    "sha256": "7d07f2bb0fb42f5c0eb696c9487496abce658830f21ccd24124401eb74dc4070",
+    "bytes": 18769266,
+    "google_sdk_key_present": true,
+    "google_sdk_key_matches_preflight": true
+  },
+  "status": "DRY_RUN",
+  "uploaded": false,
+  "readback_verified": false,
+  "commit_acknowledgement_lost": false
+}

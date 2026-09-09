@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-09-09T20:21:09.153485+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production"
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "1.0.0 (52)",
+            "versionCodes": [
+              "52"
+            ],
+            "releaseNotes": [
+              {
+                "language": "pl-PL",
+                "text": "Nowa ikona i ekran startowy Androida. Czytelniejszy plan dnia, pełne nazwy ćwiczeń i superserii oraz poprawiony układ kart na małych ekranach. Timer nie zasłania dolnej nawigacji. Poprawione notatki dnia i etykieta liczby serii. Zaktualizowana konfiguracja logowania Google. Sprawdź przerwanie i wznowienie treningu oraz synchronizację.\n"
+              },
+              {
+                "language": "en-US",
+                "text": "Updated Android icon and splash screen. Clearer day plans, complete exercise and superset names, and improved cards on small screens. The rest timer stays above bottom navigation. Improved day notes and set-count labels. Updated Google sign-in configuration. Please test interrupting and resuming a workout, then syncing it.\n"
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 52,
+        "sha1": "e86415a46b828adc5b163ab8d166b63a382fcd86",
+        "sha256": "7d07f2bb0fb42f5c0eb696c9487496abce658830f21ccd24124401eb74dc4070"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}

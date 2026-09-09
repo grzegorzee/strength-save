@@ -1,0 +1,1 @@
+Updated Android icon and splash screen. Clearer day plans, complete exercise and superset names, and improved cards on small screens. The rest timer stays above bottom navigation. Improved day notes and set-count labels. Updated Google sign-in configuration. Please test interrupting and resuming a workout, then syncing it.

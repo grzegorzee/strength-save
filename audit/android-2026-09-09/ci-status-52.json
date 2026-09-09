@@ -1,0 +1,481 @@
+{
+  "capturedAt": "2026-09-09T20:36:16.477732+00:00",
+  "runId": 34399987321,
+  "url": "https://github.com/grzegorzee/strength-save/actions/runs/34399987321",
+  "sourceSha": "75401daab404edcf71212234ca68f1e7386496db",
+  "status": "completed",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "name": "ios-simulator-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T20:16:09Z",
+      "completedAt": "2026-09-09T20:31:28Z",
+      "steps": [
+        {
+          "completedAt": "2026-09-09T20:16:11Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-09T20:16:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:21Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-09T20:16:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:26Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-09T20:16:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:42Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 4,
+          "startedAt": "2026-09-09T20:16:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:17:01Z",
+          "conclusion": "success",
+          "name": "Run npm run preflight:ios-release && npm run build:mobile && npx cap sync ios",
+          "number": 5,
+          "startedAt": "2026-09-09T20:16:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:30:15Z",
+          "conclusion": "success",
+          "name": "Run npm run ios:simulator:smoke",
+          "number": 6,
+          "startedAt": "2026-09-09T20:17:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:30:27Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 11,
+          "startedAt": "2026-09-09T20:30:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:30:34Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 12,
+          "startedAt": "2026-09-09T20:30:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:31:01Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-09-09T20:30:34Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "quality",
+      "status": "completed",
+      "conclusion": "failure",
+      "startedAt": "2026-09-09T20:16:00Z",
+      "completedAt": "2026-09-09T20:33:35Z",
+      "steps": [
+        {
+          "completedAt": "2026-09-09T20:16:02Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-09T20:16:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:09Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-09T20:16:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:11Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-09T20:16:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:11Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-java@v4",
+          "number": 4,
+          "startedAt": "2026-09-09T20:16:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:26Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 5,
+          "startedAt": "2026-09-09T20:16:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:32Z",
+          "conclusion": "success",
+          "name": "Run npm ci --prefix functions",
+          "number": 6,
+          "startedAt": "2026-09-09T20:16:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:50Z",
+          "conclusion": "success",
+          "name": "Run npm i -g firebase-tools@15",
+          "number": 7,
+          "startedAt": "2026-09-09T20:16:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:17:27Z",
+          "conclusion": "success",
+          "name": "Run npx playwright install --with-deps chromium webkit",
+          "number": 8,
+          "startedAt": "2026-09-09T20:16:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:17:50Z",
+          "conclusion": "success",
+          "name": "Run npm run typecheck",
+          "number": 9,
+          "startedAt": "2026-09-09T20:17:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:18:05Z",
+          "conclusion": "success",
+          "name": "Run npm run lint",
+          "number": 10,
+          "startedAt": "2026-09-09T20:17:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:23:46Z",
+          "conclusion": "success",
+          "name": "Run npm run test -- --coverage",
+          "number": 11,
+          "startedAt": "2026-09-09T20:18:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:23:56Z",
+          "conclusion": "success",
+          "name": "Run npm --prefix functions test",
+          "number": 12,
+          "startedAt": "2026-09-09T20:23:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:24:14Z",
+          "conclusion": "success",
+          "name": "Run npm run test:functions:emulator",
+          "number": 13,
+          "startedAt": "2026-09-09T20:23:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:24:33Z",
+          "conclusion": "success",
+          "name": "Run npm run test:rules",
+          "number": 14,
+          "startedAt": "2026-09-09T20:24:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:25:15Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 15,
+          "startedAt": "2026-09-09T20:24:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:25:16Z",
+          "conclusion": "success",
+          "name": "Run npm run check:bundle-budget",
+          "number": 16,
+          "startedAt": "2026-09-09T20:25:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:25:23Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 17,
+          "startedAt": "2026-09-09T20:25:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "failure",
+          "name": "Run npm run e2e:mock -- --reporter=line",
+          "number": 18,
+          "startedAt": "2026-09-09T20:25:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "skipped",
+          "name": "Run npm run e2e:webkit -- --reporter=line",
+          "number": 19,
+          "startedAt": "2026-09-09T20:33:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "skipped",
+          "name": "Run npm run e2e:emulator",
+          "number": 20,
+          "startedAt": "2026-09-09T20:33:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-java@v4",
+          "number": 38,
+          "startedAt": "2026-09-09T20:33:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "skipped",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 39,
+          "startedAt": "2026-09-09T20:33:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 40,
+          "startedAt": "2026-09-09T20:33:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:33:34Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 41,
+          "startedAt": "2026-09-09T20:33:34Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "android-debug-build",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T20:16:00Z",
+      "completedAt": "2026-09-09T20:19:58Z",
+      "steps": [
+        {
+          "completedAt": "2026-09-09T20:16:02Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-09T20:16:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:09Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-09T20:16:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:11Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-09T20:16:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:11Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-java@v4",
+          "number": 4,
+          "startedAt": "2026-09-09T20:16:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:21Z",
+          "conclusion": "success",
+          "name": "Run android-actions/setup-android@v4",
+          "number": 5,
+          "startedAt": "2026-09-09T20:16:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:33Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 6,
+          "startedAt": "2026-09-09T20:16:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:49Z",
+          "conclusion": "success",
+          "name": "Run npm run build:mobile",
+          "number": 7,
+          "startedAt": "2026-09-09T20:16:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:16:50Z",
+          "conclusion": "success",
+          "name": "Run npx cap sync android",
+          "number": 8,
+          "startedAt": "2026-09-09T20:16:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:19:56Z",
+          "conclusion": "success",
+          "name": "Run ./gradlew -Dorg.gradle.java.home=\"$JAVA_HOME\" :app:assembleDebug --no-daemon",
+          "number": 9,
+          "startedAt": "2026-09-09T20:16:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:19:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-java@v4",
+          "number": 16,
+          "startedAt": "2026-09-09T20:19:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:19:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 17,
+          "startedAt": "2026-09-09T20:19:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:19:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 18,
+          "startedAt": "2026-09-09T20:19:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-09T20:19:56Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-09-09T20:19:56Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "firebase-contract-deploy",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-09-09T20:33:36Z",
+      "completedAt": "2026-09-09T20:33:36Z",
+      "steps": []
+    },
+    {
+      "name": "build-and-deploy",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-09-09T20:33:36Z",
+      "completedAt": "2026-09-09T20:33:36Z",
+      "steps": []
+    }
+  ],
+  "counts": {
+    "frontend": {
+      "filesPassed": 486,
+      "passed": 4184,
+      "skipped": 16,
+      "total": 4200
+    },
+    "functions": {
+      "filesPassed": 53,
+      "filesSkipped": 1,
+      "passed": 563,
+      "skipped": 15,
+      "total": 578
+    },
+    "functionsRegistrationEmulator": {
+      "filesPassed": 1,
+      "passed": 15,
+      "failed": 0
+    },
+    "rulesSummaryLines": [
+      "2026-09-09T20:24:31.8269455Z 44/44 storage rules tests passed."
+    ],
+    "mockE2E": {
+      "planned": 356,
+      "workers": 2,
+      "passed": 354,
+      "failed": 2,
+      "duration": "8.2m",
+      "completeSummary": true
+    },
+    "webkitE2E": "SKIPPED",
+    "emulatorE2E": "SKIPPED"
+  },
+  "failures": [
+    {
+      "file": "e2e/exercise-card-density.spec.ts",
+      "line": 144,
+      "case": "375x812",
+      "assertion": "previous.scrollWidth - previous.clientWidth <= 0",
+      "received": 1,
+      "attemptsFailed": 3,
+      "causeStatus": "Requires actual text Range geometry to distinguish clipping from integer box measurement"
+    },
+    {
+      "file": "e2e/exercise-card-v3.spec.ts",
+      "line": 47,
+      "assertion": "old count-before-series text selector must be visible",
+      "attemptsFailed": 3,
+      "cause": "Obsolete fixture selector after label changed to Serie: {n}"
+    }
+  ],
+  "bootstrapFix": {
+    "status": "CONFIRMED",
+    "basis": "354 completed mock scenarios passed after prior bootstrap failure; clean-env local RED/GREEN documented separately"
+  },
+  "limitations": [
+    "The run failed; do not report full CI PASS.",
+    "WebKit and emulator E2E were skipped after mock failure.",
+    "No physical-device workout verification is provided by this CI."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "status": "passed",
+  "startedAt": "2026-09-09T20:38:41.843324+00:00",
+  "sourceCommit": "75401daab404edcf71212234ca68f1e7386496db",
+  "command": "npm run e2e:emulator",
+  "browser": "chromium",
+  "workers": 1,
+  "retries": 0,
+  "expectedTests": 18,
+  "ports": {
+    "vite": 8090,
+    "auth": 9099,
+    "firestore": 8081,
+    "functions": 5001
+  },
+  "localProjectNamespace": "fittracker-workouts",
+  "sourceSHA256": "690c803991f2ee81869b9fd6783a8531945fc1388c69027f0b896b34a5929357",
+  "isolation": {
+    "emulatorEndpoints": "127.0.0.1 only",
+    "fixtureUsers": "unique @e2e.test accounts",
+    "fixtureApiKey": "fake-api-key",
+    "appCheck": "unsigned local emulator fixture, injected only to 127.0.0.1:5001",
+    "secrets": "existing exact .secret.local E2E fixture validated by repository script",
+    "firebaseServices": "Auth/Firestore/Functions explicitly connected to local emulators",
+    "realUserDataWrites": false,
+    "deployments": false
+  },
+  "finishedAt": "2026-09-09T20:39:34.894032+00:00",
+  "runnerExitCode": 0,
+  "wallSeconds": 53.04,
+  "sourceChangedDuringRun": [],
+  "passed": 18,
+  "failed": 0,
+  "skipped": 0,
+  "playwrightDuration": "33.9s",
+  "emulatorPortsReleased": [
+    8090,
+    8081,
+    9099,
+    5001,
+    4400,
+    4500
+  ],
+  "servedClientChecks": {
+    "VITE_USE_EMULATORS_true": true,
+    "synthetic_API_key": true,
+    "local_auth_connection": true,
+    "local_firestore_connection": true,
+    "local_functions_connection": true
+  },
+  "testCases": [
+    "✓   1 [chromium] › e2e/emulator/consent-owner.spec.ts:8:1 › consent displayed for A cannot be recorded under B after account switch (1.8s)",
+    "✓   2 [chromium] › e2e/emulator/critical-auth.spec.ts:116:3 › Emulator critical: auth + rules › aktywny user loguje się i widzi dashboard (real auth + rules read profilu) (5.4s)",
+    "✓   3 [chromium] › e2e/emulator/critical-auth.spec.ts:138:3 › Emulator critical: auth + rules › pending_verification user trafia na bramkę weryfikacji, nie na dashboard (1.4s)",
+    "✓   4 [chromium] › e2e/emulator/critical-auth.spec.ts:158:3 › Emulator critical: auth + rules › start treningu zapisuje sesję przez realne Firestore Rules (3.0s)",
+    "✓   5 [chromium] › e2e/emulator/offline-user-provider.spec.ts:90:3 › UserProvider offline cache bez bypassu E2E › cached active po odcięciu backendu nadal widzi Dashboard (2.5s)",
+    "✓   6 [chromium] › e2e/emulator/offline-user-provider.spec.ts:104:3 › UserProvider offline cache bez bypassu E2E › cached suspended pozostaje fail-closed po odcięciu backendu (968ms)",
+    "✓   7 [chromium] › e2e/emulator/offline-user-provider.spec.ts:118:3 › UserProvider offline cache bez bypassu E2E › auth bez cached profilu nie dostaje dostępu, gdy sync callable jest offline (681ms)",
+    "✓   8 [chromium] › e2e/emulator/plan-conflict.spec.ts:90:1 › Emulator: dwie równoległe edycje planu — stale revision dostaje PLAN_CONFLICT (285ms)",
+    "✓   9 [chromium] › e2e/emulator/plan-lifecycle.spec.ts:125:5 › Emulator: cykl życia planu › onboarding: własny plan z biblioteki → Dashboard, health opt-in (2.1s)",
+    "✓  10 [chromium] › e2e/emulator/plan-lifecycle.spec.ts:125:5 › Emulator: cykl życia planu › onboarding: własny plan z biblioteki → Dashboard, health declined (1.9s)",
+    "✓  11 [chromium] › e2e/emulator/plan-lifecycle.spec.ts:206:3 › Emulator: cykl życia planu › zakończenie planu przed czasem: cykl completed + ekran wyboru nowego planu (1.2s)",
+    "✓  12 [chromium] › e2e/emulator/plan-lifecycle.spec.ts:263:3 › Emulator: cykl życia planu › merge 501 treningów dzieli zapis na batchy i kończy checkpoint (7.9s)",
+    "✓  13 [chromium] › e2e/emulator/workout-conflict.spec.ts:133:1 › Emulator: dwóch klientów, ten sam trening — stale revision dostaje WORKOUT_CONFLICT (721ms)",
+    "✓  14 [chromium] › e2e/emulator/workout-conflict.spec.ts:163:1 › Emulator Z228: konflikt iOS/Watch/web scala nowsze serie do jednej sesji (270ms)",
+    "✓  15 [chromium] › e2e/emulator/workout-conflict.spec.ts:289:1 › Emulator: lost-ack retry z tym samym writeId = sukces alreadyApplied bez podbicia revision (92ms)",
+    "✓  16 [chromium] › e2e/emulator/workout-conflict.spec.ts:322:1 › Emulator: edycja po final syncu z expectedRevision odczytanym z serwera przechodzi (81ms)",
+    "✓  17 [chromium] › e2e/emulator/workout-conflict.spec.ts:350:1 › Emulator: promocja provisional->remote przez silnik; retry nie duplikuje dokumentu (107ms)",
+    "✓  18 [chromium] › e2e/emulator/workout-conflict.spec.ts:477:1 › Emulator: sync orphana po promocji nie nadpisuje nowszej treści treningu (R2-04) (76ms)"
+  ],
+  "log": "post-ci-emulator.log",
+  "logSHA256": "c0c89c21cf08c1a449295ba99d488459648c185e94e924e9d3092c5cc0e350bf"
+}

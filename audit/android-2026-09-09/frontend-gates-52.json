@@ -1,0 +1,62 @@
+{
+  "checked_at": "2026-09-09T20:08:57.711385+00:00",
+  "source_commit": "00c19f191cc926d684cc0e5de00db45b54a40bca",
+  "unit": {
+    "files_passed": 486,
+    "passed": 4184,
+    "skipped": 16,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 15
+  },
+  "production_build": "PASS",
+  "bundle_budget": "PASS",
+  "dist_smoke": "PASS",
+  "browser": {
+    "layout_chromium_webkit_passed": 34,
+    "paywall_and_resume_passed": 12,
+    "plan_quick_plan_finish_sync_passed": 4,
+    "failed": 0,
+    "scope": "Targeted Chromium/WebKit; actual native Huawei not available"
+  },
+  "browser_evidence_source": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "python": {
+    "play_publish": 19,
+    "revenuecat_setup": 3,
+    "billing_parity": 11
+  },
+  "scope": "Final52/146 frontend: only neutral set-count labels changed since51/145; unit assertion updated, no workout logic/CSS change. Earlier targeted browser/native51 evidence remains explicitly scoped to its source.",
+  "notes": [
+    "First52 full unit run caught one assertion still expecting old 3 serii copy. Only text expectation updated; historical data assertions preserved. Final full run passed.",
+    "Remote full Chromium CI is separately recorded; do not equate targeted browser PASS with a complete CI run."
+  ],
+  "logs": {
+    "unit": {
+      "local_path": "/tmp/strength-android-52-vitest-final.log",
+      "sha256": "14e40fa0cacc1644c9cbe373eabfa1e4400d05ce1c8ae8a1d6abb6c976222ca2"
+    },
+    "typecheck": {
+      "local_path": "/tmp/strength-android-52-typecheck.log",
+      "sha256": "f581e2ea11f93d357b746d228a3476b72ea9b1abbbf75411d0855970397e23f5"
+    },
+    "lint": {
+      "local_path": "/tmp/strength-android-52-lint.log",
+      "sha256": "3b924e8cc634040e8d6332e483fb439cedeb8b80504fb84e4fcc33889957f160"
+    },
+    "build": {
+      "local_path": "/tmp/strength-android-52-build.log",
+      "sha256": "480613770143722e94a84224b8f9e9ca49c4e6e8b8b1eff50c04ca5534dd45ed"
+    }
+  },
+  "final_release_metadata_contracts": {
+    "files": 4,
+    "passed": 20,
+    "failed": 0,
+    "local_log": "/tmp/strength-52-final-release-contracts.log",
+    "sha256": "ce283ae5aff534d4d93d6bc092ce14652382b40e28ca3be24bf18b24a33f68ac"
+  },
+  "independent_billing_report_review": "PASS against stored iOS price/trial/grace references and merchant precondition; no live purchase implied"
+}

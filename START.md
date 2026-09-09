@@ -2,9 +2,9 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (51)** opublikowany
+> **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (52)** opublikowany
 > w Google Play Internal Testing przez API, `completed` i hash pakietu potwierdzone.
-> iOS **1.0.0 (145)**: VALID / APPROVED / IN_BETA_TESTING w obu grupach TestFlight.
+> iOS **1.0.0 (146)**: VALID / APPROVED / IN_BETA_TESTING w obu grupach TestFlight.
 > Poprawiono wiersze serii 360 px/starszego WebView, ikonę/splash Androida,
 > podpis Play w Firebase i obsługę PRO między sklepami. Web i webhook wdrożone.
 > [Aktualizacja Androida](https://play.google.com/apps/internaltest/4699979891077312306).

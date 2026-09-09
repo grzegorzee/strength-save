@@ -11,6 +11,40 @@
 
 ## DECYZJE
 
+### 2026-09-09: finalne Android 52 i TestFlight 146 po korekcie etykiet
+
+Zamrożone źródło `75401daab404edcf71212234ca68f1e7386496db` dostarczono
+przez API do Google Play Internal Testing (1.0.0/52) oraz do obu grup
+TestFlight (1.0.0/146, VALID/APPROVED/IN_BETA_TESTING, autoNotify).
+Dwa niezależne odczyty Play potwierdziły właściwy AAB i status completed.
+Marketing version pozostaje 1.0.0. Historia 51/145 i poprzednie podpisane
+artefakty zachowane; brak publikacji produkcyjnej w sklepach.
+
+Pełny lokalny frontend: 4184 PASS, 16 wcześniejszych SKIP, 486 plików.
+Pojedynczy test oczekujący starego „3 serii” poprawiono na „Serie: 3”,
+zachowując asercje braku zmyślonych 1RM/Max. Typecheck, lint, build,
+budżet i dist smoke PASS. Podpisy wszystkich targetów iOS oraz AAB/APK,
+24 warianty ikony, 6 bibliotek ELF64 i 87 APK dla 16 KB PASS. Obie paczki
+mają identyczne 232 pliki runtime. APK 52 przeszedł aktualizację z 51,
+cold start 1108 ms i kontrolę rzeczywiście zainstalowanego hasha.
+Test fizycznego Huawei pozostaje do wykonania przez właściciela.
+
+Web opublikowano przez npm deploy, następnie porównano żywe HTML, SW,
+wejściowe JS/CSS z zachowanym buildem. Webhook płatności pozostaje we
+wcześniej sprawdzonej rewizji `revenuecatwebhook-00031-vil`; brak zbędnego
+ponownego wdrożenia backendu. Aktywację produktów Google blokuje wymagany
+profil sprzedawcy. Warunki przygotowano zgodnie z odczytem iOS, w tym P0D
+dla opcjonalnego grace. Pełny CI po naprawie bootstrapu: 354 PASS / 2 FAIL.
+Obok starego selektora etykiety potwierdzono ucięcie poprzedniego wyniku
+100×10 na 375 px; następuje osobna poprawka dla 53/147. Dodatkowe bramki
+WebKit 9/9 i emulatorów Firebase 18/18 przeszły lokalnie.
+
+Automatyczna kontrola odrzuciła zamknięcie izolowanego emulatora jako
+shutdown/reboot. Pozostał włączony, bez próby obejścia blokady.
+Dowody: `release/ios/testflight-146.json`,
+`release/android/internal-2026-09-09-52/`, `docs/ANDROID-2026-09-09.md`.
+
+
 ### 2026-09-09: samodzielna konfiguracja Firebase dla mock E2E w CI
 
 Run `34394114934` zakończył quality po limicie 45 minut podczas masowych błędów

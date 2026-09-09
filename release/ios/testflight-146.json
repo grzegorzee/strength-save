@@ -1,0 +1,115 @@
+{
+  "verified_at": "2026-09-09T20:18:48.980295+00:00",
+  "source_commit": "75401daab404edcf71212234ca68f1e7386496db",
+  "artifact": {
+    "path": "build/ios/export/App.ipa",
+    "bytes": 24221131,
+    "sha256": "e6c3bbb326f693ed1e7ce33d91bceb0d99c7e2a15269695dc3679fd971ec4873",
+    "version": "1.0.0",
+    "build": 146
+  },
+  "signature": {
+    "codesign_deep_strict": "PASS",
+    "bundles": [
+      {
+        "path": "Payload/App.app",
+        "bundleId": "com.grzegorzjasionowicz.strengthsave",
+        "version": "1.0.0",
+        "build": "146",
+        "profileUUID": "d271cc27-a966-4f06-9b94-b26625a23bdf",
+        "profileExpiration": "2027-06-06T13:31:53",
+        "entitlementKeys": [
+          "application-identifier",
+          "aps-environment",
+          "beta-reports-active",
+          "com.apple.developer.applesignin",
+          "com.apple.developer.devicecheck.appattest-environment",
+          "com.apple.developer.healthkit",
+          "com.apple.developer.team-identifier",
+          "get-task-allow"
+        ],
+        "distribution": true
+      },
+      {
+        "path": "Payload/App.app/Watch/StrengthWatch.app",
+        "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp",
+        "version": "1.0.0",
+        "build": "146",
+        "profileUUID": "c5e3fbec-1016-4be3-bd62-c159d94d1d1e",
+        "profileExpiration": "2027-06-06T13:31:53",
+        "entitlementKeys": [
+          "application-identifier",
+          "beta-reports-active",
+          "com.apple.developer.healthkit",
+          "com.apple.developer.team-identifier",
+          "get-task-allow"
+        ],
+        "distribution": true
+      },
+      {
+        "path": "Payload/App.app/Watch/StrengthWatch.app/PlugIns/StrengthWatchWidgets.appex",
+        "bundleId": "com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets",
+        "version": "1.0.0",
+        "build": "146",
+        "profileUUID": "1c4b92d8-203d-49c9-9771-d57488728925",
+        "profileExpiration": "2027-06-06T13:31:53",
+        "entitlementKeys": [
+          "application-identifier",
+          "beta-reports-active",
+          "com.apple.developer.team-identifier",
+          "get-task-allow"
+        ],
+        "distribution": true
+      }
+    ]
+  },
+  "asset_parity": {
+    "mobile-dist": {
+      "files": 232,
+      "bytes": 9897302,
+      "sha256": "f8a03b70bba3b64dd61576d11de74b644b68e8a83f043ca745b5d3abba091221"
+    },
+    "ios-project": {
+      "files": 232,
+      "bytes": 9897302,
+      "sha256": "f8a03b70bba3b64dd61576d11de74b644b68e8a83f043ca745b5d3abba091221"
+    },
+    "signed-ipa": {
+      "files": 232,
+      "bytes": 9897302,
+      "sha256": "f8a03b70bba3b64dd61576d11de74b644b68e8a83f043ca745b5d3abba091221"
+    }
+  },
+  "asset_hash_algorithm": "SHA256 of compact UTF-8 JSON sorted rows [relativePath, byteLength, fileSHA256]; .DS_Store excluded.",
+  "physical_qa": "pending-owner-testflight-test",
+  "store_verification": {
+    "checked_at": "2026-09-09T20:24:01.042031+00:00",
+    "build_id": "ab8dc31d-4817-4104-a257-628be52de7dc",
+    "processingState": "VALID",
+    "groups": {
+      "internal": {
+        "id": "48daa230-813f-4bcc-8158-cc12e69d354c",
+        "contains_build": true
+      },
+      "external": {
+        "id": "4ad8388a-a717-42a6-b7a7-7aeb737d29e8",
+        "contains_build": true
+      }
+    },
+    "beta_details": {
+      "autoNotifyEnabled": true,
+      "internalBuildState": "IN_BETA_TESTING",
+      "externalBuildState": "IN_BETA_TESTING"
+    },
+    "beta_review": {
+      "betaReviewState": "APPROVED",
+      "submittedDate": null
+    },
+    "localizations": [
+      {
+        "locale": "en-US",
+        "whatToTestMatches": true
+      }
+    ]
+  }
+}

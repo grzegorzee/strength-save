@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-09-09T20:41:24.165679+00:00",
+  "status": "PASS",
+  "source_commit": "75401daab404edcf71212234ca68f1e7386496db",
+  "suite": "e2e/critical.spec.ts",
+  "browser": "WebKit",
+  "passed": 9,
+  "failed": 0,
+  "retries": 0,
+  "duration_seconds": 16.8,
+  "environment": {
+    "fresh_vite": true,
+    "port": 8084,
+    "isolated_cache": true,
+    "empty_env_directory": true,
+    "synthetic_firebase_config": true,
+    "e2e_mode": true,
+    "production_env_loaded": false
+  },
+  "source_edits": false,
+  "scope": "Existing full WebKit critical gate skipped in CI after two Chromium test failures; isolated local replay.",
+  "temporary_harness_correction": "Initial temporary wrapper spread the original Vite config function rather than calling it, losing aliases and failing startup. Corrected only the temporary wrapper to evaluate config function; restarted with a fresh optimizer cache. Final9/9passed. No application fix inferred from that initial harness error.",
+  "log": {
+    "local_path": "/tmp/strength-52-webkit-corrected.log",
+    "sha256": "265db40e6da5929ef9c73059e44913ed84c747668d2f7128677722383c43e9c9"
+  }
+}

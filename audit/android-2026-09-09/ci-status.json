@@ -1,0 +1,379 @@
+{
+  "runId": 34394114934,
+  "url": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934",
+  "workflowName": "Deploy to GitHub Pages",
+  "sourceSha": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "status": "completed",
+  "conclusion": "cancelled",
+  "createdAt": "2026-09-09T19:16:53Z",
+  "completedAt": "2026-09-09T20:02:26Z",
+  "recordedAtUtc": "2026-09-09T20:06:02.660398+00:00",
+  "jobs": [
+    {
+      "id": 102609437597,
+      "name": "quality",
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934/job/102609437597",
+      "conclusion": "cancelled",
+      "startedAt": "2026-09-09T19:16:57Z",
+      "completedAt": "2026-09-09T20:02:25Z",
+      "steps": [
+        {
+          "number": 1,
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "number": 2,
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 3,
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 4,
+          "name": "Run actions/setup-java@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 5,
+          "name": "Run npm ci",
+          "conclusion": "success"
+        },
+        {
+          "number": 6,
+          "name": "Run npm ci --prefix functions",
+          "conclusion": "success"
+        },
+        {
+          "number": 7,
+          "name": "Run npm i -g firebase-tools@15",
+          "conclusion": "success"
+        },
+        {
+          "number": 8,
+          "name": "Run npx playwright install --with-deps chromium webkit",
+          "conclusion": "success"
+        },
+        {
+          "number": 9,
+          "name": "Run npm run typecheck",
+          "conclusion": "success"
+        },
+        {
+          "number": 10,
+          "name": "Run npm run lint",
+          "conclusion": "success"
+        },
+        {
+          "number": 11,
+          "name": "Run npm run test -- --coverage",
+          "conclusion": "success"
+        },
+        {
+          "number": 12,
+          "name": "Run npm --prefix functions test",
+          "conclusion": "success"
+        },
+        {
+          "number": 13,
+          "name": "Run npm run test:functions:emulator",
+          "conclusion": "success"
+        },
+        {
+          "number": 14,
+          "name": "Run npm run test:rules",
+          "conclusion": "success"
+        },
+        {
+          "number": 15,
+          "name": "Run npm run build",
+          "conclusion": "success"
+        },
+        {
+          "number": 16,
+          "name": "Run npm run check:bundle-budget",
+          "conclusion": "success"
+        },
+        {
+          "number": 17,
+          "name": "Run npm run build",
+          "conclusion": "success"
+        },
+        {
+          "number": 18,
+          "name": "Run npm run e2e:mock",
+          "conclusion": "cancelled"
+        },
+        {
+          "number": 19,
+          "name": "Run npm run e2e:webkit",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 20,
+          "name": "Run npm run e2e:emulator",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 38,
+          "name": "Post Run actions/setup-java@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 39,
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 40,
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 41,
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 102609437667,
+      "name": "android-debug-build",
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934/job/102609437667",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T19:16:57Z",
+      "completedAt": "2026-09-09T19:20:59Z",
+      "steps": [
+        {
+          "number": 1,
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "number": 2,
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 3,
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 4,
+          "name": "Run actions/setup-java@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 5,
+          "name": "Run android-actions/setup-android@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 6,
+          "name": "Run npm ci",
+          "conclusion": "success"
+        },
+        {
+          "number": 7,
+          "name": "Run npm run build:mobile",
+          "conclusion": "success"
+        },
+        {
+          "number": 8,
+          "name": "Run npx cap sync android",
+          "conclusion": "success"
+        },
+        {
+          "number": 9,
+          "name": "Run ./gradlew -Dorg.gradle.java.home=\"$JAVA_HOME\" :app:assembleDebug --no-daemon",
+          "conclusion": "success"
+        },
+        {
+          "number": 16,
+          "name": "Post Run actions/setup-java@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 17,
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 18,
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 19,
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 102609438018,
+      "name": "ios-simulator-smoke",
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934/job/102609438018",
+      "conclusion": "success",
+      "startedAt": "2026-09-09T19:16:59Z",
+      "completedAt": "2026-09-09T19:23:18Z",
+      "steps": [
+        {
+          "number": 1,
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "number": 2,
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 3,
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 4,
+          "name": "Run npm ci",
+          "conclusion": "success"
+        },
+        {
+          "number": 5,
+          "name": "Run npm run preflight:ios-release && npm run build:mobile && npx cap sync ios",
+          "conclusion": "success"
+        },
+        {
+          "number": 6,
+          "name": "Run npm run ios:simulator:smoke",
+          "conclusion": "success"
+        },
+        {
+          "number": 11,
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 12,
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "number": 13,
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 102624659246,
+      "name": "firebase-contract-deploy",
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934/job/102624659246",
+      "conclusion": "skipped",
+      "startedAt": "2026-09-09T20:02:25Z",
+      "completedAt": "2026-09-09T20:02:25Z",
+      "steps": []
+    },
+    {
+      "id": 102624659825,
+      "name": "build-and-deploy",
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934/job/102624659825",
+      "conclusion": "skipped",
+      "startedAt": "2026-09-09T20:02:26Z",
+      "completedAt": "2026-09-09T20:02:25Z",
+      "steps": []
+    }
+  ],
+  "testSummaries": [
+    {
+      "step": "Run npm run test -- --coverage",
+      "kind": "Test Files",
+      "counts": {
+        "passed": 486
+      },
+      "total": 486
+    },
+    {
+      "step": "Run npm run test -- --coverage",
+      "kind": "Tests",
+      "counts": {
+        "passed": 4184,
+        "skipped": 16
+      },
+      "total": 4200
+    },
+    {
+      "step": "Run npm --prefix functions test",
+      "kind": "Test Files",
+      "counts": {
+        "passed": 53,
+        "skipped": 1
+      },
+      "total": 54
+    },
+    {
+      "step": "Run npm --prefix functions test",
+      "kind": "Tests",
+      "counts": {
+        "passed": 563,
+        "skipped": 15
+      },
+      "total": 578
+    },
+    {
+      "step": "Run npm run test:functions:emulator",
+      "kind": "Test Files",
+      "counts": {
+        "passed": 1
+      },
+      "total": 1
+    },
+    {
+      "step": "Run npm run test:functions:emulator",
+      "kind": "Tests",
+      "counts": {
+        "passed": 15
+      },
+      "total": 15
+    }
+  ],
+  "e2eMock": {
+    "plannedTests": 356,
+    "workers": 2,
+    "conclusion": "cancelled",
+    "startedAt": "2026-09-09T19:27:28Z",
+    "completedAt": "2026-09-09T20:02:19Z",
+    "finalSummaryAvailable": false,
+    "observedDotReporterMarkers": {
+      "·": 5,
+      "×": 424,
+      "F": 211
+    },
+    "markerMeaning": {
+      "F": "unexpected failure after retries",
+      "T": "timeout after retries",
+      "×": "failed attempt with a retry remaining",
+      "·": "expected test outcome",
+      "°": "skipped",
+      "±": "flaky"
+    },
+    "markerLimit": "Only emitted progress markers are counted. Output was interrupted; these are not final full-suite totals or named failure diagnostics."
+  },
+  "failure": {
+    "confirmedJobCause": "GitHub enforced the 45-minute quality job execution limit. Check-run annotation: The job has exceeded the maximum execution time of 45m0s.",
+    "testFailureEvidence": "Many F and retry markers appeared in the Playwright dot reporter before cancellation. This is not evidence of an otherwise-green slow suite.",
+    "testLevelRootCause": "UNKNOWN: cancellation prevented the final report with test names/assertion errors. The run uploaded zero diagnostic artifacts.",
+    "incompleteGates": [
+      "e2e:mock incomplete/cancelled",
+      "e2e:webkit skipped",
+      "e2e:emulator skipped",
+      "firebase-contract-deploy skipped",
+      "build-and-deploy skipped"
+    ]
+  },
+  "scope": "Read-only monitoring and sanitized receipt only. No source changes, CI restart/cancellation, pushes or new tests. This result belongs to source73f435d4 and does not certify later146/52 labels/version changes."
+}

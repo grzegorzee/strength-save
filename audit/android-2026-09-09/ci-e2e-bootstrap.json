@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-09",
+  "status": "BOOTSTRAP_FIXED_REMOTE_RUN_FAILED_TWO_SPECIFIC_ASSERTIONS",
+  "originalRunUrl": "https://github.com/grzegorzee/strength-save/actions/runs/34394114934",
+  "originalSourceSha": "73f435d47c99c8df46bcf29f5d074e9a2bdef8ad",
+  "confirmedLocalBootstrapError": "Firebase: Error (auth/invalid-api-key).",
+  "reproduction": {
+    "freshVite": true,
+    "port": 8082,
+    "emptyEnvDirectory": true,
+    "isolatedOptimizerCache": true,
+    "inheritedViteVariablesCleared": true,
+    "e2eMode": true,
+    "red": {
+      "failed": 1,
+      "pageHeadings": 0,
+      "bodyTextLength": 0
+    },
+    "greenWithSyntheticConfig": {
+      "passed": 1,
+      "failed": 0,
+      "durationSeconds": 3.4
+    }
+  },
+  "verification": {
+    "profile": {
+      "file": "e2e/accent-color.spec.ts",
+      "passed": 1,
+      "failed": 0
+    },
+    "workout": {
+      "file": "e2e/resume-after-kill.spec.ts",
+      "browser": "chromium",
+      "passed": 1,
+      "failed": 0,
+      "durationSeconds": 8.2
+    },
+    "contracts": {
+      "files": 2,
+      "passed": 13,
+      "failed": 0
+    },
+    "yamlParsed": true,
+    "onlyMockAndWebkitStepsChanged": true,
+    "productionAndEmulatorStepsUnchanged": true
+  },
+  "sourcePathsChanged": [
+    ".github/workflows/deploy.yml"
+  ],
+  "applicationSourceChanged": false,
+  "timeoutsOrRetriesChanged": false,
+  "realAccountsUsed": false,
+  "remoteFullSuiteResult": "FAILURE",
+  "remoteFollowup": {
+    "url": "https://github.com/grzegorzee/strength-save/actions/runs/34399987321",
+    "sourceSha": "75401daab404edcf71212234ca68f1e7386496db",
+    "mockPassed": 354,
+    "mockFailed": 2,
+    "details": "ci-status-52.json"
+  }
+}

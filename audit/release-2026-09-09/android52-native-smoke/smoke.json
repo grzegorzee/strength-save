@@ -1,0 +1,45 @@
+{
+  "completedAtUtc": "2026-09-09T20:23:27.673274+00:00",
+  "status": "PASS",
+  "sourceCommit": "75401daab404edcf71212234ca68f1e7386496db",
+  "artifact": {
+    "path": "android/app/build/outputs/apk/release/app-release.apk",
+    "versionCode": 52,
+    "versionName": "1.0.0",
+    "sha256": "fcd8fafceef1ad4fedc302152fa964a0e0ea4d438d98b7ff659d7d860b35de06",
+    "installed_apk_hash_matches": true,
+    "signing": "Existing local upload key; not Play App Signing"
+  },
+  "environment": {
+    "avd": "strength_android51_smoke_20260909",
+    "serial": "emulator-5562",
+    "android": "15",
+    "api": 35,
+    "flavor": "AOSP ARM64, no Play Store",
+    "logicalViewportDp": "360x800"
+  },
+  "checks": {
+    "update_install_adb_r": "PASS",
+    "installed_version_52": "PASS",
+    "cold_start": "PASS",
+    "cold_start_total_time_ms": 1108,
+    "logged_out_ui_visible": "PASS; actual screenshot manually reviewed: Strength Save with Google/Apple/email sign-in choices and legal links",
+    "process_alive_at_end": true,
+    "process_pid": 2027,
+    "crash_buffer_empty": true
+  },
+  "screenshot": {
+    "path": "audit/release-2026-09-09/android52-native-smoke/logged-out-52.png",
+    "sha256": "56cd42f945cddf861f1e81f4c5ad45e2f4187e5d1c4795583edb1bf2a24b46af"
+  },
+  "submittedLogin": false,
+  "createdAccount": false,
+  "workoutWrites": false,
+  "prior51SmokePreserved": true,
+  "limits": [
+    "Bounded update-install and cold-start delta only; full keyboard/background smoke51 was not repeated",
+    "Not a physical Huawei Android10/EMUI11 test",
+    "Not a Play-signed APK, store billing or 16KB-device runtime test"
+  ],
+  "ownedEmulatorStop": "BLOCKED by safety-pretooluse hook before execution; task-owned emulator left running, no bypass attempted; coordinating agent informed"
+}

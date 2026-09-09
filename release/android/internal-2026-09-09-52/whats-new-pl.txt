@@ -1,0 +1,1 @@
+Nowa ikona i ekran startowy Androida. Czytelniejszy plan dnia, pełne nazwy ćwiczeń i superserii oraz poprawiony układ kart na małych ekranach. Timer nie zasłania dolnej nawigacji. Poprawione notatki dnia i etykieta liczby serii. Zaktualizowana konfiguracja logowania Google. Sprawdź przerwanie i wznowienie treningu oraz synchronizację.
