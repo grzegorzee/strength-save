@@ -1618,7 +1618,7 @@ test.describe('Cele tygodnia (Z120)', () => {
     await expect(page.getByText(/Tydzień deload:/).first()).toBeVisible();
   });
 
-  test('Z121: raport target vs actual za zeszły tydzień na Dashboardzie', async ({ page }) => {
+  test('Z121: raport target vs actual za zeszły tydzień w Planie', async ({ page }) => {
     // Start 2 tygodnie temu => bieżący tydzień = 3, raport za tydzień 2.
     // Tydzień 1: 3x8@60 (góra zakresu) => cel tygodnia 2 = 62.5 ×6; tydzień 2: 60×8 => rozjazd.
     await setE2EPlanMeta(page, {
@@ -1630,7 +1630,7 @@ test.describe('Cele tygodnia (Z120)', () => {
       { ...historyWorkout(localDaysAgo(7), 8), id: 'prog-week2' },
     ]);
 
-    await navigateAndWait(page, '/');
+    await navigateAndWait(page, '/plan');
     await expect(page.getByTestId('week-report-card')).toBeVisible();
     await expect(page.getByTestId('week-report-summary')).toContainText('(0/1)');
     await expect(page.getByText(/62.5.*×6/).first()).toBeVisible();
@@ -1893,9 +1893,8 @@ test.describe('Auto-resume (Z49)', () => {
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
-    // WP-C (X38): zamiast karty sync z CTA Dashboard pokazuje pasywną chmurkę
-    // (AutoSync domknie sam); niezmiennik Z49 bez zmian: brak auto-resume.
-    await expect(page.getByTestId('cloud-pending-indicator')).toBeVisible({ timeout: 7000 });
+    // Pending final has a direct retry banner; no automatic return to the workout.
+    await expect(page.getByTestId('dashboard-sync-banner')).toBeVisible({ timeout: 7000 });
     await expect(page.getByText('Trening zakończony lokalnie')).toHaveCount(0);
     await expect(page).toHaveURL(/#\/?$/);
   });

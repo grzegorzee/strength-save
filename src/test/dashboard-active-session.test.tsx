@@ -107,6 +107,7 @@ vi.mock('@/components/ProUpsellBanner', () => ({ ProUpsellBanner: () => null }))
 vi.mock('@/lib/workout-draft-db', () => ({
   workoutDraftDb: {
     loadActiveDraft: vi.fn(async () => draftFixture.draft),
+    listDrafts: vi.fn(async () => draftFixture.draft ? [draftFixture.draft] : []),
     loadDraftForDay: vi.fn(async (_uid: string, dayId: string, date: string) => (
       draftFixture.pageDrafts[`${dayId}:${date}`] ?? null
     )),
@@ -181,39 +182,33 @@ beforeEach(() => {
   draftFixture.queue = [];
 });
 
-// WP-C (X38): zakończenie offline jest ciche. Zamiast banera z CTA "Otwórz Sync
-// Center" Dashboard pokazuje pasywną chmurkę z kropką; karta z CTA zostaje
-// wyłącznie dla wpisów trwałych/konfliktów (stan wymagający decyzji usera).
-describe('WP-C (X38): wskaźnik chmurki zamiast banera sync', () => {
-  it('draft zakończony lokalnie (finalSyncPending) → chmurka, bez centrum synchronizacji i bez "Kontynuuj"', async () => {
+describe('Bezpośrednia synchronizacja po zgłoszeniu z telefonu (2026-09-09)', () => {
+  it('draft zakończony lokalnie ma bezpośrednie ponowienie, bez centrum i kontynuacji', async () => {
     draftFixture.draft = { ...provisionalDraft('day-1'), completedLocally: true, finalSyncPending: true, finalizedAt: Date.now() };
     renderDashboard();
-
-    await waitFor(() => expect(screen.getByTestId('cloud-pending-indicator')).toBeTruthy());
-    expect(screen.getByTestId('cloud-pending-indicator').getAttribute('aria-label')).toBe('Czeka na zapis w chmurze, zapisze się sam');
+    await screen.findByRole('button', { name: 'Synchronizuj teraz' });
     expect(screen.queryByText('Otwórz centrum synchronizacji')).toBeNull();
-    expect(screen.queryByText('Masz trening zakończony lokalnie')).toBeNull();
     expect(screen.queryByText('Kontynuuj trening')).toBeNull();
   });
 
-  it('wpis trwały w kolejce (permission) → karta z centrum synchronizacji zostaje (zasada 6: wyjście)', async () => {
+  it('wpis trwały zachowuje ponowienie oraz dodatkową ścieżkę rozwiązania problemu', async () => {
     draftFixture.queue = [{
       queueId: 'q1', userId: 'u1', sessionId: 'q1', dayId: 'day-1', date: '2026-08-01',
       sessionOrigin: 'remote', dirty: true, finalSyncPending: true, updatedAt: 1, enqueuedAt: 1,
       retryCount: 2, lastError: 'permission-denied', lastErrorAt: 1, permanent: true,
     }];
     renderDashboard();
-
-    await waitFor(() => expect(screen.getByText('Otwórz centrum synchronizacji')).toBeTruthy());
-    expect(screen.queryByTestId('cloud-pending-indicator')).toBeNull();
+    await screen.findByRole('button', { name: 'Synchronizuj teraz' });
+    fireEvent.click(screen.getByRole('button', { name: 'Rozwiąż problem' }));
+    expect(navigateSpy).toHaveBeenLastCalledWith('/profile?section=data');
+    expect(screen.queryByText('Otwórz centrum synchronizacji')).toBeNull();
   });
 
-  it('niezmiennik Z174: żywy draft dnia nadal ma kartę z kontynuacją, nie chmurkę', async () => {
+  it('żywy draft zachowuje kontynuację niezależnie od synchronizacji', async () => {
     draftFixture.draft = provisionalDraft('day-1');
     renderDashboard();
-
-    await waitFor(() => expect(screen.getAllByText('Kontynuuj trening').length).toBeGreaterThan(0));
-    expect(screen.queryByTestId('cloud-pending-indicator')).toBeNull();
+    await screen.findByRole('button', { name: 'Synchronizuj teraz' });
+    await screen.findByRole('button', { name: 'Kontynuuj trening' });
   });
 });
 
@@ -224,45 +219,29 @@ describe('Z174: jedna prawda o aktywnej sesji', () => {
 
     await waitFor(() => expect(screen.getAllByText('Kontynuuj trening').length).toBeGreaterThan(0));
     // Baner informacyjny zostaje (status), ale przycisk jest tylko na karcie dnia.
-    expect(screen.getByText('Masz trening rozpoczęty offline')).toBeTruthy();
+    expect(await screen.findByText('Zapisano na telefonie')).toBeTruthy();
     expect(screen.getAllByText('Kontynuuj trening')).toHaveLength(1);
     // 3 odhaczone robocze + 1 rozgrzewkowa → licznik pokazuje 3 (spójnie z ekranem treningu).
     expect(screen.getByText('Odhaczone serie: 3')).toBeTruthy();
   });
 
-  it('baner rozpoczętego treningu ma natychmiastowy, dostępny przycisk zamknięcia', async () => {
+  it('oczekującego zapisu nie można ukryć; kontynuacja pozostaje dostępna', async () => {
     draftFixture.draft = provisionalDraft('day-1');
     renderDashboard();
-
-    const dismiss = await screen.findByRole('button', { name: 'Ukryj komunikat o synchronizacji' });
-    expect(screen.getByText('Masz trening rozpoczęty offline')).toBeTruthy();
-
-    fireEvent.click(dismiss);
-
-    expect(screen.queryByText('Masz trening rozpoczęty offline')).toBeNull();
+    await screen.findByRole('button', { name: 'Synchronizuj teraz' });
+    expect(screen.queryByRole('button', { name: 'Ukryj komunikat o synchronizacji' })).toBeNull();
     expect(screen.getAllByText('Kontynuuj trening')).toHaveLength(1);
   });
 
-  it('nowy błąd kolejki o tej samej liczbie wpisów wraca po dismissie poprzedniego', async () => {
-    const queued = (queueId: string) => ({
-      queueId, userId: 'u1', sessionId: queueId, dayId: 'day-1', date: '2026-08-01',
-      sessionOrigin: 'remote', dirty: true, finalSyncPending: true, updatedAt: 1, enqueuedAt: 1,
-      retryCount: 2, lastError: 'permission-denied', lastErrorAt: 1, permanent: true,
-    });
-    draftFixture.queue = [queued('q1')];
+  it('stary zapis ukrycia banera nie ukrywa oczekującej synchronizacji', async () => {
+    localStorage.setItem('fittracker_sync_notice_dismissed_v1', 's1:provisional:normal:0:empty');
+    draftFixture.draft = provisionalDraft('day-1');
     renderDashboard();
-
-    const dismiss = await screen.findByRole('button', { name: 'Ukryj komunikat o synchronizacji' });
-    fireEvent.click(dismiss);
-    expect(screen.queryByText('Otwórz centrum synchronizacji')).toBeNull();
-
-    draftFixture.queue = [queued('q2')];
-    window.dispatchEvent(new Event('strength-save-workout-sync-state-changed'));
-
-    await waitFor(() => expect(screen.getByText('Otwórz centrum synchronizacji')).toBeTruthy());
+    await screen.findByRole('button', { name: 'Synchronizuj teraz' });
+    expect(screen.getByTestId('dashboard-sync-banner')).toBeInTheDocument();
   });
 
-  it('draft INNEGO dnia planu → baner zachowuje swój przycisk (karta dnia bez CTA)', async () => {
+  it('draft INNEGO dnia planu → oddzielna kontynuacja pozostaje mimo uproszczenia banera', async () => {
     draftFixture.draft = provisionalDraft('other-day');
     renderDashboard();
 

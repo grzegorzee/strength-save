@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, Dumbbell, Info, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp, Leaf, Flame, Zap, Timer, Repeat } from 'lucide-react';
+import { Info, Play, CheckCircle, ChevronDown, ChevronUp, Leaf, Flame, Zap, Timer, Repeat } from 'lucide-react';
 import { getTrainingRules } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { slugifyExercise } from '@/lib/exercise-media';
@@ -11,11 +10,10 @@ import { getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
 import { buildPreStartWarmup } from '@/lib/prestart-warmup';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useStrava } from '@/hooks/useStrava';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
-import { cn, formatLocalDate } from '@/lib/utils';
+import { formatLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -33,6 +31,7 @@ const DayPlan = () => {
 
   const [showWarmup, setShowWarmup] = useState(false);
   const [showStretching, setShowStretching] = useState(false);
+  const [showTrainingTips, setShowTrainingTips] = useState(false);
 
   const trainingRules = getTrainingRules(lang);
 
@@ -42,8 +41,8 @@ const DayPlan = () => {
   const today = new Date();
   const todaysTraining = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides, planStartDate)?.day ?? null;
   const nextScheduledTraining = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate });
-  const dayName = today.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
   const dateStr = today.toLocaleDateString(dateLocale(lang), {
+    weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
@@ -52,11 +51,6 @@ const DayPlan = () => {
   // Check if today's workout is already completed
   const todaysWorkout = todaysTraining ? getTodaysWorkout(todaysTraining.id) : null;
   const isWorkoutCompleted = todaysWorkout?.completed === true;
-
-  // Determine greeting based on time
-  const hour = today.getHours();
-  const greeting = hour < 12 ? t('dayplan.greetingMorning') : hour < 18 ? t('dayplan.greetingDay') : t('dayplan.greetingEvening');
-  const GreetingIcon = hour < 18 ? Sun : Moon;
 
   // Today's Strava activities (non-strength)
   const todayStr = formatLocalDate(today);
@@ -93,280 +87,251 @@ const DayPlan = () => {
     );
   }
 
-  // Show rest day view if no training today OR if today's workout is completed
+  const dateLabel = (
+    <time dateTime={todayStr} className="block text-sm leading-relaxed text-muted-foreground first-letter:uppercase">
+      {dateStr}
+    </time>
+  );
+
+  // Rest/completed states keep their existing data and navigation, with one heading.
   if (!todaysTraining || isWorkoutCompleted) {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success/15' : 'bg-muted'}`}>
-                {isWorkoutCompleted ? (
-                  <CheckCircle className="h-6 w-6 text-fitness-success" />
-                ) : (
-                  <Calendar className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
-                  <GreetingIcon className="h-5 w-5 text-fitness-warning" />
-                  {greeting}!
-                </h2>
-                <CardDescription className="capitalize">
-                  {dayName}, {dateStr}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center py-8">
-              <div className={`h-20 w-20 rounded-full mx-auto mb-4 flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success/20' : 'bg-muted'}`}>
+      <div className="space-y-5">
+        {dateLabel}
+        <div className="flex items-start gap-3">
+          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${isWorkoutCompleted ? 'bg-fitness-success/10 text-fitness-success' : 'bg-muted text-muted-foreground'}`}>
+            {isWorkoutCompleted ? <CheckCircle className="h-5 w-5" aria-hidden /> : <Leaf className="h-5 w-5" aria-hidden />}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <h2 className="break-words text-xl font-semibold leading-snug">
+              {isWorkoutCompleted
+                ? t('dayplan.workoutDoneTitle')
+                : todayStravaActivities.length > 0
+                  ? t('dayplan.noStrengthTitle')
+                  : t('dayplan.restTitle')}
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {isWorkoutCompleted
+                ? t('dayplan.workoutDoneDesc', { focus: localizeFocus(todaysTraining?.focus ?? '', lang) })
+                : todayStravaActivities.length > 0
+                  ? t('dayplan.noStrengthDesc')
+                  : t('dayplan.restDesc')}
+            </p>
+          </div>
+        </div>
+
+        {todayStravaActivities.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">{t('dayplan.stravaToday')}</h3>
+            {todayStravaActivities.map(activity => (
+              <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
+            ))}
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card className="border-0 bg-muted/30 shadow-none">
+            <CardContent className="space-y-1 p-4">
+              <h3 className="text-sm font-medium">
+                {isWorkoutCompleted ? t('dayplan.workoutStats') : t('dayplan.nextTraining')}
+              </h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {isWorkoutCompleted
-                  ? <Dumbbell className="h-9 w-9 text-fitness-success" />
-                  : <Leaf className="h-9 w-9 text-muted-foreground" />}
-              </div>
-              <h2 className="text-xl font-semibold mb-2">
-                {isWorkoutCompleted
-                  ? t('dayplan.workoutDoneTitle')
-                  : todayStravaActivities.length > 0
-                    ? t('dayplan.noStrengthTitle')
-                    : t('dayplan.restTitle')
-                }
-              </h2>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                {isWorkoutCompleted
-                  ? t('dayplan.workoutDoneDesc', { focus: localizeFocus(todaysTraining?.focus ?? '', lang) })
-                  : todayStravaActivities.length > 0
-                    ? t('dayplan.noStrengthDesc')
-                    : t('dayplan.restDesc')
-                }
+                  ? t('dayplan.exercisesDone', { n: todaysWorkout?.exercises.length || 0 })
+                  : nextScheduledTraining
+                    ? t('dayplan.nextTrainingDetail', { day: displayDayNameForDate(nextScheduledTraining.day.dayName, nextScheduledTraining.day.weekday, nextScheduledTraining.date, lang), focus: localizeFocus(nextScheduledTraining.day.focus, lang) })
+                    : t('dayplan.checkWeeklyPlan')}
               </p>
-            </div>
+            </CardContent>
+          </Card>
+          <Card className="border-0 bg-muted/30 shadow-none">
+            <CardContent className="space-y-1 p-4">
+              <h3 className="text-sm font-medium">{t('dayplan.tipOfDay')}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {isWorkoutCompleted ? t('dayplan.tipProtein') : t('dayplan.tipHydration')}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Today's Strava activities — shown before tips */}
-            {todayStravaActivities.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h3>
-                {todayStravaActivities.map(activity => (
-                  <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
-                ))}
-              </div>
-            )}
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Card className="bg-muted/30">
-                <CardContent className="p-4">
-                  <h3 className="font-medium text-sm mb-1">
-                    {isWorkoutCompleted ? t('dayplan.workoutStats') : t('dayplan.nextTraining')}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {isWorkoutCompleted
-                      ? t('dayplan.exercisesDone', { n: todaysWorkout?.exercises.length || 0 })
-                    : nextScheduledTraining
-                      ? t('dayplan.nextTrainingDetail', { day: displayDayNameForDate(nextScheduledTraining.day.dayName, nextScheduledTraining.day.weekday, nextScheduledTraining.date, lang), focus: localizeFocus(nextScheduledTraining.day.focus, lang) })
-                      : t('dayplan.checkWeeklyPlan')
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-muted/30">
-                <CardContent className="p-4">
-                  <h3 className="font-medium text-sm mb-1">{t('dayplan.tipOfDay')}</h3>
-                  <p className="text-muted-foreground text-sm">
-                    {isWorkoutCompleted
-                      ? t('dayplan.tipProtein')
-                      : t('dayplan.tipHydration')
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {isWorkoutCompleted && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => navigate(`/workout/${todaysTraining?.id}?date=${formatLocalDate(today)}`)}
-              >
-                {t('dayplan.viewWorkoutDetails')}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        {isWorkoutCompleted && (
+          <Button
+            variant="outline"
+            className="h-auto min-h-11 w-full whitespace-normal py-3"
+            onClick={() => navigate(`/workout/${todaysTraining?.id}?date=${todayStr}`)}
+          >
+            {t('dayplan.viewWorkoutDetails')}
+          </Button>
+        )}
       </div>
     );
   }
 
+  const focus = localizeFocus(todaysTraining.focus, lang);
+  const scheduledName = displayDayNameForDate(todaysTraining.dayName, todaysTraining.weekday, today, lang);
+  const weekdayName = today.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
+  const customDayName = scheduledName.toLocaleLowerCase() !== weekdayName.toLocaleLowerCase() && scheduledName !== focus
+    ? scheduledName
+    : null;
+
   return (
-    <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground">
-                <Dumbbell className="h-7 w-7" />
-              </div>
-              <div>
-                <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
-                  <GreetingIcon className="h-5 w-5 text-fitness-warning" />
-                  {greeting}! {t('dayplan.todayTraining')}
-                </h2>
-                <CardDescription className="capitalize">
-                  {dayName}, {dateStr}
-                </CardDescription>
-              </div>
-            </div>
-            <Badge className="bg-primary text-primary-foreground px-3 py-1">
-              {/* WP-L (X30): domyslna nazwa weekday podaza za dzisiejsza date. */}
-              {displayDayNameForDate(todaysTraining.dayName, todaysTraining.weekday, today, lang)}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4">
-            <h2 className="font-semibold text-lg mb-1">{localizeFocus(todaysTraining.focus, lang)}</h2>
-            <p className="text-muted-foreground text-sm">
-              {t('dayplan.exercisesInToday', { n: todaysTraining.exercises.length })}
-            </p>
-          </div>
+    <div className="space-y-5">
+      <header className="space-y-2">
+        {dateLabel}
+        <h2 className="break-words text-xl font-semibold leading-snug">{customDayName ? `${customDayName} · ${focus}` : focus}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t('dayplan.exercisesInToday', { n: todaysTraining.exercises.length })}
+        </p>
+      </header>
 
-          {/* Warmup section (collapsible) */}
-          <button
-            onClick={() => setShowWarmup(prev => !prev)}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-orange-500/5 border border-orange-500/20 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-fitness-warning" aria-hidden />
-              <span className="font-medium text-sm">{t('dayplan.warmup')}</span>
-            </div>
-            {showWarmup ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-          </button>
-          {showWarmup && (
-            <div className="space-y-2 pl-4" data-testid="dayplan-warmup-v3">
-              {warmupPlan?.items.map((item) => {
-                const amount = typeof item.durationSec === 'number'
-                  ? t('warmup.v3.seconds', { n: item.durationSec })
-                  : item.perSide
-                    ? t('warmup.v3.repsPerSide', { n: item.reps ?? 0 })
-                    : t('warmup.v3.reps', { n: item.reps ?? 0 });
-                return (
-                  <div key={item.key} className="rounded-lg bg-muted/30 px-3 py-2.5 text-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="font-medium">{t(item.key)}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{amount}</span>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {t(item.instructionKey)}
+      <Button
+        className="h-auto min-h-11 w-full whitespace-normal py-3 text-base"
+        onClick={() => navigate(`/workout/${todaysTraining.id}?date=${todayStr}&autostart=true`)}
+      >
+        <Play aria-hidden />
+        {t('dayplan.startWorkout')}
+      </Button>
+
+      <section aria-labelledby="dayplan-exercises-heading" className="space-y-2">
+        <h3 id="dayplan-exercises-heading" className="text-sm font-medium text-muted-foreground">
+          {t('dayplan.todaysExercises')}
+        </h3>
+        <ol role="list" aria-labelledby="dayplan-exercises-heading" className="space-y-2">
+          {todaysTraining.exercises.map((exercise, index) => {
+            // Group identity is independent of generated exercise IDs. Keep the
+            // pair's first ordinal (5A/5B); ungrouped flags retain normal ordering.
+            const group = exercise.isSuperset && exercise.supersetGroup
+              ? todaysTraining.exercises.filter(item => item.isSuperset && item.supersetGroup === exercise.supersetGroup)
+              : [];
+            const ordinal = group.length > 1
+              ? `${todaysTraining.exercises.indexOf(group[0]) + 1}${String.fromCharCode(65 + group.indexOf(exercise))}`
+              : String(index + 1);
+            const slug = slugifyExercise(exercise.name);
+            const hasDetail = slug && exerciseLibrary.some(item => slugifyExercise(item.name) === slug);
+            return (
+              <li key={exercise.id} className="rounded-xl bg-card p-3">
+                <div className={hasDetail ? 'grid grid-cols-[minmax(0,1fr)_44px] items-start gap-2' : 'min-w-0'}>
+                  <div className="min-w-0">
+                    <p className="text-base font-medium leading-snug [overflow-wrap:anywhere]">
+                      <span className="mr-2 inline-block text-sm font-semibold tabular-nums text-primary">{ordinal}</span>
+                      {localizeExerciseName(exercise.name, lang)}
                     </p>
+                    <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm leading-relaxed text-muted-foreground">
+                      <p className="min-w-0 max-w-full [overflow-wrap:anywhere]">{exercise.sets}</p>
+                      {exercise.isSuperset && (
+                        <p className="min-w-0 max-w-full [overflow-wrap:anywhere]">{t('dayplan.superset')}</p>
+                      )}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Training Rules */}
-          <Alert>
-            <AlertDescription className="space-y-1 text-sm">
-              <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />{trainingRules.weight}</p>
-              <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />{trainingRules.restMain}</p>
-              <p className="flex items-center gap-2"><Repeat className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />{trainingRules.supersets}</p>
-            </AlertDescription>
-          </Alert>
-
-          {/* Exercise List Preview */}
-          <div className="space-y-2">
-            <h3 className="font-medium text-sm text-muted-foreground">{t('dayplan.todaysExercises')}</h3>
-            <div className="space-y-2">
-              {todaysTraining.exercises.map((exercise, index) => (
-                <div
-                  key={exercise.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/30"
-                >
-                  <Badge
-                    variant="secondary"
-                    className="h-8 w-8 rounded-md flex items-center justify-center font-bold shrink-0"
-                  >
-                    {exercise.isSuperset
-                      ? `${index + 1}${exercise.id.endsWith('a') ? 'a' : 'b'}`
-                      : index + 1
-                    }
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{localizeExerciseName(exercise.name, lang)}</p>
-                    <p className="text-xs text-muted-foreground">{exercise.sets}</p>
-                  </div>
-                  {exercise.isSuperset && (
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {t('dayplan.superset')}
-                    </Badge>
+                  {hasDetail && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/exercise/${slug}`)}
+                      aria-label={t('card.details')}
+                      className="grid h-[44px] w-[44px] place-items-center rounded-lg text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Info className="h-5 w-5" aria-hidden />
+                    </button>
                   )}
-                  {(() => {
-                    // Link do instrukcji tylko dla ćwiczeń z biblioteki (slug-match).
-                    const slug = slugifyExercise(exercise.name);
-                    const hasDetail = slug && exerciseLibrary.some((e) => slugifyExercise(e.name) === slug);
-                    return hasDetail ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/exercise/${slug}`)}
-                        aria-label={t('card.details')}
-                        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <Info className="h-4 w-4" />
-                      </button>
-                    ) : null;
-                  })()}
                 </div>
-              ))}
-            </div>
-          </div>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
 
-          {/* Stretching section (collapsible) */}
-          <button
-            onClick={() => setShowStretching(prev => !prev)}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Leaf className="h-4 w-4 text-primary" aria-hidden />
-              <span className="font-medium text-sm">{t('dayplan.stretching')}</span>
-            </div>
-            {showStretching ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-          </button>
-          {showStretching && (
-            <div className="space-y-1 pl-4">
-              {stretchingExercises.map((ex, i) => {
-                const s = localizeWarmup(ex, lang);
-                return (
-                  <div key={i} className="flex items-center justify-between py-1.5 text-sm">
-                    <span>{s.name}</span>
-                    <span className="text-muted-foreground text-xs">{s.duration}</span>
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowWarmup(prev => !prev)}
+          aria-expanded={showWarmup}
+          aria-controls="dayplan-warmup-content"
+          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-muted/30 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+            <Flame className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            {t('dayplan.warmup')}
+          </span>
+          {showWarmup ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
+        </button>
+        {showWarmup && (
+          <div id="dayplan-warmup-content" className="space-y-2" data-testid="dayplan-warmup-v3">
+            {warmupPlan?.items.map(item => {
+              const amount = typeof item.durationSec === 'number'
+                ? t('warmup.v3.seconds', { n: item.durationSec })
+                : item.perSide
+                  ? t('warmup.v3.repsPerSide', { n: item.reps ?? 0 })
+                  : t('warmup.v3.reps', { n: item.reps ?? 0 });
+              return (
+                <div key={item.key} className="rounded-xl bg-card p-3 text-sm">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{t(item.key)}</p>
+                    <p className="text-muted-foreground">{amount}</p>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <p className="mt-1 leading-relaxed text-muted-foreground">{t(item.instructionKey)}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-          {/* Today's Strava activities */}
-          {todayStravaActivities.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h3>
-              {todayStravaActivities.map(activity => (
-                <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
-              ))}
-            </div>
-          )}
+        <button
+          type="button"
+          onClick={() => setShowStretching(prev => !prev)}
+          aria-expanded={showStretching}
+          aria-controls="dayplan-stretching-content"
+          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-muted/30 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+            <Leaf className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            {t('dayplan.stretching')}
+          </span>
+          {showStretching ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
+        </button>
+        {showStretching && (
+          <div id="dayplan-stretching-content" className="space-y-2 rounded-xl bg-card p-3">
+            {stretchingExercises.map((exercise, index) => {
+              const stretching = localizeWarmup(exercise, lang);
+              return (
+                <div key={index} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{stretching.name}</span>
+                  <span className="text-muted-foreground">{stretching.duration}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-          {/* Start Workout Button */}
-          <Button
-            size="lg"
-            className="w-full py-6 text-lg"
-            onClick={() => navigate(`/workout/${todaysTraining.id}?date=${formatLocalDate(today)}&autostart=true`)}
-          >
-            <Play className="h-5 w-5 mr-2" />
-            {t('dayplan.startWorkout')}
-          </Button>
-        </CardContent>
-      </Card>
+        <button
+          type="button"
+          onClick={() => setShowTrainingTips(prev => !prev)}
+          aria-expanded={showTrainingTips}
+          aria-controls="dayplan-training-tips"
+          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-muted/30 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+            <Info className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            {t('dayplan.trainingTips')}
+          </span>
+          {showTrainingTips ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
+        </button>
+        {showTrainingTips && (
+          <div id="dayplan-training-tips" className="space-y-3 rounded-xl bg-card p-3 text-sm leading-relaxed text-muted-foreground">
+            <p className="flex items-start gap-2"><Zap className="mt-1 h-4 w-4 shrink-0" aria-hidden />{trainingRules.weight}</p>
+            <p className="flex items-start gap-2"><Timer className="mt-1 h-4 w-4 shrink-0" aria-hidden />{trainingRules.restMain}</p>
+            <p className="flex items-start gap-2"><Repeat className="mt-1 h-4 w-4 shrink-0" aria-hidden />{trainingRules.supersets}</p>
+          </div>
+        )}
+      </div>
+
+      {todayStravaActivities.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground">{t('dayplan.stravaToday')}</h3>
+          {todayStravaActivities.map(activity => (
+            <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

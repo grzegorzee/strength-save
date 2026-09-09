@@ -38,7 +38,7 @@ export const Layout = () => {
   // treningowej (/workout/*) NIE: ten sam slot 6rem zajmują RestBar i CTA startu,
   // a ekran ma własny przycisk wstecz w nagłówku sesji. /exercise/* dostaje pasek,
   // bo bez AppHeader po przewinięciu nie ma tam żadnego powrotu.
-  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/');
+  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/') && location.pathname !== '/day';
 
   const handleBack = () => {
     // React Router v6 trzyma indeks historii w window.history.state.idx.
@@ -86,7 +86,9 @@ export const Layout = () => {
 
           {/* Rezerwa dolna: 7.5rem nad navem; z paskiem Wstecz (top ≈ 6rem + 3.25rem)
               10.75rem, żeby ostatnie CTA strony nie chowało się pod paskiem. */}
-          <main className={showBackBar
+          <main className={location.pathname === '/'
+            ? 'flex-1 px-4 pt-3 pb-[calc(var(--mobile-nav-clearance,7.5rem)+0.75rem)] desktop-shell:p-6 overflow-x-clip desktop-shell:overflow-y-auto'
+            : showBackBar
             ? 'flex-1 p-5 pb-[calc(10.75rem+env(safe-area-inset-bottom))] desktop-shell:p-6 desktop-shell:pb-6 overflow-x-hidden desktop-shell:overflow-y-auto'
             : 'flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] desktop-shell:p-6 overflow-x-hidden desktop-shell:overflow-y-auto'}
           >

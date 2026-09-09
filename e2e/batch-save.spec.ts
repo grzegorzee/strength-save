@@ -316,16 +316,13 @@ test.describe('Batch Save Workflow', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    // WP-C (X38): zwykłe "czeka na sieć" = pasywna chmurka z kropką, bez CTA
-    // (AutoSync domknie sam); karta "Otwórz Sync Center" tylko dla wpisów trwałych.
-    const indicator = page.getByTestId('cloud-pending-indicator');
-    await expect(indicator).toBeVisible();
-    await expect(indicator).toHaveAttribute('aria-label', 'Czeka na zapis w chmurze, zapisze się sam');
-    await expect(page.getByText('Masz trening rozpoczęty offline')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Otwórz centrum synchronizacji' })).toHaveCount(0);
+    // Owner feedback: pending writes keep a direct retry until acknowledged.
+    await expect(page.getByTestId('dashboard-sync-banner')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Synchronizuj teraz', exact: true })).toBeVisible();
+    await expect(page.getByText('Otwórz centrum synchronizacji')).toHaveCount(0);
   });
 
-  test('permanent sync error keeps the Sync Center card with an exit on the dashboard', async ({ page }) => {
+  test('permanent sync error keeps direct retry and explicit recovery on the dashboard', async ({ page }) => {
     await navigateAndWait(page, '/');
 
     await writeWorkoutDraftDb(page, {
@@ -369,16 +366,16 @@ test.describe('Batch Save Workflow', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.getByRole('button', { name: 'Otwórz centrum synchronizacji' })).toBeVisible();
-    await expect(page.getByTestId('cloud-pending-indicator')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Rozwiąż problem' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Synchronizuj teraz', exact: true })).toBeVisible();
   });
 
   // WP-C (X38): sekwencja właściciela z 2026-08-26. Zakończenie offline jest
   // CICHE (celebracja jak zwykle, bez toastu "zapisano lokalnie"), Dashboard ma
-  // chmurkę, a po powrocie sieci AutoSync domyka trening SAM (promocja
-  // provisional + final przez mock chmury e2e), chmurka znika, jest toast
+  // kompaktowy baner, a po powrocie sieci AutoSync domyka trening SAM (promocja
+  // provisional + final przez mock chmury e2e), baner znika, jest toast
   // "Trening zapisany w chmurze".
-  test('offline finish is silent, cloud indicator shows, reconnect syncs by itself', async ({ page }) => {
+  test('offline finish is silent, retry banner shows, reconnect syncs by itself', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('fittracker_e2e_cloud_writes', 'true'));
     const today = localToday();
     // Rozgrzanie lazy chunków (Dashboard + WorkoutDay) ONLINE: offline nie da
@@ -412,12 +409,12 @@ test.describe('Batch Save Workflow', () => {
     await expect(page.getByText('Trening zapisano lokalnie')).toHaveCount(0);
 
     await page.evaluate(() => { window.location.hash = '#/'; });
-    await expect(page.getByTestId('cloud-pending-indicator')).toBeVisible();
+    await expect(page.getByTestId('dashboard-sync-banner')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Otwórz centrum synchronizacji' })).toHaveCount(0);
 
     // Sieć wraca: bez klikania trening ląduje w chmurze (mock), draft znika.
     await page.context().setOffline(false);
-    await expect(page.getByTestId('cloud-pending-indicator')).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.getByTestId('dashboard-sync-banner')).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByText('Trening zapisany w chmurze').first()).toBeVisible();
     const cloud = await page.evaluate(() => JSON.parse(localStorage.getItem('fittracker_e2e_workouts') ?? '[]') as Array<{ id: string; dayId: string; completed: boolean; exercises: unknown[] }>);
     const synced = cloud.find((w) => w.dayId === 'day-1' && w.completed);

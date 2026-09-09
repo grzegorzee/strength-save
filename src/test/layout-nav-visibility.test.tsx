@@ -33,6 +33,7 @@ const renderAt = (path: string) =>
         <Route element={<Layout />}>
           <Route path="/" element={<div>dashboard</div>} />
           <Route path="/plan" element={<div>plan</div>} />
+          <Route path="/day" element={<div>day</div>} />
           <Route path="/history" element={<div>history</div>} />
           <Route path="/achievements" element={<div>progress</div>} />
           <Route path="/exercises" element={<div>exercises</div>} />
@@ -70,6 +71,12 @@ describe('Layout: widoczność bottom nav i headera (WP-D)', () => {
   it.each(MAIN_DESTINATIONS.map((item) => item.path))('%s: główna destynacja ma root header bez strzałki', (path) => {
     const { getByTestId } = renderAt(path);
     expect(getByTestId('app-header').getAttribute('data-has-back')).toBe('false');
+  });
+
+  it('Plan dnia ma jeden powrót w sticky headerze, bez zasłaniającego listę BackBar', () => {
+    const view = renderAt('/day');
+    expect(view.getByTestId('app-header')).toHaveAttribute('data-has-back', 'true');
+    expect(view.queryByTestId('back-bar')).toBeNull();
   });
 
   it('pełny ekran (/new-plan): bez nav i bez headera', () => {

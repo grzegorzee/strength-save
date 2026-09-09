@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Flame, Sun, Moon, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, Zap, HeartPulse, Leaf } from 'lucide-react';
+import { Flame, Sun, Moon, CheckCircle, Play, X, RefreshCw, Loader2, Zap, HeartPulse, Leaf } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -16,7 +15,6 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
 import { WeekCard } from '@/components/WeekCard';
-import { WeekCardioCard } from '@/components/WeekCardioCard';
 import { LapseTray } from '@/components/LapseTray';
 import { LapseStatusCard } from '@/components/LapseStatusCard';
 import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
@@ -28,8 +26,7 @@ import { DashboardStatusSlot, type StatusEntry } from '@/components/DashboardSta
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
 import { recoveryTipKeys } from '@/lib/recovery-tips';
-import { WeekReportCard } from '@/components/WeekReportCard';
-import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
+import { type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -43,8 +40,7 @@ import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDra
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
-import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
-import { CloudPendingIndicator } from '@/components/CloudPendingIndicator';
+import { DashboardSyncBanner } from '@/components/DashboardSyncBanner';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
@@ -135,22 +131,13 @@ const Dashboard = () => {
   // Z112: strumień zunifikowany (Strava + ręczne cardio); karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
-  // przy mouncie — wszystkie pochodne (thisWeek, todayTraining, draftResume,
+  // przy mouncie — wszystkie pochodne (thisWeek, todayTraining, localDraft,
   // kafle) przeliczają się same przez zależność od `today`.
   const today = useToday();
   // Z214: karty Dashboardu liczą wyłącznie bieżący tydzień planu, więc listener
   // aktywności dostaje okno od poniedziałku zamiast pełnych 500 rekordów.
   const activityWindowStart = formatLocalDate(getStartOfPlanWeek(today));
-  // T5: koniec bieżącego tygodnia (Mon-Sun) dla karty cardio tygodnia.
-  const activityWindowEnd = useMemo(() => {
-    const end = parseLocalDate(activityWindowStart);
-    end.setDate(end.getDate() + 6);
-    return formatLocalDate(end);
-  }, [activityWindowStart]);
   const {
-    activities: unifiedActivities,
-    stravaActivities,
-    connection: stravaConnection,
     addActivity,
     updateActivity,
     deleteActivity,
@@ -180,13 +167,8 @@ const Dashboard = () => {
   };
 
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
+  // A pending write still blocks archiving/replacing the current cycle.
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  // WP-C (X38): kolejka ma wpis trwały (permission/not-found) albo konflikt.
-  const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
-  // Dismiss dotyczy dokładnego zestawu wpisów, nie samej ich liczby. Inaczej
-  // nowy permanent error przy count=1 mógł zostać ukryty przez dismiss starego.
-  const [syncQueueSignature, setSyncQueueSignature] = useState('empty');
-
   // Pełny agregat jest nadal potrzebny do obliczenia streaka poza oknem
   // ostatnio załadowanych treningów.
   const aggregate = useWorkoutAggregate(uid);
@@ -335,14 +317,7 @@ const Dashboard = () => {
     try { localStorage.setItem(COMPLETED_DISMISS_KEY, key); } catch { /* nieistotne */ }
   };
 
-  // Dismiss dotyczy konkretnego komunikatu, a nie danych ani kolejki. Zmiana
-  // sesji/stanu/pending count tworzy nową sygnaturę i ważny status wraca.
-  const SYNC_NOTICE_DISMISS_KEY = 'fittracker_sync_notice_dismissed_v1';
-  const [dismissedSyncNotice, setDismissedSyncNotice] = useState<string | null>(() => {
-    try { return localStorage.getItem(SYNC_NOTICE_DISMISS_KEY); } catch { return null; }
-  });
-
-  // Z49: żywy draft = trening w toku. Decyzja wspólna z auto-resume (workout-resume.ts).
+  // A draft from another day still needs a return path after the sync banner is simplified.
   const draftResume = useMemo(
     () => shouldResumeWorkoutDraft(localDraft, formatLocalDate(today), Date.now()),
     [localDraft, today],
@@ -478,13 +453,13 @@ const Dashboard = () => {
     const planDayName = displayDayNameForDate(entry.day.dayName, entry.day.weekday, entry.date, lang);
     const showPlanDayName = planDayName.toLocaleLowerCase(dateLocale(lang)) !== weekdayLabel.toLocaleLowerCase(dateLocale(lang));
     return (
-    <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5" data-testid="next-session-hero">
+    <div className="flex flex-col gap-2 rounded-xl bg-surface-container p-4" data-testid="next-session-hero">
       <span className="eyebrow-mono text-primary">
         {t('dash.hero.next')}
         {showPlanDayName && ` · ${planDayName}`}
         {showDate && ` · ${formatLocalDateLabel(entry.dateKey, dateLocale(lang), { day: 'numeric', month: 'short' })}`}
       </span>
-      <h2 className="min-w-0 font-heading text-[27px] font-bold capitalize leading-none tracking-tight">
+      <h2 className="min-w-0 font-heading text-[22px] font-bold capitalize leading-tight tracking-tight">
         {weekdayLabel}
       </h2>
       <p className="text-sm text-muted-foreground">
@@ -494,7 +469,7 @@ const Dashboard = () => {
       <Button
         data-testid="dashboard-primary-action"
         size="lg"
-        className="kinetic-primary-button mt-0.5 h-14 w-full gap-1.5 text-base hover:brightness-105"
+        className="kinetic-primary-button mt-0.5 h-12 w-full gap-1.5 text-sm hover:brightness-105"
         onClick={() => navigate(`/workout/${entry.day.id}?date=${entry.dateKey}`)}
       >
         <Play className="h-4 w-4" />
@@ -667,8 +642,7 @@ const Dashboard = () => {
     };
   }, [uid, todayTraining]);
 
-  // Z174: JEDNA prawda o aktywnej sesji. Gdy karta dnia pokazuje CTA kontynuacji,
-  // baner sync degraduje się do wiersza informacyjnego (bez drugiego przycisku).
+  // Karta dnia zachowuje jedyne CTA kontynuacji; synchronizacja ma własny stan.
   // Licznik serii wspólny z ekranem treningu (bez rozgrzewki).
   const todayContinueDraft = useMemo(() => {
     if (todayTraining.type !== 'training') return null;
@@ -702,20 +676,15 @@ const Dashboard = () => {
     healthFeaturesEnabled: healthConsent,
   });
 
-  // Calculate trends (last 4 weeks vs previous 4 weeks)
-
-  // Weekly Strava km counter (Mon-Sun) — logika w activity-window (Z214, test fixture >500).
-
   // Greeting
   const hour = new Date().getHours();
   const greetingText = hour < 12 ? t('dash.greeting.morning') : hour < 18 ? t('dash.greeting.day') : t('dash.greeting.evening');
   const GreetingIcon = hour < 18 ? Sun : Moon;
   // A4 (X70): księżyc w powitaniu = dekoracja w kolorze wspierającym B
   // (fallback tokenu = primary, bez palety wygląda jak dotąd); słońce zostaje primary.
-  const greetingIconClass = hour < 18 ? 'h-6 w-6 text-primary' : 'h-6 w-6 text-support-b';
+  const greetingIconClass = hour < 18 ? 'h-4 w-4 shrink-0 text-primary' : 'h-4 w-4 shrink-0 text-support-b';
   const displayName = profile?.displayName?.split(' ')[0] || t('dash.defaultName');
-  const formattedDate = new Date().toLocaleDateString(dateLocale(lang), {
-    weekday: 'long',
+  const formattedDate = today.toLocaleDateString(dateLocale(lang), {
     day: 'numeric',
     month: 'long',
   });
@@ -728,13 +697,8 @@ const Dashboard = () => {
       const draft = await workoutDraftDb.loadActiveDraft(uid);
       if (!cancelled) {
         setLocalDraft(draft);
-        const queueEntries = workoutSyncQueue.list(uid);
-        setPendingSyncCount(queueEntries.length);
-        setSyncNeedsAttention(queueEntries.some((entry) => entry.permanent || isRevisionConflictError(entry.lastError)));
-        setSyncQueueSignature(queueEntries
-          .map((entry) => [entry.queueId, entry.sessionId, entry.lastError ?? '', entry.permanent ? '1' : '0'].join(','))
-          .sort()
-          .join('|') || 'empty');
+        setPendingSyncCount(workoutSyncQueue.list(uid).length);
+
       }
     };
 
@@ -838,83 +802,6 @@ const Dashboard = () => {
   // PRO-E T2: banery stanu w jednym slocie priorytetowym. Warunki i JSX 1:1
   // z dotychczasowych bloków — zmienia się wyłącznie miejsce renderu.
   const statusEntries: StatusEntry[] = [];
-  const hasPendingCloudWork = (localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0;
-  const syncNoticeSignature = [
-    localDraft?.sessionId ?? 'queue',
-    localDraft?.finalSyncPending ? 'final' : localDraft?.sessionOrigin ?? 'remote',
-    syncNeedsAttention ? 'attention' : 'normal',
-    pendingSyncCount,
-    syncQueueSignature,
-  ].join(':');
-  const dismissSyncNotice = () => {
-    setDismissedSyncNotice(syncNoticeSignature);
-    try { localStorage.setItem(SYNC_NOTICE_DISMISS_KEY, syncNoticeSignature); } catch { /* widok nadal znika */ }
-  };
-  // WP-C (X38): zwykłe "czeka na sieć" = pasywna chmurka z kropką, zero CTA
-  // (AutoSync domknie sam). Karta z "Otwórz Sync Center"/"Kontynuuj" zostaje
-  // TYLKO gdy user ma coś do zrobienia: wpis trwały/konflikt albo żywy draft
-  // do wznowienia.
-  if (hasPendingCloudWork && !syncNeedsAttention && !draftResume.resume) {
-    statusEntries.push({
-      id: 'cloud-pending', priority: 100, node: (
-        <div className="flex justify-end px-1">
-          <CloudPendingIndicator />
-        </div>
-      ),
-    });
-  } else if (hasPendingCloudWork && dismissedSyncNotice !== syncNoticeSignature) {
-    statusEntries.push({
-      id: 'offline-sync', priority: 100, node: (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <CloudOff className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-              <div>
-                <p className="font-semibold text-foreground">
-                  {localDraft?.finalSyncPending
-                    ? t('dash.sync.finishedLocally')
-                    : localDraft?.sessionOrigin === 'provisional'
-                      ? t('dash.sync.startedOffline')
-                      : pendingSyncCount > 0
-                        ? t('dash.sync.queued', { n: pendingSyncCount })
-                        : t('dash.sync.localChanges')}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {localDraft?.finalSyncPending
-                    ? t('dash.sync.finishedLocally.desc')
-                    : localDraft?.sessionOrigin === 'provisional'
-                      ? t('dash.sync.startedOffline.desc')
-                      : pendingSyncCount > 0
-                        ? t('dash.sync.queued.desc')
-                        : t('dash.sync.localChanges.desc')}
-                </p>
-              </div>
-            </div>
-            {/* Z174: gdy karta dnia ma CTA kontynuacji, baner nie dubluje przycisku
-                (zostaje sam status); wariant "Otwórz Sync Center" zawsze zostaje. */}
-            <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
-              {todayContinueDraft && draftResume.resume ? null : (
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(draftResume.resume ? draftResume.target : '/profile?section=data')}
-                >
-                  {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
-                </Button>
-              )}
-              <button
-                type="button"
-                aria-label={t('dash.sync.dismiss')}
-                onClick={dismissSyncNotice}
-                className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      ),
-    });
-  }
   if (lapse) {
     statusEntries.push({
       id: 'lapse', priority: 90, node: (
@@ -990,7 +877,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3" data-testid="today-screen">
       {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
       {postPlanGuideMode && planIsLoaded && (
         <PostPlanGuide
@@ -1033,12 +920,12 @@ const Dashboard = () => {
           tokens.md ryzyko 4 — silnik syntezował faux oblique); "!" w spanie
           imienia, bo gap-2 flexa robił szczelinę przed wykrzyknikiem. */}
       <div data-testid="dash-greeting">
-        <h1 className="text-2xl font-heading font-bold uppercase flex items-center gap-2 tracking-tight">
+        <h1 className="text-lg font-heading font-bold flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tracking-tight">
           <GreetingIcon className={greetingIconClass} />
           {greetingText}, <span className="text-primary">{displayName}!</span>
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
+          <p className="text-muted-foreground text-xs capitalize">{formattedDate}</p>
           {streak > 0 && (
             <span
               data-testid="dash-streak-chip"
@@ -1085,7 +972,7 @@ const Dashboard = () => {
         return (
         // A4 (X70): hero-support-glow = poświata w kolorze wspierającym B,
         // aktywna wyłącznie przy palecie (index.css, :root[data-palette]).
-        <div className="hero-support-glow flex flex-col gap-3 rounded-xl bg-surface-container p-5">
+        <div className="hero-support-glow flex flex-col gap-2 rounded-xl bg-surface-container p-4">
           <span className="eyebrow-mono text-primary">
             {t('dash.hero.today')}
             {showTodayPlanDayName && ` · ${todayPlanDayName}`}
@@ -1094,7 +981,7 @@ const Dashboard = () => {
               h2 = weekday (krotki, jedna linia), focus zyje w podtytule razem
               z liczba cwiczen. Focus jako tytul zawijal sie na 2 linie i
               rozciagal karte. */}
-          <h2 className="min-w-0 font-heading text-[27px] font-bold capitalize leading-none tracking-tight">
+          <h2 className="min-w-0 font-heading text-[22px] font-bold capitalize leading-tight tracking-tight">
             {todayWeekdayLabel}
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -1107,7 +994,7 @@ const Dashboard = () => {
           <Button
             data-testid="dashboard-primary-action"
             size="lg"
-            className="kinetic-primary-button mt-0.5 h-14 w-full gap-1.5 text-base hover:brightness-105"
+            className="kinetic-primary-button mt-0.5 h-12 w-full gap-1.5 text-sm hover:brightness-105"
             onClick={() => navigate(continueDraft
               ? continueDraft.target
               : `/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}
@@ -1200,7 +1087,7 @@ const Dashboard = () => {
       {todayTraining.type === 'rest' && (
         <>
         {todayTraining.next && renderNextSessionHero(todayTraining.next)}
-        <div className="rounded-xl bg-surface-low p-5" data-testid="recovery-card">
+        <div className="rounded-xl bg-surface-low px-4 py-3" data-testid="recovery-card">
           <p className="flex items-center gap-1.5 font-heading text-base font-bold tracking-tight">
             {t('dash.recovery.title')}
             <Leaf className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -1217,6 +1104,13 @@ const Dashboard = () => {
       </div>
 
       {/* PRO-E T2/T3: slot stanu za kartą dnia */}
+      {draftResume.resume && !todayContinueDraft && (
+        <Button variant="secondary" className="min-h-11 w-full justify-between text-sm" onClick={() => navigate(draftResume.target)}>
+          {t('dash.today.continue')}
+          <Play className="h-4 w-4 shrink-0" aria-hidden />
+        </Button>
+      )}
+      <DashboardSyncBanner uid={uid} onOpenSyncCenter={() => navigate('/profile?section=data')} />
       <DashboardStatusSlot entries={statusEntries} />
 
       {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż.
@@ -1226,23 +1120,8 @@ const Dashboard = () => {
         <WeekCard
           model={weekCardModel}
           isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
-          todayDoneDayName={todayTraining.type === 'completed'
-            ? displayDayNameForDate(todayTraining.day.dayName, todayTraining.day.weekday, today, lang)
-            : undefined}
         />
       )}
-
-      {/* T5: cardio bieżącego tygodnia (Strava + manual) POZA warunkiem
-          planStarted — biegi widać także zanim cykl wystartuje. */}
-      <WeekCardioCard
-        activities={unifiedActivities}
-        stravaConnected={stravaConnection.connected}
-        weekStartStr={activityWindowStart}
-        weekEndStr={activityWindowEnd}
-        maxHR={stravaConnection.estimatedMaxHR}
-        onEditManual={(activity) => setCardioDialog({ open: true, edit: activity })}
-      />
-
 
       {/* Operacyjne wyjątki zostają bezpośrednio na Dzisiaj. Dane i analityka
           mają jeden dom w głównej zakładce Postępy, więc nie dublujemy ich tutaj.
@@ -1270,20 +1149,6 @@ const Dashboard = () => {
           {t('cardio.addButton')}
         </button>
       </div>
-
-      {/* PRO-E T3: upsell zepchnięty pod szybkie akcje */}
-      <ProUpsellBanner />
-
-      {/* D-T2: dokładnie JEDEN insight — raport tygodnia (target vs actual). */}
-      {planStarted && !planEndedByStatus && (
-        <WeekReportCard
-          planDays={trainingPlan}
-          workouts={workouts}
-          currentWeek={currentWeek}
-          planStartDate={planStartDate}
-          progression={progression}
-        />
-      )}
 
       <AddCardioDialog
         open={cardioDialog.open}

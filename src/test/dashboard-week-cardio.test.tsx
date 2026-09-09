@@ -192,52 +192,23 @@ beforeEach(() => {
   activitiesFixture.connected = true;
 });
 
-describe('karta cardio tygodnia na Dashboardzie (T5)', () => {
-  it('plan startuje w PRZYSZŁOŚCI + bieg z tego tygodnia → karta widoczna (scenariusz z feedbacku)', async () => {
-    planFixture.planStartDate = futureStart();
-    planFixture.planStarted = false;
-    activitiesFixture.activities = [stravaRun()];
-
+describe('Dzisiaj: cardio pozostaje akcją, lista tygodnia mieszka w Planie', () => {
+  it.each([false, true])('planStarted=%s: tygodniowe wpisy nie wydłużają ekranu Dzisiaj', async (started) => {
+    planFixture.planStartDate = started ? '2026-07-27' : futureStart();
+    planFixture.planStarted = started;
+    activitiesFixture.activities = [stravaRun(), manualWalk()];
     renderDashboard();
-
-    await waitFor(() => expect(screen.getByTestId('dash-week-cardio')).toBeTruthy());
-    expect(screen.getByText('Cardio w tym tygodniu')).toBeTruthy();
-    expect(screen.getByText('Morning Run')).toBeTruthy();
-  });
-
-  it('plan WYSTARTOWANY → karta nadal widoczna (niezmiennik reguły 5)', async () => {
-    planFixture.planStartDate = '2026-07-27';
-    planFixture.planStarted = true;
-    activitiesFixture.activities = [stravaRun()];
-
-    renderDashboard();
-
-    await waitFor(() => expect(screen.getByTestId('dash-week-cardio')).toBeTruthy());
-    expect(screen.getByText('Morning Run')).toBeTruthy();
-    // Sekcja km Strava została ŚWIADOMIE zdjęta — karta jej nie wskrzesza.
-    expect(screen.queryByTestId('dash-strava-km')).toBeNull();
-  });
-
-  it('Strava NIEpołączona + wpis manualny → manual widoczny, Strava nie', async () => {
-    activitiesFixture.connected = false;
-    activitiesFixture.activities = [
-      manualWalk(),
-      stravaRun({ id: 'stale-run', name: 'Stale Strava Run' }),
-    ];
-
-    renderDashboard();
-
-    await waitFor(() => expect(screen.getByTestId('dash-week-cardio')).toBeTruthy());
-    expect(screen.getByTestId('manual-activity-card')).toBeTruthy();
-    expect(screen.queryByText('Stale Strava Run')).toBeNull();
-  });
-
-  it('zero aktywności → karty nie ma', async () => {
-    activitiesFixture.activities = [];
-
-    renderDashboard();
-
     await waitFor(() => expect(screen.getByTestId('dash-actions')).toBeTruthy());
     expect(screen.queryByTestId('dash-week-cardio')).toBeNull();
+    expect(screen.queryByText('Morning Run')).toBeNull();
+    expect(screen.getByTestId('add-cardio-open')).toBeTruthy();
+    expect(screen.getByTestId('quick-workout-start')).toBeTruthy();
+  });
+
+  it('bez aktywności zachowuje obie szybkie akcje', async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('dash-actions')).toBeTruthy());
+    expect(screen.queryByTestId('dash-week-cardio')).toBeNull();
+    expect(screen.getByTestId('add-cardio-open')).toBeTruthy();
   });
 });

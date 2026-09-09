@@ -29,7 +29,7 @@ export const WeekCard = ({ model, isDeloadWeek, todayDoneDayName }: WeekCardProp
 
   return (
     <Card data-testid="week-card">
-      <CardContent className="px-5 py-4">
+      <CardContent className="px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <p className="truncate text-[13px] font-medium text-foreground/90">
@@ -51,7 +51,7 @@ export const WeekCard = ({ model, isDeloadWeek, todayDoneDayName }: WeekCardProp
           </p>
         </div>
 
-        <div className="mt-3 flex gap-1.5">
+        <div className="mt-2.5 flex gap-1.5">
           {model.days.map((day) => {
             const label = formatLocalDateLabel(day.date, dateLocale(lang), {
               weekday: 'long', day: 'numeric', month: 'long',
