@@ -14,6 +14,30 @@
       },
       "oauth_client": [
         {
+          "client_id": "283539506094-7v9dni37f36dcjvjr7c999r9lk1clre9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.grzegorzjasionowicz.strengthsave",
+            "certificate_hash": "6175b023ae295a97e15a071a92e0280d880c70a0"
+          }
+        },
+        {
+          "client_id": "283539506094-cmibvj527oueu33anfsce6gjuu1niseh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.grzegorzjasionowicz.strengthsave",
+            "certificate_hash": "909d56b82ef9a4040c660fa22f40fcd631ecf084"
+          }
+        },
+        {
+          "client_id": "283539506094-oe7j4ji86fos7friej75s92i3u0m5mr3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.grzegorzjasionowicz.strengthsave",
+            "certificate_hash": "11532f4c0fa2432bea4a8e1853148e7f02fc0552"
+          }
+        },
+        {
           "client_id": "283539506094-ienjlbn9fhf3mt5459eqcqredkv7o27d.apps.googleusercontent.com",
           "client_type": 3
         }
