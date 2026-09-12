@@ -37,6 +37,12 @@ const mkWorkout = (over: Partial<WorkoutSession>): WorkoutSession => ({
 });
 
 describe('exercise-name-resolver', () => {
+  it('history labels an already saved Friday workout by its actual Saturday date in both languages', () => {
+    const workout = mkWorkout({ dayName: 'Piątek', date: '2026-09-12' });
+    expect(buildWorkoutResolver(newPlan, [archivedCycle], 'pl').resolveDayLabel(workout).dayName).toBe('Sobota');
+    expect(buildWorkoutResolver(newPlan, [archivedCycle], 'en').resolveDayLabel(workout).dayName).toBe('Saturday');
+  });
+
   it('preferuje snapshot z treningu nad jakimkolwiek planem', () => {
     const r = buildWorkoutResolver(newPlan, [archivedCycle]);
     const w = mkWorkout({ exercises: [{ exerciseId: 'tpl-ex-1', name: 'Martwy ciąg', sets: [{ reps: 5, weight: 100, completed: true }] }] });

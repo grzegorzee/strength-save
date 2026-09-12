@@ -46,6 +46,7 @@ export const NotificationBell = ({ uid }: { uid: string }) => {
 
   const displayCtx = {
     t,
+    lang,
     localizeExerciseName: (name: string) => localizeExerciseName(name, lang),
     fmtWeight: (kg: number) => `${Math.round(toDisplay(kg))} ${unit}`,
     fmtDuration: (sec: number) => `${Math.round(sec)}s`,

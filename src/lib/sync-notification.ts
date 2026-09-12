@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { emitUserEvent, syncEventKey } from '@/lib/user-events';
+import { displayStoredWorkoutDayName } from '@/lib/plan-i18n';
+import type { LanguageCode } from '@/i18n';
 
 // WP-C (X38): sygnał po ODROCZONYM zapisie treningu w chmurze. Zakończenie
 // offline jest ciche (celebracja jak zwykle, bez toastu "zapisano lokalnie");
@@ -68,6 +70,7 @@ export const decideSyncNotification = (input: {
 };
 
 export interface SyncNotificationDeps {
+  lang?: LanguageCode;
   now?: () => number;
   isAppVisible?: () => boolean;
   isNative?: () => boolean;
@@ -122,7 +125,7 @@ export const notifyDeferredSyncSuccess = async (
 
   markSyncNotified(info.sessionId);
   const title = deps.t('sync.cloudSavedTitle');
-  const body = deps.t('sync.cloudSavedBody', { day: info.dayName || info.date });
+  const body = deps.t('sync.cloudSavedBody', { day: displayStoredWorkoutDayName(info.dayName, info.date, deps.lang ?? 'pl') });
 
   if (mode === 'in-app') {
     deps.showToast(title, body);

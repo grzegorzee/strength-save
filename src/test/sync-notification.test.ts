@@ -73,6 +73,12 @@ describe('decideSyncNotification', () => {
 });
 
 describe('notifyDeferredSyncSuccess', () => {
+  it('a Friday workout moved to Saturday is announced using its actual date', async () => {
+    const showToast = vi.fn();
+    await notifyDeferredSyncSuccess('u1', info({ dayName: 'Piątek', date: '2026-09-12' }), { showToast, t, isAppVisible: () => true });
+    expect(showToast).toHaveBeenCalledWith('Trening zapisany w chmurze', 'Sobota. Wszystko jest już bezpieczne.');
+  });
+
   it('widoczna: toast + wpis do dzwonka typu sync z deepLink /history; drugi raz dla tej samej sesji nic', async () => {
     const showToast = vi.fn();
     const deps = { now: () => NOW, isAppVisible: () => true, showToast, t };

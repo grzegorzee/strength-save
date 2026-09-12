@@ -1,10 +1,12 @@
 // B-T6: serwerowe zdarzenia niosą SEMANTYKĘ (type + payload), nie gotowe
 // stringi — każde urządzenie renderuje we własnym języku i jednostkach.
 import { formatPRValue, type PRComparison } from '@/lib/pr-utils';
-import type { TranslationKey } from '@/i18n';
+import type { LanguageCode, TranslationKey } from '@/i18n';
 import type { UserEvent } from '@/lib/user-events';
+import { displayStoredWorkoutDayName } from '@/lib/plan-i18n';
 
 export interface UserEventDisplayCtx {
+  lang?: LanguageCode;
   t: (key: TranslationKey, params?: Record<string, string | number>) => string;
   localizeExerciseName: (name: string) => string;
   /** kg -> string w jednostce usera, np. "105 kg" / "231 lbs". */
@@ -80,7 +82,7 @@ export const describeUserEvent = (event: UserEvent, ctx: UserEventDisplayCtx): U
     case 'sync':
       return {
         title: ctx.t('sync.cloudSavedTitle'),
-        body: ctx.t('sync.cloudSavedBody', { day: str(p.dayName) || str(p.date) }),
+        body: ctx.t('sync.cloudSavedBody', { day: displayStoredWorkoutDayName(str(p.dayName), str(p.date), ctx.lang ?? 'pl') }),
       };
     case 'announcement':
       // T15: świadomy wyjątek od semantycznego payloadu — treść ogłoszenia pisze

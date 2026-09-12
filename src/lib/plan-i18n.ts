@@ -108,6 +108,16 @@ export const displayDayNameForDateISO = (
   return date ? displayDayNameForDate(dayName, weekday, date, lang) : localizeDayName(dayName, lang);
 };
 
+/** Stored workout/inbox snapshots have no weekday field. A weekday name still
+ * follows the actual workout date; user names such as Push or FBW C survive. */
+export const displayStoredWorkoutDayName = (dayName: string, dateISO: string, lang: LanguageCode): string => {
+  const date = parseLocalDateSafe(dateISO);
+  const isWeekday = Object.keys(WEEKDAY_EN).includes(dayName) || Object.values(WEEKDAY_EN).includes(dayName);
+  return date && (isWeekday || !dayName)
+    ? localizeDayName(weekdayLong(weekdayOfDate(date)), lang)
+    : localizeDayName(dayName, lang) || dateISO;
+};
+
 /** Skrót dnia w języku UI (Pn -> Mon). */
 export const localizeWeekdayShort = (short: string, lang: LanguageCode): string => {
   if (!short) return short;

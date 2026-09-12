@@ -57,9 +57,9 @@ export const AutoSyncOnReconnect = () => {
   const isWorkoutRoute = pathname === '/workout' || pathname.startsWith('/workout/');
   const { syncDeps, workouts, isLoaded: workoutsLoaded } = useWorkoutSyncDeps(uid);
   const { toast } = useToast();
-  const { t } = useTranslation();
-  const latest = useRef({ uid, syncDeps, toast, t });
-  latest.current = { uid, syncDeps, toast, t };
+  const { t, lang } = useTranslation();
+  const latest = useRef({ uid, syncDeps, toast, t, lang });
+  latest.current = { uid, syncDeps, toast, t, lang };
 
   // Z53: jednorazowe sprzątanie pozostałości sprzed R2 (guard w localStorage,
   // ustawiany po sukcesie). Fire-and-forget: porażka = retry przy kolejnym starcie.
@@ -113,7 +113,7 @@ export const AutoSyncOnReconnect = () => {
 
         for (const { entry } of entries) {
           if (!isCurrent()) break;
-          const { syncDeps, toast, t } = latest.current;
+          const { syncDeps, toast, t, lang } = latest.current;
           // Z175: aktywna sesja provisional dostaje checkpoint (promocja + baseline),
           // final zostaje wyłącznie dla ukończonych treningów.
           const kind = entry.finalSyncPending ? 'final' : 'checkpoint';
@@ -176,6 +176,7 @@ export const AutoSyncOnReconnect = () => {
               finalizedAt: draftBefore?.finalizedAt ?? null,
             }, {
               t,
+              lang,
               showToast: (title, description) => toast({ title, description }),
             });
           }

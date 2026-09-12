@@ -58,6 +58,13 @@ const renderBell = () => render(
 describe('NotificationBell (B-T6: serwerowe user_events)', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('corrects the weekday in existing sync inbox entries after rescheduling', () => {
+    renderBell();
+    emitEvents([event({ type: 'sync', payload: { dayName: 'Piątek', date: '2026-09-12' } })]);
+    fireEvent.click(screen.getByLabelText('inbox.open'));
+    expect(screen.getByText('sync.cloudSavedBody:Sobota')).toBeTruthy();
+  });
+
   it('bez nieprzeczytanych: brak kropki', () => {
     renderBell();
     emitEvents([]);

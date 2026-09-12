@@ -3,7 +3,7 @@ import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
 import { localizeExerciseName } from '@/data/exercise-i18n';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayStoredWorkoutDayName, localizeFocus } from '@/lib/plan-i18n';
 import { translate, type LanguageCode } from '@/i18n';
 
 // Resolver nazw ćwiczeń i etykiet dni dla historycznych treningów.
@@ -99,7 +99,7 @@ export const buildWorkoutResolver = (
 
   const resolveDayLabel = (workout: WorkoutSession): { dayName: string; focus: string } => {
     const raw = resolveRawDayLabel(workout);
-    return { dayName: localizeDayName(raw.dayName, lang), focus: localizeFocus(raw.focus, lang) };
+    return { dayName: displayStoredWorkoutDayName(raw.dayName, workout.date, lang), focus: localizeFocus(raw.focus, lang) };
   };
 
   return { resolveExerciseName, resolveCanonicalExerciseName: resolveRawExerciseName, resolveDayLabel };
