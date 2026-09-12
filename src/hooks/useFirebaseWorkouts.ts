@@ -1,3 +1,5 @@
+import { runTransaction } from '@/lib/firestore-transaction';
+import { workoutSyncErrorText } from '@/lib/workout-sync-conflict';
 import { useCallback, useSyncExternalStore } from 'react';
 import {
   collection,
@@ -9,7 +11,6 @@ import {
   deleteDoc,
   query,
   where,
-  runTransaction,
   writeBatch,
   type UpdateData,
 } from 'firebase/firestore';
@@ -219,7 +220,7 @@ export const useFirebaseWorkoutActions = (
       return transactionResult;
     } catch (err) {
       console.error('Error creating workout:', err);
-      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
+      const errorMessage = workoutSyncErrorText(err) || t('common.unknownError');
       return { session: null, error: errorMessage };
     }
   }, [workouts, userId, t]);

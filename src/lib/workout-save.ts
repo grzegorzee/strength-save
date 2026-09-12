@@ -1,4 +1,5 @@
-import { doc, runTransaction, updateDoc, type Firestore, type UpdateData } from 'firebase/firestore';
+import { runTransaction } from '@/lib/firestore-transaction';
+import { doc, updateDoc, type Firestore, type UpdateData } from 'firebase/firestore';
 import type { SetData, WorkoutSession, WorkoutSessionRating } from '@/types';
 import { clampSet } from '@/lib/workout-sanitizers';
 import { buildSessionRatingUpdate } from '@/lib/workout-session-rating';

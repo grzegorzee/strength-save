@@ -1,4 +1,5 @@
 import type { ActiveHealthGrant } from '@/lib/legal-versions';
+import { workoutSyncErrorText } from '@/lib/workout-sync-conflict';
 import { callProtectedFunction } from '@/lib/protected-callable';
 import type { WorkoutSaveExercise, WorkoutSaveOptions } from '@/lib/workout-sync-engine';
 
@@ -102,7 +103,7 @@ export function createWorkoutV2SaveAdapter(
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: workoutSyncErrorText(error),
       };
     }
   };

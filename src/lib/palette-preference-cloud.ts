@@ -1,4 +1,5 @@
-import { doc, runTransaction } from 'firebase/firestore';
+import { runTransaction } from '@/lib/firestore-transaction';
+import { doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type {
   PalettePreferenceOutboxEntry,

@@ -5,7 +5,7 @@ import {
   matchesFinalWorkoutContent,
   validateWorkoutCloudWrite,
 } from '@/lib/workout-final-sync';
-import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
+import { isRevisionConflictError, workoutSyncErrorText } from '@/lib/workout-sync-conflict';
 import { draftWriteId } from '@/lib/workout-write-attempt';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { withTimeout } from '@/lib/promise-timeout';
@@ -408,7 +408,7 @@ const runSync = async (
             readFailed = undefined;
             break;
           } catch (err) {
-            readFailed = err instanceof Error ? err.message : String(err);
+            readFailed = workoutSyncErrorText(err);
           }
         }
         const validation = readFailed === undefined
@@ -490,7 +490,7 @@ const runSync = async (
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: workoutSyncErrorText(err),
       sessionId,
     };
   }

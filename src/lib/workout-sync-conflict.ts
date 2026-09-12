@@ -16,8 +16,16 @@ export interface WorkoutContentSummary {
   completedSets: number;
 }
 
+/** Preserve the machine code across string-based queue/adapter boundaries.
+ * SDK messages such as "Connection failed." do not identify a retryable error. */
+export const workoutSyncErrorText = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
+  return typeof code === 'string' && !message.includes(code) ? `${code}: ${message}` : message;
+};
+
 export const classifyWorkoutSyncError = (error: unknown): WorkoutSyncErrorCode => {
-  const message = String(error ?? '').toLowerCase();
+  const message = workoutSyncErrorText(error).toLowerCase();
   if (
     message.includes('workout_conflict')
     || message.includes('workout_revision_unknown')
@@ -86,7 +94,7 @@ export const workoutSyncErrorDetail = (error: unknown): string | null => {
 };
 
 export const workoutSyncErrorMessageKey = (error: unknown): WorkoutSyncErrorMessageKey => {
-  switch (classifyWorkoutSyncError(error instanceof Error ? error.message : error)) {
+  switch (classifyWorkoutSyncError(error)) {
     case 'revision-conflict': return 'workout.err.conflict';
     case 'permission': return 'workout.err.permission';
     case 'not-found': return 'workout.err.notFound';

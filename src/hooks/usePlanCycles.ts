@@ -1,10 +1,10 @@
+import { runTransaction } from '@/lib/firestore-transaction';
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   doc,
   getDoc,
   getDocs,
-  runTransaction,
   setDoc,
   updateDoc,
   deleteDoc,

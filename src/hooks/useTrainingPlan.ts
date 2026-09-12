@@ -1,3 +1,4 @@
+import { runTransaction } from '@/lib/firestore-transaction';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   doc,
@@ -10,7 +11,6 @@ import {
   query,
   where,
   getDocs,
-  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';

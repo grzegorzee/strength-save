@@ -1,9 +1,9 @@
+import { runTransaction } from '@/lib/firestore-transaction';
 import {
   collection,
   doc,
   getDocs,
   query,
-  runTransaction,
   where,
   type Firestore,
 } from 'firebase/firestore';

@@ -21,6 +21,15 @@ const draft = {
 } as unknown as ActiveWorkoutDraft;
 
 describe('workout sync conflicts', () => {
+  it('keeps SDK error codes when the message only says Connection failed', () => {
+    const offline = Object.assign(new Error('Connection failed.'), { code: 'unavailable' });
+    const authOffline = Object.assign(new Error('Connection failed.'), { code: 'auth/network-request-failed' });
+    const denied = Object.assign(new Error('Access rejected.'), { code: 'permission-denied' });
+    expect(classifyWorkoutSyncError(offline)).toBe('offline');
+    expect(classifyWorkoutSyncError(authOffline)).toBe('offline');
+    expect(workoutSyncErrorMessageKey(offline)).toBe('workout.err.offline');
+    expect(classifyWorkoutSyncError(denied)).toBe('permission');
+  });
   it.each([
     ['WORKOUT_CONFLICT', 'revision-conflict'],
     ['WORKOUT_REVISION_UNKNOWN', 'revision-conflict'],
