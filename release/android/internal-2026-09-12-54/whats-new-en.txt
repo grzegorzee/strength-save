@@ -1,0 +1,1 @@
+Fixed workout layout with larger system text, including repetition ranges and time fields. Improved recovery from network errors. Warmup remains open with its progress after returning to the app. Synchronization shows the actual training day and clears the pending banner after confirmation.

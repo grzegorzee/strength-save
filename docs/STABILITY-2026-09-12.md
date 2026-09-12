@@ -1,8 +1,10 @@
 # Stabilność treningu i układ iOS/Android — 12 września 2026
 
-Poprawki źródłowe są gotowe i przeszły lokalną weryfikację. Kandydaci: iOS
-1.0.0 (148), Android 1.0.0 (54). Dystrybucja zostanie potwierdzona oddzielnym
-odczytem sklepów; same numery w źródłach nie oznaczają dostępności aktualizacji.
+Poprawki dostarczono jako iOS **1.0.0 (148)** i Android **1.0.0 (54)**.
+Apple potwierdza VALID / APPROVED / IN_BETA_TESTING w obu grupach TestFlight,
+z automatycznym powiadamianiem. Google Play Internal Testing potwierdza
+COMPLETED i właściwy hash AAB dwoma niezależnymi odczytami. Wersja webowa jest
+wdrożona; żywe HTML, service worker i wejściowe JS/CSS są identyczne z buildem.
 
 ## Przyczyny i zmiany
 
@@ -57,6 +59,8 @@ uruchamia rzeczywisty zainstalowany SDK, bez połączeń i zapisów produkcyjnyc
 - Typecheck: PASS; lint: 0 błędów, 15 istniejących ostrzeżeń.
 - Końcowy pakiet E2E: **66 PASS** na Chromium/WebKit; po ostatnim poszerzeniu
   pól Androida dodatkowo ponowiono 4 kontrole pól — PASS.
+- Rzeczywiste emulatory Auth/Firestore/Functions: **18/18 E2E PASS**, bez zapisów
+  produkcyjnych. Testowy backend i pomocnicze serwery zatrzymano po weryfikacji.
 - Osobny przepływ plan → wyjście → szybki trening → powrót do kompletnego planu
   → zakończenie → potwierdzony sync: **2/2 PASS** (oba silniki).
 - iPhone 13, iOS 26.5, WKWebView: systemowy tekst **100%, 112%, 135%**.
@@ -106,3 +110,56 @@ Pierwszy CI (34683183564) potwierdził budowę obu platform. Jeden test wykrył
 stare numery 147/53 w rejestrze wydań po bumpie projektów do 148/54; rejestr
 uzupełniono z zachowaniem historycznej kopii. Ponowny pełny lokalny frontend:
 4195 PASS / 16 SKIP. To nie wymagało zmiany kodu aplikacji ani pakietów.
+
+## Dostarczenie
+
+- [TestFlight 148: podpisy, zasoby i odczyt Apple](../release/ios/testflight-148.json).
+- [Android 54: podpisany pakiet](../release/android/internal-2026-09-12-54/artifact.json),
+  [publikacja](../release/android/internal-2026-09-12-54/play-delivery.json),
+  [niezależny odczyt](../release/android/internal-2026-09-12-54/play-api-check.json).
+- [Web: porównanie plików live](../audit/stability-2026-09-12/web-delivery.json).
+
+iOS i Android zawierają te same 232 pliki runtime (hash zbiorczy
+`da26422a2fe3b4b43ff547ea95fbe91609bd695e7b0de2be7fa810a816a3a330`).
+W paczkach produkcyjnych nie ma seeda ani mostu testowego. Podpisany lokalny
+APK 54 zaktualizował 53 na emulatorze; cold start do logowania: 995 ms.
+Produkcyjny build symulatora iOS 148 również uruchomiono i obejrzano.
+Nie utożsamiamy APK podpisanego kluczem uploadu z instalacją przez Play.
+Android zbudowano ze źródła `6a6bc2f5`; iOS/web z `5d923524`.
+Jedyna różnica między tymi commitami to rejestr wydania i dowody — kod aplikacji
+jest identyczny. Backend nie wymagał nowego wdrożenia.
+
+Drugi CI (34683662988): oba zadania natywne PASS, Chromium 361 PASS / 2 FAIL.
+Obie porażki odtworzono na świeżym lokalnym serwerze: dwa selektory E2E szukały
+starego tekstu „Ser.”, choć widoczny nagłówek był już „#” z etykietą dostępności
+„Ser.”. Seria W była na miejscu, a wszystkie wcześniejsze kontrole danych
+przechodziły. `393126fa` zmienia wyłącznie dwa selektory na odczyt etykiety;
+pozostawia wymagania geometrii, kolejności, kompletu ćwiczeń i synchronizacji.
+Ponowienie obu scenariuszy w Chromium i WebKit: **4/4 PASS**. Pakiety sklepowe
+nie wymagają przebudowania, ponieważ kod aplikacji nie zmienił się.
+
+Gotowe paczki dodatkowo przeszły Home → co najmniej 30 s w tle → powrót:
+iOS zachował ten sam proces, Android wznowił aplikację w 251 ms. Oba ekrany
+logowania były kompletne i zostały obejrzane na screenshotach. To kontrola
+produkcyjnej powłoki bez logowania; nie zastępuje opisanych wyżej treningów
+na izolowanym fixture ani testu na fizycznym telefonie.
+
+## Końcowy CI
+
+[CI 34684429867](https://github.com/grzegorzee/strength-save/actions/runs/34684429867)
+ze źródła `393126fa4aa48dad8f9fce3a7a3c969010939f92`: **SUCCESS**.
+Quality, Android build i iOS simulator smoke: PASS. Wyniki:
+
+- Frontend: 487 plików, 4195 PASS / 16 istniejących SKIP.
+- Functions: 563 PASS; 15 integracyjnych testów pominiętych w zwykłym biegu
+  przeszło osobno na emulatorach: 15/15.
+- Reguły Firestore: 326/326; Storage: 44/44.
+- E2E: Chromium **363/363**, WebKit **9/9**, Firebase **18/18**.
+  Bez FAIL, flaky i SKIP w tych trzech pakietach E2E.
+
+[Pełne potwierdzenie CI](../audit/stability-2026-09-12/ci-status-final.json).
+Dwa warunkowe zadania wdrożenia w workflow są pominięte; ręczne dostarczenie
+webu i obu aplikacji potwierdzono niezależnie powyżej. Ostatni commit zawiera
+wyłącznie dokumentację i dowody dostarczenia, więc używa `[skip ci]`.
+Wynik CI dotyczy wskazanego commita aplikacji i testów, bez przypisywania go
+późniejszemu commitowi dokumentacji.

@@ -16,7 +16,9 @@
   "e2e": {
     "finalSuitePassed": 66,
     "subsequentFieldChecksPassed": 4,
-    "interruptionSequencePassed": 2
+    "interruptionSequencePassed": 2,
+    "firebaseEmulatorsPassed": 18,
+    "headerSelectorRegressionPassed": 4
   },
   "native": {
     "ios": "iPhone 13 / iOS 26.5 / WKWebView / 100,112,135%",
@@ -26,7 +28,22 @@
     "warmupSuspendResume": "PASS",
     "warmupIosTerminateLaunch": "PASS",
     "offlineFinishThenSyncBothPlatforms": "PASS",
-    "cloudMode": "isolated E2E mock; no production writes"
+    "cloudMode": "isolated E2E mock; no production writes",
+    "productionPackagesBackgroundResume": {
+      "status": "PASS",
+      "backgroundStartUtc": "2026-09-12T08:54:54Z",
+      "resumeUtc": "2026-09-12T08:55:39Z",
+      "androidHotResumeMs": 251,
+      "iosPidUnchanged": 49559,
+      "screenshotsVisuallyReviewed": true,
+      "scope": "Installed production148 simulator / signed local APK54; Home to background then foreground; logged-out screens, no workout or auth writes"
+    },
+    "preFinalDocumentationPush": {
+      "checkedAt": "2026-09-12T09:11:31.329306+00:00",
+      "bothAppsForegrounded": true,
+      "freshScreenshotsVisuallyReviewed": true,
+      "appSourceUnchangedSinceWorkoutScreenshots": true
+    }
   },
   "firstCi": {
     "run": 34683183564,
@@ -34,5 +51,48 @@
     "androidBuild": "PASS",
     "frontend": "4194 passed, 1 release registry mismatch",
     "resolution": "Registry updated to148/54; full local suite4195 PASS; CI rerun required"
+  },
+  "source_with_release_metadata": "5d9235240e64267fa33ddd1667b949a4acd9d632",
+  "postDeliveryMetadataChecks": {
+    "testsPassed": 15,
+    "files": 2,
+    "scope": "release source/brand and candidate manifest contracts"
+  },
+  "testServicesAfterVerification": {
+    "checkedAt": "2026-09-12T08:49:02.973067+00:00",
+    "ports": [
+      8080,
+      8765,
+      9099,
+      8085,
+      5001
+    ],
+    "listeners": 0,
+    "androidCrashBufferEntries": 0,
+    "scope": "Dedicated test server/bridge/Firebase services stopped; simulators left available for visual review",
+    "recheckedAfterSelectorTests": "PASS: no listeners on the five recorded test ports before final documentation push"
+  },
+  "secondCi": {
+    "run": 34683662988,
+    "iosSimulator": "PASS",
+    "androidBuild": "PASS",
+    "mockE2E": {
+      "passed": 361,
+      "failed": 2
+    },
+    "rootCause": "Two E2E selectors still searched the old visible Ser. text; actual compact header is # with accessible label Ser. Both failures reproduced with a fresh local server. Application behavior and all preceding data assertions passed.",
+    "resolution": "393126fa changes only two test locators to getByLabel. The same geometry and persistence assertions pass: four runs across Chromium and WebKit. Full CI34684429867 follows."
+  },
+  "finalCi": {
+    "run": 34684429867,
+    "sourceSha": "393126fa4aa48dad8f9fce3a7a3c969010939f92",
+    "conclusion": "SUCCESS",
+    "quality": "PASS",
+    "androidBuild": "PASS",
+    "iosSimulator": "PASS",
+    "chromiumPassed": 363,
+    "webkitPassed": 9,
+    "firebasePassed": 18,
+    "evidence": "audit/stability-2026-09-12/ci-status-final.json"
   }
 }

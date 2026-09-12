@@ -30,8 +30,8 @@
   "web": {
     "url": "https://app.strengthsave.app/",
     "state": "requires-current-source-and-live-provenance-verification",
-    "deliveryEvidence": "audit/android-2026-09-09/web-delivery-53.json",
-    "verifiedDelivery": "PENDING: current source not yet deployed; prior delivery evidence is historical"
+    "deliveryEvidence": "audit/stability-2026-09-12/web-delivery.json",
+    "verifiedDelivery": "live HTML, service worker and entry JS/CSS match source5d923524 production build"
   },
   "functions": {
     "project": "fittracker-workouts",
@@ -45,7 +45,7 @@
     "build": 148,
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/ios/testflight-148.json",
-    "verifiedDelivery": "PENDING: candidate prepared; upload and store readback not yet performed"
+    "verifiedDelivery": "148 VALID / APPROVED / IN_BETA_TESTING in internal and external groups; autoNotify enabled; notes verified"
   },
   "android": {
     "version": "1.0.0",
@@ -53,7 +53,7 @@
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "deliveryEvidence": "release/android/internal-2026-09-12-54/artifact.json",
-    "verifiedDelivery": "PENDING: signed candidate verified locally; Internal Testing not yet updated",
+    "verifiedDelivery": "54 COMPLETED; uploaded AAB hash confirmed by publication readback and independent Google Play API check",
     "playDeliveryEvidence": "release/android/internal-2026-09-12-54/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
@@ -62,8 +62,8 @@
       "serviceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
-      "evidence": "release/android/internal-2026-09-09-53/play-api-check.json",
-      "checkCommand": "uv run scripts/google_play_check.py --expect-version 53"
+      "evidence": "release/android/internal-2026-09-12-54/play-api-check.json",
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 54"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
   },
@@ -85,6 +85,12 @@
       "evidence": "audit/stability-2026-09-12/quality-gates.json",
       "scope": "Native fixture at100/135%; warmup screen lock/resume; offline final/sync; production54 update/cold-start",
       "priorBackgroundEvidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
+    },
+    "iosSimulator": {
+      "status": "PASS",
+      "device": "isolated iPhone13 / iOS26.5",
+      "evidence": "audit/stability-2026-09-12/quality-gates.json",
+      "scope": "Native fixture100/112/135%; warmup background/terminate/launch; offline final/sync; production148 launch"
     }
   },
   "previousDeliverySnapshot": "release/history/release-train-147-53.json"

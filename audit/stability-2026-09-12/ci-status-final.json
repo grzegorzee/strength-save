@@ -1,0 +1,513 @@
+{
+  "capturedAt": "2026-09-12T09:12:22.560649+00:00",
+  "runId": 34684429867,
+  "url": "https://github.com/grzegorzee/strength-save/actions/runs/34684429867",
+  "sourceSha": "393126fa4aa48dad8f9fce3a7a3c969010939f92",
+  "release": {
+    "marketingVersion": "1.0.0",
+    "iosBuild": 148,
+    "androidVersionCode": 54
+  },
+  "status": "completed",
+  "conclusion": "success",
+  "createdAt": "2026-09-12T08:53:34Z",
+  "updatedAt": "2026-09-12T09:11:05Z",
+  "jobs": [
+    {
+      "completedAt": "2026-09-12T08:56:55Z",
+      "conclusion": "success",
+      "databaseId": 103528816438,
+      "name": "android-debug-build",
+      "startedAt": "2026-09-12T08:53:37Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-12T08:53:40Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-12T08:53:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:47Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-12T08:53:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:52Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-12T08:53:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:52Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-java@v4",
+          "number": 4,
+          "startedAt": "2026-09-12T08:53:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:03Z",
+          "conclusion": "success",
+          "name": "Run android-actions/setup-android@v4",
+          "number": 5,
+          "startedAt": "2026-09-12T08:53:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:13Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 6,
+          "startedAt": "2026-09-12T08:54:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:24Z",
+          "conclusion": "success",
+          "name": "Run npm run build:mobile",
+          "number": 7,
+          "startedAt": "2026-09-12T08:54:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:25Z",
+          "conclusion": "success",
+          "name": "Run npx cap sync android",
+          "number": 8,
+          "startedAt": "2026-09-12T08:54:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:56:52Z",
+          "conclusion": "success",
+          "name": "Run ./gradlew -Dorg.gradle.java.home=\"$JAVA_HOME\" :app:assembleDebug --no-daemon",
+          "number": 9,
+          "startedAt": "2026-09-12T08:54:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:56:52Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-java@v4",
+          "number": 16,
+          "startedAt": "2026-09-12T08:56:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:56:52Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 17,
+          "startedAt": "2026-09-12T08:56:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:56:52Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 18,
+          "startedAt": "2026-09-12T08:56:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:56:52Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-09-12T08:56:52Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34684429867/job/103528816438"
+    },
+    {
+      "completedAt": "2026-09-12T09:08:38Z",
+      "conclusion": "success",
+      "databaseId": 103528816567,
+      "name": "ios-simulator-smoke",
+      "startedAt": "2026-09-12T08:53:45Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-12T08:53:48Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-12T08:53:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:59Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-12T08:53:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:06Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-12T08:53:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:29Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 4,
+          "startedAt": "2026-09-12T08:54:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:51Z",
+          "conclusion": "success",
+          "name": "Run npm run preflight:ios-release && npm run build:mobile && npx cap sync ios",
+          "number": 5,
+          "startedAt": "2026-09-12T08:54:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:07:23Z",
+          "conclusion": "success",
+          "name": "Run npm run ios:simulator:smoke",
+          "number": 6,
+          "startedAt": "2026-09-12T08:54:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:07:25Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 11,
+          "startedAt": "2026-09-12T09:07:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:07:26Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 12,
+          "startedAt": "2026-09-12T09:07:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:08:24Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-09-12T09:07:26Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34684429867/job/103528816567"
+    },
+    {
+      "completedAt": "2026-09-12T09:11:04Z",
+      "conclusion": "success",
+      "databaseId": 103528816584,
+      "name": "quality",
+      "startedAt": "2026-09-12T08:53:38Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-12T08:53:40Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-12T08:53:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:46Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-09-12T08:53:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:52Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-09-12T08:53:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:53:52Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-java@v4",
+          "number": 4,
+          "startedAt": "2026-09-12T08:53:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:03Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 5,
+          "startedAt": "2026-09-12T08:53:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:08Z",
+          "conclusion": "success",
+          "name": "Run npm ci --prefix functions",
+          "number": 6,
+          "startedAt": "2026-09-12T08:54:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:54:24Z",
+          "conclusion": "success",
+          "name": "Run npm i -g firebase-tools@15",
+          "number": 7,
+          "startedAt": "2026-09-12T08:54:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:55:02Z",
+          "conclusion": "success",
+          "name": "Run npx playwright install --with-deps chromium webkit",
+          "number": 8,
+          "startedAt": "2026-09-12T08:54:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:55:24Z",
+          "conclusion": "success",
+          "name": "Run npm run typecheck",
+          "number": 9,
+          "startedAt": "2026-09-12T08:55:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T08:55:37Z",
+          "conclusion": "success",
+          "name": "Run npm run lint",
+          "number": 10,
+          "startedAt": "2026-09-12T08:55:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:00:46Z",
+          "conclusion": "success",
+          "name": "Run npm run test -- --coverage",
+          "number": 11,
+          "startedAt": "2026-09-12T08:55:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:00:54Z",
+          "conclusion": "success",
+          "name": "Run npm --prefix functions test",
+          "number": 12,
+          "startedAt": "2026-09-12T09:00:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:01:12Z",
+          "conclusion": "success",
+          "name": "Run npm run test:functions:emulator",
+          "number": 13,
+          "startedAt": "2026-09-12T09:00:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:01:28Z",
+          "conclusion": "success",
+          "name": "Run npm run test:rules",
+          "number": 14,
+          "startedAt": "2026-09-12T09:01:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:02:05Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 15,
+          "startedAt": "2026-09-12T09:01:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:02:06Z",
+          "conclusion": "success",
+          "name": "Run npm run check:bundle-budget",
+          "number": 16,
+          "startedAt": "2026-09-12T09:02:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:02:12Z",
+          "conclusion": "success",
+          "name": "Run npm run build",
+          "number": 17,
+          "startedAt": "2026-09-12T09:02:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:09:20Z",
+          "conclusion": "success",
+          "name": "Run npm run e2e:mock -- --reporter=line",
+          "number": 18,
+          "startedAt": "2026-09-12T09:02:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:09:44Z",
+          "conclusion": "success",
+          "name": "Run npm run e2e:webkit -- --reporter=line",
+          "number": 19,
+          "startedAt": "2026-09-12T09:09:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:11:02Z",
+          "conclusion": "success",
+          "name": "Run npm run e2e:emulator",
+          "number": 20,
+          "startedAt": "2026-09-12T09:09:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:11:02Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-java@v4",
+          "number": 38,
+          "startedAt": "2026-09-12T09:11:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:11:02Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 39,
+          "startedAt": "2026-09-12T09:11:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:11:02Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 40,
+          "startedAt": "2026-09-12T09:11:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-12T09:11:02Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 41,
+          "startedAt": "2026-09-12T09:11:02Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34684429867/job/103528816584"
+    },
+    {
+      "completedAt": "2026-09-12T09:11:05Z",
+      "conclusion": "skipped",
+      "databaseId": 103530814609,
+      "name": "build-and-deploy",
+      "startedAt": "2026-09-12T09:11:05Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34684429867/job/103530814609"
+    },
+    {
+      "completedAt": "2026-09-12T09:11:05Z",
+      "conclusion": "skipped",
+      "databaseId": 103530814793,
+      "name": "firebase-contract-deploy",
+      "startedAt": "2026-09-12T09:11:05Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/grzegorzee/strength-save/actions/runs/34684429867/job/103530814793"
+    }
+  ],
+  "completedLogSummaries": {
+    "Run npm run test -- --coverage": [
+      "Test Files  487 passed (487)",
+      "Tests  4195 passed | 16 skipped (4211)"
+    ],
+    "Run npm --prefix functions test": [
+      "Test Files  53 passed | 1 skipped (54)",
+      "Tests  563 passed | 15 skipped (578)"
+    ],
+    "Run npm run test:functions:emulator": [
+      "Test Files  1 passed (1)",
+      "Tests  15 passed (15)"
+    ],
+    "Run npm run test:rules": [
+      "Wszystkie 326 testów reguł przeszło.",
+      "44/44 storage rules tests passed."
+    ],
+    "Run npm run e2e:mock -- --reporter=line": [
+      "Running 363 tests using 2 workers",
+      "363 passed (7.1m)"
+    ],
+    "Run npm run e2e:webkit -- --reporter=line": [
+      "Running 9 tests using 1 worker",
+      "9 passed (22.8s)"
+    ],
+    "Run npm run e2e:emulator": [
+      "Running 18 tests using 1 worker",
+      "18 passed (55.2s)"
+    ]
+  },
+  "priorRunsPreserved": [
+    {
+      "runId": 34683183564,
+      "conclusion": "failure",
+      "rootCause": "Release registry147/53 mismatched source148/54; corrected5d923524."
+    },
+    {
+      "runId": 34683662988,
+      "conclusion": "failure",
+      "rootCause": "Two stale visible-text header selectors; 361E2E passed,2failed. Both reproduced locally; selector-only fix393126fa,4/4Chromium/WebKit PASS."
+    }
+  ],
+  "scope": [
+    "This receipt certifies its exact source commit and completed GitHub jobs; later documentation commits are separate.",
+    "Conditional deploy jobs are separate from the verified manual web and store deliveries.",
+    "CI native jobs are simulator smoke and Android debug build; real-device gym behavior remains a separate acceptance test."
+  ],
+  "sanitization": {
+    "rawLogsCommitted": false,
+    "secretValuesIncluded": false
+  },
+  "counts": {
+    "frontend": {
+      "files": 487,
+      "passed": 4195,
+      "skipped": 16
+    },
+    "functions": {
+      "passed": 563,
+      "integrationSkippedInUnitRun": 15,
+      "integrationPassedSeparately": 15
+    },
+    "rules": {
+      "firestorePassed": 326,
+      "storagePassed": 44
+    },
+    "e2e": {
+      "chromiumPassed": 363,
+      "webkitPassed": 9,
+      "firebasePassed": 18,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0
+    }
+  }
+}

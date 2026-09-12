@@ -2,11 +2,16 @@
 
 > Quick reference - wszystko w jednym miejscu
 
-> **Poprawki 2026-09-12:** kandydaci iOS 148 / Android 54 (1.0.0).
+> **Poprawki 2026-09-12:** iOS 148 / Android 54 (1.0.0) dostarczone.
 > Naprawiono asercję Firebase, odtwarzanie rozgrzewki, etykietę przesuniętego
 > treningu i baner po synchronizacji. Układ iOS/Android jest rozdzielony;
 > zrzuty obu aplikacji sprawdzono przy normalnym i większym tekście.
-> 4195 unit PASS, 66 E2E PASS. Dystrybucja jest w przygotowaniu.
+> 4195 unit PASS, 66 E2E PASS, 18/18 Firebase E2E.
+> TestFlight 148: VALID / APPROVED / IN_BETA_TESTING w obu grupach.
+> Google Play Internal Testing 54: COMPLETED, hash potwierdzony dwoma odczytami.
+> Web wdrożony; żywe HTML, SW i wejściowe JS/CSS zgodne z buildem.
+> Końcowy CI 34684429867: SUCCESS — Quality, Android i symulator iOS PASS.
+> E2E CI: Chromium 363/363, WebKit 9/9, Firebase 18/18; bez flaky i SKIP.
 > [Przyczyny, poprawki i dowody](docs/STABILITY-2026-09-12.md).
 
 > **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (53)** ze źródła
@@ -70,7 +75,7 @@
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
 | **Status** | kandydat 1.0.0; public release zablokowany do końcowych bramek |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-09-09 |
+| **Data aktualizacji** | 2026-09-12 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
 
 ---

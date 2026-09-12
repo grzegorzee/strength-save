@@ -1,0 +1,1 @@
+Poprawiono układ treningu przy większym tekście, w tym zakresy powtórzeń i pola czasu. Stabilniejsze zapisy przy słabym zasięgu. Rozgrzewka zachowuje stan po powrocie do aplikacji. Synchronizacja pokazuje rzeczywisty dzień treningu i usuwa baner po potwierdzonym zapisie.

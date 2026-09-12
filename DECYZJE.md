@@ -43,6 +43,22 @@ rozgrzewki. Obie natywne aplikacje zakończyły offline i dosynchronizowały
 izolowany trening z komunikatem „Sobota” oraz wyczyszczonym IDB. Produkcja była
 wyłącznie odczytywana. Pełne dowody i granice: docs/STABILITY-2026-09-12.md.
 Bump wyłącznie buildów na 148/54; wersja marketingowa pozostaje 1.0.0.
+Dostarczenie potwierdzone odczytami: TestFlight148 VALID/APPROVED oraz
+IN_BETA_TESTING w obu grupach; Android54 COMPLETED i zgodny AAB w dwóch
+odczytach; web zgodny z produkcyjnymi HTML/SW/JS/CSS. Obie paczki natywne mają
+identyczne 232 pliki runtime bez seeda testowego. Firebase E2E 18/18 PASS.
+Pierwszy CI wykrył nieaktualne numery w release-train.json (147/53); poprawiono
+rejestr na 148/54, zachowano historyczną kopię i powtórzono pełny frontend: 4195 PASS.
+Drugi CI: 361/363 E2E PASS, dwa stare selektory nagłówka szukały tekstu „Ser.”
+zamiast „#” z etykietą „Ser.”. Odtworzono obie porażki na świeżym serwerze,
+poprawiono wyłącznie selektory (393126fa), obie sekwencje przeszły w obu
+silnikach (4/4). Żadna asercja danych, kolejności ani geometrii nie została
+usunięta. Gotowe paczki przeszły dodatkowo Home → tło → powrót do aplikacji.
+Końcowy CI 34684429867 ze źródła393126fa: SUCCESS. Frontend4195 PASS /16 SKIP;
+Functions563 PASS oraz osobno15/15 integracji; reguły Firestore326 i Storage44;
+E2E Chromium363/363, WebKit9/9, Firebase18/18 bez flaky/SKIP; oba zadania natywne
+PASS. Dwa warunkowe zadania deploy są pominięte, a faktyczne ręczne wdrożenia
+mają odrębne potwierdzenia. Receipt: audit/stability-2026-09-12/ci-status-final.json.
 
 ### 2026-09-09: pełna poprzednia wartość serii na ciasnym ekranie
 

@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-09-12T08:45:05.909343+00:00",
+  "url": "https://app.strengthsave.app/",
+  "source_commit": "5d9235240e64267fa33ddd1667b949a4acd9d632",
+  "gh_pages_commit": "9a05976ef2bd0e4339a8a648bee6e5e129cf68e7",
+  "checks": [
+    {
+      "path": "index.html",
+      "bytes": 1227,
+      "sha256": "6dc9b08b9e536968d3b283787df691ed7dfeeb0383833f4b3957a7ab19c30236",
+      "matches_dist": true
+    },
+    {
+      "path": "sw.js",
+      "bytes": 10503,
+      "sha256": "e37f44644b397ea3f8b8468a5a1a379cc83d74c31f2ca1a3413c2ed29c0ab5f6",
+      "matches_dist": true
+    },
+    {
+      "path": "assets/index-DJmpI8Gx.css",
+      "bytes": 113831,
+      "sha256": "d69bc7b836ef21d3b6240c0afa927b40b12e4347c2c2c4a63cdeb677b853d600",
+      "matches_dist": true
+    },
+    {
+      "path": "assets/index-DWmFSb3_.js",
+      "bytes": 527000,
+      "sha256": "0011f114588d70a3eb8fe88a3fcdcd0e5af521333ec55a92f8e36953d13eb98a",
+      "matches_dist": true
+    }
+  ],
+  "scope": "Exact unauthenticated live HTML, service worker and entry assets compared to final build54 production web dist."
+}

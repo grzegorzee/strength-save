@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-09-12T08:40:18.466529+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production"
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "1.0.0 (54)",
+            "versionCodes": [
+              "54"
+            ],
+            "releaseNotes": [
+              {
+                "language": "pl-PL",
+                "text": "Poprawiono układ treningu przy większym tekście, w tym zakresy powtórzeń i pola czasu. Stabilniejsze zapisy przy słabym zasięgu. Rozgrzewka zachowuje stan po powrocie do aplikacji. Synchronizacja pokazuje rzeczywisty dzień treningu i usuwa baner po potwierdzonym zapisie.\n"
+              },
+              {
+                "language": "en-US",
+                "text": "Fixed workout layout with larger system text, including repetition ranges and time fields. Improved recovery from network errors. Warmup remains open with its progress after returning to the app. Synchronization shows the actual training day and clears the pending banner after confirmation.\n"
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 54,
+        "sha1": "8e34c9d9d3efd39f734c4105ffa573bef7d37347",
+        "sha256": "b58d1f034b115f1207ef6aa411549bde14776ca02e0280924049df120125d407"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}
