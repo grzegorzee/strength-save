@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveWorkoutHydration } from '@/lib/workout-hydration';
+import { resolveWorkoutHydration, warmupStateForCloudWorkout } from '@/lib/workout-hydration';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSession } from '@/types';
 
@@ -39,6 +39,13 @@ const makeWorkout = (over: Partial<WorkoutSession> = {}): WorkoutSession => ({
 } as WorkoutSession);
 
 describe('resolveWorkoutHydration (Z57)', () => {
+  it('a newer cloud revision updates sets without closing the same session warmup', () => {
+    const draft = makeDraft({ cloudRevision: 1, warmupOpen: true, warmupChecked: ['cardio'] });
+    const cloud = makeWorkout({ revision: 2 });
+    expect(warmupStateForCloudWorkout(cloud, draft)).toEqual({ warmupOpen: true, warmupChecked: ['cardio'] });
+    expect(warmupStateForCloudWorkout({ ...cloud, completed: true }, draft)).toEqual({});
+    expect(warmupStateForCloudWorkout({ ...cloud, id: 'another-session' }, draft)).toEqual({});
+  });
   it('brak draftu => useDraft=false', () => {
     const result = resolveWorkoutHydration({
       workoutForDate: makeWorkout(),
@@ -150,6 +157,26 @@ describe('resolveWorkoutHydration (Z57)', () => {
     });
     expect(result.useDraft).toBe(true);
     expect(result.clearDraft).toBe(false);
+  });
+
+  it('a clean checkpoint keeps local warmup progress when the cloud revision is unchanged', () => {
+    const result = resolveWorkoutHydration({
+      workoutForDate: makeWorkout({ revision: 2 }),
+      draft: makeDraft({ cloudRevision: 2, lastFirebaseSyncAt: 200, warmupChecked: ['warmup.v3.cardioEasy'] }),
+      draftHasData: true,
+      completedValidationOk: null,
+    });
+    expect(result).toEqual({ useDraft: true, clearDraft: false });
+  });
+
+  it('a newer cloud revision still wins over a clean checkpoint', () => {
+    const result = resolveWorkoutHydration({
+      workoutForDate: makeWorkout({ revision: 3 }),
+      draft: makeDraft({ cloudRevision: 2, lastFirebaseSyncAt: 200, warmupChecked: ['warmup.v3.cardioEasy'] }),
+      draftHasData: true,
+      completedValidationOk: null,
+    });
+    expect(result).toEqual({ useDraft: false, clearDraft: false });
   });
 
   it('dirty => true', () => {

@@ -363,13 +363,19 @@ describe('workoutDraftDb', () => {
     expect(loaded?.lastTouchedExerciseId).toBe('ex-1');
   });
 
-  it('roundtrip zachowuje warmupChecked (Z162)', async () => {
+  it('roundtrip preserves warmup checks and open state across IDB and emergency fallback', async () => {
     await workoutDraftDb.saveActiveDraft({
       ...baseDraft,
       warmupChecked: ['warmup.jumpingJacks', 'stretch.catCow'],
+      warmupOpen: true,
     });
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
     expect(loaded?.warmupChecked).toEqual(['warmup.jumpingJacks', 'stretch.catCow']);
+    expect(loaded?.warmupOpen).toBe(true);
+    expect(workoutDraft.loadSession(baseDraft.sessionId, 'user-1')?.warmupOpen).toBe(true);
+    await workoutDraftDb.saveActiveDraft({ ...loaded!, version: loaded!.version + 1, warmupOpen: false });
+    expect((await workoutDraftDb.loadActiveDraft('user-1'))?.warmupOpen).toBe(false);
+    expect(workoutDraft.loadSession(baseDraft.sessionId, 'user-1')?.warmupOpen).toBe(false);
   });
 
   it('normalizeDraft odfiltrowuje nie-stringi z warmupChecked (Z162)', async () => {
@@ -880,6 +886,7 @@ describe('workoutDraftDb', () => {
       remoteSessionId: null,
       version: 5,
       warmupChecked: ['warmup.jumpingJacks'],
+      warmupOpen: true,
       sessionSwaps: { 'ex-1': { id: 'ex-1-swap', name: 'Swap', sets: '3 x 8' } },
       lastTouchedExerciseId: 'ex-1-swap',
       lastActivityAt: 4_200_000,
@@ -887,6 +894,7 @@ describe('workoutDraftDb', () => {
 
     const merged = await workoutDraftDb.loadDraft('user-1', remoteId);
     expect(merged?.warmupChecked).toEqual(['warmup.jumpingJacks']);
+    expect(merged?.warmupOpen).toBe(true);
     expect(merged?.sessionSwaps).toEqual({ 'ex-1': { id: 'ex-1-swap', name: 'Swap', sets: '3 x 8' } });
     expect(merged?.lastTouchedExerciseId).toBe('ex-1-swap');
     expect(merged?.lastActivityAt).toBe(4_200_000);

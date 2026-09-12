@@ -212,6 +212,17 @@ describe('buildWorkoutDraftSnapshot', () => {
 });
 
 describe('warmupChecked w snapshocie draftu (Z162)', () => {
+  it('open warmup survives snapshots and closing it is persisted without losing sets', () => {
+    const opened = buildWorkoutDraftSnapshot(makeContext(), { warmupOpen: true });
+    expect(opened?.warmupOpen).toBe(true);
+    const background = buildWorkoutDraftSnapshot(makeContext({ previousDraft: opened }));
+    expect(background?.warmupOpen).toBe(true);
+    expect(background?.exerciseSets).toEqual(opened?.exerciseSets);
+    const closed = buildWorkoutDraftSnapshot(makeContext({ previousDraft: background }), { warmupOpen: false });
+    expect(closed?.warmupOpen).toBe(false);
+    expect(closed?.exerciseSets).toEqual(opened?.exerciseSets);
+  });
+
   it('override warmupChecked trafia do snapshotu i podbija version (zmiana treści)', () => {
     const snapshot = buildWorkoutDraftSnapshot(makeContext(), {
       warmupChecked: ['warmup.jumpingJacks'],

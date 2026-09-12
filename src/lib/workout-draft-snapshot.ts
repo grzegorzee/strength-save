@@ -27,6 +27,7 @@ export interface DraftSnapshotContext {
   skippedExercises: string[];
   // Odhaczenia rozgrzewki (Z162): część treści draftu — zmiana bumpuje version.
   warmupChecked?: string[];
+  warmupOpen?: boolean;
   dayNames: Record<string, string>;
   dayName?: string;
   dayFocus?: string;
@@ -105,7 +106,7 @@ const sameStringArray = (a: string[], b: string[]): boolean => (
 
 const sameDraftContent = (
   previous: ActiveWorkoutDraft,
-  next: Pick<ActiveWorkoutDraft, 'exerciseSets' | 'exerciseNotes' | 'exerciseMetrics' | 'exerciseMetricGrants' | 'pendingHealthGrant' | 'dayNotes' | 'skippedExercises' | 'warmupChecked'>,
+  next: Pick<ActiveWorkoutDraft, 'exerciseSets' | 'exerciseNotes' | 'exerciseMetrics' | 'exerciseMetricGrants' | 'pendingHealthGrant' | 'dayNotes' | 'skippedExercises' | 'warmupChecked' | 'warmupOpen'>,
 ): boolean => (
   sameSets(previous.exerciseSets, next.exerciseSets)
   && sameStringMap(previous.exerciseNotes, next.exerciseNotes)
@@ -115,6 +116,7 @@ const sameDraftContent = (
   && previous.dayNotes === next.dayNotes
   && sameStringArray(previous.skippedExercises, next.skippedExercises)
   && sameStringArray(previous.warmupChecked ?? [], next.warmupChecked ?? [])
+  && !!previous.warmupOpen === !!next.warmupOpen
 );
 
 export const buildWorkoutDraftSnapshot = (
@@ -135,6 +137,7 @@ export const buildWorkoutDraftSnapshot = (
       : null;
 
   // Z162: pole opcjonalne — legacy draft bez odhaczeń zostaje bez pola (brak fałszywego bumpu version).
+  const nextWarmupOpen = overrides.warmupOpen ?? context.warmupOpen ?? previousDraft?.warmupOpen;
   const nextWarmupChecked = overrides.warmupChecked ?? context.warmupChecked ?? previousDraft?.warmupChecked;
   const nextExerciseMetricGrants = overrides.exerciseMetricGrants
     ?? context.exerciseMetricGrants
@@ -153,6 +156,7 @@ export const buildWorkoutDraftSnapshot = (
     ...(nextPendingHealthGrant !== undefined && { pendingHealthGrant: nextPendingHealthGrant }),
     dayNotes: overrides.dayNotes ?? context.dayNotes,
     skippedExercises: overrides.skippedExercises ?? context.skippedExercises,
+    ...(nextWarmupOpen !== undefined && { warmupOpen: nextWarmupOpen }),
     ...(nextWarmupChecked !== undefined && { warmupChecked: nextWarmupChecked }),
   };
 

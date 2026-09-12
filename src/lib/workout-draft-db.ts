@@ -58,6 +58,8 @@ export interface ActiveWorkoutDraft {
   // Odhaczone pozycje rozgrzewki/stretchingu po nameKey (Z162). Pole additive, bez bumpu
   // wersji IndexedDB; NIE wychodzi do Firestore (stan pomocniczy sesji, nie trening).
   warmupChecked?: string[];
+  /** Local dialog visibility survives WebView reloads; never sent to Firestore. */
+  warmupOpen?: boolean;
   // Swapy "tylko dziś" per planId (Z185). Pole additive, wyłącznie lokalne (IndexedDB +
   // fallback localStorage) — NIE wychodzi do Firestore (rules mają schema-checks).
   // Bez persystencji mapa żyła tylko w stanie Reacta i po restarcie draft renderował
@@ -337,6 +339,7 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     ...(value.dayFocus !== undefined && { dayFocus: String(value.dayFocus) }),
     skippedExercises: normalizeStringArray(value.skippedExercises),
     ...(typeof value.lastTouchedExerciseId === 'string' && { lastTouchedExerciseId: value.lastTouchedExerciseId }),
+    ...(typeof value.warmupOpen === 'boolean' && { warmupOpen: value.warmupOpen }),
     ...(Array.isArray(value.warmupChecked) && {
       warmupChecked: value.warmupChecked.filter((key): key is string => typeof key === 'string'),
     }),
@@ -446,6 +449,7 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     skippedExercises: draft.skippedExercises,
     ...(draft.lastTouchedExerciseId !== undefined && { lastTouchedExerciseId: draft.lastTouchedExerciseId }),
     ...(draft.warmupChecked !== undefined && { warmupChecked: draft.warmupChecked }),
+    ...(draft.warmupOpen !== undefined && { warmupOpen: draft.warmupOpen }),
     ...(draft.sessionSwaps !== undefined && { sessionSwaps: draft.sessionSwaps }),
     savedAt: draft.updatedAt,
     ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
@@ -1107,6 +1111,7 @@ const redirectDraftSave = async (
         // mergePromotedDraft przenoszą je od zawsze). Najgroźniejszy był swap
         // "tylko dziś": utrata utrwalała się do końca sesji przez activeDraftRef.
         ...(incoming.warmupChecked !== undefined && { warmupChecked: incoming.warmupChecked }),
+        ...(incoming.warmupOpen !== undefined && { warmupOpen: incoming.warmupOpen }),
         ...(incoming.sessionSwaps !== undefined && { sessionSwaps: incoming.sessionSwaps }),
         ...(incoming.lastTouchedExerciseId !== undefined && { lastTouchedExerciseId: incoming.lastTouchedExerciseId }),
         ...(incoming.lastActivityAt !== undefined && { lastActivityAt: incoming.lastActivityAt }),
@@ -1172,6 +1177,7 @@ const mergeDraftRecord = (
       lastTouchedExerciseId: fallback.lastTouchedExerciseId,
     }),
     ...(fallback.warmupChecked !== undefined && { warmupChecked: fallback.warmupChecked }),
+    ...(fallback.warmupOpen !== undefined && { warmupOpen: fallback.warmupOpen }),
     ...(fallback.sessionSwaps !== undefined && { sessionSwaps: fallback.sessionSwaps }),
     ...(fallback.cloudRevision !== undefined && { cloudRevision: fallback.cloudRevision }),
     ...(fallback.cloudUpdatedAt !== undefined && { cloudUpdatedAt: fallback.cloudUpdatedAt }),

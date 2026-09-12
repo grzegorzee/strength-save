@@ -86,7 +86,7 @@ import {
 import { addAppStateListener } from '@/lib/app-lifecycle';
 import { deriveWorkoutSessionPhase, isActiveTrainingPhase, shouldStartRest } from '@/lib/workout-session-state';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
-import { resolveWorkoutHydration } from '@/lib/workout-hydration';
+import { resolveWorkoutHydration, warmupStateForCloudWorkout } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
 import { computeEffectiveDurationSec, computeLegacyTimestampDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
@@ -273,7 +273,8 @@ const WorkoutDay = () => {
   // dopiero przy drugim (pierwszy dostaje cichy retry po 3 s).
   const draftFailStreakRef = useRef(0);
   const keepLocalOnConflictRef = useRef<null | (() => Promise<void>)>(null);
-  const [showWarmup, setShowWarmup] = useState(false);
+  const [showWarmup, setShowWarmupState] = useState(false);
+  const showWarmupRef = useRef(false);
   // Z162: odhaczenia rozgrzewki (klucze nameKey) żyją w drafcie sesji — zamknięcie
   // dialogu i wyjście z apki ich nie kasuje, nowa sesja startuje z czystą listą.
   const [warmupChecked, setWarmupChecked] = useState<string[]>([]);
@@ -789,6 +790,7 @@ const WorkoutDay = () => {
       // do starej wartości z previousDraft.
       ...((warmupCheckedRef.current.length > 0 || activeDraftRef.current?.warmupChecked !== undefined)
         && { warmupChecked: warmupCheckedRef.current }),
+      warmupOpen: showWarmupRef.current,
       dayNames: daySnapshotRef.current.names,
       dayName: daySnapshotRef.current.dayName,
       dayFocus: daySnapshotRef.current.focus,
@@ -852,6 +854,17 @@ const WorkoutDay = () => {
     if (!sessionId || !dayId || !uid) return;
     void persistDraftSnapshot(overrides, { showStatus: true });
   }, [sessionId, dayId, uid, persistDraftSnapshot]);
+
+  const setShowWarmup = useCallback((open: boolean) => {
+    showWarmupRef.current = open;
+    setShowWarmupState(open);
+    // The prestart promise may still hold the render from before sessionId was
+    // set. The synchronous draft ref already owns the newly started session.
+    const draft = activeDraftRef.current;
+    if (draft?.userId === uid && draft.dayId === dayId && draft.date === targetDate) {
+      void persistDraftSnapshot({ sessionId: draft.sessionId, warmupOpen: open }, { showStatus: false });
+    }
+  }, [uid, dayId, targetDate, persistDraftSnapshot]);
 
   // Build exercises payload for batchSaveWorkout (reads from refs)
   const buildExercisesPayload = useCallback(() => (
@@ -1135,6 +1148,7 @@ const WorkoutDay = () => {
     dayNotes: string;
     skippedExercises: string[];
     warmupChecked?: string[];
+    warmupOpen?: boolean;
     sessionSwaps?: Record<string, { id: string; name: string; sets: string; videoUrl?: string }>;
   }) => {
     setSessionId(next.sessionId);
@@ -1150,6 +1164,8 @@ const WorkoutDay = () => {
     setSkippedExercises(next.skippedExercises);
     // Z162: brak pola = nowa/inna sesja → rozgrzewka startuje czysta.
     setWarmupChecked(next.warmupChecked ?? []);
+    showWarmupRef.current = !next.completed && !!next.warmupOpen;
+    setShowWarmupState(showWarmupRef.current);
     // Z185: swapy "tylko dziś" wracają z draftu po restarcie (persist w IDB/localStorage).
     setSessionSwaps(next.sessionSwaps ?? {});
   }, []);
@@ -1272,6 +1288,7 @@ const WorkoutDay = () => {
         dayNotes: currentPageDraft.dayNotes,
         skippedExercises: currentPageDraft.skippedExercises,
         warmupChecked: currentPageDraft.warmupChecked,
+        warmupOpen: currentPageDraft.warmupOpen,
         sessionSwaps: currentPageDraft.sessionSwaps,
       });
 
@@ -1358,6 +1375,7 @@ const WorkoutDay = () => {
         exerciseMetrics: metrics,
         dayNotes: workoutForDate.notes || '',
         skippedExercises: workoutForDate.skippedExercises || [],
+        ...warmupStateForCloudWorkout(workoutForDate, currentPageDraft),
       });
       return;
     }

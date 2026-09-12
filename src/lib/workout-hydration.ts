@@ -19,6 +19,17 @@ export interface WorkoutHydrationDecision {
   clearDraft: boolean;
 }
 
+/** Warmup state is local UI data, absent from every cloud revision. A newer
+ * cloud checkpoint may replace sets, but must not close this session's dialog. */
+export const warmupStateForCloudWorkout = (
+  workout: WorkoutSession,
+  draft: ActiveWorkoutDraft | null,
+): Pick<ActiveWorkoutDraft, 'warmupChecked' | 'warmupOpen'> => (
+  draft?.sessionId === workout.id && !workout.completed
+    ? { warmupChecked: draft.warmupChecked, warmupOpen: draft.warmupOpen }
+    : {}
+);
+
 export const resolveWorkoutHydration = (input: WorkoutHydrationInput): WorkoutHydrationDecision => {
   const { workoutForDate, draft, draftHasData, completedValidationOk } = input;
   // Bazowy dokument nie potwierdza prywatnego sidecara. Jego retry musi zachować
@@ -53,6 +64,9 @@ export const resolveWorkoutHydration = (input: WorkoutHydrationInput): WorkoutHy
     if (workoutForDate.completed && !draft.finalSyncPending) return completedValidationOk === false && draftHasData;
     if (draft.finalSyncPending) return true;
     if (draft.dirty) return true;
+    // Checkpoints do not send warmup/UI state to the cloud. Keep the local
+    // snapshot after its ACK until a genuinely newer remote revision arrives.
+    if (draft.cloudRevision !== undefined && draft.cloudRevision === workoutForDate.revision) return true;
     if (workoutForDate.exercises.length === 0 && draftHasData) return true;
     if (draft.lastFirebaseSyncAt == null) return draftHasData;
     return draft.updatedAt > draft.lastFirebaseSyncAt;

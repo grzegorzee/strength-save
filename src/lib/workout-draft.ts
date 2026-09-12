@@ -37,6 +37,8 @@ export interface WorkoutDraft {
   lastTouchedExerciseId?: string;
   // Odhaczenia rozgrzewki (Z162) — pole additive, przeżywa round-trip przez fallback.
   warmupChecked?: string[];
+  /** Local dialog visibility survives WebView reloads; never sent to Firestore. */
+  warmupOpen?: boolean;
   // Swapy "tylko dziś" (Z185) — pole additive, przeżywa round-trip przez fallback.
   sessionSwaps?: Record<string, { id: string; name: string; sets: string; videoUrl?: string }>;
   savedAt: number;

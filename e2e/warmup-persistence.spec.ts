@@ -70,6 +70,25 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     await clearWorkoutDraftDb(page, E2E_UID);
   });
 
+  test('reload during warmup restores the open dialog and checks; explicit finish stays closed', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('fittracker_e2e_cloud_writes', 'true'));
+    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
+    await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    await page.getByTestId('prestart-yes').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await toggleFirstItems(page, 2);
+    await page.reload();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    expect(await struckCount(page)).toBe(2);
+    await page.getByTestId('warmup-finish').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator('.exercise-card').first()).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await openWarmup(page);
+    expect(await struckCount(page)).toBe(2);
+  });
+
   test('odhacz 3 → zamknij → otwórz → wyjdź na Dashboard → wróć: odhaczenia SĄ', async ({ page }) => {
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
