@@ -77,6 +77,8 @@ statusowe zawsze z modyfikatorem (`/10`), tekst w pełnym kolorze. Wzorzec:
 
 ## Checklist przed KAŻDYM wdrożeniem
 
+- [ ] **Przed KAŻDYM pushem i wdrożeniem:** uruchom zmienioną aplikację w symulatorze iOS i emulatorze Androida, zrób zrzuty poprawianego ekranu oraz sąsiednich przepływów i OBEJRZYJ je. Sprawdź pełne etykiety, wartości, zakresy oraz pola dotyku; sam brak overflow ani zielony Playwright nie wystarczą. Dla zmian typografii sprawdź rzeczywisty tekst systemowy (iOS co najmniej 100%, 112%, 135%; Android zwykły i większy). Brak tej weryfikacji blokuje push/release. Polecenie właściciela 2026-09-12 po regresji iOS w poprawce Androida.
+- [ ] **Różnice platform:** jeśli WebView zachowują się inaczej, zastosuj osobne reguły iOS/Android, z jawną bramką platformy. Nie przenoś obejścia jednej platformy na drugą bez jej natywnej weryfikacji.
 - [ ] `npm run test` (wszystkie zielone), `npm run typecheck`, `npm run lint`
 - [ ] `npm run build` przechodzi
 - [ ] Zmiany dotykają timerów / autozapisu / scrolla / cyklu życia apki? → scenariusz **background/resume**: zgaś ekran, odczekaj, wróć (realne urządzenie)

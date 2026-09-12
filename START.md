@@ -2,6 +2,13 @@
 
 > Quick reference - wszystko w jednym miejscu
 
+> **Poprawki 2026-09-12:** kandydaci iOS 148 / Android 54 (1.0.0).
+> Naprawiono asercję Firebase, odtwarzanie rozgrzewki, etykietę przesuniętego
+> treningu i baner po synchronizacji. Układ iOS/Android jest rozdzielony;
+> zrzuty obu aplikacji sprawdzono przy normalnym i większym tekście.
+> 4195 unit PASS, 66 E2E PASS. Dystrybucja jest w przygotowaniu.
+> [Przyczyny, poprawki i dowody](docs/STABILITY-2026-09-12.md).
+
 > **Wydanie po feedbacku Huawei 2026-09-09:** Android **1.0.0 (53)** ze źródła
 > `6cf63748` opublikowany w Google Play Internal Testing; `COMPLETED` i hash AAB
 > potwierdzone dwoma odczytami. iOS **1.0.0 (147)**: VALID / APPROVED /

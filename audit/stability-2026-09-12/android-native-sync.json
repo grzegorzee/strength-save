@@ -1,0 +1,55 @@
+{
+  "platform": "android",
+  "network": "isolated fixture, navigator offline/online events",
+  "date": "2026-09-12",
+  "storedDayName": "Piątek",
+  "completed": true,
+  "sets": [
+    {
+      "exerciseId": "native-rdl",
+      "sets": [
+        {
+          "reps": 10,
+          "weight": 30,
+          "completed": true,
+          "updatedAt": 1789201163121,
+          "updatedEventId": "phone-d259af55-ca29-4966-bcdd-660112b26130-c3f1d718-4f71-4ba2-b37c-27ef9a697727"
+        },
+        {
+          "reps": 0,
+          "weight": 0,
+          "completed": false
+        },
+        {
+          "reps": 0,
+          "weight": 0,
+          "completed": false
+        }
+      ],
+      "name": "Martwy Ciąg Rumuński (RDL)"
+    },
+    {
+      "exerciseId": "native-ohp",
+      "sets": [
+        {
+          "reps": 0,
+          "weight": 0,
+          "completed": false
+        },
+        {
+          "reps": 0,
+          "weight": 0,
+          "completed": false
+        },
+        {
+          "reps": 0,
+          "weight": 0,
+          "completed": false
+        }
+      ],
+      "name": "Wyciskanie hantli nad głowę (Siedząc)"
+    }
+  ],
+  "toast": "Sobota. Wszystko jest już bezpieczne.",
+  "pendingBannerRemoved": true
+}

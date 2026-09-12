@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-12",
+  "frontend_source_commit": "e34da557114a353d076bb74dccaa1825bbd8d41d",
+  "unit": {
+    "files": 487,
+    "passed": 4195,
+    "skipped": 16,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "existingWarnings": 15
+  },
+  "e2e": {
+    "finalSuitePassed": 66,
+    "subsequentFieldChecksPassed": 4,
+    "interruptionSequencePassed": 2
+  },
+  "native": {
+    "ios": "iPhone 13 / iOS 26.5 / WKWebView / 100,112,135%",
+    "android": "AOSP API 35 / WebView / 360dp / 100,135%",
+    "screenshotsVisuallyReviewed": true,
+    "layoutCapturesPassed": 7,
+    "warmupSuspendResume": "PASS",
+    "warmupIosTerminateLaunch": "PASS",
+    "offlineFinishThenSyncBothPlatforms": "PASS",
+    "cloudMode": "isolated E2E mock; no production writes"
+  }
+}

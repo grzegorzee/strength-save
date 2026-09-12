@@ -1,0 +1,309 @@
+{
+  "platform": "android",
+  "scale": "100",
+  "root": "16px",
+  "body": "16px",
+  "viewport": {
+    "width": 360,
+    "height": 707
+  },
+  "overflow": 0,
+  "tables": [
+    {
+      "tracking": "weight_reps",
+      "overflow": 0,
+      "headers": [
+        {
+          "label": "#",
+          "contained": true
+        },
+        {
+          "label": "Poprz.",
+          "contained": true
+        },
+        {
+          "label": "kg",
+          "contained": true
+        },
+        {
+          "label": "Powt.",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "0/3",
+          "contained": true
+        }
+      ],
+      "rows": [
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Martwy Ciąg Rumuński (RDL), Set 1, kg",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Martwy Ciąg Rumuński (RDL), Set 1, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną (aktywna)",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Usuń serię",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        },
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Martwy Ciąg Rumuński (RDL), Set 2, kg",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Martwy Ciąg Rumuński (RDL), Set 2, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Usuń serię",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        },
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Martwy Ciąg Rumuński (RDL), Set 3, kg",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Martwy Ciąg Rumuński (RDL), Set 3, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Usuń serię",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tracking": "weight_reps",
+      "overflow": 0,
+      "headers": [
+        {
+          "label": "#",
+          "contained": true
+        },
+        {
+          "label": "Poprz.",
+          "contained": true
+        },
+        {
+          "label": "kg",
+          "contained": true
+        },
+        {
+          "label": "Powt.",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "0/3",
+          "contained": true
+        }
+      ],
+      "rows": [
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Wyciskanie hantli nad głowę (Siedząc), Set 1, kg",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Wyciskanie hantli nad głowę (Siedząc), Set 1, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną (aktywna)",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Usuń serię",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        },
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Wyciskanie hantli nad głowę (Siedząc), Set 2, kg",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Wyciskanie hantli nad głowę (Siedząc), Set 2, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Usuń serię",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        },
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Wyciskanie hantli nad głowę (Siedząc), Set 3, kg",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Wyciskanie hantli nad głowę (Siedząc), Set 3, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Usuń serię",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "nav": [
+    {
+      "label": "Dzisiaj",
+      "contained": true
+    },
+    {
+      "label": "Plan",
+      "contained": true
+    },
+    {
+      "label": "Historia",
+      "contained": true
+    },
+    {
+      "label": "Postępy",
+      "contained": true
+    },
+    {
+      "label": "Profil",
+      "contained": true
+    }
+  ]
+}

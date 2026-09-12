@@ -1,0 +1,83 @@
+[
+  {
+    "file": "ios-text100-contract.json",
+    "status": "PASS",
+    "platform": "ios",
+    "root": "16px",
+    "body": "16px",
+    "tracking": [
+      "weight_reps",
+      "weight_reps"
+    ]
+  },
+  {
+    "file": "ios-text112-contract.json",
+    "status": "PASS",
+    "platform": "ios",
+    "root": "16px",
+    "body": "17.92px",
+    "tracking": [
+      "weight_reps",
+      "weight_reps"
+    ]
+  },
+  {
+    "file": "ios-text135-contract.json",
+    "status": "PASS",
+    "platform": "ios",
+    "root": "16px",
+    "body": "21.6px",
+    "tracking": [
+      "weight_reps",
+      "weight_reps"
+    ]
+  },
+  {
+    "file": "android-text100-contract.json",
+    "status": "PASS",
+    "platform": "android",
+    "root": "16px",
+    "body": "16px",
+    "tracking": [
+      "weight_reps",
+      "weight_reps"
+    ]
+  },
+  {
+    "file": "android-text135-contract.json",
+    "status": "PASS",
+    "platform": "android",
+    "root": "21.6px",
+    "body": "21.6px",
+    "tracking": [
+      "weight_reps",
+      "weight_reps"
+    ]
+  },
+  {
+    "file": "ios-tracking135-contract.json",
+    "status": "PASS",
+    "platform": "ios",
+    "root": "16px",
+    "body": "21.6px",
+    "tracking": [
+      "bodyweight_reps",
+      "assisted_bodyweight",
+      "duration",
+      "weight_distance_duration"
+    ]
+  },
+  {
+    "file": "android-tracking135-contract.json",
+    "status": "PASS",
+    "platform": "android",
+    "root": "21.6px",
+    "body": "21.6px",
+    "tracking": [
+      "bodyweight_reps",
+      "assisted_bodyweight",
+      "duration",
+      "weight_distance_duration"
+    ]
+  }
+]

@@ -5,11 +5,44 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-09 (Android Huawei, parytet płatności, wydanie 147/53)
+**Ostatnia aktualizacja:** 2026-09-12 (stabilność treningu, osobne układy iOS/Android)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-12: stabilność treningu i izolacja typografii systemów
+
+Niezmienniki: sesja z planu zachowuje komplet ćwiczeń; draft jest usuwany dopiero
+po potwierdzeniu całych danych; rozgrzewka pozostaje otwarta do decyzji użytkownika;
+całe wartości i nagłówki pól są widoczne na obu platformach.
+
+Odtworzono regresję WKWebView: `text-size-adjust` na html zwiększał root do
+17,92 px przy systemowym 112%, przesuwając próg tabeli w rem. iOS skaluje teraz
+tekst na body, Android używa natywnego TextZoom i osobnych szerokości. Reguły
+są w dwóch plikach CSS z selektorem platformy. Dodatkowo naprawiono zakresy
+powtórzeń przy asyście i zbyt wąskie osobne pola minut/sekund.
+
+Produkcja wskazała asercję Firestore 3c6b po auth/network-request-failed:
+wewnętrzna kolejka stawała, a recovery aplikacji wykonywało reload. Reproduktor
+na realnym SDK potwierdził błąd. Retry przeniesiono poza klasyfikator SDK,
+zachowując atomowość i ponawianie konfliktów. Błędy sieci zachowują kod podczas
+przekazywania do obsługi offline. warmupOpen jest zapisywane w IDB/fallback,
+przenoszone przy promocji sesji i zachowywane przy nowszym checkpointcie.
+
+Sobotni trening właściciela miał poprawną datę 2026-09-12 i 21 serii, ale stare
+`dayName=Piątek`. Etykieta dnia jest teraz liczona z daty, bez przepisywania
+zapisanych danych. Potwierdzone zakończenie usuwa baner finalSyncPending również
+przy pozostaniu na podsumowaniu; zdrowotny sidecar nadal chroni szkic.
+
+Weryfikacja: 4195 unit PASS / 16 istniejących SKIP, typecheck, lint bez błędów;
+66 E2E Chromium/WebKit, dodatkowe 4 kontrole pól, 2 scenariusze przerwania.
+Rzeczywiste WKWebView 100/112/135% oraz Android WebView 100/135%, screenshoty
+naprawianych i sąsiednich ekranów obejrzane. Suspend/cold start nie zgubił
+rozgrzewki. Obie natywne aplikacje zakończyły offline i dosynchronizowały
+izolowany trening z komunikatem „Sobota” oraz wyczyszczonym IDB. Produkcja była
+wyłącznie odczytywana. Pełne dowody i granice: docs/STABILITY-2026-09-12.md.
+Bump wyłącznie buildów na 148/54; wersja marketingowa pozostaje 1.0.0.
 
 ### 2026-09-09: pełna poprzednia wartość serii na ciasnym ekranie
 

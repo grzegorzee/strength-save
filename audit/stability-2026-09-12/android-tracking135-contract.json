@@ -1,0 +1,285 @@
+{
+  "platform": "android",
+  "scale": "150",
+  "root": "21.6px",
+  "body": "21.6px",
+  "viewport": {
+    "width": 360,
+    "height": 707
+  },
+  "overflow": 0,
+  "tables": [
+    {
+      "tracking": "bodyweight_reps",
+      "overflow": 0,
+      "headers": [
+        {
+          "label": "#",
+          "contained": true
+        },
+        {
+          "label": "Poprz.",
+          "contained": true
+        },
+        {
+          "label": "Powt.",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "0/1",
+          "contained": true
+        }
+      ],
+      "rows": [
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Podciąganie na drążku podchwytem, Set 1, Powt.",
+              "width": 77,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną (aktywna)",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tracking": "assisted_bodyweight",
+      "overflow": 0,
+      "headers": [
+        {
+          "label": "#",
+          "contained": true
+        },
+        {
+          "label": "Poprz.",
+          "contained": true
+        },
+        {
+          "label": "Asysta",
+          "contained": true
+        },
+        {
+          "label": "Powt.",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "0/1",
+          "contained": true
+        }
+      ],
+      "rows": [
+        {
+          "height": 60,
+          "display": "grid",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Podciąganie wspomagane na maszynie, Set 1, Asysta",
+              "width": 58.90625,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Podciąganie wspomagane na maszynie, Set 1, Powt.",
+              "width": 56,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną (aktywna)",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tracking": "duration",
+      "overflow": 0,
+      "headers": [
+        {
+          "label": "#",
+          "contained": true
+        },
+        {
+          "label": "Poprz.",
+          "contained": true
+        },
+        {
+          "label": "Czas",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "0/1",
+          "contained": true
+        }
+      ],
+      "rows": [
+        {
+          "height": 94.27083587646484,
+          "display": "flex",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Minuty",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Sekundy",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Start odliczania: Set 1, cel 0:45",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną (aktywna)",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tracking": "weight_distance_duration",
+      "overflow": 0,
+      "headers": [
+        {
+          "label": "#",
+          "contained": true
+        },
+        {
+          "label": "kg",
+          "contained": true
+        },
+        {
+          "label": "Dystans",
+          "contained": true
+        },
+        {
+          "label": "Czas",
+          "contained": true
+        },
+        {
+          "label": "",
+          "contained": true
+        },
+        {
+          "label": "0/1",
+          "contained": true
+        }
+      ],
+      "rows": [
+        {
+          "height": 168.5416717529297,
+          "display": "flex",
+          "previous": true,
+          "controls": [
+            {
+              "label": "Spacer farmera (Farmer's Walk), Set 1, kg",
+              "width": 127,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Spacer farmera (Farmer's Walk), Set 1, Dystans",
+              "width": 127,
+              "height": 48,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Minuty",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Sekundy",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            },
+            {
+              "label": "Zaznacz serię jako zrobioną (aktywna)",
+              "width": 44,
+              "height": 44,
+              "contained": true,
+              "textFits": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "nav": [
+    {
+      "label": "Dzisiaj",
+      "contained": true
+    },
+    {
+      "label": "Plan",
+      "contained": true
+    },
+    {
+      "label": "Historia",
+      "contained": true
+    },
+    {
+      "label": "Postępy",
+      "contained": true
+    },
+    {
+      "label": "Profil",
+      "contained": true
+    }
+  ]
+}
