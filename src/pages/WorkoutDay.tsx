@@ -86,6 +86,7 @@ import {
 import { addAppStateListener } from '@/lib/app-lifecycle';
 import { deriveWorkoutSessionPhase, isActiveTrainingPhase, shouldStartRest } from '@/lib/workout-session-state';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
+import { notifyDeferredSyncSuccess } from '@/lib/sync-notification';
 import { resolveWorkoutHydration, warmupStateForCloudWorkout } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
 import { computeEffectiveDurationSec, computeLegacyTimestampDurationSec } from '@/lib/workout-duration';
@@ -1065,12 +1066,26 @@ const WorkoutDay = () => {
         setSaveError(t('workout.err.cloudSavedLocalCleanupFailed'));
       }
       setQueuedDraft(prev => prev?.sessionId === targetSessionId || prev?.sessionId === sessionId ? null : prev);
+      activeDraftRef.current = null;
+      queuedDraftRef.current = null;
       setActiveDraft(null);
       setIsCompleted(true);
       completedSessionLockRef.current = targetSessionId;
       queueAutoSaveStatus('synced', 'idle', 2200);
       trackTelemetryEvent(uid, 'sync_success');
       trackTelemetryEvent(uid, 'action_workout_completed');
+      // Reconnect can be handled by this screen before AutoSync acquires the
+      // shared lock. Whichever finishes the deferred final uses the same
+      // idempotent notification; staying on the summary must also give an ACK.
+      if (currentDraft?.finalSyncPending) {
+        void notifyDeferredSyncSuccess(uid, {
+          sessionId: targetSessionId,
+          dayId: currentDraft.dayId,
+          date: currentDraft.date,
+          dayName: currentDraft.dayName ?? '',
+          finalizedAt: currentDraft.finalizedAt ?? null,
+        }, { t, lang, showToast: (title, description) => toast({ title, description }) });
+      }
       return { success: true };
     }
 
@@ -1095,7 +1110,7 @@ const WorkoutDay = () => {
     queueAutoSaveStatus('synced', 'idle', 2200);
     trackTelemetryEvent(uid, 'sync_success');
     return { success: true };
-  }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t, describeSyncError]);
+  }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t, lang, toast, describeSyncError]);
 
   // Konflikt cross-device: rebase per seria według (updatedAt, updatedEventId),
   // następnie ponów zapis na świeżej rewizji. Ani cloud, ani lokalna nadwyżka nie giną.
@@ -1272,8 +1287,10 @@ const WorkoutDay = () => {
       // Ref musi zniknąć synchronicznie: unmount w tej samej klatce nie może
       // ponownie zapisać właśnie odrzuconego szkicu z nieaktualnego renderu.
       activeDraftRef.current = null;
-      void workoutDraftDb.clearActiveDraft(uid, currentPageDraft.sessionId);
+      queuedDraftRef.current = null;
+      void workoutDraftDb.clearActiveDraftIfVersion(uid, currentPageDraft.sessionId, currentPageDraft.version);
       setActiveDraft(null);
+      setQueuedDraft(null);
     }
 
     if (hydration.useDraft && currentPageDraft) {

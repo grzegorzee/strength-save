@@ -14,6 +14,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { E2E_WORKOUTS_CHANGED_EVENT } from '@/lib/e2e-cloud-mock';
 import { sanitizeMeasurementDoc, sanitizeWorkoutDoc } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import type { BodyMeasurement, WorkoutSession } from '@/types';
@@ -447,6 +448,14 @@ const ensureHealthListener = (userId: string, entry: StoreEntry): void => {
 
 const startStore = (userId: string, entry: StoreEntry): void => {
   if (isBackendDisabledForMockE2E()) {
+    if (!entry.unsubscribeWorkouts) {
+      const refresh = () => {
+        entry.snapshot = { ...entry.snapshot, workouts: readE2EWorkouts() };
+        entry.listeners.forEach(listener => listener());
+      };
+      window.addEventListener(E2E_WORKOUTS_CHANGED_EVENT, refresh);
+      entry.unsubscribeWorkouts = () => window.removeEventListener(E2E_WORKOUTS_CHANGED_EVENT, refresh);
+    }
     if (!entry.snapshot.isLoaded) {
       // E2E mock: historia treningów wstrzykiwana z localStorage (wzorzec fittracker_e2e_cycles).
       entry.snapshot = {

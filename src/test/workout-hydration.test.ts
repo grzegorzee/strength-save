@@ -148,15 +148,15 @@ describe('resolveWorkoutHydration (Z57)', () => {
     expect(result.clearDraft).toBe(false);
   });
 
-  it('finalSyncPending => true', () => {
+  it('after deferred sync confirms the entire final payload the pending banner is cleared', () => {
     const result = resolveWorkoutHydration({
       workoutForDate: makeWorkout({ completed: true }),
       draft: makeDraft({ finalSyncPending: true, completedLocally: true }),
       draftHasData: true,
       completedValidationOk: true,
     });
-    expect(result.useDraft).toBe(true);
-    expect(result.clearDraft).toBe(false);
+    expect(result.useDraft).toBe(false);
+    expect(result.clearDraft).toBe(true);
   });
 
   it('a clean checkpoint keeps local warmup progress when the cloud revision is unchanged', () => {

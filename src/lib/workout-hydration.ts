@@ -43,11 +43,11 @@ export const resolveWorkoutHydration = (input: WorkoutHydrationInput): WorkoutHy
     && Object.keys(draft.exerciseSets).length === 0);
 
   const clearDraft = emptyDraftOnCompleted || !!(workoutForDate?.completed && draft
-    && !draft.finalSyncPending && !healthWritePending && completedValidationOk === true);
+    && !healthWritePending && completedValidationOk === true);
 
   const useDraft = (() => {
     if (!draft) return false;
-    if (emptyDraftOnCompleted) return false;
+    if (clearDraft) return false;
     if (healthWritePending) return true;
     // Z183: rozjazd sessionId nie może wskrzeszać starszej chmury — dirty draft
     // NOWSZY niż workout w chmurze wygrywa (force-quit tuż po promocji sesji).

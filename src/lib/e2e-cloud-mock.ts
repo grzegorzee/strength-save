@@ -10,6 +10,7 @@ import { buildWorkoutSessionId } from '@/lib/workout-session';
 // Offline (navigator.onLine === false) rzuca jak SDK: sieć jest warunkiem zapisu.
 
 export const E2E_CLOUD_MOCK_FLAG_KEY = 'fittracker_e2e_cloud_writes';
+export const E2E_WORKOUTS_CHANGED_EVENT = 'fittracker:e2e-workouts-changed';
 const E2E_WORKOUTS_KEY = 'fittracker_e2e_workouts';
 
 export const isE2ECloudMockEnabled = (): boolean => {
@@ -33,6 +34,8 @@ const readAll = (): WorkoutSession[] => {
 
 const writeAll = (workouts: WorkoutSession[]): void => {
   window.localStorage.setItem(E2E_WORKOUTS_KEY, JSON.stringify(workouts));
+  // Match Firestore onSnapshot on the current page, including the summary.
+  window.dispatchEvent(new Event(E2E_WORKOUTS_CHANGED_EVENT));
 };
 
 const assertOnline = (): void => {
