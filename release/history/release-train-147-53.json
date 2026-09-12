@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "recordedAt": "2026-09-12",
+  "recordedAt": "2026-09-09",
   "scope": "Source configuration for test-distribution candidates. Delivery evidence separately records actual artifacts and store status; physical iPhone QA runs through TestFlight.",
   "historicalDeliverySnapshot": "release/history/release-train-before-launch-audit.json",
   "product": {
@@ -31,7 +31,7 @@
     "url": "https://app.strengthsave.app/",
     "state": "requires-current-source-and-live-provenance-verification",
     "deliveryEvidence": "audit/android-2026-09-09/web-delivery-53.json",
-    "verifiedDelivery": "PENDING: current source not yet deployed; prior delivery evidence is historical"
+    "verifiedDelivery": "deployed-live-html-service-worker-and-entry-assets-byte-verified"
   },
   "functions": {
     "project": "fittracker-workouts",
@@ -42,19 +42,19 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 148,
+    "build": 147,
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/ios/testflight-148.json",
-    "verifiedDelivery": "PENDING: candidate prepared; upload and store readback not yet performed"
+    "deliveryEvidence": "release/ios/testflight-147.json",
+    "verifiedDelivery": "VALID / APPROVED / IN_BETA_TESTING in both TestFlight groups; signed IPA and 232 runtime files verified"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 54,
+    "versionCode": 53,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/android/internal-2026-09-12-54/artifact.json",
-    "verifiedDelivery": "PENDING: signed candidate verified locally; Internal Testing not yet updated",
-    "playDeliveryEvidence": "release/android/internal-2026-09-12-54/play-delivery.json",
+    "deliveryEvidence": "release/android/internal-2026-09-09-53/artifact.json",
+    "verifiedDelivery": "internal/completed 53; exact AAB hash verified by independent fresh API readback",
+    "playDeliveryEvidence": "release/android/internal-2026-09-09-53/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
     "apiAccess": {
@@ -78,14 +78,14 @@
   },
   "smoke": {
     "physicalIos": "pending-owner-testflight-test",
-    "physicalAndroid": "pending-owner-device-test",
+    "physicalAndroid": "Huawei Android10 build50 defect fixed in53; physical-device confirmation pending",
     "androidEmulator": {
       "status": "PASS",
       "device": "isolated API35 360dp",
-      "evidence": "audit/stability-2026-09-12/quality-gates.json",
-      "scope": "Native fixture at100/135%; warmup screen lock/resume; offline final/sync; production54 update/cold-start",
+      "evidence": "audit/release-2026-09-09/android53-native-smoke/smoke.json",
+      "scope": "53 update/cold-start; prior51 keyboard/background smoke separately preserved",
       "priorBackgroundEvidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
     }
   },
-  "previousDeliverySnapshot": "release/history/release-train-147-53.json"
+  "previousDeliverySnapshot": "release/history/release-train-146-52.json"
 }

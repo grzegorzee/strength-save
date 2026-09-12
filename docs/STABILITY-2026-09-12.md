@@ -101,3 +101,8 @@ Specyfika systemu pozostaje pod jawnym selektorem platformy. Istniejący plugin
 Capacitor TextZoom 8 pozostaje źródłem preferencji; nie dodano mostu natywnego,
 uprawnień ani danych telemetrycznych. Odczyt preferencji jest powtarzany po resume;
 nie uruchamia obcej Activity, więc nie wymaga nowego `appRestoredResult`.
+
+Pierwszy CI (34683183564) potwierdził budowę obu platform. Jeden test wykrył
+stare numery 147/53 w rejestrze wydań po bumpie projektów do 148/54; rejestr
+uzupełniono z zachowaniem historycznej kopii. Ponowny pełny lokalny frontend:
+4195 PASS / 16 SKIP. To nie wymagało zmiany kodu aplikacji ani pakietów.

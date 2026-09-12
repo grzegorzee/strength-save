@@ -5,7 +5,8 @@
     "files": 487,
     "passed": 4195,
     "skipped": 16,
-    "failed": 0
+    "failed": 0,
+    "postVersionBumpRun": "PASS: 4195 passed, 16 skipped after release registry correction"
   },
   "typecheck": "PASS",
   "lint": {
@@ -26,5 +27,12 @@
     "warmupIosTerminateLaunch": "PASS",
     "offlineFinishThenSyncBothPlatforms": "PASS",
     "cloudMode": "isolated E2E mock; no production writes"
+  },
+  "firstCi": {
+    "run": 34683183564,
+    "iosSimulator": "PASS",
+    "androidBuild": "PASS",
+    "frontend": "4194 passed, 1 release registry mismatch",
+    "resolution": "Registry updated to148/54; full local suite4195 PASS; CI rerun required"
   }
 }
