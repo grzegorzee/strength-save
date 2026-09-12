@@ -1795,7 +1795,7 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     await expect(backCard.getByLabel(/Set 1, Powt\./).first()).toHaveValue('7');
 
     await expect(backCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(0);
-    const globalSetLabel = backCard.getByTestId('set-grid-header').getByText('Ser.', { exact: true });
+    const globalSetLabel = backCard.getByTestId('set-grid-header').getByLabel('Ser.', { exact: true });
     const localSetLabel = backCard.locator('.exercise-set-row').first().locator('[data-field-label="Ser."]');
     const globalSetLabelVisible = await globalSetLabel.isVisible();
     const visibleSetLabel = globalSetLabelVisible ? globalSetLabel : localSetLabel;

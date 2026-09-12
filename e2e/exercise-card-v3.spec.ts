@@ -167,7 +167,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
 
     // Etykieta serii nad W (globalna w siatce, lokalna w reflow), W przed serią 1.
-    const setHeader = firstCard.getByTestId('set-grid-header').getByText('Ser.', { exact: true });
+    const setHeader = firstCard.getByTestId('set-grid-header').getByLabel('Ser.', { exact: true });
     const warmupLabel = firstCard.getByText('W', { exact: true });
     await expect(warmupLabel).toBeVisible();
     const warmupBox = await warmupLabel.boundingBox();
