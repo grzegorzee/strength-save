@@ -79,7 +79,7 @@ const domIndex = (card: HTMLElement, el: Element): number => {
 
 const columnHeader = (card: HTMLElement, label: string): Element => {
   const found = Array.from(card.querySelectorAll('span')).find(
-    (s) => s.textContent?.trim() === label && s.className.includes('uppercase'),
+    (s) => (s.getAttribute('aria-label') ?? s.textContent?.trim()) === label && s.className.includes('uppercase'),
   );
   if (!found) throw new Error(`Brak nagłówka kolumny "${label}"`);
   return found;
@@ -624,7 +624,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
         pinnedNote: { note: 'Siodełko na 4, uchwyt wąski', updatedAt: 0 } as never,
       });
       const note = within(card).getByTestId('pinned-note-slot');
-      const colSet = within(card).getByText('Ser.');
+      const colSet = within(card).getByLabelText('Ser.');
       const addSet = within(card).getByText('Dodaj serię');
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, addSet));
@@ -640,7 +640,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
         pinnedNote: { note: 'Uchwyt szeroki', updatedAt: 0 } as never,
       });
       const note = within(card).getByTestId('pinned-note-slot');
-      const colSet = within(card).getByText('Ser.');
+      const colSet = within(card).getByLabelText('Ser.');
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
       // Edycja notatki nie jest zdublowana w treści karty — żyje w menu ⋯.
       expect(within(card).queryAllByText('Uchwyt szeroki')).toHaveLength(1);

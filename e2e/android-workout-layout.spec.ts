@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { blockFirebase, navigateAndWait, readWorkoutDraftDb, setE2EPlanMeta, skipPreStartWarmup } from './helpers';
 
 const name = 'Wyciskanie hantli nad głowę (Siedząc)';
-const output = 'audit/feedback-2026-09-09/android50-layout';
+const output = process.env.E2E_ANDROID_LAYOUT_OUTPUT_DIR ?? 'audit/feedback-2026-09-09/android50-layout';
 
 // Feature-isolation test: an older engine ignores every @container rule. This
 // removes those rules from real CSSOM, not just CSS.supports()'s reported value.

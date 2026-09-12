@@ -1,0 +1,101 @@
+/* Android TextZoom enlarges text inside CSS boxes without enlarging rem layout
+   units. Give numeric fields explicit room; do not use the iOS root-font fix. */
+:root[data-platform="android"] .exercise-set-table {
+  padding-inline: 6px;
+}
+
+/* Match a native tab bar's stable labels while content uses system font scale. */
+:root[data-platform="android"] .mobile-nav-label {
+  font-size: calc(12px / var(--native-text-zoom, 1));
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+@container exercise-sets (min-width: 304px) {
+  :root[data-platform="android"] :is([data-tracking="weight_reps"], [data-tracking="assisted_bodyweight"]) .exercise-set-row,
+  :root[data-platform="android"] :is([data-tracking="weight_reps"], [data-tracking="assisted_bodyweight"]) .exercise-set-header {
+    grid-template-columns: 20px minmax(48px, 1fr) minmax(56px, 1.2fr) minmax(56px, 1fr) 44px 44px;
+    column-gap: 4px;
+    padding-inline: 8px;
+  }
+
+  :root[data-platform="android"] .exercise-set-header > span {
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+  }
+}
+
+/* Native font zoom does not reliably affect @container em/rem comparisons.
+   Use the confirmed system scale bucket for accessibility-sized text. */
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-row > span[data-field-label]:first-child {
+  flex: 0 0 calc(28px * var(--native-text-zoom, 2));
+}
+
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-row > span[data-field-label]:nth-child(2) {
+  flex: 1 0 calc(60px * var(--native-text-zoom, 2));
+}
+
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-field {
+  display: block;
+  flex: 1 1 calc(72px * var(--native-text-zoom, 2));
+}
+
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-field-label,
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-row > span[data-field-label]::before {
+  display: block;
+  white-space: nowrap;
+}
+
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-header {
+  display: flex;
+}
+
+:root[data-platform="android"][data-text-scale="200"] .exercise-set-header > span:not(:last-child) {
+  display: none;
+}
+
+/* Two separate minute/second inputs need 44px each. These tracking modes
+   carry more fields, so let labelled controls wrap before clipping a value. */
+:root[data-platform="android"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+:root[data-platform="android"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-field {
+  display: block;
+  flex: 1 1 70px;
+}
+
+:root[data-platform="android"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-duration {
+  flex-basis: 108px;
+}
+
+:root[data-platform="android"] .exercise-set-duration input {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:root[data-platform="android"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) :is(.exercise-set-field-label, .exercise-set-row > span[data-field-label]::before) {
+  display: block;
+  white-space: nowrap;
+}
+
+:root[data-platform="android"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-header {
+  display: flex;
+}
+
+:root[data-platform="android"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-header > span:not(:last-child) {
+  display: none;
+}

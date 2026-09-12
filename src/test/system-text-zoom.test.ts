@@ -43,6 +43,14 @@ describe('systemowy rozmiar tekstu w natywnym WebView', () => {
     expect(document.documentElement.dataset.textScale).toBe('150');
   });
 
+  it('isolates iOS layout from Android even when the text plugin fails', async () => {
+    await applyPreferredTextZoom({ platform: 'ios', textZoom: adapter(1.35) });
+    expect(document.documentElement.dataset.platform).toBe('ios');
+    const unavailable = { getPreferred: vi.fn().mockRejectedValue(new Error('not available')), set: vi.fn() };
+    await applyPreferredTextZoom({ platform: 'android', textZoom: unavailable });
+    expect(document.documentElement.dataset.platform).toBe('android');
+  });
+
   it('stary przepływ native zachowuje blokadę pinch zoom i steruje tylko tekstem', async () => {
     const textZoom = adapter(1.5);
 

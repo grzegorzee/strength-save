@@ -1,0 +1,132 @@
+/* WKWebView inflates the computed root font when text-size-adjust is put on
+   html. Scale text from body instead, keeping rem-based layout units stable.
+   Android continues to use its native TextZoom plugin and shared layout. */
+:root[data-platform="ios"] body {
+  -webkit-text-size-adjust: var(--app-text-scale, 100%);
+  text-size-adjust: var(--app-text-scale, 100%);
+}
+
+/* Like a native tab bar, keep five complete labels in a stable strip.
+   Workout content retains the user's preferred Dynamic Type. */
+:root[data-platform="ios"] .mobile-nav-label {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+:root[data-platform="ios"] .exercise-set-table {
+  padding-inline: 8px;
+}
+
+/* Accessibility sizes need enough space for whole labels and values. */
+:root[data-platform="ios"] .exercise-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+:root[data-platform="ios"] .exercise-set-row > span[data-field-label]:first-child {
+  flex: 0 0 max(44px, 2em);
+}
+
+:root[data-platform="ios"] .exercise-set-row > span[data-field-label]:nth-child(2) {
+  flex: 1 0 max(72px, 4em);
+}
+
+:root[data-platform="ios"] .exercise-set-field {
+  display: block;
+  flex: 1 1 max(88px, 5em);
+}
+
+:root[data-platform="ios"] .exercise-set-field-label,
+:root[data-platform="ios"] .exercise-set-row > span[data-field-label]::before {
+  display: block;
+  white-space: nowrap;
+}
+
+:root[data-platform="ios"] .exercise-set-header {
+  display: flex;
+}
+
+:root[data-platform="ios"] .exercise-set-header > span:not(:last-child) {
+  display: none;
+}
+
+/* 300px fits six controls with 44px touch targets and 56px numeric fields.
+   The em condition follows actual text size, so accessibility sizes use the
+   roomy labelled layout above instead of clipping text into narrow columns. */
+@container exercise-sets (min-width: 300px) and (min-width: 13.75em) {
+  :root[data-platform="ios"] .exercise-set-row,
+  :root[data-platform="ios"] .exercise-set-header {
+    display: grid;
+    column-gap: 4px;
+    padding-inline: 8px;
+    margin-bottom: 0;
+  }
+
+  :root[data-platform="ios"] [data-tracking="weight_reps"] .exercise-set-row,
+  :root[data-platform="ios"] [data-tracking="weight_reps"] .exercise-set-header {
+    grid-template-columns: 20px minmax(44px, 1fr) minmax(56px, 1.2fr) minmax(56px, 1fr) 44px 44px;
+  }
+
+  :root[data-platform="ios"] .exercise-set-field {
+    display: contents;
+  }
+
+  :root[data-platform="ios"] .exercise-set-field-label,
+  :root[data-platform="ios"] .exercise-set-row > span[data-field-label]::before {
+    display: none;
+  }
+
+  :root[data-platform="ios"] .exercise-set-header > span:not(:last-child) {
+    display: block;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+
+  :root[data-platform="ios"] .exercise-set-header > span:nth-last-child(2) {
+    display: flex;
+  }
+
+}
+
+/* Two separate minute/second inputs need 44px each. These tracking modes
+   carry more fields, so let labelled controls wrap before clipping a value. */
+:root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+:root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-field {
+  display: block;
+  flex: 1 1 70px;
+}
+
+:root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-duration {
+  flex-basis: 108px;
+}
+
+:root[data-platform="ios"] .exercise-set-duration input {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) :is(.exercise-set-field-label, .exercise-set-row > span[data-field-label]::before) {
+  display: block;
+  white-space: nowrap;
+}
+
+:root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-header {
+  display: flex;
+}
+
+:root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-header > span:not(:last-child) {
+  display: none;
+}

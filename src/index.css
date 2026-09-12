@@ -585,8 +585,8 @@ All colors MUST be HSL.
    ma sens: pola formularzy i treści oznaczone selectable. */
 @layer base {
   html {
-    -webkit-text-size-adjust: var(--app-text-scale, 100%);
-    text-size-adjust: var(--app-text-scale, 100%);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* Layout nie ma prawa uciekać w bok — na screenach z 2026-07-20 karty

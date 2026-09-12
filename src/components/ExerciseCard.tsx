@@ -1348,6 +1348,7 @@ const ExerciseCardInner = ({
       <div
         className="exercise-set-table px-2 pt-2.5 pb-2 phone:px-4 sm:px-5"
         data-testid="set-table"
+        data-tracking={tracking}
         role="region"
         aria-label={`${localizedName}: ${t('card.setsCount', { n: workingSets.length })}`}
       >
@@ -1366,7 +1367,7 @@ const ExerciseCardInner = ({
             className={cn("exercise-set-header grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
             data-testid="set-grid-header"
           >
-            <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
+            <span aria-label={t('card.colSet')} className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">#</span>
             {tracking !== 'weight_distance_duration' && (
               <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
             )}
@@ -1398,7 +1399,7 @@ const ExerciseCardInner = ({
           className={cn("exercise-set-header grid gap-1 px-1 pb-2 mb-1 phone:gap-2 phone:px-2", gridCols)}
           data-testid="set-grid-header"
         >
-          <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colSet')}</span>
+          <span aria-label={t('card.colSet')} className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">#</span>
           <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
           {!isBodyweight && (
             <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{unit}</span>

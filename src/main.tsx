@@ -2,6 +2,8 @@ import { createRoot } from "react-dom/client";
 import "./fonts.css";
 import App from "./App.tsx";
 import "./index.css";
+import "./styles/ios.css";
+import "./styles/android.css";
 import { setupNativeUI } from "./lib/native-setup";
 import { configurePurchases } from "./lib/purchases";
 import { initKeyboardInset } from "./lib/keyboard-inset";

@@ -313,7 +313,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     <item.icon className="h-5 w-5" />
                   </span>
                   <span className={cn(
-                    "max-w-full break-words text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors",
+                    "mobile-nav-label max-w-full break-words text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors",
                     isActive ? "text-foreground" : "text-muted-foreground"
                   )}>
                     {t(item.labelKey)}

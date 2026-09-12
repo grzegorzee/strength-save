@@ -53,6 +53,7 @@ export const applyPreferredTextZoom = async ({
   textZoom,
   root = document.documentElement,
 }: ApplyPreferredTextZoomOptions): Promise<TextZoomResult> => {
+  root.dataset.platform = platform;
   if (platform === 'web') {
     // Natywne WebView zachowuje projektowy `zoomEnabled: false`, lecz ten sam
     // index.html jest publikowany jako web. Przeglądarka musi tam pozwalać na
@@ -68,15 +69,16 @@ export const applyPreferredTextZoom = async ({
     }
 
     const bucket = scaleBucket(value);
-    root.dataset.textScale = bucket;
 
     if (platform === 'android') {
       await textZoom.set({ value });
+      root.style.setProperty('--native-text-zoom', String(value));
     } else {
       const percentage = `${Math.round(value * 100)}%`;
       root.style.setProperty('--app-text-scale', percentage);
     }
 
+    root.dataset.textScale = bucket;
     return { applied: true, value, bucket };
   } catch {
     // Plugin nie może blokować uruchomienia aplikacji. Zachowujemy poprzednią
