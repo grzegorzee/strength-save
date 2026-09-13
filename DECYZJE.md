@@ -6256,3 +6256,20 @@ po spadku licznika 87→86.
 **Bramki (snapshot `15f97b77`):** Vitest 454 plików / 3969 PASS / 16 pominiętych; typecheck 0; lint 0 błędów; build (`index-DJvaH9tZ.js`); dist-smoke; bundle budget; no-emoji; celowane e2e: nawigacja, audyt etykiet, nagłówki, krytyczne, reachability 38/38, Profil i pomiary 26/26 (po dopisaniu pozycji do kolejności sekcji).
 
 **Wydanie:** web gh-pages, live `index-DJvaH9tZ.js`; iOS 142: `UPLOAD SUCCEEDED`, VALID, obie grupy HTTP 204, whatsNew HTTP 200, Beta App Review `APPROVED`; Android `bundleRelease` BUILD SUCCESSFUL, `~/Desktop/strength-save-v48.aab` 22598459 B, SHA-256 `00b9a16b8cfd266115e88a14aad37ea6f7b1f173e2877241799bf5b91abca771` (v47 z paskiem sześciu zakładek NIE wgrywać). Następne bumpy: iOS 143, versionCode 49.
+
+
+## 2026-09-13: materiały do App Store i aktualizacja strony
+
+Na polecenie właściciela przygotowano i zapisano lokalizacje PL/EN oraz 34 nowe screenshoty w roboczej wersji App Store Connect: po 8 iPhone, 6 iPad i 3 Watch na język. Wszystkie mają stan COMPLETE. Nazwy: Strength Save: Trening siłowy oraz Strength Save: Gym Tracker. Dobór pól ASO oparto na aktualnych instrukcjach Apple, bez obietnic wyników ani wymyślonego wolumenu fraz.
+
+Zrzuty pochodzą z aktualnego interfejsu na osobnych symulatorach iPhone, iPad i Watch, z lokalnymi fikcyjnymi danymi. Dla iPhone/iPad użyto kopii natywnego builda 148 i lokalnego serwera z bieżącym frontendem. Nie zmieniano kodu działania aplikacji, wersji 1.0.0 ani danych treningowych właściciela. Scenariusz planu pokazuje ukończony tydzień. Watch ma zgodne przykładowe ciężary i serie. Mockupy i animacje wykorzystują te zrzuty.
+
+Root cause niekompletnego dostępu do review: formularz istniał w TestFlight, a publiczny App Review Information był pusty; login z TestFlight nie istniał już w Firebase. Utworzono osobne konto recenzenckie z PRO, sprawdzono logowanie i odczyt profilu. Nowe losowe hasło zapisano wyłącznie w prywatnych polach App Store Connect / Beta App Review Information. Instrukcja obejmuje trening, PRO, Apple Health, Watch i iPad. Nie wysłano aplikacji do App Review.
+
+Landing w osobnym repo strength_save_landing: nowe lokalizowane screeny, filmy PL/EN 8 s, sekcja Watch, aktualne opisy, informacja o PRO, działające linki ?lang=pl/en i aktualne grafiki linków. Usunięto stare nazwy palet i absolutne obietnice odzyskiwania danych. Wdrożenie Vercel dpl_Esd8nKvJ9omRfkCAPLiTrcDadJ5H pod strengthsave.app. Potwierdzono języki, pomoc, prywatność, regulamin oraz typy MIME plików wideo i grafik na produkcji.
+
+Weryfikacja: aplikacja 4195 PASS / 16 skipped, typecheck PASS, build PASS, lint 0 errors / 15 istniejących warnings. Landing 44 PASS, build PASS, 25 scenariuszy Chromium desktop / mobilny WebKit / mobilny Chromium oraz osobne zrzuty sekcji Watch. Obejrzano etykiety, dane i układ. Formularz sprawdzono z atrapą API, bez wysyłania wiadomości do odbiorców. Brak zmian runtime aplikacji oznacza brak nowego wydania iOS/Android; materiały marketingowe nie zastępują testu rzeczywistego treningu z Health/Watch przed premierą.
+
+Higgsfield CLI 1.1.24 zainstalowane i zalogowane, wybrany workspace, 8 companion skills dodanych. Dostęp do konta i modeli zweryfikowany. Materiały do strony wyrenderowano z prawdziwych zrzutów bez generowania interfejsu aplikacji.
+
+Artefakty: release/app-store/launch-2026-09 oraz videos/strength-save-store-motion.
