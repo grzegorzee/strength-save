@@ -31,6 +31,10 @@ export function welcomeSubject(lang: Lang): string {
   return lang === "en" ? "Strength Save: account ready" : "Strength Save: konto gotowe";
 }
 
+export function passwordResetSubject(lang: Lang): string {
+  return lang === "en" ? "Strength Save: set a new password" : "Strength Save: ustaw nowe hasło";
+}
+
 export function accessChangedSubject(lang: Lang): string {
   return lang === "en"
     ? "Strength Save: account access change"
@@ -60,6 +64,44 @@ export function verificationEmailHtml(code: string, email: string, lang: Lang): 
         ${code}
       </div>
       <p style="margin:24px 0 0;color:#64748b;font-size:14px;">${t.expires}</p>
+    </div>
+  </div>`;
+}
+
+// Reset hasła (2026-09-13): link z Firebase Auth wysyłany naszym kanałem (SES),
+// bo Google blokuje edycję szablonów Firebase na tym projekcie. Przycisk +
+// ten sam link jako tekst zapasowy (klienci pocztowi bez CSS, kopiowanie).
+export function passwordResetEmailHtml(link: string, email: string, lang: Lang): string {
+  const e = esc(email);
+  const l = esc(link);
+  const t = lang === "en"
+    ? {
+        title: "Set a new password",
+        intro: `We received a request to set a new password for the Strength Save account <strong>${e}</strong>.`,
+        cta: "Set a new password",
+        fallback: "Button not working? Copy this link into your browser:",
+        ignore: "If you didn't ask for this, ignore this email. Your password stays the same.",
+      }
+    : {
+        title: "Ustaw nowe hasło",
+        intro: `Dostaliśmy prośbę o ustawienie nowego hasła do konta <strong>${e}</strong> w Strength Save.`,
+        cta: "Ustaw nowe hasło",
+        fallback: "Przycisk nie działa? Skopiuj ten link do przeglądarki:",
+        ignore: "Jeśli to nie Twoje zgłoszenie, zignoruj tę wiadomość: hasło zostaje bez zmian.",
+      };
+  return `
+  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
+      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
+      <p style="margin:0 0 24px;color:#475569;">${t.intro}</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 20px;">
+        <tr><td style="border-radius:10px;background:#0f172a;">
+          <a href="${l}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#ffffff;font-weight:600;text-decoration:none;">${t.cta}</a>
+        </td></tr>
+      </table>
+      <p style="margin:0 0 6px;color:#64748b;font-size:13px;">${t.fallback}</p>
+      <p style="margin:0 0 24px;font-size:13px;word-break:break-all;"><a href="${l}" style="color:#0f172a;">${l}</a></p>
+      <p style="margin:0;color:#64748b;font-size:14px;">${t.ignore}</p>
     </div>
   </div>`;
 }

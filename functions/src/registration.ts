@@ -287,6 +287,9 @@ async function deleteApiKeysAndReturnIds(uid: string): Promise<string[]> {
   }
 }
 
+// Eksport dla password-reset.ts (ten sam transport SES + logi notification_logs/email_log).
+export const sendTransactionalEmail = (params: Parameters<typeof sendEmail>[0]) => sendEmail(params);
+
 async function sendEmail(params: {
   to: string;
   subject: string;

@@ -71,6 +71,8 @@ export {
 
 admin.initializeApp();
 
+export { requestPasswordReset } from "./password-reset";
+
 // Re-export weekly digest
 export { weeklyDigest } from "./weekly-digest";
 // Z125: Garmin Connect IQ — parowanie urządzenia i wymiana danych z zegarkiem.

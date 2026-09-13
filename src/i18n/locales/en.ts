@@ -2614,6 +2614,7 @@ export const en: Record<keyof typeof pl, string> = {
   'auth.err.login': 'Sign-in error',
   'auth.err.register': 'Sign-up error',
   'auth.err.reset': 'Password reset error',
+  'auth.err.resetCooldown': 'Too many password reset attempts. Wait a moment and try again.',
   'auth.err.accountExists': 'An account with this email already exists with a different sign-in method. Sign in with the method you used to create the account (e.g. email and password).',
   'auth.err.network': 'No network connection. Check your internet and try again.',
   'auth.err.popupBlocked': 'The browser blocked the sign-in window. Allow pop-ups and try again.',

@@ -4,7 +4,8 @@ import type { ConsentMirror } from "@/lib/legal-versions";
 import type { OnboardingAnswers, TrainingProfileSnapshot } from "@/lib/onboarding-answers";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
-import { callProtectedFunction } from "@/lib/protected-callable";
+import { callProtectedFunction, PROTECTED_CALLABLE_WEB_TIMEOUT_MS } from "@/lib/protected-callable";
+import { withTimeout } from "@/lib/promise-timeout";
 import type { RestSettings } from "@/lib/rest-timer";
 import type { PaletteThemeV2 } from "@/lib/palette-theme";
 
@@ -200,6 +201,23 @@ export async function createWaitlistEntry(input: {
   }
   const fn = httpsCallable<typeof input, { entryId: string; existing: boolean }>(functions, "createWaitlistEntry");
   const result = await fn(input);
+  return result.data;
+}
+
+// Reset hasła własnym kanałem (2026-09-13): backend generuje link Firebase Auth,
+// przepisuje go na auth.strengthsave.app i wysyła przez SES z naszym szablonem.
+// Bez logowania (ekran Login), bez atestacji natywnej (wymaga zalogowanego usera);
+// limit prób pilnuje backend. Timeout jak w chronionych callable (bug 34).
+export async function requestPasswordReset(email: string): Promise<{ sent: boolean }> {
+  if (isE2EMode) {
+    return { sent: true };
+  }
+  const fn = httpsCallable<{ email: string; language: LanguageCode }, { sent: boolean }>(functions, "requestPasswordReset");
+  const result = await withTimeout(
+    fn({ email: email.trim(), language: currentLanguage() }),
+    PROTECTED_CALLABLE_WEB_TIMEOUT_MS,
+    "Password reset request",
+  );
   return result.data;
 }
 

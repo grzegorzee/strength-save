@@ -2639,6 +2639,7 @@ export const pl = {
   'auth.err.login': 'Błąd logowania',
   'auth.err.register': 'Błąd rejestracji',
   'auth.err.reset': 'Błąd resetu hasła',
+  'auth.err.resetCooldown': 'Za dużo prób resetu hasła. Odczekaj chwilę i spróbuj ponownie.',
   'auth.err.accountExists': 'Konto z tym adresem email już istnieje z innym sposobem logowania. Zaloguj się metodą użytą przy zakładaniu konta (np. emailem i hasłem).',
   'auth.err.network': 'Brak połączenia z siecią. Sprawdź internet i spróbuj ponownie.',
   'auth.err.popupBlocked': 'Przeglądarka zablokowała okno logowania. Zezwól na wyskakujące okna i spróbuj ponownie.',

@@ -11,7 +11,6 @@ import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
@@ -22,6 +21,7 @@ import { revokeAllGarminDevices } from '@/lib/garmin-api';
 import { disableAppleWatchAccess } from '@/lib/watch-bridge';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { mapAuthErrorMessage } from '@/lib/auth-errors';
+import { requestPasswordReset } from '@/lib/registration-api';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { markStartup } from '@/lib/startup-performance';
@@ -198,11 +198,15 @@ export const useAuth = () => {
   const resetPassword = async (email: string) => {
     try {
       setError(null);
-      await sendPasswordResetEmail(auth, email.trim());
+      // 2026-09-13: mail resetu idzie z backendu przez SES (przycisk + link
+      // zapasowy, noreply@strengthsave.app), nie z mailera Firebase.
+      await requestPasswordReset(email);
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('auth.err.reset');
-      console.error('Reset password error:', errorMessage);
+      const code = (err as { code?: unknown } | null)?.code;
+      const cooldown = typeof code === 'string' && code.endsWith('resource-exhausted');
+      const errorMessage = cooldown ? t('auth.err.resetCooldown') : t('auth.err.reset');
+      console.error('Reset password error:', err instanceof Error ? err.message : err);
       setError(errorMessage);
       return false;
     }
