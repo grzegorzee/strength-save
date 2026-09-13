@@ -81,7 +81,7 @@
     }
   },
   "asset_hash_algorithm": "SHA256 of compact UTF-8 JSON sorted rows [relativePath, byteLength, fileSHA256]; .DS_Store excluded.",
-  "physical_qa": "pending-owner-testflight-test",
+  "physical_qa": "owner-confirmed-tested",
   "store_verification": {
     "checked_at": "2026-09-12T08:45:29.574719+00:00",
     "build_id": "4bbc38b4-1a04-4b28-9f16-c2839ad0e91a",
@@ -111,5 +111,18 @@
         "whatToTestMatches": true
       }
     ]
+  },
+  "owner_test_confirmation": {
+    "recorded_at": "2026-09-13T09:12:11.276464+00:00",
+    "source": "owner message",
+    "statement": "build 148 przetestowany i mozesz go podpiac",
+    "scope": "Owner confirmed build tested; individual test scenarios were not specified."
+  },
+  "app_store_attachment": {
+    "verified_at": "2026-09-13T09:12:11.276464+00:00",
+    "version_id": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9",
+    "build_id": "4bbc38b4-1a04-4b28-9f16-c2839ad0e91a",
+    "selected_build": 148,
+    "app_store_state": "PREPARE_FOR_SUBMISSION"
   }
 }

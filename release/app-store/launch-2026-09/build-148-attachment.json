@@ -1,0 +1,13 @@
+{
+  "verified_at": "2026-09-13T09:12:11.276464+00:00",
+  "app_id": "6777446137",
+  "version_id": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9",
+  "version": "1.0",
+  "previous_build": "80",
+  "selected_build": 148,
+  "build_id": "4bbc38b4-1a04-4b28-9f16-c2839ad0e91a",
+  "processing_state": "VALID",
+  "app_store_state": "PREPARE_FOR_SUBMISSION",
+  "submitted_for_review": false,
+  "owner_test_confirmation": "build 148 przetestowany i mozesz go podpiac"
+}

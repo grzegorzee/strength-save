@@ -6273,3 +6273,8 @@ Weryfikacja: aplikacja 4195 PASS / 16 skipped, typecheck PASS, build PASS, lint 
 Higgsfield CLI 1.1.24 zainstalowane i zalogowane, wybrany workspace, 8 companion skills dodanych. Dostęp do konta i modeli zweryfikowany. Materiały do strony wyrenderowano z prawdziwych zrzutów bez generowania interfejsu aplikacji.
 
 Artefakty: release/app-store/launch-2026-09 oraz videos/strength-save-store-motion.
+
+
+## 2026-09-13: podpięcie przetestowanego builda 148
+
+Właściciel potwierdził przetestowanie builda 148 i polecił jego podpięcie. Zastąpiono build 80 przez 148 w roboczym wydaniu App Store 1.0. Przed zapisem sprawdzono identyfikatory aplikacji i builda, stan VALID oraz brak wygaśnięcia. Odczyt po zapisie potwierdził wybór 148 i stan PREPARE_FOR_SUBMISSION. Nie zgłaszano aplikacji do App Review. Potwierdzenie testu właściciela zapisano w release/ios/testflight-148.json, bez dopisywania niepotwierdzonych scenariuszy. Wynik operacji: release/app-store/launch-2026-09/build-148-attachment.json. Zmiana metadanych wydania, bez zmian kodu aplikacji.
