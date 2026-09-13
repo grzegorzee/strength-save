@@ -89,14 +89,18 @@ export function passwordResetEmailHtml(link: string, email: string, lang: Lang):
         fallback: "Przycisk nie działa? Skopiuj ten link do przeglądarki:",
         ignore: "Jeśli to nie Twoje zgłoszenie, zignoruj tę wiadomość: hasło zostaje bez zmian.",
       };
+  // Przycisk odporny na tryb ciemny: bgcolor jako atrybut, obramowanie w tym
+  // samym kolorze i jawny kolor tekstu (klienty w dark mode wycinają background
+  // z CSS, ale zostawiają atrybut i border). Komentarz poza HTML: test EN
+  // sprawdza brak polskich znaków w treści maila.
   return `
   <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
     <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
       <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
       <p style="margin:0 0 24px;color:#475569;">${t.intro}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 20px;">
-        <tr><td style="border-radius:10px;background:#0f172a;">
-          <a href="${l}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#ffffff;font-weight:600;text-decoration:none;">${t.cta}</a>
+        <tr><td bgcolor="#0f172a" style="border-radius:10px;background-color:#0f172a;border:2px solid #0f172a;">
+          <a href="${l}" style="display:inline-block;padding:12px 20px;border-radius:8px;background-color:#0f172a;color:#ffffff !important;font-weight:600;text-decoration:none;"><span style="color:#ffffff;">${t.cta}</span></a>
         </td></tr>
       </table>
       <p style="margin:0 0 6px;color:#64748b;font-size:13px;">${t.fallback}</p>
