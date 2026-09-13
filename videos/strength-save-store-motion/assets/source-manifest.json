@@ -1,0 +1,53 @@
+{
+  "capture_owner_confirmation": "Final capture sources approved by main agent on 2026-09-13 after native visual QA",
+  "sources": [
+    {
+      "locale": "pl",
+      "role": "workout",
+      "source": "../../release/app-store/launch-2026-09/raw/pl/iphone/03-workout.png",
+      "file": "assets/pl/workout.png",
+      "sha256": "86437e768d7e3f5f1664770fe7f0adc9145f791916e7d78b9ff7b2eddb573571",
+      "bytes": 483255,
+      "width": 1320,
+      "height": 2868,
+      "native_capture": "iPhone simulator, current build 148 renderer",
+      "demo_data": true
+    },
+    {
+      "locale": "pl",
+      "role": "progress",
+      "source": "../../release/app-store/launch-2026-09/raw/pl/iphone/05-results.png",
+      "file": "assets/pl/progress.png",
+      "sha256": "48aaf358286409ea56fb4b5acc9ea7f77e2d7486e7b2fd5b5d833426a210f81e",
+      "bytes": 544900,
+      "width": 1320,
+      "height": 2868,
+      "native_capture": "iPhone simulator, current build 148 renderer",
+      "demo_data": true
+    },
+    {
+      "locale": "en",
+      "role": "workout",
+      "source": "../../release/app-store/launch-2026-09/raw/en-US/iphone/03-workout.png",
+      "file": "assets/en/workout.png",
+      "sha256": "023f998769a1e90b29784e9363285729dbe5d0e80a1285798e14d8c991ae6cb5",
+      "bytes": 477689,
+      "width": 1320,
+      "height": 2868,
+      "native_capture": "iPhone simulator, current build 148 renderer",
+      "demo_data": true
+    },
+    {
+      "locale": "en",
+      "role": "progress",
+      "source": "../../release/app-store/launch-2026-09/raw/en-US/iphone/05-results.png",
+      "file": "assets/en/progress.png",
+      "sha256": "94aa1a85f105ac50901dd1e3087a9baf2e28a273891a5fee4a43bced72aac44c",
+      "bytes": 495025,
+      "width": 1320,
+      "height": 2868,
+      "native_capture": "iPhone simulator, current build 148 renderer",
+      "demo_data": true
+    }
+  ]
+}

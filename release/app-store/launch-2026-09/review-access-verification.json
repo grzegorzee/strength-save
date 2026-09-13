@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-13",
+  "publicReviewInfoCompleted": true,
+  "testFlightReviewInfoUpdated": true,
+  "dedicatedAccountCreated": true,
+  "passwordReplaced": true,
+  "firebasePasswordSignInVerified": true,
+  "profileReadVerified": true,
+  "proAccess": "comp",
+  "notes": "review-notes.txt",
+  "secretStorage": "Private App Review Information and Beta App Review Information only",
+  "oldReviewAccount": "not found in Firebase; replaced with dedicated account"
+}

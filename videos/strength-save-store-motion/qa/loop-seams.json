@@ -1,0 +1,20 @@
+[
+  {
+    "locale": "pl",
+    "file": "renders/strength-save-pl-1080.mp4",
+    "first_frame": 0,
+    "last_frame": 239,
+    "ssim": 0.997851,
+    "threshold": 0.995,
+    "pass": true
+  },
+  {
+    "locale": "en",
+    "file": "renders/strength-save-en-1080.mp4",
+    "first_frame": 0,
+    "last_frame": 239,
+    "ssim": 0.998014,
+    "threshold": 0.995,
+    "pass": true
+  }
+]

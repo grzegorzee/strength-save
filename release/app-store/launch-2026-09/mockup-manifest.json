@@ -1,0 +1,198 @@
+[
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "01-log",
+    "headline": "Zapisz każdą serię.",
+    "src": "screenshots/pl/iphone/01-log.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "02-plan",
+    "headline": "Trenuj według planu.",
+    "src": "screenshots/pl/iphone/02-plan.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "03-progress",
+    "headline": "Zobacz swój postęp.",
+    "src": "screenshots/pl/iphone/03-progress.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "04-records",
+    "headline": "Pamiętaj swój najlepszy wynik.",
+    "src": "screenshots/pl/iphone/04-records.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "05-history",
+    "headline": "Wróć do każdego treningu.",
+    "src": "screenshots/pl/iphone/05-history.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "06-exercises",
+    "headline": "Znajdź swoje ćwiczenie.",
+    "src": "screenshots/pl/iphone/06-exercises.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "07-watch",
+    "headline": "Odhacz serię na zegarku.",
+    "src": "screenshots/pl/iphone/07-watch.png"
+  },
+  {
+    "locale": "pl",
+    "device": "iphone",
+    "id": "08-today",
+    "headline": "Wiesz, co trenujesz dalej.",
+    "src": "screenshots/pl/iphone/08-today.png"
+  },
+  {
+    "locale": "pl",
+    "device": "ipad",
+    "id": "01-log",
+    "headline": "Zapisz każdą serię.",
+    "src": "screenshots/pl/ipad/01-log.png"
+  },
+  {
+    "locale": "pl",
+    "device": "ipad",
+    "id": "02-plan",
+    "headline": "Trenuj według planu.",
+    "src": "screenshots/pl/ipad/02-plan.png"
+  },
+  {
+    "locale": "pl",
+    "device": "ipad",
+    "id": "03-progress",
+    "headline": "Zobacz swój postęp.",
+    "src": "screenshots/pl/ipad/03-progress.png"
+  },
+  {
+    "locale": "pl",
+    "device": "ipad",
+    "id": "04-records",
+    "headline": "Pamiętaj swój najlepszy wynik.",
+    "src": "screenshots/pl/ipad/04-records.png"
+  },
+  {
+    "locale": "pl",
+    "device": "ipad",
+    "id": "05-history",
+    "headline": "Wróć do każdego treningu.",
+    "src": "screenshots/pl/ipad/05-history.png"
+  },
+  {
+    "locale": "pl",
+    "device": "ipad",
+    "id": "06-exercises",
+    "headline": "Znajdź swoje ćwiczenie.",
+    "src": "screenshots/pl/ipad/06-exercises.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "01-log",
+    "headline": "Log every set.",
+    "src": "screenshots/en-US/iphone/01-log.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "02-plan",
+    "headline": "Go in with a plan.",
+    "src": "screenshots/en-US/iphone/02-plan.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "03-progress",
+    "headline": "See your progress.",
+    "src": "screenshots/en-US/iphone/03-progress.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "04-records",
+    "headline": "Know your personal best.",
+    "src": "screenshots/en-US/iphone/04-records.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "05-history",
+    "headline": "Every workout. Saved.",
+    "src": "screenshots/en-US/iphone/05-history.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "06-exercises",
+    "headline": "Find your next exercise.",
+    "src": "screenshots/en-US/iphone/06-exercises.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "07-watch",
+    "headline": "Log sets on your wrist.",
+    "src": "screenshots/en-US/iphone/07-watch.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "iphone",
+    "id": "08-today",
+    "headline": "Know what comes next.",
+    "src": "screenshots/en-US/iphone/08-today.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "ipad",
+    "id": "01-log",
+    "headline": "Log every set.",
+    "src": "screenshots/en-US/ipad/01-log.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "ipad",
+    "id": "02-plan",
+    "headline": "Go in with a plan.",
+    "src": "screenshots/en-US/ipad/02-plan.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "ipad",
+    "id": "03-progress",
+    "headline": "See your progress.",
+    "src": "screenshots/en-US/ipad/03-progress.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "ipad",
+    "id": "04-records",
+    "headline": "Know your personal best.",
+    "src": "screenshots/en-US/ipad/04-records.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "ipad",
+    "id": "05-history",
+    "headline": "Every workout. Saved.",
+    "src": "screenshots/en-US/ipad/05-history.png"
+  },
+  {
+    "locale": "en-US",
+    "device": "ipad",
+    "id": "06-exercises",
+    "headline": "Find your next exercise.",
+    "src": "screenshots/en-US/ipad/06-exercises.png"
+  }
+]

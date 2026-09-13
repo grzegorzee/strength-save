@@ -1,0 +1,49 @@
+{
+  "deployment": "dpl_Esd8nKvJ9omRfkCAPLiTrcDadJ5H",
+  "verifiedAt": "2026-09-13T09:05:24.585Z",
+  "checks": [
+    {
+      "lang": "pl",
+      "heading": "Zapisz serię.\nZobacz postęp."
+    },
+    {
+      "lang": "en",
+      "heading": "Log your sets.\nSee your progress."
+    },
+    {
+      "path": "/support",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/privacy",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/terms",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/promo/strength-save-pl-web.mp4",
+      "status": 200,
+      "contentType": "video/mp4"
+    },
+    {
+      "path": "/promo/strength-save-en-web.mp4",
+      "status": 200,
+      "contentType": "video/mp4"
+    },
+    {
+      "path": "/app/pl/workout.webp",
+      "status": 200,
+      "contentType": "image/webp"
+    },
+    {
+      "path": "/app/en/workout.webp",
+      "status": 200,
+      "contentType": "image/webp"
+    }
+  ]
+}

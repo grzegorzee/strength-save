@@ -1,0 +1,177 @@
+[
+  {
+    "browser": "desktop",
+    "lang": "pl",
+    "route": "/",
+    "heading": "Zapisz serię.\nZobacz postęp.",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "pl",
+    "route": "/features",
+    "heading": "Wszystko, co robi Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "pl",
+    "route": "/support",
+    "heading": "Pomoc",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "pl",
+    "route": "/download",
+    "heading": "Pobierz Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "en",
+    "route": "/",
+    "heading": "Log your sets.\nSee your progress.",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "en",
+    "route": "/features",
+    "heading": "Everything Strength Save does",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "en",
+    "route": "/support",
+    "heading": "Support",
+    "overflow": false
+  },
+  {
+    "browser": "desktop",
+    "lang": "en",
+    "route": "/download",
+    "heading": "Get Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "pl",
+    "route": "/",
+    "heading": "Zapisz serię.\nZobacz postęp.",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "pl",
+    "route": "/features",
+    "heading": "Wszystko, co robi Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "pl",
+    "route": "/support",
+    "heading": "Pomoc",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "pl",
+    "route": "/download",
+    "heading": "Pobierz Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "en",
+    "route": "/",
+    "heading": "Log your sets.\nSee your progress.",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "en",
+    "route": "/features",
+    "heading": "Everything Strength Save does",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "en",
+    "route": "/support",
+    "heading": "Support",
+    "overflow": false
+  },
+  {
+    "browser": "iphone",
+    "lang": "en",
+    "route": "/download",
+    "heading": "Get Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "pl",
+    "route": "/",
+    "heading": "Zapisz serię.\nZobacz postęp.",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "pl",
+    "route": "/features",
+    "heading": "Wszystko, co robi Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "pl",
+    "route": "/support",
+    "heading": "Pomoc",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "pl",
+    "route": "/download",
+    "heading": "Pobierz Strength Save",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "en",
+    "route": "/",
+    "heading": "Log your sets.\nSee your progress.",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "en",
+    "route": "/features",
+    "heading": "Everything Strength Save does",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "en",
+    "route": "/support",
+    "heading": "Support",
+    "overflow": false
+  },
+  {
+    "browser": "android",
+    "lang": "en",
+    "route": "/download",
+    "heading": "Get Strength Save",
+    "overflow": false
+  },
+  {
+    "autoplay": true,
+    "pause": true,
+    "resume": true,
+    "reducedMotion": true,
+    "forms": "mocked, no messages sent"
+  }
+]

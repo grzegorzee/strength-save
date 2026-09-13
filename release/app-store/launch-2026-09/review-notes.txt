@@ -1,0 +1,17 @@
+Strength Save is a workout log and planner for iPhone and iPad, with a companion Apple Watch app. The interface is available in English and Polish.
+
+Use the email and password in the private sign-in fields. No SMS code or two-factor authentication is required. This dedicated account has complimentary PRO access so you can review all training features without a purchase. It contains no real person's workout or health data.
+
+Suggested review path:
+1. Sign in using email. If the consent screen appears, review the terms and privacy policy and continue. Health access is optional.
+2. From Today, choose Quick workout. Add an exercise, enter weight and repetitions, and check a set. You can also choose a ready-made program from Plan.
+3. Enable notifications when prompted to test the rest alert. Start a rest, lock the iPhone, and wait for the notification. Sound follows the device's notification and silent-mode settings.
+4. Finish the workout. Open History to see the saved session and Progress to inspect the results.
+5. PRO: normal accounts need an active subscription or trial to start workouts. Monthly and yearly subscriptions use Apple's in-app purchase system. The purchase screen includes Restore purchases. The review account's complimentary access is intentional.
+6. Apple Health: open Profile and the health/integration settings, enable the optional Health features, and choose permissions. Completed strength/cardio workouts can be written to Health. Reading body mass is optional; the app asks before applying it to measurements.
+7. Apple Watch: install the companion app on a paired Watch, keep the iPhone signed in, start a workout on the phone, and open Strength Save on the Watch. Check a set, confirm it reaches the iPhone, then finish the workout. Health permissions enable workout/heart-rate recording. The Watch has no separate subscription or sign-in.
+8. iPad: use the same login. Planning, workout logging, history and progress use the larger screen layout. Apple Watch pairing is performed through iPhone.
+
+Support: https://strengthsave.app/support
+Privacy: https://strengthsave.app/privacy
+Terms: https://strengthsave.app/terms

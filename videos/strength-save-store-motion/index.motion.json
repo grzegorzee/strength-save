@@ -1,0 +1,10 @@
+{
+  "duration": 8,
+  "assertions": [
+    { "kind": "appearsBy", "selector": ".headline", "bySec": 0.1 },
+    { "kind": "staysInFrame", "selector": ".headline" },
+    { "kind": "staysInFrame", "selector": "#workout-capture" },
+    { "kind": "staysInFrame", "selector": "#progress-capture" },
+    { "kind": "keepsMoving", "withinSelector": "#s3Stage", "maxStaticSec": 2 }
+  ]
+}

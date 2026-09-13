@@ -1,0 +1,462 @@
+{
+  "appId": "6777446137",
+  "versionId": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9",
+  "submitted": false,
+  "localizations": {
+    "pl": {
+      "id": "12ac09de-7b28-4f0a-a8d5-f899e4e4c742",
+      "name": "Strength Save: Trening si\u0142owy",
+      "metadataUpdated": true
+    },
+    "en-US": {
+      "id": "113e952d-fe3e-497d-bd52-bd4e3acb46bc",
+      "name": "Strength Save: Gym Tracker",
+      "metadataUpdated": true
+    }
+  },
+  "screenshots": [
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "01-log.png",
+      "id": "9a8d087a-8efb-4b93-80ce-b030009a89f9",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "1dcff292cf74a86731ac321c8bb4d1bdde9fdd70da96692ba5bf2bee5eda0c5d",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "02-plan.png",
+      "id": "d6ecd1c2-f3c4-4bd2-8773-7fa878ae37e9",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "9c0b0921fc9f7993d0825bfdff92e023fe5b4dd790ab8d9ea78865da27bf09ff",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "03-progress.png",
+      "id": "3c9ed663-dd7b-4e02-aa06-474225b78797",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "870f59b8d914c8a8e5ec2b57b2daafba0f17d38f248bf2269e6aaff567006997",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "04-records.png",
+      "id": "c06fb036-84a2-4852-b35c-fcd4d40aecdc",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "5db1dd08d9788d6b6348bee573688df5a08c8ef7aa92568340ca32134d23de37",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "05-history.png",
+      "id": "209d85f6-d5e7-47df-be76-2b64c1aa7588",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "3c54efcf9a2c62201fb9d5666a76ae313f06b113dc28141f0ff292e1f0a8e3ce",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "06-exercises.png",
+      "id": "f201d8a3-d54f-4d23-b1e6-86d934686781",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "c3a31eb5ad6030a033f11ec275a158702c9c933283f280e085554c0eea171bf6",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "07-watch.png",
+      "id": "8badd79c-057a-4228-9921-1ae55bd3ce04",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "7f38b2628e226b44343d1de10506b171cb4a5c4160791bf5488f3b488f394b88",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "iphone",
+      "name": "08-today.png",
+      "id": "b6c7a183-da8e-4862-9811-4eaf5dea66e7",
+      "setId": "bf03740a-bd07-4721-8bf0-c09314e43d6f",
+      "sha256": "1771ee946d94f25b55fbbefe6b9bf2d2c5cf52461032bc5c89a3abfe09c19207",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "ipad",
+      "name": "01-log.png",
+      "id": "8bf5c120-9f27-48fe-813c-e30abea8a132",
+      "setId": "a5fb6426-179e-4252-93bb-60a97465f9ac",
+      "sha256": "fafb145d3d67213663be29324818df18bb19868f636b62d40f652e9a930d75cf",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "ipad",
+      "name": "02-plan.png",
+      "id": "f9dd34cc-373a-40af-98cf-110bf6e31829",
+      "setId": "a5fb6426-179e-4252-93bb-60a97465f9ac",
+      "sha256": "b8b53ee6dd18cbcb34be45fcc9cafeb7b01645e18d572d369ac8a276ffdfe9c0",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "ipad",
+      "name": "03-progress.png",
+      "id": "2c3ede58-5d85-4f4e-bfbf-c20bef0c8541",
+      "setId": "a5fb6426-179e-4252-93bb-60a97465f9ac",
+      "sha256": "b4f07981a26cd5193fed759cace51340ffcbf12b3f32fca7c3f11a65648de330",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "ipad",
+      "name": "04-records.png",
+      "id": "3b0ab9ea-ca30-4160-b186-55908c90b2ac",
+      "setId": "a5fb6426-179e-4252-93bb-60a97465f9ac",
+      "sha256": "b68f59f6e7bef15b9f9e8136b98ba63c8d213b99518f50cf499e536edb0cd3f8",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "ipad",
+      "name": "05-history.png",
+      "id": "a3b843b2-c43c-4bf9-b893-1be118478995",
+      "setId": "a5fb6426-179e-4252-93bb-60a97465f9ac",
+      "sha256": "ef47563deaeaab362e31e70a53b6c77d2dfee17127713664769e82703a8541d7",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "ipad",
+      "name": "06-exercises.png",
+      "id": "a2464ed4-53db-4d81-b37c-2cd36bc92f47",
+      "setId": "a5fb6426-179e-4252-93bb-60a97465f9ac",
+      "sha256": "15517866fa63b1940f3cab8c7282642d282f95559c2503902c751ca33420bfa2",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "watch",
+      "name": "01-plan.png",
+      "id": "296f6be2-0962-4de5-9231-4245067cfb87",
+      "setId": "b322e638-c93b-45ae-8337-423b2ec2d5ee",
+      "sha256": "e3a8dd741b52c9822786fd00f304355f2bdb9120ef0d1a290762b72baecb8c7f",
+      "size": [
+        416,
+        496
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "watch",
+      "name": "02-active.png",
+      "id": "c01b2552-17d3-43f0-bc57-0fdc346f8bfb",
+      "setId": "b322e638-c93b-45ae-8337-423b2ec2d5ee",
+      "sha256": "0019e0dd68d31f2273d8b26e83083126e2f2b40f7ca2cd5b00602c142b4016a8",
+      "size": [
+        416,
+        496
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "pl",
+      "device": "watch",
+      "name": "03-finished.png",
+      "id": "748dc7cb-c5d0-4a68-9480-ea0782719cc1",
+      "setId": "b322e638-c93b-45ae-8337-423b2ec2d5ee",
+      "sha256": "80dfd3728508ea4515ea4e4be0c021297ae322e1e8236a29b0487e8085173bc5",
+      "size": [
+        416,
+        496
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "01-log.png",
+      "id": "4b96f693-9128-4487-84ce-01a529262573",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "c492100c5255fcde3e6b5cb7ae58fef3346f27ff81d4b68a238d36e35eed49f3",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "02-plan.png",
+      "id": "a3b9fc33-6855-4aa2-bc22-3906c5bef083",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "3a420fe09eadd90b9dbd4f053a2c00a51fa0996dd38777fa4893e0e83ab3832c",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "03-progress.png",
+      "id": "a66d3a85-bab5-4fa2-872a-7cb0b43c7e70",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "d676bd1144b0c47c90c406255dbea5d41ae9759e28447b04a538643376f95c60",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "04-records.png",
+      "id": "b145e3ab-3563-4d44-9e99-225513620c4c",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "ad18f0d9abcd935b0fa67c73daad7592f656e73a4c81dc5fb70a660f052bfc15",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "05-history.png",
+      "id": "eb12f833-a9f7-4fd7-a0dd-2064319f7ea5",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "4fc74d428bf67b7fdc74ef6a433a0124c5c99638c62f0e6a603e07109b11b836",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "06-exercises.png",
+      "id": "b167216b-9223-49ca-ba9c-ffa807c640dc",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "048225c5f590d087574683a2868104c32c3efb6dd682b133d2c1f48ab9d71fd0",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "07-watch.png",
+      "id": "25d352c6-ee01-4b49-bac4-179c6106480a",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "6cb39b9a5908dcf85c3db6d2a79af15fbe479cac29f322284a4a491a5508375e",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "iphone",
+      "name": "08-today.png",
+      "id": "3a378e5a-708d-4635-bc7b-a85f90c7c3dc",
+      "setId": "8ceb3711-7ed7-427c-a37d-d0e499e4b018",
+      "sha256": "de3b116ec985b4970b25f3efe3520e09b58237823848802809eceb4cce6696ed",
+      "size": [
+        1320,
+        2868
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "ipad",
+      "name": "01-log.png",
+      "id": "889bbda2-4d76-4c59-84ae-4dfee6315b21",
+      "setId": "1c516289-c99c-4e75-9043-79c4638946ee",
+      "sha256": "272c47d68d1be0dfc896038e4e5ae360069ba84a6e985807618d41aaeec17ae0",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "ipad",
+      "name": "02-plan.png",
+      "id": "df71f8e8-2592-4ce2-9d5f-587f7ebf5114",
+      "setId": "1c516289-c99c-4e75-9043-79c4638946ee",
+      "sha256": "aed87d3f3857750e315b3b3fb6f1e54e67c64daf007a5e2e1b1d1f634eb5f058",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "ipad",
+      "name": "03-progress.png",
+      "id": "8ba3ec54-37ad-4763-be78-6d0032a0e983",
+      "setId": "1c516289-c99c-4e75-9043-79c4638946ee",
+      "sha256": "dd0b33de9c1f35c2012f1b17872eb5834712ab09dcbd416ae6690f16da1f0d0a",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "ipad",
+      "name": "04-records.png",
+      "id": "cfcc113c-a35c-4903-838f-e2ba3ec99e05",
+      "setId": "1c516289-c99c-4e75-9043-79c4638946ee",
+      "sha256": "c5cab9a0b1959740557ea7f31594256bd7d9a425b46a5acccc49895ddc44d6db",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "ipad",
+      "name": "05-history.png",
+      "id": "db453ac6-7aa6-415d-bfc2-bb69e08b45a1",
+      "setId": "1c516289-c99c-4e75-9043-79c4638946ee",
+      "sha256": "ac9d9cf97e38caab43e20f51619f904bd2df900aac2ad88a3e0ffefa24f93b11",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "ipad",
+      "name": "06-exercises.png",
+      "id": "11b52698-9eac-4076-ba35-9adaccda84a7",
+      "setId": "1c516289-c99c-4e75-9043-79c4638946ee",
+      "sha256": "09ac904f1df8f8f98ea018d4d7b4aac677d9495438ced148c45a38181a8b93ab",
+      "size": [
+        2064,
+        2752
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "watch",
+      "name": "01-plan.png",
+      "id": "fafa513c-e05e-4e89-aef2-e1d004b6999b",
+      "setId": "fbc29699-6ce6-4f3b-b45f-495b190faea9",
+      "sha256": "b8db906345433f0b264d3cea908c11521ed3d132fda2112248e29f7c34d0f2df",
+      "size": [
+        416,
+        496
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "watch",
+      "name": "02-active.png",
+      "id": "f2fdf936-b940-4f4e-b15b-6446c4bca2d1",
+      "setId": "fbc29699-6ce6-4f3b-b45f-495b190faea9",
+      "sha256": "759d82780c1bbd3e2a8ba53b63076406a64cabef1358014848b97ca7aecca10f",
+      "size": [
+        416,
+        496
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "locale": "en-US",
+      "device": "watch",
+      "name": "03-finished.png",
+      "id": "e2f8a786-1bd8-475f-954d-ad4a9bee3283",
+      "setId": "fbc29699-6ce6-4f3b-b45f-495b190faea9",
+      "sha256": "1baffcddd85cfdd36d225730a0ced3d2fa46b90ea66461478b6dee730e1a90c1",
+      "size": [
+        416,
+        496
+      ],
+      "state": "COMPLETE"
+    }
+  ],
+  "verified": true
+}

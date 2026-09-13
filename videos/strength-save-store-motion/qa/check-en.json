@@ -1,0 +1,101 @@
+{
+  "ok": true,
+  "strict": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "filesScanned": 4
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "duration": 8,
+    "samples": [
+      0.235,
+      0.706,
+      1.176,
+      1.647,
+      2.118,
+      2.588,
+      3.059,
+      3.529,
+      4,
+      4.471,
+      4.941,
+      5.412,
+      5.882,
+      6.353,
+      6.824,
+      7.294,
+      7.765
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 0,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "specPath": "/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save/videos/strength-save-store-motion/index.motion.json",
+    "samples": 161
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      0.235,
+      2.118,
+      4,
+      5.882,
+      7.765
+    ],
+    "checked": 15,
+    "passed": 15
+  },
+  "snapshots": {
+    "enabled": true,
+    "files": [
+      "snapshots/frame-00-at-0.2s.png",
+      "snapshots/frame-01-at-2.1s.png",
+      "snapshots/frame-02-at-4.0s.png",
+      "snapshots/frame-03-at-5.9s.png",
+      "snapshots/frame-04-at-7.8s.png"
+    ],
+    "times": [
+      0.235,
+      2.118,
+      4,
+      5.882,
+      7.765
+    ],
+    "findingFiles": []
+  },
+  "_meta": {
+    "version": "0.8.36",
+    "latestVersion": "0.8.36",
+    "updateAvailable": false
+  }
+}

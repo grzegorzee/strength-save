@@ -1,0 +1,33 @@
+{
+  "version": {
+    "id": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9",
+    "state": "PREPARE_FOR_SUBMISSION"
+  },
+  "versionLocalizations": [
+    {
+      "id": "113e952d-fe3e-497d-bd52-bd4e3acb46bc",
+      "attributes": {
+        "description": "Strength Save keeps your strength training plan, workout log and progress in one account.\n\n- follow a planned workout or start a quick session;\n- log sets, weight, repetitions, time and distance;\n- use automatic rest timers and continue offline;\n- review history, personal records and training trends;\n- sync completed workouts with Apple Health;\n- control a workout from Apple Watch, including offline queue and heart-rate workout recording;\n- use kilograms or pounds and switch between English and Polish.\n\nOne Strength Save PRO subscription covers every supported Strength Save client. Monthly and yearly options are available in the app. An introductory offer is shown only when the App Store confirms that the selected product and account are eligible. Subscriptions renew automatically unless cancelled in App Store account settings.\n\nStrength Save provides fitness information, not medical advice. Exercise within your abilities and consult a qualified professional when needed.\n\nPrivacy Policy: https://strengthsave.app/privacy\n\nTerms of Use: https://strengthsave.app/terms",
+        "locale": "en-US",
+        "keywords": "strength,workout,gym,lifting,tracker,planner,sets,reps,progress,watch",
+        "marketingUrl": "https://strengthsave.app/",
+        "promotionalText": "Plan, log and review strength workouts across iPhone and Apple Watch, including offline sessions.",
+        "supportUrl": "https://strengthsave.app/",
+        "whatsNew": null
+      }
+    }
+  ],
+  "infoLocalizations": [
+    {
+      "id": "93360835-f266-4194-b1e6-ad538fe18765",
+      "attributes": {
+        "locale": "en-US",
+        "name": "Strength Save",
+        "subtitle": "Lifting tracker & planner",
+        "privacyPolicyUrl": "https://strengthsave.app/privacy",
+        "privacyChoicesUrl": null,
+        "privacyPolicyText": null
+      }
+    }
+  ]
+}

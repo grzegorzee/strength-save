@@ -1,0 +1,52 @@
+{
+  "outputs": [
+    {
+      "locale": "pl",
+      "file": "renders/strength-save-pl-1080.mp4",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "duration_seconds": 8,
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "bytes": 7999505,
+      "audio": false
+    },
+    {
+      "locale": "pl",
+      "file": "renders/strength-save-pl-web.mp4",
+      "width": 720,
+      "height": 1280,
+      "fps": 30,
+      "duration_seconds": 8,
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "bytes": 669103,
+      "audio": false
+    },
+    {
+      "locale": "en",
+      "file": "renders/strength-save-en-1080.mp4",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "duration_seconds": 8,
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "bytes": 7596474,
+      "audio": false
+    },
+    {
+      "locale": "en",
+      "file": "renders/strength-save-en-web.mp4",
+      "width": 720,
+      "height": 1280,
+      "fps": 30,
+      "duration_seconds": 8,
+      "codec": "h264",
+      "pixel_format": "yuv420p",
+      "bytes": 622604,
+      "audio": false
+    }
+  ]
+}

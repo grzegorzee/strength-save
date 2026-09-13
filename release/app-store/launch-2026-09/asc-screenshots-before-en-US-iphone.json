@@ -1,0 +1,152 @@
+[
+  {
+    "id": "aecc42fe-1ea6-4d00-8885-d630c0e7cc58",
+    "fileName": "01-today.png",
+    "sourceFileChecksum": "5f1cb3cf019683d6c6583afb3fcef493",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/38/b6/9d/38b69d2e-c6d6-ef1c-990c-8acbc0509e79/01-today.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "56cbb4e6-490d-4c68-aed1-ef1c5ed2b1ea",
+    "fileName": "02-plan.png",
+    "sourceFileChecksum": "574cc5186e9f8e2275f6f7d2e143e80e",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/d7/7e/88/d77e885c-a7bc-13cd-a511-5470f9ae1425/02-plan.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "288843e0-2c1b-4b14-b38f-747ff7a58744",
+    "fileName": "03-workout.png",
+    "sourceFileChecksum": "3270813590eaf8786eebb54cf7fe5e22",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/df/7b/5e/df7b5eff-9254-d9ed-87c0-fd3e5fd07a1e/03-workout.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "569878d5-b1be-44fc-a738-fcb655575d7e",
+    "fileName": "04-history.png",
+    "sourceFileChecksum": "732f274ad8e85202845b024dbae70157",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/b3/04/17/b30417dc-6618-a2d2-4ef7-3faa7d386188/04-history.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "1e022edf-4b58-4313-a728-04391d019b5a",
+    "fileName": "05-results.png",
+    "sourceFileChecksum": "452918dfae80e67a0a958c20748e3296",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/87/0e/30/870e3030-d4ab-27a2-c19c-83ada90aa594/05-results.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "f2694fe1-f86e-4779-a7d1-49eec7ddb8bf",
+    "fileName": "06-charts.png",
+    "sourceFileChecksum": "96099ca1bdc799056709f8d567e5f461",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/7c/8f/cd/7c8fcd61-ccd0-a475-08a2-3dd656ffe297/06-charts.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "2790537c-5174-499e-9f78-7b6506b76a7b",
+    "fileName": "07-records.png",
+    "sourceFileChecksum": "1a635f30e9454361057705f329704da1",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/93/49/05/93490516-1325-530b-e1ba-0b973241abbd/07-records.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "58a0ab75-0026-422f-8900-787b788e6b6a",
+    "fileName": "08-badges.png",
+    "sourceFileChecksum": "ed60cc5438a26ee6a832bffa614bd931",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/06/6d/31/066d3100-09d0-9611-dccd-f13918e7a153/08-badges.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "e4622bae-4e82-4ff3-8794-0a1f1c860b27",
+    "fileName": "09-exercises.png",
+    "sourceFileChecksum": "4d447a7d466e7f04417b031879f9907b",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/df/6b/d3/df6bd381-b1a5-c046-9b1f-a19267640865/09-exercises.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "ef8cc640-474f-4ad2-907c-1ba23d29f4c9",
+    "fileName": "10-devices.png",
+    "sourceFileChecksum": "6c182ad937b983d5922c0ac84b9c5846",
+    "imageAsset": {
+      "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/c9/d9/88/c9d9881c-afca-fe90-71bb-24ba46718371/10-devices.png/{w}x{h}bb.{f}",
+      "width": 1320,
+      "height": 2868
+    },
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  }
+]

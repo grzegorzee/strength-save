@@ -1,0 +1,264 @@
+{
+  "schema": "motion-graphics/shot-plan-ir",
+  "status": "rendered_and_visually_verified",
+  "category": "kinetic-type",
+  "duration_s": 8,
+  "fps": 30,
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "aspect": "9:16"
+  },
+  "style": "Strength Save: bold plain-language typography, matte black stage, the app's lime accent, two authentic native app captures with restrained opposing drift. One stable composition; the headline stays readable throughout. No invented interface, stock gym objects, device renders, narration or promotional superlatives.",
+  "palette": [
+    "#0F0F0F",
+    "#CAFB22",
+    "#F7F7F5",
+    "#717171"
+  ],
+  "font": "Space Grotesk",
+  "supporting_font": "Inter",
+  "beats": [
+    0.4,
+    3.2,
+    7.2
+  ],
+  "export": "mp4",
+  "audio": false,
+  "asset_needs": [],
+  "asset_strategy": "The user owns the app and supplies its UI. No external search or generated UI. The parent will copy fresh, inspected native app screenshots into the exact local paths below before final render.",
+  "brief": "A black poster opens with Strength Save at the top, followed by a short two-line promise in large type. Below it, the real workout screen and progress screen drift gently in opposite directions while staying sharp and readable. At 3.2 seconds, a clean horizontal color wipe moves across the second headline line, providing one clear emphasis beat without moving the layout. The wipe recedes and the screenshots return to their original positions before the eight-second loop restarts.",
+  "block": "caption-clip-wipe",
+  "customize": {
+    "source_status": "Both caption-clip-wipe and app-showcase installed successfully with exact hyperframes add commands. Registry reuse implemented in generate-variants.mjs.",
+    "font": "Space Grotesk",
+    "words": "Use each locale's two real headline lines below. Preserve accents and periods.",
+    "motion": "Adapt the block's clipping mechanism into a white text overlay wiped across a continuously visible lime second line. Never wipe the underlying headline away.",
+    "palette": {
+      "background": "#0F0F0F",
+      "text": "#F7F7F5",
+      "emphasis": "#CAFB22"
+    },
+    "timing": "White overlay clip width 0 at 0 s; 0 to 100 percent at 3.2 to 3.6 s; hold through 6.7 s; 100 to 0 percent at 6.7 to 7.2 s; original state held through 8 s.",
+    "remove": [
+      "Demo copy",
+      "Background effects",
+      "Audio",
+      "Bounce",
+      "Shake",
+      "Extra scene changes"
+    ]
+  },
+  "content": {
+    "block": "caption-clip-wipe",
+    "customize": {
+      "headline_motion": "One color wipe across the second line, adapting the existing catalog block's clip mechanics.",
+      "screenshot_motion": "Reuse the confirmed app-showcase block's screen wrappers; remove demo UI, the third screen and 3D camera motion. Bind two real captures and fit them into the coordinates below. Only add the small deterministic eight-second return movement needed for this loop."
+    },
+    "brand": "Strength Save",
+    "locales": {
+      "pl": {
+        "headline": [
+          "Zapisz serię.",
+          "Zobacz postęp."
+        ],
+        "emphasis_words": [
+          "postęp"
+        ],
+        "headline_font_px": 120,
+        "headline_line_height_px": 130,
+        "workout": "assets/pl/workout.png",
+        "progress": "assets/pl/progress.png",
+        "output": "renders/strength-save-pl-1080.mp4",
+        "poster": "renders/strength-save-pl-poster.png",
+        "web_output": "renders/strength-save-pl-web.mp4",
+        "web_poster": "renders/strength-save-pl-poster.webp"
+      },
+      "en": {
+        "headline": [
+          "Log your sets.",
+          "See your progress."
+        ],
+        "emphasis_words": [
+          "progress"
+        ],
+        "headline_font_px": 104,
+        "headline_line_height_px": 118,
+        "workout": "assets/en/workout.png",
+        "progress": "assets/en/progress.png",
+        "output": "renders/strength-save-en-1080.mp4",
+        "poster": "renders/strength-save-en-poster.png",
+        "web_output": "renders/strength-save-en-web.mp4",
+        "web_poster": "renders/strength-save-en-poster.webp"
+      }
+    },
+    "scenes": [
+      {
+        "id": "hook",
+        "start": 0,
+        "end": 0.6,
+        "text": "Zapisz serię.\nZobacz postęp.",
+        "emphasis_words": [
+          "postęp"
+        ],
+        "emotion": "Direct, useful, confident",
+        "motion": "Fully readable headline and both native captures from the first frame. Begin slow opposing screen drift with zero initial velocity.",
+        "beats": [
+          0.4
+        ]
+      },
+      {
+        "id": "build",
+        "start": 0.6,
+        "end": 3.2,
+        "text": "Zapisz serię.\nZobacz postęp.",
+        "emphasis_words": [
+          "postęp"
+        ],
+        "emotion": "Calm attention on the actual app",
+        "motion": "Continue conservative screen drift. Heading, brand and frame stay fixed.",
+        "beats": []
+      },
+      {
+        "id": "punch",
+        "start": 3.2,
+        "end": 6.7,
+        "text": "Zapisz serię.\nZobacz postęp.",
+        "emphasis_words": [
+          "postęp"
+        ],
+        "emotion": "A single visible emphasis change",
+        "motion": "Clip-wipe a white duplicate over the lime second line from 3.2 to 3.6 s. Both original words remain present and readable. Screens reach the midpoint at 4 s, then ease back.",
+        "beats": [
+          3.2
+        ]
+      },
+      {
+        "id": "resolve",
+        "start": 6.7,
+        "end": 8,
+        "text": "Zapisz serię.\nZobacz postęp.",
+        "emphasis_words": [
+          "postęp"
+        ],
+        "emotion": "Settled, ready to repeat",
+        "motion": "Recede white overlay by 7.2 s. Return screens exactly to start positions, rotations and opacity at 8 s with zero ending velocity. No outro card or fade to black.",
+        "beats": [
+          7.2
+        ]
+      }
+    ]
+  },
+  "layout": {
+    "safe_zone": {
+      "x": 72,
+      "y": 72,
+      "w": 936,
+      "h": 1776
+    },
+    "background": {
+      "color": "#0F0F0F"
+    },
+    "brand": {
+      "x": 76,
+      "y": 96,
+      "font_px": 38,
+      "font_weight": 600,
+      "color": "#F7F7F5"
+    },
+    "headline": {
+      "x": 72,
+      "y": 254,
+      "max_w": 936,
+      "font_weight": 700,
+      "letter_spacing_em": -0.045,
+      "first_line_color": "#F7F7F5",
+      "second_line_color": "#CAFB22",
+      "fixed_position": true
+    },
+    "screens": [
+      {
+        "id": "workout",
+        "x": 52,
+        "y": 692,
+        "w": 460,
+        "rotation_deg": -2,
+        "fit": "contain",
+        "z": 2,
+        "motion_delta": {
+          "x": 10,
+          "y": 18,
+          "rotation_deg": 0.5
+        }
+      },
+      {
+        "id": "progress",
+        "x": 558,
+        "y": 758,
+        "w": 460,
+        "rotation_deg": 2,
+        "fit": "contain",
+        "z": 1,
+        "motion_delta": {
+          "x": -8,
+          "y": -16,
+          "rotation_deg": -0.5
+        }
+      }
+    ],
+    "screen_treatment": "Use entire native screenshot with original aspect ratio. A restrained one-pixel neutral border and 42 px corner clip may be used if they do not obscure actual UI. No stretching, artificial bezel, added controls, generated chart or label repainting. Adjust screenshot widths down only if fresh native aspect ratio makes the bottom exceed y=1830.",
+    "screen_shadows": "If app-showcase already provides shadows, reduce to an unobtrusive black edge shadow. Add no moving shine or glow."
+  },
+  "motion_contract": {
+    "screen_cycle": "u(t) = (1 - cos(2*pi*t/8))/2; positions and rotation equal initial + delta*u(t). Equivalent two four-second sine.inOut tweens are acceptable. No permanent rotation change.",
+    "headline": "The original two lines stay fully visible for all 240 frames. Only a same-position white duplicate uses the catalog clip wipe.",
+    "loop": "Frames at t=0 and t=8 must have identical layout and visual state. Compare the last rendered frame to the first for an imperceptible seam.",
+    "seek": "Use a paused registered Hyperframes timeline, deterministic fromTo values, no timers, randomness, CSS autoplay or network assets.",
+    "accessibility": "Web embed must be muted, playsinline, loop and offer a still poster when prefers-reduced-motion is set. Avoid flashes and continuously pulsing type."
+  },
+  "catalog_search": [
+    {
+      "query": "bold clean headline reveals with a vertical clip wipe",
+      "tier": "words",
+      "status": "Initial catalog metadata fetch degraded. Exact hyperframes add caption-clip-wipe succeeded and installed the real source; its clipping mechanism is reused.",
+      "selected": "caption-clip-wipe",
+      "fallback": "Recover the exact registry block via supported catalog/add mechanisms. If retrieval stays unavailable, report that limitation and use the smallest same-position clip-mask adaptation, without claiming block reuse."
+    },
+    {
+      "query": "two real mobile app screenshots drift gently in opposite directions and return to a seamless loop",
+      "tier": "words",
+      "status": "Returned app-showcase as first result from remaining available registry entries.",
+      "selected": "app-showcase",
+      "source_description": "Fitness app product showcase with three floating smartphone screens",
+      "customization": "Use two authentic portrait captures on this 9:16 canvas. Remove the third screen and fixed landscape assumptions, reduce rotation and implement exact return timing."
+    }
+  ],
+  "delivery_scope": {
+    "intended_uses": [
+      "Website loop",
+      "Social teaser",
+      "Static screenshot art direction"
+    ],
+    "app_store_preview": false,
+    "app_store_note": "This eight-second graphic is a marketing loop. Do not label it an App Store preview upload or upload it as one. The main task separately handles Apple specifications and store screenshot sets."
+  },
+  "acceptance": [
+    "Fresh workout and progress captures exist for both locales and were inspected before copying into final assets.",
+    "No invented UI, old palette showcase, third-party app UI or claims absent from the app.",
+    "Both headline lines fit without clipping at 1080x1920 and in a 360 px-wide mobile preview.",
+    "Screens keep full original aspect ratio and their labels, chart axes and visible values remain unobscured.",
+    "English uses English app captures and Polish uses Polish captures.",
+    "Frame 0, 0.4, 3.6, 4, 7.2 and 7.9667 seconds inspected; loop seam checked.",
+    "Hyperframes check passes with all warnings reviewed before MP4 render.",
+    "Final MP4 is 1080x1920, 30 fps, eight seconds, H.264, yuv420p, silent, with a still poster.",
+    "No em dash and no inflated marketing copy in either language."
+  ],
+  "final_sources": "assets/source-manifest.json",
+  "final_outputs": "renders/manifest.json",
+  "verification": {
+    "pl": "qa/check-pl.json",
+    "en": "qa/check-en.json",
+    "loop_seams": "qa/loop-seams.json",
+    "visual_review": "Both native source locales, opening/middle composition frames, rendered contact sheets and 720px web posters inspected. No clipping or missing UI found."
+  }
+}
