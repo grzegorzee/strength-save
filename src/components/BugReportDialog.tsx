@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { ImagePlus, Loader2, Mail, Send, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -129,34 +130,40 @@ export const BugReportDialog = ({ open, uid, onOpenChange }: BugReportDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden" data-testid="bug-report-dialog">
+      <DialogContent
+        className="max-w-md grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-4"
+        data-testid="bug-report-dialog"
+        // Android already shrinks its WebView above the keyboard. Subtracting
+        // the plugin inset again collapses the scroll region to zero height.
+        style={Capacitor.getPlatform() === 'android' ? { '--keyboard-inset': '0px' } as CSSProperties : undefined}
+      >
         <DialogHeader>
           <DialogTitle className="font-heading uppercase tracking-tight">{t('bugReport.title')}</DialogTitle>
-          <DialogDescription>{t('bugReport.description')}</DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-1.5 px-1">
+          <Label htmlFor="bug-report-category">{t('bugReport.category')}</Label>
+          <Select value={category} onValueChange={(value) => setCategory(value as BugReportCategory)}>
+            <SelectTrigger
+              id="bug-report-category"
+              aria-label={t('bugReport.category')}
+              className="focus:ring-inset focus:ring-offset-0"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(['workout', 'sync', 'ui', 'crash', 'account', 'other'] as const).map((value) => (
+                <SelectItem key={value} value={value}>{t(`bugReport.category.${value}`)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div
           className="min-h-0 space-y-4 overflow-y-auto px-1"
           data-testid="bug-report-scroll-region"
         >
-          <div className="space-y-1.5">
-            <Label htmlFor="bug-report-category">{t('bugReport.category')}</Label>
-            <Select value={category} onValueChange={(value) => setCategory(value as BugReportCategory)}>
-              <SelectTrigger
-                id="bug-report-category"
-                aria-label={t('bugReport.category')}
-                className="focus:ring-inset focus:ring-offset-0"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(['workout', 'sync', 'ui', 'crash', 'account', 'other'] as const).map((value) => (
-                  <SelectItem key={value} value={value}>{t(`bugReport.category.${value}`)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+          <DialogDescription>{t('bugReport.description')}</DialogDescription>
           <div className="space-y-1.5">
             <Label htmlFor="bug-report-message">{t('bugReport.message')}</Label>
             <Textarea
@@ -224,10 +231,10 @@ export const BugReportDialog = ({ open, uid, onOpenChange }: BugReportDialogProp
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 sm:space-x-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
-          <Button type="button" disabled={sending} onClick={() => void send()}>
-            {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+          <Button type="button" className="h-auto min-h-11 min-w-0 whitespace-normal px-3" disabled={sending} onClick={() => void send()}>
+            {sending ? <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" /> : <Send className="mr-2 h-4 w-4 shrink-0" />}
             {error ? t('bugReport.retry') : t('bugReport.send')}
           </Button>
         </DialogFooter>

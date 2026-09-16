@@ -4,6 +4,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import type { StoredBugReportCameraRecovery } from '@/lib/bug-report-attachment-db';
 
 const submitBugReport = vi.hoisted(() => vi.fn());
+const nativePlatform = vi.hoisted(() => ({ value: 'web' }));
+vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform: () => nativePlatform.value } }));
 const pickSingleNativeImage = vi.hoisted(() => vi.fn(async () => ({ status: 'unsupported' as const })));
 const cameraRecovery = vi.hoisted(() => ({
   prepare: vi.fn(async () => true),
@@ -32,6 +34,7 @@ const renderDialog = (onOpenChange = vi.fn()) => {
 describe('BugReportDialog', () => {
   beforeEach(() => {
     localStorage.clear();
+    nativePlatform.value = 'web';
     vi.clearAllMocks();
     submitBugReport.mockResolvedValue({ ok: true });
     cameraRecovery.read.mockResolvedValue({ status: 'none' });
@@ -46,6 +49,24 @@ describe('BugReportDialog', () => {
     const scrollRegion = screen.getByTestId('bug-report-scroll-region');
     expect(scrollRegion).toHaveClass('px-1');
     expect(scrollRegion).not.toContainElement(screen.getByRole('button', { name: 'Wyślij zgłoszenie' }));
+  });
+
+  it('keeps the category accessible while the keyboard scrolls the message into view', () => {
+    renderDialog();
+    const message = screen.getByLabelText('Co się stało?');
+    fireEvent.focus(message);
+    fireEvent.change(message, { target: { value: 'Po otwarciu klawiatury chcę zmienić obszar problemu.' } });
+    const scrollRegion = screen.getByTestId('bug-report-scroll-region');
+    expect(scrollRegion).toContainElement(message);
+    expect(scrollRegion).not.toContainElement(screen.getByRole('combobox', { name: 'Obszar problemu' }));
+  });
+
+  it.each(['android', 'ios'])('accounts for the keyboard once on %s', (platform) => {
+    nativePlatform.value = platform;
+    renderDialog();
+    // Android resizes the WebView. iOS keeps its height and needs the plugin inset.
+    expect(screen.getByTestId('bug-report-dialog').style.getPropertyValue('--keyboard-inset'))
+      .toBe(platform === 'android' ? '0px' : '');
   });
 
   it('po błędzie zachowuje tekst, kategorię i daje wyjście przez retry lub email', async () => {
