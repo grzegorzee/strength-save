@@ -6278,3 +6278,20 @@ Artefakty: release/app-store/launch-2026-09 oraz videos/strength-save-store-moti
 ## 2026-09-13: podpięcie przetestowanego builda 148
 
 Właściciel potwierdził przetestowanie builda 148 i polecił jego podpięcie. Zastąpiono build 80 przez 148 w roboczym wydaniu App Store 1.0. Przed zapisem sprawdzono identyfikatory aplikacji i builda, stan VALID oraz brak wygaśnięcia. Odczyt po zapisie potwierdził wybór 148 i stan PREPARE_FOR_SUBMISSION. Nie zgłaszano aplikacji do App Review. Potwierdzenie testu właściciela zapisano w release/ios/testflight-148.json, bez dopisywania niepotwierdzonych scenariuszy. Wynik operacji: release/app-store/launch-2026-09/build-148-attachment.json. Zmiana metadanych wydania, bez zmian kodu aplikacji.
+
+## 2026-09-16 — zgłoszenia: załącznik nie blokuje treści; odzyskiwanie serwerowe
+
+Root cause przepływu: wyjątek/hang sanitize lub upload blokował finalize, a cleanup
+kasował awaiting_upload po 24h. Konkretnego etapu incydentu nie rozstrzygnięto na
+fizycznym iPhonie; właściciel polecił kontynuować bez ustawień diagnostycznych.
+
+Limity 15/30s, anulowanie uploadu, finalizacja bez obrazu z komunikatem. HEIC przez
+dekoder img po błędzie ImageBitmap, nadal canvas JPEG bez metadanych. Scheduler
+co15min finalizuje zgłoszenia nieaktywne15min zamiast kasować, bo użytkownik może
+już nie wrócić. Zachowuje poprawne obrazy, ponawia SES z trwałym markerem i lease.
+Retencja180dni bez zmian. Retry jest idempotentny także po odzyskaniu i triage.
+
+Oddzielne commity UI: wykluczanie dialogów Profilu; kategoria/stopka nad klawiaturą
+z osobną obsługą insetu Androida. Testy4210 klienta, backend i15 integracyjnych
+PASS; native iOS100/112/135%, Android100/135%, zdjęcia obejrzane; HEIC2.8MB→JPEG874KB
+w WKWebView. Szczegóły: docs/BUG-REPORT-2026-09-16.md. Wdrożenie w toku.

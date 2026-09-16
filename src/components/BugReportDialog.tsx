@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { toast } from '@/hooks/use-toast';
 import {
   clearBugReportDraft,
   readBugReportDraft,
@@ -114,10 +115,14 @@ export const BugReportDialog = ({ open, uid, onOpenChange }: BugReportDialogProp
     setError(false);
     writeBugReportDraft(uid, { reportId, message, category });
     try {
-      await submitBugReport(uid, { reportId, message, category, ...(attachment ? { attachment } : {}) });
+      const result = await submitBugReport(uid, { reportId, message, category, ...(attachment ? { attachment } : {}) });
       await consumeRecoveredBugReportAttachment({ uid, clientRequestId: reportId });
       clearBugReportDraft(uid);
       onOpenChange(false);
+      toast({
+        title: t('bugReport.sent'),
+        ...(result.screenshotOmitted ? { description: t('bugReport.screenshotOmitted'), duration: 10_000 } : {}),
+      });
     } catch {
       setError(true);
     } finally {

@@ -10,8 +10,7 @@ import {
   normalizeAdminBugReportId,
   normalizeAdminUpdateBugReportData,
   bugReportExpiresAt,
-  shouldCleanupStaleBugReport,
-  shouldCleanupBugReport,
+  shouldRecoverStaleBugReport,
   normalizeBugReporterEmail,
   resolveBugReportScreenshotPath,
   normalizeCreateBugReportData,
@@ -155,13 +154,11 @@ describe("bug report admin contract", () => {
     expect(resolveBugReportScreenshotPath(reportId, { userId: "user-1" })).toBeNull();
   });
 
-  it("retains reports for 180 days and cleans only stale awaiting uploads after 24h", () => {
+  it("retains reports for 180 days and recovers awaiting uploads after 15 minutes", () => {
     const now = Date.parse("2026-08-27T12:00:00.000Z");
     expect(bugReportExpiresAt(now)).toBe(now + 180 * 24 * 60 * 60 * 1_000);
-    expect(shouldCleanupStaleBugReport("awaiting_upload", now - 24 * 60 * 60 * 1_000 - 1, now)).toBe(true);
-    expect(shouldCleanupStaleBugReport("awaiting_upload", now - 60 * 60 * 1_000, now)).toBe(false);
-    expect(shouldCleanupStaleBugReport("new", now - 2 * 24 * 60 * 60 * 1_000, now)).toBe(false);
-    expect(shouldCleanupBugReport("resolved", now - 10, now - 1, now)).toBe(true);
-    expect(shouldCleanupBugReport("resolved", now - 10, now + 1, now)).toBe(false);
+    expect(shouldRecoverStaleBugReport("awaiting_upload", now - 24 * 60 * 60 * 1_000 - 1, now)).toBe(true);
+    expect(shouldRecoverStaleBugReport("awaiting_upload", now - 10 * 60 * 1_000, now)).toBe(false);
+    expect(shouldRecoverStaleBugReport("new", now - 2 * 24 * 60 * 60 * 1_000, now)).toBe(false);
   });
 });

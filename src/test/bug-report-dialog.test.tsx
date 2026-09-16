@@ -4,6 +4,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import type { StoredBugReportCameraRecovery } from '@/lib/bug-report-attachment-db';
 
 const submitBugReport = vi.hoisted(() => vi.fn());
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/use-toast', () => ({ toast }));
 const nativePlatform = vi.hoisted(() => ({ value: 'web' }));
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform: () => nativePlatform.value } }));
 const pickSingleNativeImage = vi.hoisted(() => vi.fn(async () => ({ status: 'unsupported' as const })));
@@ -100,6 +102,19 @@ describe('BugReportDialog', () => {
 
     renderDialog();
     expect(screen.getByLabelText('Co się stało?')).toHaveValue('');
+  });
+
+  it('confirms successful submission and explains that the screenshot was omitted', async () => {
+    submitBugReport.mockResolvedValueOnce({ ok: true, screenshotOmitted: true });
+    const onOpenChange = vi.fn();
+    renderDialog(onOpenChange);
+    fireEvent.change(screen.getByLabelText('Co się stało?'), { target: { value: 'Nie działa wysyłanie zrzutu ekranu z galerii.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Wyślij zgłoszenie' }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Zgłoszenie wysłane',
+      description: 'Nie udało się dołączyć zrzutu. Treść zgłoszenia została wysłana bez niego.',
+    }));
   });
 
   it('na webie otwiera kontrolowany input, a wybrany screenshot można usunąć', async () => {

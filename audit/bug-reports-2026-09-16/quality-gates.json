@@ -1,0 +1,47 @@
+{
+  "recordedAt": "2026-09-16",
+  "frontend": {
+    "filesPassed": 488,
+    "testsPassed": 4210,
+    "testsSkipped": 16
+  },
+  "backend": {
+    "fullSuiteBeforeFinalAdditions": {
+      "testsPassed": 584,
+      "testsSkipped": 15
+    },
+    "bugReportTestsPassed": 28,
+    "emulatorIntegrationTestsPassed": 15
+  },
+  "typecheck": "PASS (frontend and functions)",
+  "lint": "PASS; 15 pre-existing warnings, zero errors",
+  "productionWebBuild": "PASS",
+  "native": {
+    "ios": "iPhone13 simulator, iOS26.5, real system text100/112/135%, native keyboard; category and send visible; password transition max1 dialog; draft91 chars survives cold launches",
+    "android": "API35 emulator, real font_scale1/1.35, native keyboard; category changed to ui; password transition max1 dialog",
+    "physicalIos": "NOT RUN: Developer Mode / Web Inspector disabled; user authorized proceeding without phone diagnosis"
+  },
+  "heic": {
+    "environment": "iOS WKWebView simulator",
+    "forcedImageBitmapRejection": true,
+    "inputBytes": 2808983,
+    "outputJpegBytes": 874030,
+    "outputMagic": [
+      255,
+      216,
+      255
+    ]
+  },
+  "screenshotsInspected": [
+    "ios100-form.png",
+    "ios112-keyboard.png",
+    "ios135-keyboard.png",
+    "ios135-form.png",
+    "ios135-password.png",
+    "ios135-profile.png",
+    "android100-keyboard.png",
+    "android135-keyboard.png",
+    "android135-password.png",
+    "android135-profile.png"
+  ]
+}

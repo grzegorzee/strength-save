@@ -478,6 +478,8 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       ok: true,
       reportId: `${uid}_${clientRequestId}`,
       uploadPath: `bug-reports/${uid}/${uid}_${clientRequestId}/screenshot.jpg`,
+      finalized: false,
+      screenshotAttached: false,
     });
     expect((await admin.firestore().collection("bug_report_rate_limits").doc(uid).get()).data())
       .toMatchObject({ hourCount: 1, dayCount: 1 });

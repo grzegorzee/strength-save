@@ -166,6 +166,8 @@ export const en: Record<keyof typeof pl, string> = {
   'bugReport.screenshotReady': 'It will be safely processed before upload.',
   'bugReport.privacy': 'Screenshots may contain personal data. Check that you want to share it before sending.',
   'bugReport.send': 'Send report',
+  'bugReport.sent': 'Report sent',
+  'bugReport.screenshotOmitted': 'The screenshot could not be attached. Your report was sent without it.',
   'bugReport.retry': 'Try again',
   'bugReport.error': 'Could not send. Your text is saved. Try again or email us.',
   'bugReport.emailFallback': 'Send an email',

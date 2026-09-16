@@ -46,7 +46,8 @@ const BUG_REPORT_STATUS_TRANSITIONS: Record<BugReportAdminStatus, readonly BugRe
 };
 
 const BUG_REPORT_RETENTION_MS = 180 * 24 * 60 * 60 * 1_000;
-const BUG_REPORT_AWAITING_UPLOAD_TTL_MS = 24 * 60 * 60 * 1_000;
+const BUG_REPORT_AWAITING_UPLOAD_TTL_MS = 15 * 60 * 1_000;
+const BUG_REPORT_EMAIL_RETRY_MS = 10 * 60 * 1_000;
 const BUG_REPORT_SCREENSHOT_URL_TTL_MS = 5 * 60 * 1_000;
 
 interface BugReportContext {
@@ -128,23 +129,17 @@ export const bugReportScreenshotUrlExpiry = (nowMs: number): number => (
   nowMs + BUG_REPORT_SCREENSHOT_URL_TTL_MS
 );
 
-export const shouldCleanupStaleBugReport = (
+export const shouldRecoverStaleBugReport = (
   status: unknown,
-  createdAtMs: number,
+  updatedAtMs: number,
   nowMs: number,
 ): boolean => status === "awaiting_upload"
-  && Number.isFinite(createdAtMs)
-  && createdAtMs <= nowMs - BUG_REPORT_AWAITING_UPLOAD_TTL_MS;
+  && Number.isFinite(updatedAtMs)
+  && updatedAtMs <= nowMs - BUG_REPORT_AWAITING_UPLOAD_TTL_MS;
 
-export const shouldCleanupBugReport = (
-  status: unknown,
-  createdAtMs: number,
-  expiresAtMs: number,
-  nowMs: number,
-): boolean => (
-  (Number.isFinite(expiresAtMs) && expiresAtMs <= nowMs)
-  || shouldCleanupStaleBugReport(status, createdAtMs, nowMs)
-);
+const timestampMillis = (value: unknown): number => value instanceof Timestamp ? value.toMillis() : NaN;
+const isFinalized = (report: Record<string, unknown>): boolean =>
+  BUG_REPORT_ADMIN_STATUSES.includes(report.status as BugReportAdminStatus);
 
 export const canTransitionBugReportStatus = (current: unknown, next: unknown): boolean => {
   if (!BUG_REPORT_ADMIN_STATUSES.includes(current as BugReportAdminStatus)) return false;
@@ -299,7 +294,7 @@ export const createBugReport = onCall(
     const reportRef = db.collection(BUG_REPORTS_COLLECTION).doc(input.reportId);
     const rateRef = db.collection(BUG_REPORT_RATE_LIMITS_COLLECTION).doc(uid);
 
-    await db.runTransaction(async (transaction) => {
+    const existingResult = await db.runTransaction(async (transaction) => {
       const [reportSnapshot, rateSnapshot] = await Promise.all([
         transaction.get(reportRef),
         transaction.get(rateRef),
@@ -321,7 +316,7 @@ export const createBugReport = onCall(
             updatedAt: FieldValue.serverTimestamp(),
           });
         }
-        return;
+        return { finalized: isFinalized(existing), screenshotAttached: !!resolveBugReportScreenshotPath(input.reportId, existing) };
       }
 
       let nextRate: BugReportRateLimit;
@@ -351,9 +346,10 @@ export const createBugReport = onCall(
         updatedAt: FieldValue.serverTimestamp(),
         expiresAt: Timestamp.fromMillis(bugReportExpiresAt(Date.now())),
       });
+      return { finalized: false, screenshotAttached: false };
     });
 
-    return { ok: true, reportId: input.reportId, uploadPath: input.uploadPath };
+    return { ok: true, reportId: input.reportId, uploadPath: input.uploadPath, ...existingResult };
   },
 );
 
@@ -419,6 +415,99 @@ const sendBugReportEmail = async (reportId: string, report: Record<string, unkno
   return result;
 };
 
+/** A durable retry marker also covers a process dying between commit and SES. */
+const deliverBugReportEmail = async (reportRef: FirebaseFirestore.DocumentReference): Promise<void> => {
+  const now = Date.now();
+  const report = await admin.firestore().runTransaction(async transaction => {
+    const snapshot = await transaction.get(reportRef);
+    const data = snapshot.data();
+    if (!data || !isFinalized(data) || asRecord(data.emailDelivery).status === "accepted") return null;
+    const retryAt = timestampMillis(data.emailRetryAt);
+    if (Number.isFinite(retryAt) && retryAt > now) return null;
+    transaction.update(reportRef, {
+      emailRetryAt: Timestamp.fromMillis(now + BUG_REPORT_EMAIL_RETRY_MS),
+      emailDelivery: { status: "pending", updatedAt: FieldValue.serverTimestamp() },
+    });
+    return data;
+  });
+  if (!report) return;
+  try {
+    const result = await sendBugReportEmail(reportRef.id, report);
+    await reportRef.update({
+      emailRetryAt: FieldValue.delete(),
+      emailDelivery: {
+        status: "accepted", transport: result.transport,
+        ...(result.sesMessageId ? { sesMessageId: result.sesMessageId } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    });
+  } catch (error) {
+    logger.error("bug_report_email_failed", { reportId: reportRef.id, errorCode: safeSesErrorCode(error) });
+    await reportRef.update({
+      emailDelivery: { status: "failed", updatedAt: FieldValue.serverTimestamp(), error: "delivery_failed" },
+    });
+  }
+};
+
+const finalizeStoredBugReport = async (
+  reportRef: FirebaseFirestore.DocumentReference,
+  uid: string,
+  useScreenshot: boolean,
+  recoveryNowMs?: number,
+): Promise<Record<string, unknown>> => {
+  const snapshot = await reportRef.get();
+  const report = snapshot.data();
+  if (!report || report.userId !== uid) throw new HttpsError("not-found", "Bug report not found.");
+  if (isFinalized(report)) {
+    await deliverBugReportEmail(reportRef);
+    return report;
+  }
+  if (report.status !== "awaiting_upload") throw new HttpsError("failed-precondition", "Bug report cannot be finalized.");
+  const expectedPath = `bug-reports/${uid}/${reportRef.id}/screenshot.jpg`;
+  if (report.uploadPath !== expectedPath) throw new HttpsError("failed-precondition", "Bug report upload path mismatch.");
+
+  let screenshot: Record<string, unknown> | null = null;
+  if (useScreenshot) {
+    try {
+      const file = admin.storage().bucket().file(expectedPath);
+      const [metadata] = await file.getMetadata();
+      const size = Number(metadata.size);
+      if (metadata.contentType === "image/jpeg" && Number.isFinite(size) && size > 0 && size <= BUG_REPORT_MAX_SCREENSHOT_BYTES) {
+        const [header] = await file.download({ start: 0, end: 2 });
+        if (isJpegMagicBytes(header)) screenshot = { path: expectedPath, contentType: "image/jpeg", size };
+      }
+    } catch {
+      // Missing/invalid/inaccessible image must never discard the durable text.
+      logger.warn("bug_report_screenshot_unavailable", { reportId: reportRef.id });
+    }
+  }
+
+  const result = await admin.firestore().runTransaction(async transaction => {
+    const fresh = await transaction.get(reportRef);
+    const data = fresh.data();
+    if (!data || data.userId !== uid) throw new HttpsError("not-found", "Bug report not found.");
+    if (isFinalized(data)) return { report: data, changed: false };
+    if (data.status !== "awaiting_upload") throw new HttpsError("failed-precondition", "Bug report cannot be finalized.");
+    // A retry may have refreshed the description while the scheduler read Storage.
+    if (recoveryNowMs !== undefined && (!shouldRecoverStaleBugReport(data.status,
+      timestampMillis(data.updatedAt ?? data.createdAt), recoveryNowMs)
+      || timestampMillis(data.expiresAt) <= recoveryNowMs)) return { report: data, changed: false };
+    const finalizedAt = FieldValue.serverTimestamp();
+    const patch = {
+      status: "new", screenshot, finalizedAt, updatedAt: finalizedAt,
+      emailDelivery: { status: "pending", updatedAt: finalizedAt },
+      emailRetryAt: Timestamp.fromMillis(Date.now()),
+    };
+    transaction.update(reportRef, patch);
+    return { report: { ...data, ...patch }, changed: true };
+  });
+  // Only the transaction winner may remove an omitted image; a losing retry
+  // must never delete a screenshot already attached by another finalizer.
+  if (result.changed && !screenshot) await deleteOrphanScreenshot(expectedPath);
+  if (isFinalized(result.report)) await deliverBugReportEmail(reportRef);
+  return result.report;
+};
+
 export const finalizeBugReport = onCall(
   { enforceAppCheck: true, secrets: [...SES_EMAIL_SECRETS] },
   async (request) => {
@@ -426,101 +515,9 @@ export const finalizeBugReport = onCall(
     await requireUserAccess(uid);
     const input = normalizeFinalizeBugReportData(request.data, uid);
     if (!input) throw new HttpsError("invalid-argument", "Invalid bug report payload.");
-
-    const db = admin.firestore();
-    const reportRef = db.collection(BUG_REPORTS_COLLECTION).doc(input.reportId);
-    const reportSnapshot = await reportRef.get();
-    if (!reportSnapshot.exists || reportSnapshot.data()?.userId !== uid) {
-      throw new HttpsError("not-found", "Bug report not found.");
-    }
-
-    const report = reportSnapshot.data() as Record<string, unknown>;
-    if (report.status === "new") return { ok: true, reportId: input.reportId };
-    if (report.status !== "awaiting_upload") {
-      throw new HttpsError("failed-precondition", "Bug report cannot be finalized.");
-    }
-
-    const expectedPath = `bug-reports/${uid}/${input.reportId}/screenshot.jpg`;
-    if (report.uploadPath !== expectedPath) {
-      throw new HttpsError("failed-precondition", "Bug report upload path mismatch.");
-    }
-
-    let screenshot: Record<string, unknown> | null = null;
-    if (input.useScreenshot) {
-      const file = admin.storage().bucket().file(expectedPath);
-      try {
-        const [metadata] = await file.getMetadata();
-        const size = Number(metadata.size);
-        const [header] = await file.download({ start: 0, end: 2 });
-        if (
-          metadata.contentType !== "image/jpeg"
-          || !Number.isFinite(size)
-          || size <= 0
-          || size > BUG_REPORT_MAX_SCREENSHOT_BYTES
-          || !isJpegMagicBytes(header)
-        ) {
-          await deleteOrphanScreenshot(expectedPath);
-          throw new HttpsError("invalid-argument", "Screenshot must be a JPEG up to 1.5 MB.");
-        }
-        screenshot = { path: expectedPath, contentType: "image/jpeg", size };
-      } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        throw new HttpsError("failed-precondition", "Screenshot upload is missing.");
-      }
-    } else {
-      // Rezygnacja ze screena ma ścieżkę wyjścia: usuń ewentualny częściowy upload.
-      await deleteOrphanScreenshot(expectedPath);
-    }
-
-    const finalizedAt = FieldValue.serverTimestamp();
-    let shouldSendEmail = false;
-    await db.runTransaction(async (transaction) => {
-      const fresh = await transaction.get(reportRef);
-      if (!fresh.exists || fresh.data()?.userId !== uid) {
-        throw new HttpsError("not-found", "Bug report not found.");
-      }
-      if (fresh.data()?.status === "new") return;
-      if (fresh.data()?.status !== "awaiting_upload") {
-        throw new HttpsError("failed-precondition", "Bug report cannot be finalized.");
-      }
-      shouldSendEmail = true;
-      transaction.update(reportRef, {
-        status: "new",
-        screenshot,
-        finalizedAt,
-        updatedAt: finalizedAt,
-        emailDelivery: { status: "pending", updatedAt: finalizedAt },
-      });
-    });
-
-    // Powiadomienie jest best-effort: zapisane zgłoszenie pozostaje źródłem prawdy.
-    if (shouldSendEmail) {
-      try {
-        const result = await sendBugReportEmail(input.reportId, { ...report, screenshot });
-        await reportRef.update({
-          emailDelivery: {
-            status: "accepted",
-            transport: result.transport,
-            ...(result.sesMessageId ? { sesMessageId: result.sesMessageId } : {}),
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-        });
-      } catch (error) {
-        logger.error("bug_report_email_failed", {
-          reportId: input.reportId,
-          errorCode: safeSesErrorCode(error),
-        });
-        await reportRef.update({
-          emailDelivery: {
-            status: "failed",
-            updatedAt: FieldValue.serverTimestamp(),
-            error: "delivery_failed",
-          },
-        });
-      }
-    }
-
-    return { ok: true, reportId: input.reportId };
+    const reportRef = admin.firestore().collection(BUG_REPORTS_COLLECTION).doc(input.reportId);
+    const report = await finalizeStoredBugReport(reportRef, uid, input.useScreenshot);
+    return { ok: true, reportId: input.reportId, screenshotAttached: !!resolveBugReportScreenshotPath(input.reportId, report) };
   },
 );
 
@@ -580,72 +577,64 @@ export const adminGetBugReportScreenshotUrl = onCall(
   },
 );
 
-const cleanupStaleAwaitingPage = async (
-  snapshot: FirebaseFirestore.QuerySnapshot,
-  nowMs: number,
-  mode: "stale-awaiting" | "expired",
-): Promise<number> => {
-  let deleted = 0;
-  for (const document of snapshot.docs) {
-    const data = document.data();
-    const createdAt = data.createdAt instanceof Timestamp
-      ? data.createdAt.toMillis()
-      : NaN;
-    const expiresAt = data.expiresAt instanceof Timestamp
-      ? data.expiresAt.toMillis()
-      : NaN;
-    const shouldDelete = mode === "expired"
-      ? Number.isFinite(expiresAt) && expiresAt <= nowMs
-      : shouldCleanupStaleBugReport(data.status, createdAt, nowMs);
-    if (!shouldDelete) continue;
-    const userId = typeof data.userId === "string" ? data.userId : "";
-    const expectedPath = `bug-reports/${userId}/${document.id}/screenshot.jpg`;
-    if (userId && !await deleteScreenshotForRetention(expectedPath)) continue;
-    await document.ref.delete();
-    deleted += 1;
-  }
-  return deleted;
-};
-
-// Hourly, bounded cleanup for abandoned create/upload flows. A maximum of ten
-// pages prevents an unbounded function; remaining rows are retried next hour.
+// Recovery runs on the server so it also works after an app kill or a lost phone.
+// Deletion remains exclusively tied to the original 180-day retention period.
 export const cleanupStaleBugReports = onSchedule(
-  { schedule: "every 60 minutes", timeZone: "UTC", region: "us-central1" },
+  { schedule: "every 15 minutes", timeZone: "UTC", region: "us-central1", secrets: [...SES_EMAIL_SECRETS] },
   async () => {
     const pageSize = 100;
     const maxPages = 5;
     const nowMs = Date.now();
     let deleted = 0;
+    let recovered = 0;
+    const reports = () => admin.firestore().collection(BUG_REPORTS_COLLECTION);
 
-    // Najpierw retencja wszystkich statusów. Scheduler usuwa plik przed dokumentem;
-    // expiresAt pozostaje też polem gotowym do włączenia Firestore TTL jako fallback.
     let expiredCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
     for (let page = 0; page < maxPages; page += 1) {
-      let query = admin.firestore().collection(BUG_REPORTS_COLLECTION)
-        .where("expiresAt", "<=", Timestamp.fromMillis(nowMs))
-        .orderBy("expiresAt")
-        .limit(pageSize);
+      let query = reports().where("expiresAt", "<=", Timestamp.fromMillis(nowMs)).orderBy("expiresAt").limit(pageSize);
       if (expiredCursor) query = query.startAfter(expiredCursor);
       const snapshot = await query.get();
       if (snapshot.empty) break;
-      deleted += await cleanupStaleAwaitingPage(snapshot, nowMs, "expired");
+      for (const document of snapshot.docs) {
+        const data = document.data();
+        const userId = typeof data.userId === "string" ? data.userId : "";
+        if (userId && !await deleteScreenshotForRetention(`bug-reports/${userId}/${document.id}/screenshot.jpg`)) continue;
+        await document.ref.delete();
+        deleted += 1;
+      }
       expiredCursor = snapshot.docs[snapshot.docs.length - 1];
       if (snapshot.size < pageSize) break;
     }
 
     let awaitingCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
     for (let page = 0; page < maxPages; page += 1) {
-      let query = admin.firestore().collection(BUG_REPORTS_COLLECTION)
-        .where("status", "==", "awaiting_upload")
-        .orderBy(FieldPath.documentId())
-        .limit(pageSize);
+      let query = reports().where("status", "==", "awaiting_upload").orderBy(FieldPath.documentId()).limit(pageSize);
       if (awaitingCursor) query = query.startAfter(awaitingCursor);
       const snapshot = await query.get();
       if (snapshot.empty) break;
-      deleted += await cleanupStaleAwaitingPage(snapshot, nowMs, "stale-awaiting");
+      for (const document of snapshot.docs) {
+        const data = document.data();
+        if (!shouldRecoverStaleBugReport(data.status, timestampMillis(data.updatedAt ?? data.createdAt), nowMs)
+          || timestampMillis(data.expiresAt) <= nowMs) continue;
+        try {
+          const result = await finalizeStoredBugReport(document.ref, data.userId, true, nowMs);
+          if (isFinalized(result)) recovered += 1;
+        } catch (error) {
+          logger.error("bug_report_recovery_failed", { reportId: document.id, errorCode: safeSesErrorCode(error) });
+        }
+      }
       awaitingCursor = snapshot.docs[snapshot.docs.length - 1];
       if (snapshot.size < pageSize) break;
     }
-    logger.info("bug_report_stale_cleanup", { deleted });
+
+    // Single-field query needs no new composite index. A lease prevents overlap
+    // with a callable or another scheduler invocation while SES is sending.
+    const pending = await reports().where("emailRetryAt", "<=", Timestamp.fromMillis(nowMs)).limit(pageSize).get();
+    for (const document of pending.docs) {
+      if (timestampMillis(document.data().expiresAt) <= nowMs) continue;
+      try { await deliverBugReportEmail(document.ref); }
+      catch (error) { logger.error("bug_report_email_retry_failed", { reportId: document.id, errorCode: safeSesErrorCode(error) }); }
+    }
+    logger.info("bug_report_stale_cleanup", { deleted, recovered });
   },
 );

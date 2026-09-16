@@ -1,8 +1,43 @@
 export const BUG_REPORT_SCREENSHOT_MAX_BYTES = 1_500_000;
 const BUG_REPORT_SOURCE_MAX_BYTES = 20 * 1024 * 1024;
 
+interface DecodedImage {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  close: () => void;
+}
+
+const decodeImage = async (file: File): Promise<DecodedImage> => {
+  try {
+    const bitmap = await createImageBitmap(file);
+    return { source: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() };
+  } catch {
+    // WebKit's image element can decode formats (including HEIC on iOS)
+    // that its ImageBitmap implementation rejects. Still re-encode via canvas.
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    return new Promise<DecodedImage>((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timer);
+        image.onload = null;
+        image.onerror = null;
+        URL.revokeObjectURL(url);
+      };
+      const fail = () => { cleanup(); reject(new Error('image-decode-failed')); };
+      const timer = setTimeout(fail, 10_000);
+      image.onerror = fail;
+      image.onload = () => {
+        clearTimeout(timer);
+        resolve({ source: image, width: image.naturalWidth, height: image.naturalHeight, close: cleanup });
+      };
+      image.src = url;
+    });
+  }
+};
+
 const renderJpeg = async (
-  bitmap: ImageBitmap,
+  bitmap: DecodedImage,
   maxDimension: number,
   quality: number,
 ): Promise<Blob> => {
@@ -12,7 +47,7 @@ const renderJpeg = async (
   canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   const context = canvas.getContext('2d');
   if (!context) throw new Error('no-2d-context');
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap.source, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob(resolve, 'image/jpeg', quality);
   });
@@ -30,9 +65,9 @@ export async function sanitizeBugReportScreenshot(file: File): Promise<Blob> {
     throw new Error('SCREENSHOT_INVALID');
   }
 
-  let bitmap: ImageBitmap | null = null;
+  let bitmap: DecodedImage | null = null;
   try {
-    bitmap = await createImageBitmap(file);
+    bitmap = await decodeImage(file);
     let result = await renderJpeg(bitmap, 1600, 0.8);
     if (result.size > BUG_REPORT_SCREENSHOT_MAX_BYTES) {
       result = await renderJpeg(bitmap, 1280, 0.65);

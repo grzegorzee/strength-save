@@ -168,6 +168,8 @@ export const pl = {
   'bugReport.screenshotReady': 'Zostanie bezpiecznie przetworzony przed wysłaniem.',
   'bugReport.privacy': 'Zrzut może zawierać dane osobowe. Przed wysłaniem sprawdź, czy chcesz je nam przekazać.',
   'bugReport.send': 'Wyślij zgłoszenie',
+  'bugReport.sent': 'Zgłoszenie wysłane',
+  'bugReport.screenshotOmitted': 'Nie udało się dołączyć zrzutu. Treść zgłoszenia została wysłana bez niego.',
   'bugReport.retry': 'Spróbuj ponownie',
   'bugReport.error': 'Nie udało się wysłać. Tekst został zachowany. Spróbuj ponownie lub napisz e-mail.',
   'bugReport.emailFallback': 'Napisz e-mail',

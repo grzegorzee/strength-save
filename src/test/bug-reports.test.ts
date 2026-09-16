@@ -1,19 +1,24 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callProtectedFunction = vi.hoisted(() => vi.fn());
-const uploadBytes = vi.hoisted(() => vi.fn(async () => undefined));
+const uploadBytes = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined));
+const cancelUpload = vi.hoisted(() => vi.fn());
 const storageRef = vi.hoisted(() => vi.fn((_storage, path: string) => ({ path })));
 const sanitizeBugReportScreenshot = vi.hoisted(() => vi.fn(async (file: File) => new Blob([file], { type: 'image/jpeg' })));
 
 vi.mock('@/lib/protected-callable', () => ({ callProtectedFunction }));
 vi.mock('@/lib/firebase', () => ({ storage: {} }));
 vi.mock('@/lib/bug-report-screenshot', () => ({ sanitizeBugReportScreenshot }));
-vi.mock('firebase/storage', () => ({ ref: storageRef, uploadBytes }));
+vi.mock('firebase/storage', () => ({
+  ref: storageRef,
+  uploadBytesResumable: (...args: unknown[]) => Object.assign(uploadBytes(...args), { cancel: cancelUpload }),
+}));
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform: () => 'ios' } }));
 
 import { submitBugReport } from '@/lib/bug-reports';
 
 describe('submitBugReport', () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => {
     vi.clearAllMocks();
     callProtectedFunction.mockImplementation(async (name: string) => (
@@ -79,5 +84,66 @@ describe('submitBugReport', () => {
     await expect(submitBugReport('user-1', input)).resolves.toEqual({ ok: true });
 
     expect(storageRef.mock.calls.every((call) => call[1] === 'bug-reports/user-1/server-report/screenshot.jpg')).toBe(true);
+  });
+
+  it.each(['sanitize', 'upload'] as const)('%s failure still finalizes the message without an attachment', async (stage) => {
+    if (stage === 'sanitize') sanitizeBugReportScreenshot.mockRejectedValueOnce(new Error('SCREENSHOT_SANITIZE_FAILED'));
+    else uploadBytes.mockRejectedValueOnce(new Error('storage/retry-limit-exceeded'));
+    const reportId = '123e4567-e89b-42d3-a456-426614174003';
+
+    await expect(submitBugReport('user-1', {
+      reportId,
+      message: 'Klawiatura zasłania obszar problemu w formularzu.',
+      attachment: new File(['photo'], 'screen.heic', { type: 'image/heic' }),
+    })).resolves.toMatchObject({ ok: true, screenshotOmitted: true });
+
+    expect(callProtectedFunction).toHaveBeenLastCalledWith('finalizeBugReport', {
+      clientRequestId: reportId,
+      useScreenshot: false,
+    });
+    if (stage === 'sanitize') expect(uploadBytes).not.toHaveBeenCalled();
+  });
+
+  it('retains a failed finalization as an error so the user can retry the same report', async () => {
+    sanitizeBugReportScreenshot.mockRejectedValueOnce(new Error('SCREENSHOT_SANITIZE_FAILED'));
+    callProtectedFunction.mockImplementation(async (name: string) => {
+      if (name === 'createBugReport') return { ok: true, reportId: 'server-report', uploadPath: 'bug-reports/user-1/server-report/screenshot.jpg' };
+      throw new Error('offline');
+    });
+    await expect(submitBugReport('user-1', {
+      reportId: '123e4567-e89b-42d3-a456-426614174004',
+      message: 'Treść zgłoszenia musi pozostać do ponowienia.',
+      attachment: new File(['invalid'], 'screen.jpg', { type: 'image/jpeg' }),
+    })).rejects.toThrow('offline');
+    expect(callProtectedFunction).toHaveBeenLastCalledWith('finalizeBugReport', expect.anything());
+  });
+
+  it.each(['sanitize', 'upload'] as const)('does not wait forever for a stalled %s', async (stage) => {
+    vi.useFakeTimers();
+    const never = new Promise<never>(() => undefined);
+    if (stage === 'sanitize') sanitizeBugReportScreenshot.mockReturnValueOnce(never);
+    else uploadBytes.mockReturnValueOnce(never);
+    const result = submitBugReport('user-1', {
+      reportId: '123e4567-e89b-42d3-a456-426614174005',
+      message: 'Zgłoszenie nie może czekać bez końca na obraz.',
+      attachment: new File(['image'], 'screen.heic', { type: 'image/heic' }),
+    });
+    await vi.advanceTimersByTimeAsync(45_000);
+    await expect(result).resolves.toMatchObject({ ok: true, screenshotOmitted: true });
+    expect(callProtectedFunction).toHaveBeenLastCalledWith('finalizeBugReport', expect.objectContaining({ useScreenshot: false }));
+    if (stage === 'upload') expect(cancelUpload).toHaveBeenCalledOnce();
+  });
+
+  it('retry after server recovery skips the upload and returns the actual attachment outcome', async () => {
+    callProtectedFunction.mockResolvedValueOnce({
+      ok: true, reportId: 'server-report', uploadPath: 'bug-reports/user-1/server-report/screenshot.jpg',
+      finalized: true, screenshotAttached: false,
+    });
+    await expect(submitBugReport('user-1', {
+      reportId: '123e4567-e89b-42d3-a456-426614174005', message: 'Zgłoszenie już odzyskane przez serwer.',
+      attachment: new File(['image'], 'screen.png', { type: 'image/png' }),
+    })).resolves.toMatchObject({ ok: true, screenshotOmitted: true });
+    expect(uploadBytes).not.toHaveBeenCalled();
+    expect(callProtectedFunction).toHaveBeenCalledTimes(1);
   });
 });
