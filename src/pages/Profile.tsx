@@ -204,10 +204,19 @@ const Profile = () => {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [bugReportOpen, setBugReportOpen] = useState(false);
+  // These sibling dialogs replace each other in the same render. Waiting for
+  // the global overlay effect leaves both visible during a native frame.
+  const [supportDialog, setSupportDialog] = useState<'bug-report' | 'password' | null>(null);
+  const bugReportOpen = supportDialog === 'bug-report';
+  const setBugReportOpen = (open: boolean) => setSupportDialog(current => (
+    open ? 'bug-report' : current === 'bug-report' ? null : current
+  ));
   // Krok 5 (spec 2026-08-11): reset hasła za potwierdzeniem — jedno tapnięcie
   // w wiersz nie wysyła już maila od razu.
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const resetConfirmOpen = supportDialog === 'password';
+  const setResetConfirmOpen = (open: boolean) => setSupportDialog(current => (
+    open ? 'password' : current === 'password' ? null : current
+  ));
   // WP-G (X29): email domyślnie zamaskowany; wybór usera trwały (localStorage),
   // czytany też przez sidebar desktop (AppNavigation).
   const [emailVisible, setEmailVisible] = useState(readEmailVisible);
@@ -980,7 +989,7 @@ const Profile = () => {
       </div>
 
       {/* Reset password confirm dialog (krok 5, spec 2026-08-11) */}
-      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+      {resetConfirmOpen && <Dialog open onOpenChange={setResetConfirmOpen}>
         <DialogContent className="rounded-xl border-0 bg-surface-low">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase">{t('profile.account.password')}</DialogTitle>
@@ -995,7 +1004,7 @@ const Profile = () => {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* Logout confirm dialog (Z237) */}
       <Dialog open={logoutConfirmOpen} onOpenChange={(open) => { if (!loggingOut) setLogoutConfirmOpen(open); }}>
@@ -1050,7 +1059,7 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
 
-      <BugReportDialog open={bugReportOpen} uid={uid} onOpenChange={setBugReportOpen} />
+      {bugReportOpen && <BugReportDialog open uid={uid} onOpenChange={setBugReportOpen} />}
 
       {/* About dialog (Z241): wersja + linki prawne zamiast znikającego toastu */}
       <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>

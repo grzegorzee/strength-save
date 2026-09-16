@@ -1,3 +1,4 @@
+import { Profiler } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -688,6 +689,31 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     fireEvent.click(within(sectionByLabel(container, 'Konto i pomoc')).getByText('Zgłoś błąd'));
     expect(screen.getByRole('dialog', { name: 'Zgłoś błąd' })).toBeTruthy();
     expect(screen.getByLabelText('Co się stało?')).toBeTruthy();
+  });
+
+  it('never commits both the password and bug report dialogs, and preserves the report when switching back', () => {
+    const dialogCounts: number[] = [];
+    const { container } = render(
+      <MemoryRouter><LanguageProvider><UnitProvider>
+        <Profiler id="profile-modals" onRender={() => {
+          dialogCounts.push(document.querySelectorAll('[role="dialog"][data-state="open"]').length);
+        }}><Profile /></Profiler>
+      </UnitProvider></LanguageProvider></MemoryRouter>,
+    );
+    openSection('account');
+    const section = within(sectionByLabel(container, 'Konto i pomoc'));
+    const reportButton = section.getByText('Zgłoś błąd');
+    const passwordButton = section.getByText('Zmień hasło');
+    fireEvent.click(reportButton);
+    fireEvent.change(screen.getByLabelText('Co się stało?'), { target: { value: 'Opis błędu musi przetrwać przełączenie dialogu.' } });
+    // An accidental background tap must replace the modal atomically, before
+    // passive overlay effects or exit animations can show both at once.
+    fireEvent.click(passwordButton);
+    expect(screen.getByRole('dialog', { name: 'Zmień hasło' })).toBeTruthy();
+    fireEvent.click(reportButton);
+    expect(screen.getByLabelText('Co się stało?')).toHaveValue('Opis błędu musi przetrwać przełączenie dialogu.');
+    expect(Math.max(...dialogCounts)).toBe(1);
+    expect(authFixture.resetPassword).not.toHaveBeenCalled();
   });
 
   it('KONTO I POMOC: handoff do pierwszego treningu można uruchomić ponownie', () => {
