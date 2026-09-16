@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "recordedAt": "2026-09-12",
+  "recordedAt": "2026-09-16",
   "scope": "Source configuration for test-distribution candidates. Delivery evidence separately records actual artifacts and store status; physical iPhone QA runs through TestFlight.",
   "historicalDeliverySnapshot": "release/history/release-train-before-launch-audit.json",
   "product": {
@@ -42,19 +42,19 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 148,
-    "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/ios/testflight-148.json",
-    "verifiedDelivery": "148 VALID / APPROVED / IN_BETA_TESTING in internal and external groups; autoNotify enabled; notes verified"
+    "build": 149,
+    "state": "prepared-pending-delivery",
+    "deliveryEvidence": "release/ios/testflight-149.json",
+    "verifiedDelivery": "pending"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 54,
+    "versionCode": 55,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
-    "state": "source-version-requires-current-delivery-verification",
-    "deliveryEvidence": "release/android/internal-2026-09-12-54/artifact.json",
-    "verifiedDelivery": "54 COMPLETED; uploaded AAB hash confirmed by publication readback and independent Google Play API check",
-    "playDeliveryEvidence": "release/android/internal-2026-09-12-54/play-delivery.json",
+    "state": "prepared-pending-delivery",
+    "deliveryEvidence": "release/android/internal-2026-09-16-55/artifact.json",
+    "verifiedDelivery": "pending",
+    "playDeliveryEvidence": "release/android/internal-2026-09-16-55/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
     "apiAccess": {
@@ -81,16 +81,15 @@
     "physicalAndroid": "pending-owner-device-test",
     "androidEmulator": {
       "status": "PASS",
-      "device": "isolated API35 360dp",
-      "evidence": "audit/stability-2026-09-12/quality-gates.json",
-      "scope": "Native fixture at100/135%; warmup screen lock/resume; offline final/sync; production54 update/cold-start",
-      "priorBackgroundEvidence": "audit/release-2026-09-09/android51-native-smoke/smoke.json"
+      "device": "API35 / 412dp",
+      "evidence": "audit/bug-reports-2026-09-16/quality-gates.json",
+      "scope": "Bug report, category selection with keyboard, profile/password at100/135%"
     },
     "iosSimulator": {
       "status": "PASS",
-      "device": "isolated iPhone13 / iOS26.5",
-      "evidence": "audit/stability-2026-09-12/quality-gates.json",
-      "scope": "Native fixture100/112/135%; warmup background/terminate/launch; offline final/sync; production148 launch"
+      "device": "iPhone13 / iOS26.5",
+      "evidence": "audit/bug-reports-2026-09-16/quality-gates.json",
+      "scope": "Bug report, native keyboard, profile/password at100/112/135%, draft recovery, HEIC decoder fallback"
     }
   },
   "previousDeliverySnapshot": "release/history/release-train-147-53.json"
