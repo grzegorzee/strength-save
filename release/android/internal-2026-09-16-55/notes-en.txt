@@ -1,0 +1,1 @@
+Bug reports are sent even if the screenshot fails. The category stays accessible above the keyboard. Report and password dialogs no longer overlap.

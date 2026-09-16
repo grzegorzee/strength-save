@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-09-16T12:36:58.838Z",
+  "reportId": "U6GDdfg7GmP1k1xJuISIsK9uSUE2_fe8e4da0-431b-41ad-97f4-76d5f1e4a456",
+  "status": "new",
+  "hasScreenshot": false,
+  "emailDelivery": {
+    "status": "accepted",
+    "transport": "ses",
+    "sesMessageId": "010701a0aa372864-9af83511-c3df-4f68-9dff-38b706b03391-000000",
+    "updatedAt": {
+      "_seconds": 1789562137,
+      "_nanoseconds": 89000000
+    }
+  },
+  "events": [
+    {
+      "type": "Delivery",
+      "to": "contact@strengthsave.app",
+      "timestamp": "2026-09-16T12:35:38.115Z"
+    },
+    {
+      "type": "Send",
+      "to": "contact@strengthsave.app",
+      "timestamp": "2026-09-16T12:35:36.676Z"
+    }
+  ],
+  "verification": "SES Delivery confirms receipt by the recipient mail server; no physical iPhone or inbox UI inspection.",
+  "secondSchedulerRun": {
+    "checkedAt": "2026-09-16T12:39:52.222Z",
+    "status": "new",
+    "sesMessageIdUnchanged": true,
+    "emailDelivery": "accepted",
+    "recentBugReportEmailLogs": [
+      {
+        "sesMessageId": "010701a0aa372864-9af83511-c3df-4f68-9dff-38b706b03391-000000",
+        "status": "delivered",
+        "sentAt": "2026-09-16T12:35:36.852Z",
+        "deliveredAt": "2026-09-16T12:35:38.115Z"
+      }
+    ]
+  }
+}

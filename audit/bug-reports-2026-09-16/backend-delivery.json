@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-09-16T12:37:03.852Z",
+  "sourceCommit": "9babfab0",
+  "functions": [
+    {
+      "name": "createBugReport",
+      "state": "ACTIVE",
+      "updateTime": "2026-09-16T12:34:31.170022552Z",
+      "revision": "createbugreport-00006-rul",
+      "uri": "https://createbugreport-lpqyxdvkna-uc.a.run.app"
+    },
+    {
+      "name": "finalizeBugReport",
+      "state": "ACTIVE",
+      "updateTime": "2026-09-16T12:34:31.383175149Z",
+      "revision": "finalizebugreport-00006-yip",
+      "uri": "https://finalizebugreport-lpqyxdvkna-uc.a.run.app"
+    },
+    {
+      "name": "cleanupStaleBugReports",
+      "state": "ACTIVE",
+      "updateTime": "2026-09-16T12:34:31.323993555Z",
+      "revision": "cleanupstalebugreports-00006-won",
+      "uri": "https://cleanupstalebugreports-lpqyxdvkna-uc.a.run.app"
+    }
+  ],
+  "scheduler": {
+    "name": "projects/fittracker-workouts/locations/us-central1/jobs/firebase-schedule-cleanupStaleBugReports-us-central1",
+    "schedule": "every 15 minutes",
+    "state": "ENABLED",
+    "lastAttemptTime": "2026-09-16T12:35:32.939968Z",
+    "status": {}
+  }
+}

@@ -29,31 +29,31 @@
   },
   "web": {
     "url": "https://app.strengthsave.app/",
-    "state": "requires-current-source-and-live-provenance-verification",
-    "deliveryEvidence": "audit/stability-2026-09-12/web-delivery.json",
-    "verifiedDelivery": "live HTML, service worker and entry JS/CSS match source5d923524 production build"
+    "state": "deployed-verified",
+    "deliveryEvidence": "audit/bug-reports-2026-09-16/web-delivery.json",
+    "verifiedDelivery": "live HTML, service worker and entry assets match source9babfab0 production build"
   },
   "functions": {
     "project": "fittracker-workouts",
-    "state": "requires-current-deployment-verification",
-    "deliveryEvidence": "audit/android-2026-09-09/backend-delivery.json",
-    "verifiedDelivery": "revenuecatWebhook-authoritative-cross-store-access-deployed-verified; prior-phase2-preserved",
+    "state": "deployed-verified",
+    "deliveryEvidence": "audit/bug-reports-2026-09-16/backend-delivery.json",
+    "verifiedDelivery": "create/finalize/cleanup bug reports revision00006 ACTIVE; abandoned report recovered; SES Delivery confirmed",
     "priorDeliveryEvidence": "audit/release-2026-09-09/backend-phase2.receipt.json"
   },
   "ios": {
     "version": "1.0.0",
     "build": 149,
-    "state": "prepared-pending-delivery",
+    "state": "testflight-delivered-verified",
     "deliveryEvidence": "release/ios/testflight-149.json",
-    "verifiedDelivery": "pending"
+    "verifiedDelivery": "149 VALID / APPROVED / IN_BETA_TESTING in both groups; autoNotify enabled; release notes verified"
   },
   "android": {
     "version": "1.0.0",
     "versionCode": 55,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
-    "state": "prepared-pending-delivery",
+    "state": "internal-delivered-verified",
     "deliveryEvidence": "release/android/internal-2026-09-16-55/artifact.json",
-    "verifiedDelivery": "pending",
+    "verifiedDelivery": "55 COMPLETED; uploaded AAB hash and fresh track readback confirmed",
     "playDeliveryEvidence": "release/android/internal-2026-09-16-55/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
@@ -62,8 +62,8 @@
       "serviceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
-      "evidence": "release/android/internal-2026-09-12-54/play-api-check.json",
-      "checkCommand": "uv run scripts/google_play_check.py --expect-version 54"
+      "evidence": "release/android/internal-2026-09-16-55/play-api-check.json",
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 55"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
   },

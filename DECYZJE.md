@@ -6295,3 +6295,15 @@ Oddzielne commity UI: wykluczanie dialogów Profilu; kategoria/stopka nad klawia
 z osobną obsługą insetu Androida. Testy4210 klienta, backend i15 integracyjnych
 PASS; native iOS100/112/135%, Android100/135%, zdjęcia obejrzane; HEIC2.8MB→JPEG874KB
 w WKWebView. Szczegóły: docs/BUG-REPORT-2026-09-16.md. Wdrożenie w toku.
+
+### Wynik wdrożenia zgłoszeń (16.09.2026)
+
+Web live zgodny bajtowo z buildem 9babfab0; trzy funkcje ACTIVE (rewizje 00006).
+Oryginalny raport fe8e4da0 został odzyskany jako new; SES Delivery na
+contact@strengthsave.app o 14:35:38 CEST. Powtórny scheduler: ten sam identyfikator
+SES, dokładnie jeden wpis email_log (delivered). iOS 149: VALID, APPROVED, oba
+TestFlight IN_BETA_TESTING, autoNotify=true. Android 55: Internal COMPLETED,
+hash uploadu i odczyt API zgodne. Podpisy i zgodność plików IPA/AAB sprawdzone.
+Fizyczny iPhone i widok skrzynki nie były testowane; dowodem dostarczenia jest
+zdarzenie serwera pocztowego. Pełne dowody: audit/bug-reports-2026-09-16/ oraz
+release/ios/testflight-149.json, release/android/internal-2026-09-16-55/.

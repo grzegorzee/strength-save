@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-09-16T12:35:04.763655+00:00",
+  "url": "https://app.strengthsave.app/",
+  "source_commit": "9babfab0",
+  "gh_pages_commit": "43dadb35314945968e7974c1816d510de1090046",
+  "checks": [
+    {
+      "path": "index.html",
+      "bytes": 1227,
+      "sha256": "c914673a4726a74f5545bc859e66ad61520316b8db8ee53a6d14127ddc61ca2c",
+      "matches_dist": true
+    },
+    {
+      "path": "sw.js",
+      "bytes": 10503,
+      "sha256": "6db1d2ba029b5e772e0c59ae749b571358b26636e14ad504f29d4e3765d176af",
+      "matches_dist": true
+    },
+    {
+      "path": "assets/index-Bl6vTz_r.js",
+      "bytes": 531108,
+      "sha256": "3d3624b46457c6433b903a650793cbef9f1da83a3a190f438177020c816317cc",
+      "matches_dist": true
+    },
+    {
+      "path": "assets/index-CJYJTkl1.css",
+      "bytes": 114184,
+      "sha256": "1a7dde55b740bdbf1a0061600be12437eeb4c888eca7de406efd27f144fc7188",
+      "matches_dist": true
+    }
+  ],
+  "scope": "Exact unauthenticated live HTML, service worker and entry assets compared to final bug-report recovery production web dist."
+}

@@ -23,9 +23,9 @@ Nie powtarzano wykluczonych kontroli Storage, App Check, bucketu i skrzynki.
   także po wymuszonym błędzie ImageBitmap.
 - Oficjalny [Camera v8](https://capacitorjs.com/docs/apis/camera) już jest używany
   (8.2.3, core8.4.0). Zachowano plugin i istniejące recovery appRestoredResult;
-  brak nowego mostu lub uprawnień. iOS plugin odczytuje UIImage i zwraca obraz
-  przekodowany natywnie; web pozostaje przy input, Android przy pickerze pluginu.
-  Decoder img uzupełnia obsługę WebKit, bez zmiany zachowania innych zdjęć w apce.
+  brak nowego mostu lub uprawnień. Web pozostaje przy input, iOS i Android
+  przy pickerze pluginu. Decoder img obsługuje HEIC w WebKit także wtedy, gdy
+  obraz trafi do sanitizera w tym formacie; wynik przechodzi przez canvas JPEG.
 - Serwer finalizuje awaiting_upload bez aktywności przez 15 min, co 15 min.
   Zachowuje poprawny JPEG, a brak/uszkodzenie obrazu nie blokuje treści.
   **Wybrano serwer**, bo retry klienta wymagałby powrotu użytkownika do aplikacji.
@@ -48,7 +48,7 @@ Nie powtarzano wykluczonych kontroli Storage, App Check, bucketu i skrzynki.
 ## Weryfikacja
 
 [Dowody i zrzuty](../audit/bug-reports-2026-09-16/quality-gates.json).
-4210 testów klienta PASS, pełny backend PASS, 28 testów zgłoszeń PASS,
+4210 testów klienta PASS, 587 testów backendu PASS (w tym 28 testów zgłoszeń),
 15 integracyjnych na emulatorze Firebase PASS. Typecheck, lint i build PASS.
 Native UI: iOS26.5 100/112/135%, Android API35 100/135%; prawdziwa klawiatura,
 zmiana kategorii, profile i hasło, najwyżej1 dialog; szkic po cold launch.
@@ -56,7 +56,24 @@ Nie zapisywano treningów na realnym koncie.
 
 ## Wdrożenie
 
-W toku. Backend, web, iOS149 i Android55 są przygotowywane. Wyniki odczytu
-produkcyjnego zgłoszenia i zdarzeń dostarczenia SES zostaną dopisane po wdrożeniu.
+Backend: createBugReport, finalizeBugReport i cleanupStaleBugReports ACTIVE,
+rewizje 00006. Scheduler co 15 min ENABLED. [Odczyt wdrożenia](../audit/bug-reports-2026-09-16/backend-delivery.json).
+Web opublikowany; HTML, service worker i entry assets live zgodne bajtowo z buildem
+źródła 9babfab0. [Weryfikacja weba](../audit/bug-reports-2026-09-16/web-delivery.json).
+
+Stan awaiting_upload wskazanego zgłoszenia zmieniono na new przez nowy scheduler;
+oryginalny dokument i treść zachowane. SES Delivery na contact@strengthsave.app
+2026-09-16 12:35:38 UTC (14:35:38 Warszawa). Powtórzenie schedulera nie zmieniło
+identyfikatora maila i nie ponowiło wysyłki.
+[Dowód odzyskania i dostarczenia](../audit/bug-reports-2026-09-16/recovered-report.json).
+Delivery oznacza przyjęcie przez serwer odbiorcy, nie oględziny skrzynki.
+
+iOS149: podpisany IPA i wszystkie 3 targety 1.0.0 (149) zweryfikowane, upload przyjęty
+przez Apple. Odczyt ASC: VALID, APPROVED, IN_BETA_TESTING w obu grupach,
+autoNotifyEnabled=true, treść What to Test zgodna.
+[Dowód TestFlight](../release/ios/testflight-149.json).
+Android55: podpis i zgodność 232 plików runtime potwierdzone; 87 wygenerowanych APK
+przeszło zipalign 16 KB, 6 bibliotek 64-bit poprawnych; publikacja Internal Testing COMPLETED, potwierdzona odczytem Google Play API.
+[Dowód Android](../release/android/internal-2026-09-16-55/play-delivery.json).
 Test na fizycznym iPhonie pozostaje niepotwierdzony; nie utożsamiać go z testem
 symulatora ani potwierdzeniem serwera pocztowego.

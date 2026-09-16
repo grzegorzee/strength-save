@@ -1,0 +1,1 @@
+Zgłaszanie błędów: treść zostaje wysłana także po błędzie załącznika. Kategoria jest dostępna nad klawiaturą. Okna zgłoszenia i zmiany hasła nie nakładają się.
