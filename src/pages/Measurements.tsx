@@ -26,6 +26,7 @@ import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
+import { reportClientError } from '@/lib/error-telemetry';
 import { MeasurementReadError } from '@/components/MeasurementReadError';
 
 const MeasurementTrendChart = lazyWithRetry(() => import('@/components/MeasurementTrendChart'), 'lazy-retry:measurement-trend');
@@ -83,11 +84,23 @@ const Measurements = () => {
   // zamiast twardego slice(0,5).
   const [editMeasurement, setEditMeasurement] = useState<BodyMeasurement | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  // A failed photo must retry against the already saved row, never add a duplicate.
+  const pendingPhotoMeasurement = useRef<{ uid: string; grantId: string; measurement: BodyMeasurement } | null>(null);
+  const [photoOnlyRetry, setPhotoOnlyRetry] = useState<File | null>(null);
+  const [photoOnlyError, setPhotoOnlyError] = useState<string | null>(null);
+  const [photoOnlySaving, setPhotoOnlySaving] = useState(false);
 
-  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null): Promise<MeasurementSaveResult> => {
+  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null, independentEntry = false): Promise<MeasurementSaveResult> => {
     // T13a: NIEZMIENNIK — pomiar nigdy nie przepada przez zdjęcie. Upload jest
     // opcjonalnym krokiem PRZED zapisem; jego błąd degraduje do zapisu bez fotki.
     let photoFields: { photoUrl: string; photoPath: string } | null = null;
+    let photoFailed = false;
+    const pending = !independentEntry && pendingPhotoMeasurement.current?.uid === uid
+      && pendingPhotoMeasurement.current.grantId === activeHealthGrant?.healthGrantId
+      ? pendingPhotoMeasurement.current.measurement : null;
+    if (photoFile && (!canUseBodyPhotos || !activeHealthGrant)) {
+      return { ok: false, error: t('measurements.photo.updateUploadFailed') };
+    }
     if (photoFile && canUseBodyPhotos && activeHealthGrant) {
       try {
         const blob = await compressImage(photoFile);
@@ -96,19 +109,28 @@ const Measurements = () => {
         await uploadBytes(fileRef, blob);
         const photoUrl = await getDownloadURL(fileRef);
         photoFields = { photoUrl, photoPath };
-      } catch {
-        toast({ title: t('measurements.saveErrorTitle'), description: t('measurements.photo.uploadFailed'), variant: 'destructive' });
+      } catch (error) {
+        photoFailed = true;
+        void reportClientError(uid, { code: 'measurement-photo-upload', phase: 'other',
+          detail: error && typeof error === 'object' && 'code' in error ? String(error.code) : 'image-processing-or-network' });
         // WP-D D2: wpis TYLKO-zdjęcie bez udanego uploadu nie ma treści —
         // koniec (toast wyżej mówi co się stało), user ponawia dodanie.
-        const hasNumericContent = Object.values(measurement).some((value) => typeof value === 'number');
-        if (!hasNumericContent) return { ok: false, error: t('measurements.saveRetryError') };
+        const hasNumericContent = MEASUREMENT_FIELDS.some(field => typeof measurement[field] === 'number');
+        if (!hasNumericContent) return { ok: false, error: t('measurements.photo.retryFailed') };
       }
     }
-    const result = await addMeasurement(photoFields ? { ...measurement, ...photoFields } : measurement);
+    const values = { ...measurement, ...(photoFields ?? {}),
+      ...(pending?.recordedAt ? { recordedAt: pending.recordedAt } : {}) };
+    const result = pending ? await updateMeasurement(pending.id, values) : await addMeasurement(values);
     if (result.error || !result.measurement) {
       toast({ title: t('measurements.saveErrorTitle'), description: result.error || t('measurements.saveErrorDesc'), variant: 'destructive' });
       return { ok: false, error: t('measurements.saveRetryError') };
     }
+    if (photoFailed) {
+      pendingPhotoMeasurement.current = { uid, grantId: activeHealthGrant!.healthGrantId, measurement: result.measurement };
+      return { ok: false, error: t('measurements.photo.savedWithoutPhotoRetry') };
+    }
+    if (!independentEntry) pendingPhotoMeasurement.current = null;
     toast({ title: t('measurements.saveSuccessTitle'), description: t('measurements.saveSuccessDesc', { date: measurement.date }) });
     return { ok: true };
   };
@@ -117,7 +139,18 @@ const Measurements = () => {
   const handlePhotoOnlySave = async (blob: Blob) => {
     setPhotoOnlyCropFile(null);
     const file = new File([blob], 'sylwetka.jpg', { type: 'image/jpeg' });
-    await handleSave({ date: formatLocalDate(new Date()) }, file);
+    setPhotoOnlyRetry(file);
+    setPhotoOnlyError(null);
+    setPhotoOnlySaving(true);
+    try {
+      const result = await handleSave({ date: formatLocalDate(new Date()) }, file, true);
+      if (result.ok) setPhotoOnlyRetry(null);
+      else setPhotoOnlyError(result.error ?? t('measurements.photo.retryFailed'));
+    } catch {
+      setPhotoOnlyError(t('measurements.photo.retryFailed'));
+    } finally {
+      setPhotoOnlySaving(false);
+    }
   };
 
   // WP-M: edycja wpisu — upload nowego zdjęcia PRZED zapisem dokumentu; błąd
@@ -214,7 +247,7 @@ const Measurements = () => {
           <HealthWeightSuggestion
             measurements={measurements}
             onAccept={async (sample) => {
-              await handleSave({ date: sample.date, weight: Math.round(sample.kg * 10) / 10 });
+              await handleSave({ date: sample.date, weight: Math.round(sample.kg * 10) / 10 }, undefined, true);
             }}
           />
 
@@ -277,6 +310,15 @@ const Measurements = () => {
             <Camera className="h-4 w-4 mr-2 text-primary" />
             {t('measurements.photo.addButton')}
           </Button>
+          {photoOnlyRetry && (
+            <div className="space-y-2">
+              {photoOnlyError && <p role="alert" className="text-sm text-destructive">{photoOnlyError}</p>}
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={photoOnlySaving} onClick={() => void handlePhotoOnlySave(photoOnlyRetry)}>{t('measurements.photo.retry')}</Button>
+                <Button variant="outline" disabled={photoOnlySaving} onClick={() => { setPhotoOnlyRetry(null); setPhotoOnlyError(null); }}>{t('measurements.photo.remove')}</Button>
+              </div>
+            </div>
+          )}
           {photoCount === 0 && (
             <p className="text-sm text-muted-foreground">{t('measurements.compareEmpty')}</p>
           )}

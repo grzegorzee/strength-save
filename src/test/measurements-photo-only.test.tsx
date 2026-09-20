@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
+import { uploadBytes } from 'firebase/storage';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
 import type { BodyMeasurement } from '@/types';
 
@@ -32,6 +33,7 @@ const pageMocks = vi.hoisted(() => ({
   measurementError: null as string | null,
   retryMeasurements: vi.fn(),
   addMeasurement: vi.fn(async (m: Record<string, unknown>) => ({ measurement: { id: 'new', userId: 'u1', ...m } })),
+  updateMeasurement: vi.fn(async (id: string, m: Record<string, unknown>) => ({ measurement: { id, userId: 'u1', ...m } })),
   toast: vi.fn(),
 }));
 
@@ -44,6 +46,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
     measurementError: pageMocks.measurementError,
     retryMeasurements: pageMocks.retryMeasurements,
     addMeasurement: pageMocks.addMeasurement,
+    updateMeasurement: pageMocks.updateMeasurement,
     getLatestMeasurement: () => undefined,
   }),
 }));
@@ -62,7 +65,7 @@ vi.mock('@/lib/image-compress', () => ({
   compressImage: vi.fn(async (file: Blob) => file),
 }));
 vi.mock('@/components/MeasurementTrendChart', () => ({ default: () => null }));
-vi.mock('@/components/HealthWeightSuggestion', () => ({ HealthWeightSuggestion: () => null }));
+vi.mock('@/components/HealthWeightSuggestion', () => ({ HealthWeightSuggestion: ({ onAccept }: { onAccept: (sample: {date:string;kg:number}) => void }) => <button onClick={() => onAccept({date:'2026-09-20',kg:83})}>health suggestion</button> }));
 
 import Measurements from '@/pages/Measurements';
 
@@ -106,6 +109,8 @@ beforeEach(() => {
   pageMocks.retryMeasurements.mockClear();
   pageMocks.addMeasurement.mockClear();
   pageMocks.toast.mockClear();
+  pageMocks.updateMeasurement.mockClear();
+  vi.mocked(uploadBytes).mockResolvedValue({} as never);
 });
 
 describe('MeasurementsForm — wpis tylko-zdjęcie (WP-D D2)', () => {
@@ -194,3 +199,22 @@ describe('Measurements — sekcja zdjęć i porównania (WP-D D5)', () => {
     }
   });
 });
+
+ it('failed cropped photo keeps the preview and retries the same saved measurement without duplication', async () => {
+  vi.mocked(uploadBytes).mockRejectedValueOnce(new Error('storage/unknown'));
+  renderPage();
+  fireEvent.change(screen.getByLabelText(/Waga/), { target: { value: '82,4' } });
+  fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [new File(['photo'], 'body.jpg', {type:'image/jpeg'})] } });
+  fireEvent.click(screen.getByTestId('mock-crop-confirm'));
+  fireEvent.click(screen.getByRole('button', {name:/Zapisz pomiary/}));
+  await waitFor(() => expect(pageMocks.addMeasurement).toHaveBeenCalledTimes(1));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/zdjęci/i);
+  expect(screen.getByRole('img', {name:'Zdjęcie sylwetki'})).toBeVisible();
+  fireEvent.click(screen.getByRole('button', {name:'health suggestion'}));
+  await waitFor(() => expect(pageMocks.addMeasurement).toHaveBeenCalledTimes(2));
+  expect(pageMocks.updateMeasurement).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', {name:/Zapisz pomiary/}));
+  await waitFor(() => expect(pageMocks.updateMeasurement).toHaveBeenCalledWith('new', expect.objectContaining({weight:82.4,photoUrl:expect.any(String)})));
+  expect(pageMocks.addMeasurement).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+ });
