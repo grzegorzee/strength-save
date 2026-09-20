@@ -1,0 +1,60 @@
+{
+  "verifiedAt": "2026-09-20T05:06:01.557725+00:00",
+  "sourceCommit": "bc64e3c467cadd5da2c03a587e57cf46ce0931c4",
+  "tests": {
+    "vitest": {
+      "filesPassed": 489,
+      "passed": 4213,
+      "skipped": 16
+    },
+    "playwright": {
+      "passed": 14,
+      "projects": [
+        "chromium",
+        "webkit"
+      ],
+      "specs": [
+        "reschedule-flow",
+        "native-duration-layout"
+      ]
+    },
+    "typecheck": "passed",
+    "lint": "0 errors; 15 existing warnings",
+    "build": "passed",
+    "mobileDistSmoke": "passed"
+  },
+  "native": {
+    "ios": "iPhone 13 simulator iOS 26.5; text 100/112/135%; actual WKWebView",
+    "android": "Android emulator; text 100/135%; actual WebView",
+    "screens": [
+      "plank",
+      "weight exercise",
+      "missed workout reschedule sheet",
+      "photo crop and retained preview"
+    ],
+    "photoUpload": "Firebase SDK normalized/cropped/compressed synthetic JPEG uploaded successfully from both native platforms; isolated QA identity; cleanup recorded separately",
+    "physicalDevice": "not available; no claim of physical-device verification"
+  },
+  "web": {
+    "url": "https://app.strengthsave.app/",
+    "deployment": "GitHub Pages completed successfully",
+    "javascript": "/assets/index-CeJFoZvG.js",
+    "css": "/assets/index-BHGm0Qk4.css",
+    "liveAssetsVerified": {
+      "jsStatus": 200,
+      "cssStatus": 200,
+      "iosPlankGridPresent": true
+    }
+  },
+  "scope": "No lifecycle/timer algorithm changes; iOS-only CSS duration grid. Existing plan sources preserved.",
+  "iosArtifact": {
+    "signature": "codesign --verify --deep --strict PASS",
+    "version": "1.0.0",
+    "build": 150,
+    "watchAndWidgetBuild": 150,
+    "packagedDevServer": false,
+    "upload": "ACCEPTED",
+    "deliveryUuid": "7d31fdb7-f8f9-4273-9258-97a6e84bfa45",
+    "sha256": "0c4e7b0f389ac1bb92dee901750dfcd713efab3aae08af11704173b885efcc13"
+  }
+}

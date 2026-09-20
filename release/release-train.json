@@ -43,8 +43,10 @@
   "ios": {
     "version": "1.0.0",
     "build": 150,
-    "state": "source-version-requires-current-delivery-verification",
-    "priorDeliveryEvidence": "release/ios/testflight-149.json"
+    "state": "testflight-delivered-verified",
+    "priorDeliveryEvidence": "release/ios/testflight-149.json",
+    "deliveryEvidence": "release/ios/testflight-150.json",
+    "verifiedDelivery": "150 VALID / APPROVED / IN_BETA_TESTING in both groups; autoNotify enabled; release notes verified"
   },
   "android": {
     "version": "1.0.0",
