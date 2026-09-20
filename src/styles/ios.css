@@ -130,3 +130,58 @@
 :root[data-platform="ios"] :is([data-tracking="duration"], [data-tracking="weight_distance_duration"]) .exercise-set-header > span:not(:last-child) {
   display: none;
 }
+
+/* Plank: keep time, start, check and delete in fixed columns. Only the
+   previous result gets its own line, also while the countdown is running. */
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row {
+  display: grid;
+  grid-template-columns: 22px minmax(108px, 1fr) 44px 44px 44px;
+  column-gap: 4px;
+  row-gap: 2px;
+  padding-inline: 4px;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row > span[data-field-label]:nth-child(2) {
+  grid-column: 2 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  text-align: left;
+  white-space: normal;
+  overflow: visible;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row > span[data-field-label]:nth-child(2)::before {
+  display: block;
+  margin-bottom: 0;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row > span[data-field-label]:first-child {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row > span[data-field-label]:first-child::before {
+  display: none;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-duration,
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row > [role="timer"] {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-duration > .exercise-set-field-label {
+  display: none;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-row > .flex:not([role="timer"]) {
+  grid-row: 2;
+}
+
+:root[data-platform="ios"] [data-tracking="duration"] .exercise-set-header > span:nth-child(3) {
+  display: block;
+  margin-right: auto;
+  letter-spacing: 0;
+}

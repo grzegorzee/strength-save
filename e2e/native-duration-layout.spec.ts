@@ -34,3 +34,37 @@ for (const platform of ['ios', 'android']) test(`${platform}: duration fields re
     expect(facts.textFits).toBe(true);
   }
 });
+
+for (const width of [360, 390]) test(`iOS plank keeps time and actions aligned at ${width}px`, async ({ page }) => {
+  await blockFirebase(page);
+  await page.setViewportSize({ width, height: 844 });
+  await setE2EPlanMeta(page, { startDate: '2026-08-31', durationWeeks: 10,
+    days: [{ id: 'plank', dayName: 'Piątek', weekday: 'friday', focus: 'Brzuch',
+      exercises: [{ id: 'plank', name: 'Plank', sets: '3 x 65s', instructions: [] }],
+    }],
+  });
+  await navigateAndWait(page, '/workout/plank?date=2026-09-20&autostart=true');
+  await expect(page.getByTestId('prestart-skip')).toBeVisible();
+  await page.getByTestId('prestart-skip').click();
+  await expect(page.getByTestId('prestart-sheet')).toBeHidden();
+  await expect(page.locator('.exercise-card')).toHaveCount(1);
+  await page.evaluate(() => { document.documentElement.dataset.platform = 'ios'; });
+  const row = page.locator('.exercise-set-row').first();
+  const assertAligned = async () => {
+    const boxes = await row.locator('[role="group"], [role="timer"], button').evaluateAll(elements =>
+      elements.map(el => { const r = el.getBoundingClientRect(); return { x:r.x, y:r.y+r.height/2, right:r.right, width:r.width, height:r.height }; }));
+    expect(boxes).toHaveLength(4);
+    for (const box of boxes) {
+      expect(Math.abs(box.y - boxes[0].y)).toBeLessThanOrEqual(2);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    for (let i=1;i<boxes.length;i++) expect(boxes[i].x).toBeGreaterThanOrEqual(boxes[i-1].right);
+  };
+  await assertAligned();
+  await row.getByTestId('set-countdown-start').click();
+  await expect(row.getByRole('timer')).toBeVisible();
+  await assertAligned();
+  await row.getByTestId('set-countdown-stop').click();
+  await assertAligned();
+});
