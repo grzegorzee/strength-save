@@ -16,7 +16,7 @@ interface TrainingDayCardProps {
   latestWorkout?: WorkoutSession;
   trainingDate?: Date;
   onClick: () => void;
-  /** Akcja "Przełóż trening" (spec 2026-08-11); brak = ikona ukryta (dzień ukończony/przeszły). */
+  /** Akcja "Przełóż trening" (spec 2026-08-11); brak = ikona ukryta (np. dzień ukończony). */
   onReschedule?: () => void;
   /** Runna p.1 (spec C1): dzień jawnie pominięty — wygaszony, bez pretensji. */
   skipped?: boolean;

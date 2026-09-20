@@ -94,3 +94,23 @@ test.describe('Przełożenie treningu przez UI (repro builda 92)', () => {
   });
   }
 });
+
+ test('missed Friday can be moved to Sunday today with the full workout intact', async ({ page }) => {
+  await blockFirebase(page);
+  await page.clock.setFixedTime(new Date('2026-09-20T12:00:00'));
+  await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
+  const days = [planDay('friday', 'Piątek', 'friday', 'Plank'), planDay('monday', 'Poniedziałek', 'monday', 'Przysiad')];
+  days[0].exercises.push({id:'friday-ex-2',name:'Wyciskanie',sets:'3 x 8',instructions:[]});
+  await setE2EPlanMeta(page, { days, durationWeeks:8, startDate:'2026-09-01' });
+  await navigateAndWait(page, '/plan');
+  const friday = page.getByTestId('plan-day-header-2026-09-18').locator('xpath=ancestor::div[contains(@class, "mb-3")][1]');
+  await friday.getByRole('button', {name:'Więcej akcji'}).click();
+  await page.getByRole('menuitem', {name:'Przełóż trening'}).click();
+  await page.getByRole('button', {name:/niedziela.*20.*dziś.*wolne/i}).click();
+  await expect(page.getByRole('heading', {name:'Przełóż trening'})).toBeHidden();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fittracker_e2e_plan')!));
+  expect(stored.scheduleOverrides).toEqual({'2026-09-18':null,'2026-09-20':'friday'});
+  expect(stored.days).toEqual(days);
+  await page.getByTestId('plan-day-header-2026-09-20').locator('xpath=ancestor::div[contains(@class, "mb-3")][1]').getByRole('button', {name:'Niedziela',exact:true}).click();
+  await expect(page.locator('.exercise-card')).toHaveCount(2);
+ });

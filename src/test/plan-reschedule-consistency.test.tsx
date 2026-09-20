@@ -5,7 +5,7 @@
 // Fixtury dokumentów przez canonical-states (zasada 11), mapa overrides przez
 // produkcyjny builder buildScheduleMove (nie ręczny obiekt).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -85,7 +85,7 @@ const THURSDAY = '2026-08-20';
 const FRIDAY = '2026-08-21';
 
 const renderPlan = (overrides: ScheduleOverrides = {}) => {
-  harness.state = buildCanonicalState('active-plan');
+  harness.state = buildCanonicalState('active-plan', TODAY);
   harness.overrides = overrides;
   return render(
     <MemoryRouter>
@@ -150,6 +150,25 @@ describe('WP-A (X29): zakładka Plan honoruje scheduleOverrides', () => {
     // Badge na dzisiejszym (nieukończonym) dniu, dokładnie jeden.
     expect(dayGroup(TODAY).textContent).toContain(NEXT_BADGE);
     expect(screen.getAllByText(NEXT_BADGE)).toHaveLength(1);
+  });
+
+  it('zaległy piątek można w niedzielę przełożyć na dziś, zachowując cały dzień planu', () => {
+    vi.setSystemTime(new Date(2026, 7, 23, 12));
+    renderPlan();
+    const friday = dayGroup(FRIDAY);
+    fireEvent.pointerDown(within(friday as HTMLElement).getByLabelText('Więcej akcji'), {
+      button: 0, ctrlKey: false, pointerType: 'mouse',
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Przełóż trening' }));
+    expect(screen.getByRole('button', { name: /niedziela.*23.*dziś/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /niedziela.*23.*dziś/i })).toHaveTextContent('wolne');
+    const move = buildScheduleMove({
+      overrides: {}, planDays: harness.state.plan!.days,
+      fromISO: FRIDAY, toISO: '2026-08-23', todayISO: '2026-08-23',
+    });
+    expect(move).toMatchObject({ ok: true, swapped: false,
+      overrides: { [FRIDAY]: null, '2026-08-23': 'day-b' } });
+    expect(harness.state.plan!.days.find(day => day.id === 'day-b')!.exercises.length).toBeGreaterThan(0);
   });
 
   it('ikona kalendarza nie renderuje się dla dat przed startem planu', () => {

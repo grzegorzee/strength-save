@@ -807,7 +807,6 @@ const TrainingPlan = () => {
                           latestWorkout={workoutForDate}
                           trainingDate={trainingItem.scheduleItem.date}
                           onReschedule={!workoutForDate?.completed
-                            && trainingDateStr >= formatLocalDate(new Date())
                             // WP-A (X29): data przed startem planu nie istnieje
                             // w resolverze — ikona dawałaby dead-click.
                             && trainingDateStr >= (planStartDate ?? '')
