@@ -1,0 +1,7 @@
+{
+  "appliedAt": "2026-09-20T04:48:07.454Z",
+  "role": "roles/firebaserules.firestoreServiceAgent",
+  "member": "serviceAccount:service-283539506094@gcp-sa-firebasestorage.iam.gserviceaccount.com",
+  "etag": "BwZb4tb2rls=",
+  "reason": "Storage rules use firestore.get/exists; authenticated synthetic upload returned403 before required service role."
+}

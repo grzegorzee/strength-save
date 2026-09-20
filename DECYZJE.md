@@ -6307,3 +6307,13 @@ hash uploadu i odczyt API zgodne. Podpisy i zgodność plików IPA/AAB sprawdzon
 Fizyczny iPhone i widok skrzynki nie były testowane; dowodem dostarczenia jest
 zdarzenie serwera pocztowego. Pełne dowody: audit/bug-reports-2026-09-16/ oraz
 release/ios/testflight-149.json, release/android/internal-2026-09-16-55/.
+
+## 2026-09-20: zaległy trening, plank i zdjęcia pomiarów (iOS 150)
+
+- Zaległy, nierozpoczęty trening w Planie ma ponownie akcję „Przełóż trening”, także na dziś. Przyczyną był filtr daty ukrywający istniejącą akcję. Mechanizm zamiany dat i kompletna lista ćwiczeń pozostają bez zmian.
+- Plank na iOS ma stałe kolumny czasu, startu, odhaczenia i usuwania. Przyczyną było zawijanie flex przy natywnym powiększeniu tekstu. Reguły ograniczone do iOS i treningu na czas; Android zachowuje własny układ.
+- Zdjęcia: poprawiono produkcyjne IAM usługi Storage (brak `roles/firebaserules.firestoreServiceAgent` dla service agent Storage). Reguły `firestore.get/exists` nie mogły odczytać zgody użytkownika; izolowany poprawny upload zwracał 403. Po dodaniu brakującej roli zwraca 200. Reguły właściciela i zgody nie zostały poluzowane (anonim, obcy UID i błędny grant nadal 403). To naprawia obecne wydania iOS i Android.
+- Formularz zachowuje wykadrowany plik i stały komunikat po nieudanym uploadzie. Ponowienie dołącza zdjęcie do już zapisanego pomiaru bez duplikatu. Niezależny wpis wagi ze Zdrowia nie przejmuje tego ponowienia. Ścieżka samego zdjęcia ma ponów/usuń.
+- Weryfikacja: testy najpierw czerwone (menu, układ, upload/retry), następnie zielone; pełny Vitest, typecheck, lint, build. Scenariusz piątek → niedziela i zachowanie ćwiczeń w Chromium/WebKit. Natywne zrzuty iOS 100/112/135% i Android 100/135%, obejrzany plank, ciężary, Plan i kadrowanie; rzeczywisty SDK upload JPEG po kadrowaniu przeszedł w obu natywnych WebView na jednorazowym koncie QA. Dane rzeczywistych użytkowników nietknięte. Mechanika timera/lifecycle bez zmian.
+- Dowody: `audit/fixes-2026-09-20/`. Wersja 1.0.0, iOS build 150. Dostępność TestFlight zapisywana osobno po odpowiedzi Apple; konfiguracja źródeł nie jest dowodem dostarczenia.
+- IAM opisane przez Firebase: https://firebase.google.com/docs/rules/manage-deploy (cross-service permissions).

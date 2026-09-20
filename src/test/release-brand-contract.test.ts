@@ -60,8 +60,10 @@ describe('Z230 — one Strength Save release and brand contract', () => {
     expect(train.web.url).toBe('https://app.strengthsave.app/');
     expect(train.ios).toMatchObject({ version: '1.0.0', build: iosBuild });
     expect(train.android).toMatchObject({ version: '1.0.0', versionCode: androidCode });
-    expect(train.ios.state).toBe('source-version-requires-current-delivery-verification');
-    expect(train.android.state).toBe('source-version-requires-current-delivery-verification');
+    expect(['source-version-requires-current-delivery-verification', 'testflight-delivered-verified']).toContain(train.ios.state);
+    if (train.ios.state === 'testflight-delivered-verified') expect(JSON.parse(read(String(train.ios.deliveryEvidence))).artifact.build).toBe(iosBuild);
+    expect(['source-version-requires-current-delivery-verification', 'internal-delivered-verified']).toContain(train.android.state);
+    if (train.android.state === 'internal-delivered-verified') expect(read(String(train.android.deliveryEvidence))).toContain(String(androidCode));
     expect(train.garmin).toMatchObject({ manifestSchemaVersion: 3, targetBinaries: 27 });
     expect(train.entitlement).toMatchObject({ id: 'pro', checkout: ['ios', 'android'] });
   });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "recordedAt": "2026-09-16",
+  "recordedAt": "2026-09-20",
   "scope": "Source configuration for test-distribution candidates. Delivery evidence separately records actual artifacts and store status; physical iPhone QA runs through TestFlight.",
   "historicalDeliverySnapshot": "release/history/release-train-before-launch-audit.json",
   "product": {
@@ -42,10 +42,9 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 149,
-    "state": "testflight-delivered-verified",
-    "deliveryEvidence": "release/ios/testflight-149.json",
-    "verifiedDelivery": "149 VALID / APPROVED / IN_BETA_TESTING in both groups; autoNotify enabled; release notes verified"
+    "build": 150,
+    "state": "source-version-requires-current-delivery-verification",
+    "priorDeliveryEvidence": "release/ios/testflight-149.json"
   },
   "android": {
     "version": "1.0.0",

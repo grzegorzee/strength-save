@@ -1,0 +1,6 @@
+{
+  "valid": 200,
+  "otherOwner": 403,
+  "anonymous": 403,
+  "wrongGrant": 403
+}
