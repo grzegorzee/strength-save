@@ -11,6 +11,27 @@
 
 ## DECYZJE
 
+### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
+
+Apple odrzuciło wersję 1.0 (148) za 5.1.2(i) i 2.3.2. Pierwszy powód: w ankiecie
+App Privacy 9 typów danych miało zaznaczone „used for tracking”. Nie zgadzało się
+to z kodem (`PrivacyInfo.xcprivacy`: `NSPrivacyTracking=false`, a audyt
+`APP-PRIVACY-CODE-AUDIT.md` wskazywał tracking = No). Drugi powód: opis nie mówił
+jasno, że funkcje wymagają PRO, choć nowy użytkownik bez PRO trafia od razu na
+hard paywall.
+
+Poprawki: tracking = No we wszystkich 9 typach, każdy opublikowany w ASC; cele
+i powiązanie z tożsamością bez zmian. Opis PL/EN zaczyna się teraz zdaniem
+„wymaga subskrypcji PRO, wszystkie opisane funkcje są w PRO”
+(`release/app-store/launch-2026-09/metadata.json`, stary opis w
+`submission/2026-09-24-description-before.json`, odczyt z API zgodny). Build
+w wersji podmieniony ze 148 na 150 (VALID, Beta App Review APPROVED, zawiera
+wyłącznie poprawki). Wysłano odpowiedź do Apple i zrobiono resubmit 24.09
+o 18:46 CEST: stan `WAITING_FOR_REVIEW`.
+
+Lekcja: po podmianie builda w odrzuconej wersji „Resubmit” jest nieaktywny,
+dopóki na stronie wersji nie klikniesz „Update Review”.
+
 ### 2026-09-12: stabilność treningu i izolacja typografii systemów
 
 Niezmienniki: sesja z planu zachowuje komplet ćwiczeń; draft jest usuwany dopiero
@@ -6278,6 +6299,75 @@ Artefakty: release/app-store/launch-2026-09 oraz videos/strength-save-store-moti
 ## 2026-09-13: podpięcie przetestowanego builda 148
 
 Właściciel potwierdził przetestowanie builda 148 i polecił jego podpięcie. Zastąpiono build 80 przez 148 w roboczym wydaniu App Store 1.0. Przed zapisem sprawdzono identyfikatory aplikacji i builda, stan VALID oraz brak wygaśnięcia. Odczyt po zapisie potwierdził wybór 148 i stan PREPARE_FOR_SUBMISSION. Nie zgłaszano aplikacji do App Review. Potwierdzenie testu właściciela zapisano w release/ios/testflight-148.json, bez dopisywania niepotwierdzonych scenariuszy. Wynik operacji: release/app-store/launch-2026-09/build-148-attachment.json. Zmiana metadanych wydania, bez zmian kodu aplikacji.
+
+
+## 2026-09-13: przygotowanie pierwszego App Review, build 148
+
+Na prośbę właściciela sprawdzono App Store Connect. Build 148 VALID, dane recenzenta kompletne, PL/EN i 34 screenshoty COMPLETE. Uzupełniono copyright i ustawiono MANUAL release, aby akceptacja Apple nie uruchamiała automatycznie premiery. Powstał pusty szkic zgłoszenia; próba dodania aplikacji zwróciła 409 z trzema brakami: DAC7, opublikowane App Privacy i contentRightsDeclaration. Niczego nie wysłano do App Review. Odpowiedzi robocze, rozbieżność lokalizacji, ograniczenie obsługi panelu i dalsze kroki: `release/app-store/launch-2026-09/submission/DO-UZUPELNIENIA.md`. Odczyt końcowy: PREPARE_FOR_SUBMISSION, szkic READY_FOR_REVIEW bez pozycji, submitted=false. Usunięto stare jawne hasło z historycznego `docs/APP-REVIEW-IAP-STATUS.md`; aktualne konto recenzenta zostało zastąpione wcześniej, dane pozostają prywatne. Bez zmian kodu aplikacji i bez nowego builda.
+
+
+## 2026-09-13, 17:21 CEST: pierwsze zgłoszenie App Store wysłane do Apple
+
+Właściciel kliknął Submit for Review. Zgłoszenie `d1171049-43f8-490c-8927-d879dfc8d21e` wysłano 13.09.2026 o 17:21:11 czasu Europe/Warsaw (`2026-09-13T15:21:11.085Z`). Odczyt API o 17:23:53 oraz screenshot właściciela potwierdziły WAITING_FOR_REVIEW dla wszystkich czterech elementów: iOS App 1.0 / binarka 1.0.0 (148), grupa Strength Save PRO, PRO Monthly i PRO Yearly.
+
+Wcześniejsze braki DAC7, Content Rights i App Privacy przestały blokować dodanie aplikacji. Do istniejącego szkicu dodano wersję aplikacji oraz przez nowe relacje API subscriptionVersion i subscriptionGroupVersion także produkty PRO. Wszystkie operacje dodania zwróciły 201 i zostały potwierdzone odczytem przed wysłaniem. Wcześniejsza notatka o konieczności ręcznego dołączenia pierwszych subskrypcji była zbyt kategoryczna.
+
+Publikacja pozostaje MANUAL, data premiery nieustalona. Daty kontrolne: 14.09.2026 o 17:21 (24 godziny) i 15.09.2026 o 17:21 (48 godzin). To punkty do sprawdzenia statusu, bez automatycznych przypomnień i bez gwarancji terminu Apple. Nie ma jeszcze potwierdzenia rozpoczęcia oceny ani decyzji recenzenta.
+
+Zapisano `docs/APP-REVIEW-2026-09-13.md`, uaktualniono START.md i oznaczono wcześniejsze instrukcje jako historyczne. Screenshot skopiowano do `release/app-store/launch-2026-09/submission/2026-09-13-waiting-for-review.png`; statusy i daty API do `2026-09-13-review-status.json` w tym samym katalogu. Sprawdzono lokalne linki, liczbę i stany czterech elementów oraz zgodność kopii screenshota. Bez zmian kodu, nowego buildu, pushu ani wdrożenia.
+
+
+## 2026-09-13, 17:41 CEST: przygotowanie Google Play i potwierdzenie Apple Watch148
+
+Na prośbę właściciela rozpoczęto przygotowanie Androida równolegle z oceną Apple. Odczyt Play potwierdził wyłącznie Internal Testing 1.0.0 (54), completed, z hashem AAB zgodnym z dostawą 12.09. Produkcja, alpha i beta nie mają wydań. Strona miała tylko nazwę angielską. Zapisano tytuły, krótkie i pełne opisy PL/EN dostosowane do Health Connect i płatności Google, ikony oraz publiczny kontakt. Walidacja, commit i niezależny odczyt potwierdziły zapis, a ścieżki wydania pozostały identyczne.
+
+Google wymaga automatycznego kierowania tych zmian do oceny i odrzucił changesNotSentForReview=true. Po odczytaniu tego komunikatu zapisano metadane w wymaganym trybie. Nie dodano wydania produkcyjnego. Ikona RGB16 przekraczała limit 1000000 B; tę samą grafikę w tych samych wymiarach przekodowano do RGB8, 297272 B, i obejrzano przed wysłaniem. Nie zmieniono zasobów aplikacji.
+
+Konfiguracja cen nadal zwraca HTTP400 FAILED_PRECONDITION, a lista subskrypcji nie zwraca produktów. Przyczyna z 09.09 była opisana przez API jako brak profilu płatności. Dzisiejszy ogólny błąd nie daje dokładniejszej diagnozy; właściciel musi sprawdzić stan profilu w konsoli. Pozostają screenshoty Androida, feature graphic, formularze App content i test zakupów z Google Play. Przygotowano uzasadnienia Health Connect, instrukcję App access i plan cen bez haseł. Opisy, dowody i kolejność działań: docs/GOOGLE-PLAY-LAUNCH-2026-09-13.md.
+
+W odpowiedzi na pytanie o zegarek sprawdzono istniejącą IPA148. Zawiera Watch/StrengthWatch.app oraz StrengthWatchWidgets.appex, obie wersje 1.0.0 (148), z prawidłowym companion bundle ID. Hash IPA jest identyczny z dowodem uploadu148. Apple Watch jest już w zgłoszeniu wysłanym o 17:21 i nie wymaga osobnego buildu. Dowód: release/app-store/launch-2026-09/submission/watch-148-confirmation.json. Publikacja Apple pozostaje ręczna po akceptacji.
+
+Zakres: metadane i dokumentacja, bez zmian runtime, nowego buildu, prawdziwych zakupów, pushu ani wdrożenia kodu. Sprawdzono limity tekstów, format ikony, odpowiedzi API, lokalne odnośniki i cztery publiczne URL-e HTTP200.
+
+
+## 2026-09-13: maile Firebase Auth od Strength Save, reset hasła własnym kanałem przez SES
+
+**Zgłoszenie właściciela:** mail resetu hasła przychodził od `noreply@fittracker-workouts.firebaseapp.com`, z gołym linkiem; ma wychodzić z domeny strengthsave.app, najlepiej z SES, z przyciskiem i linkiem zapasowym.
+
+**Co ustalono (read-only, API Identity Toolkit kontem właściciela projektu):** projekt nie jest na Identity Platform, więc Firebase nie ma własnego SMTP; Google nałożył na projekt blokadę `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED` na zmianę tematu, treści HTML i adresu linku (API; wg zgłoszeń innych projektów także konsola). Przechodzi tylko nazwa nadawcy i reply-to. Reset hasła to jedyny mail Firebase Auth używany przez aplikację (weryfikacja idzie kodem przez SES, `updateEmail`/`sendEmailVerification` nieużywane).
+
+**Decyzje i wdrożenie:**
+1. Nazwa nadawcia „Strength Save” ustawiona przez API we wszystkich 4 szablonach (potwierdzone realnym mailem).
+2. Rekordy DNS dla własnej domeny nadawcy Firebase dodane w Cloudflare przez API: TXT `firebase=fittracker-workouts`, SPF scalony (`include:amazonses.com include:_spf.firebasemail.com`), CNAME `firebase1/2._domainkey` -> `mail-strengthsave-app.dkim1/2._domainkey.firebasemail.com` (propagacja potwierdzona). Weryfikacja domeny w konsoli Firebase wymaga kliknięcia właściciela (rozszerzenie Chrome niepodłączone): `docs/INSTRUKCJA-MAILE-AUTH-DOMENA.md`.
+3. Reset hasła przeniesiony do backendu: `functions/src/password-reset.ts` (`requestPasswordReset`, onCall bez auth, sekrety SES). Admin SDK `generatePasswordResetLink`, host linku przepisany na `auth.strengthsave.app` (ten sam handler `/__/auth/action` z Firebase Hosting projektu, sprawdzone HTTP 200), `lang` z klienta. Mail przez SES z `noreply@strengthsave.app`: szablon `passwordResetEmailHtml` (przycisk + ten sam link jako tekst zapasowy, PL/EN), logi jak inne maile (`notification_logs`, `email_log`, typ `password_reset`). Rate limit per e-mail (sha256): 60 s cooldown, 5/24 h, kolekcja `password_reset_rate_limits` z TTL `expiresAt` (polityka utworzona gcloud). Nieznany adres dostaje tę samą odpowiedź `{sent:true}` bez maila (brak enumeracji kont); inna awaria generowania linku = `unavailable`.
+4. Klient: `useAuth.resetPassword` woła `requestPasswordReset` z `registration-api.ts` (httpsCallable + timeout 10 s, E2E stub) zamiast `sendPasswordResetEmail`; `resource-exhausted` mapowane na nowy klucz `auth.err.resetCooldown` (PL/EN). Login i Profil bez zmian UI.
+
+**Weryfikacja:** functions 575 PASS / 15 SKIP (nowe: 12 testów rdzenia, szablonu, przepisania linku, kontraktu SES), typecheck; web 4198 PASS / 16 SKIP (nowy `use-auth-reset-password.test.tsx`), typecheck, lint 0 błędów, build. Deploy backend-first: `requestPasswordReset` utworzony w us-central1, realne wywołania na produkcji (sukces, cooldown, nieznany adres) w logu poniżej sesji.
+
+**Otwarte:** (a) klik właściciela w konsoli Firebase: weryfikacja domeny + próba action URL (instrukcja w docs); (b) iOS/Android dostaną nowy kanał resetu w następnym buildzie (build 148 jest w App Review, nie ruszany); starsze buildy nadal wysyłają mail Firebase z nazwą „Strength Save”; (c) handler `/__/auth/action` na auth.strengthsave.app to generyczna strona Google; własny ekran resetu w apce = osobne zadanie.
+
+
+## 2026-09-13, 18:37 CEST: Google Play, materiały Androida i produkcyjny szkic54
+
+Właściciel polecił wysłać aplikację do Google Play review i użyć nowych screenshotów Androida. Zrobiono po8 zrzutów PL/EN przez ADB z natywnego kontenera Android API36, na fikcyjnych danych Alexa. Obejrzano obie kompletne serie i finalne grafiki. Podpisy dodano poza interfejsem, bez kopiowania iPhone/iPad. Wysłano 16 grafik1080×1920 oraz2 feature1024×500. Osobny odczyt potwierdził kolejność i SHA256 wszystkich18 plików. Zapisano szkic produkcyjny1.0.0 (54); Internal Testing i pozostałe ścieżki bez zmian.
+
+Po utworzeniu profilu płatności przez właściciela aktywowano monthly/yearly i triale7/14 dni. Ceny PL14,99/119,99 PLN, US3,99/31,99 USD, 157 regionów. Niezależnie zweryfikowano aktywne produkty i konfigurację RevenueCat pro/default. Zakup ze sklepu przez License tester oraz test RTDN pozostają do wykonania. Nie wykonano prawdziwych zakupów.
+
+Audyt Android SDK i backendu posłużył do formularza Data safety. API przyjęło CSV z HTTP204 o18:16. Uwzględniono także nowe pola metod tworzenia i usuwania konta. Nie ma endpointu odczytu, więc potrzebny jest podgląd w konsoli. Konserwatywne zadeklarowanie opcjonalnej lokalizacji wynika z możliwości zachowania EXIF w oryginalnym awatarze; nie jest dowodem odczytywania GPS. Uzasadnienia i ograniczenia zapisano w audycie.
+
+Root cause blokady zgłoszenia: Google nadal traktuje aplikację jako Draft. Walidacja próby completed przed i po zapisie grafik zwróciła HTTP400: Only releases with status draft may be created on draft app. Edycje testowe usunięto; produkcyjny szkic pozostał zapisany. API lifecycle potwierdza RELEASE_LIFECYCLE_STATE_DRAFT. Aplikacja NIE jest jeszcze w review. Pozostałe zadania pierwszej publikacji wymagają panelu; w tej sesji brak dostępnego połączenia przeglądarki. Właściciel już upoważnił do review, nie potrzeba ponownej zgody.
+
+Wyłącznie w izolowanym demonstracyjnym APK wyłączono renderowanie sprzętowe, które dawało uszkodzone kafle obrazu w emulatorach API35/36. Nie zmieniono CSS ani kodu aplikacji. Produkcyjny AAB54 zachowuje poprzedni hash. Ten kontener służy do zdjęć, nie zastępuje testów zakupów, synchronizacji ani pracy w tle. Bez zmiany wersji, prawdziwych danych treningowych, pushu i wdrożenia kodu.
+
+Dowody: docs/GOOGLE-PLAY-LAUNCH-2026-09-13.md oraz release/android/launch-2026-09-13/{android-assets-delivery.json,production-after-assets-preflight.json,assets-validation.json,ANDROID-CAPTURE.md}. START i instrukcję konsoli uaktualniono do stanu po zapisie. Zgłoszenia Apple148 nie zmieniano.
+
+
+## 2026-09-13, 20:39 CEST: szybki dostęp do konta recenzenta
+
+Na prośbę właściciela pobrano aktualne dane z prywatnego App Review Information Apple i zweryfikowano logowanie Firebase Auth, zweryfikowany e-mail, brak MFA oraz profil odczytywany tokenem recenzenta. Grant PRO comp jest aktywny bez daty wygaśnięcia. Dane zapisano przez Security.framework w lokalnym pęku kluczy macOS pod nazwą Strength Save / Store Review. Odczyt po zapisie potwierdził zgodność hasła; hasło trafiło do schowka do wklejenia w Google Play. Nie zapisano go w pliku ani w logu.
+
+Dodano docs/STORE-REVIEW-ACCESS.md i skróty release/store-review-access/Kopiuj login.command oraz Kopiuj hasło.command, które kierują wynik odczytu pęku kluczy bezpośrednio do schowka. Sprawdzono składnię skryptów. Nie resetowano hasła i nie zmieniano danych Apple w trakcie review. Nie dokonano zakupów ani zapisów treningowych. Nie twierdzimy, że formularz Play został automatycznie uzupełniony, ani że ponownie przetestowano fizycznego Androida. Dowód bez hasła: release/android/launch-2026-09-13/review-account-verification.json.
+
 
 ## 2026-09-16 — zgłoszenia: załącznik nie blokuje treści; odzyskiwanie serwerowe
 
