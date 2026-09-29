@@ -13,6 +13,7 @@ import {
   getWorkoutReadSnapshot,
 } from '@/lib/workout-read-store';
 import type { BodyMeasurement } from '@/types';
+import { selectLatestBodyWeightKg } from '@/lib/bodyweight-load';
 
 // Z213: pomiary per ekran. Dashboard/WorkoutDay potrzebują tylko najnowszego
 // pomiaru (sonda limit 25 zamiast 365), globalne komponenty sync żadnego,
@@ -169,5 +170,24 @@ describe('Z213 — selectLatestMeasurement (wyniki UI bez zmian)', () => {
     const list = [empty('m-2', '2026-08-10'), empty('m-1', '2026-08-01')];
     expect(selectLatestMeasurement(list)?.id).toBe('m-2');
     expect(selectLatestMeasurement([])).toBeUndefined();
+  });
+});
+
+describe('F6 — selectLatestBodyWeightKg (pomiar bez wagi nie zasłania starszej masy)', () => {
+  it('najnowszy pomiar tylko z obwodem: masa ciała ze starszego pomiaru', () => {
+    const list = [
+      { id: 'm-3', userId: 'u', date: '2026-08-21', waist: 80 } as BodyMeasurement,
+      { id: 'm-2', userId: 'u', date: '2026-08-20', weight: 75 } as BodyMeasurement,
+      { id: 'm-1', userId: 'u', date: '2026-06-10', weight: 74 } as BodyMeasurement,
+    ];
+    // Dotychczasowy selektor zwraca wpis bez wagi — to był błąd dla masy ciała.
+    expect(selectLatestMeasurement(list)?.weight).toBeUndefined();
+    expect(selectLatestBodyWeightKg(list)).toBe(75);
+  });
+
+  it('brak jakiejkolwiek wagi albo brak listy: null', () => {
+    expect(selectLatestBodyWeightKg([{ id: 'm', userId: 'u', date: '2026-08-21' } as BodyMeasurement])).toBeNull();
+    expect(selectLatestBodyWeightKg([])).toBeNull();
+    expect(selectLatestBodyWeightKg(undefined)).toBeNull();
   });
 });

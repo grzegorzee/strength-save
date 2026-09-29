@@ -195,3 +195,28 @@ describe("buildPrPushMessage", () => {
     expect(message.body).toBe("Poprzednio szac. 1RM 118 kg. Tak trzymaj!");
   });
 });
+
+// F6: pr-push normalizuje legacy bodyweight_loaded tą samą regułą co agregat.
+describe("runPrPush — bodyweight_loaded (F6)", () => {
+  const pull = (id: string, date: string, sets: Array<[number, number]>): EmailWorkout => ({
+    id, userId: "u1", date, completed: true,
+    exercises: [{ exerciseId: "ex-pull", name: "Podciąganie na drążku", sets: sets.map(([reps, weight]) => ({ reps, weight, completed: true })) }],
+  });
+
+  it("legacy 74 kg przy MC 74: push za pierwsze +10 kg × 8", async () => {
+    const loadBodyWeightTimeline = vi.fn(async () => [{ date: "2026-06-10", weightKg: 74 }]);
+    const deps = baseDeps({
+      listBaselineWorkouts: vi.fn(async () => [pull("w-old", "2026-09-01", [[8, 74], [8, 74]])]),
+      loadBodyWeightTimeline,
+    });
+    const result = await runPrPush(deps, pull("w-new", "2026-10-08", [[8, 10]]));
+    expect(result).toMatchObject({ status: "sent", prs: 1 });
+    expect(loadBodyWeightTimeline).toHaveBeenCalledWith("u1");
+  });
+
+  it("bez serii bodyweight_loaded z kg pomiary nie są czytane", async () => {
+    const loadBodyWeightTimeline = vi.fn(async () => []);
+    await runPrPush(baseDeps({ loadBodyWeightTimeline }), workout());
+    expect(loadBodyWeightTimeline).not.toHaveBeenCalled();
+  });
+});

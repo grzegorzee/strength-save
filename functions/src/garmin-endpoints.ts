@@ -5,6 +5,7 @@
 // jednorazowe, rate limit per token, CORS domyślnie zamknięty (zegarek nie wysyła Origin).
 import { blockContextFromPlanDoc } from "./plan-date-block";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { buildBodyWeightTimeline, hasBodyweightLoadedWeight, normalizeBodyweightLoadedWorkouts } from "./bodyweight-loaded";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
@@ -413,7 +414,14 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
     .where("userId", "==", auth.uid)
     .where("date", ">=", since)
     .get();
-  const workouts = workoutsSnap.docs.map((doc) => doc.data() as GarminWorkout);
+  // F6: legacy masa ciała wpisana jako ciężar w ćwiczeniach bodyweight_loaded =
+  // dociążenie 0 (ta sama reguła co klient); bez pomiarów dane bez zmian.
+  const rawWorkouts = workoutsSnap.docs.map((doc) => doc.data() as GarminWorkout);
+  const bodyWeightTimeline = rawWorkouts.some(hasBodyweightLoadedWeight)
+    ? buildBodyWeightTimeline((await db.collection("measurements").where("userId", "==", auth.uid).get())
+      .docs.map((doc) => doc.data() as { date?: unknown; weight?: unknown }))
+    : [];
+  const workouts = normalizeBodyweightLoadedWorkouts(rawWorkouts, bodyWeightTimeline);
   const recents = buildRecentExercises(workouts);
   const recentsField = recents.length > 0 ? { r: recents } : {};
 

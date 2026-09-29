@@ -16,6 +16,7 @@ import {
   previousWorkingSet,
 } from '@/lib/exercise-utils';
 import type { SetData } from '@/types';
+import { isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
 
 describe('previousWorkingSet (kolumna POPRZ.)', () => {
   const W = (reps: number, weight: number, isWarmup = false): SetData => ({ reps, weight, completed: true, ...(isWarmup && { isWarmup: true }) });
@@ -393,8 +394,12 @@ describe('isBodyweightExercise', () => {
     expect(isBodyweightExercise('Wyciskanie sztangi na ławce płaskiej')).toBe(false);
   });
 
-  it('returns false for Podciąganie (can add weight)', () => {
-    expect(isBodyweightExercise('Podciąganie na drążku')).toBe(false);
+  // F6 (decyzja właściciela 2026-09-29): podciąganie to masa ciała z OPCJONALNYM
+  // dociążeniem (bodyweight_loaded). Możliwość dociążenia daje typ śledzenia,
+  // nie wykluczenie z ćwiczeń z masą ciała.
+  it('returns true for Podciąganie (bodyweight + optional load via bodyweight_loaded)', () => {
+    expect(isBodyweightExercise('Podciąganie na drążku')).toBe(true);
+    expect(isBodyweightLoadedExercise('Podciąganie na drążku')).toBe(true);
   });
 
   it('returns false for unknown exercise', () => {

@@ -33,6 +33,10 @@ struct WatchExercise: Codable, Identifiable, Hashable {
     // Z122: przypięta notatka (X14A), przycięta na telefonie.
     var pinnedNote: String?
     var trackingType: String?
+    // F6: addytywne. Telefon wysyła bodyweight_loaded jako trackingType
+    // "weight_reps" + ta flaga (starszy Watch jej nie zna i działa jak dotąd);
+    // weight = DOCIĄŻENIE, 0 = sama masa ciała.
+    var bodyweightLoaded: Bool?
     var sets: [WatchSet]
 
     var workingSets: [WatchSet] { sets.filter { $0.isWarmup != true } }
@@ -115,6 +119,8 @@ enum L10n {
     static var logSet: String { t("Zalicz serię", "Log set") }
     static var reps: String { t("Powt.", "Reps") }
     static var weight: String { t("Ciężar", "Weight") }
+    static var addedLoad: String { t("Dociążenie", "Added load") }
+    static var bodyweightShort: String { t("MC", "BW") }
     static var duration: String { t("Czas (s)", "Time (s)") }
     static var distance: String { t("Dystans (m)", "Distance (m)") }
     static var assistance: String { t("Asysta", "Assistance") }
@@ -172,7 +178,13 @@ enum WeightUnit: String {
 }
 
 extension WatchSet {
-    func valueText(unit: WeightUnit, trackingType: String?) -> String {
+    func valueText(unit: WeightUnit, trackingType: String?, bodyweightLoaded: Bool = false) -> String {
+        // F6: masa ciała + opcjonalne dociążenie: "8 × MC" / "6 × MC +10 kg".
+        if bodyweightLoaded && (trackingType == nil || trackingType == "weight_reps") {
+            return weight > 0
+                ? "\(reps) × \(L10n.bodyweightShort) +\(unit.toDisplay(weight).weightText) \(unit.label)"
+                : "\(reps) × \(L10n.bodyweightShort)"
+        }
         switch trackingType {
         case "duration":
             return "\(Int(durationSec ?? 0)) s"

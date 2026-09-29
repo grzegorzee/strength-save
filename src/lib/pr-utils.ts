@@ -145,6 +145,32 @@ export const getExerciseBestEffectiveLoad = (
   return best;
 };
 
+/**
+ * F6: rekord bodyweight_loaded (weight = dociążenie, 0 = sama MC): największe
+ * dociążenie, a przy nim najwięcej powtórzeń. null = brak historii.
+ */
+export const getExerciseBestBodyweightLoad = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+  exerciseName?: string,
+): { load: number; reps: number } | null => {
+  let best: { load: number; reps: number } | null = null;
+  workouts.forEach(w => {
+    if (!w.completed) return;
+    workoutExercises(w).forEach(ex => {
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
+      exerciseSets(ex).forEach(set => {
+        if (!set.completed || set.isWarmup || set.reps <= 0) return;
+        const load = Math.max(0, set.weight || 0);
+        if (!best || load > best.load || (load === best.load && set.reps > best.reps)) {
+          best = { load, reps: set.reps };
+        }
+      });
+    });
+  });
+  return best;
+};
+
 export interface PRComparison {
   exerciseId: string;
   exerciseName: string;
@@ -266,6 +292,29 @@ export const detectNewPRs = (
       if (currentMaxReps > historicalMaxReps && historicalMaxReps > 0) {
         prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'reps', newValue: currentMaxReps, oldValue: historicalMaxReps });
       }
+      return;
+    }
+
+    // F6: bodyweight_loaded — więcej dociążenia przy powtórzeniach >= rekordowych
+    // = PR ciężaru; przy równym dociążeniu więcej powtórzeń = PR powtórzeń.
+    if (tracking === 'bodyweight_loaded') {
+      const record = getExerciseBestBodyweightLoad(previousWorkouts, ex.exerciseId, snapshotName);
+      if (!record) return;
+      let bestPr: PRComparison | null = null;
+      exerciseSets(ex).forEach(set => {
+        if (!set.completed || set.isWarmup || set.reps <= 0) return;
+        const load = Math.max(0, set.weight || 0);
+        if (load > record.load && set.reps >= record.reps) {
+          if (!bestPr || bestPr.type !== 'weight' || load > bestPr.newValue) {
+            bestPr = { exerciseId: ex.exerciseId, exerciseName: name, type: 'weight', newValue: load, oldValue: record.load };
+          }
+        } else if (load === record.load && set.reps > record.reps) {
+          if (!bestPr || (bestPr.type === 'reps' && set.reps > bestPr.newValue)) {
+            bestPr = { exerciseId: ex.exerciseId, exerciseName: name, type: 'reps', newValue: set.reps, oldValue: record.reps };
+          }
+        }
+      });
+      if (bestPr) prs.push(bestPr);
       return;
     }
 

@@ -99,6 +99,30 @@ export const reducedModeAdviceFactor = (params: {
  * krok 0,5 kg. Jedna funkcja dla porady (next-set-advice) i celu sesji
  * (progression-engine -> prefill), żeby komunikat i prefill się nie rozjechały.
  */
+/**
+ * F6×F3: rampa trybu / urlopu dla ćwiczeń z masą ciała (bodyweight_loaded,
+ * assisted_bodyweight). Punkt bazowy = ostatnia sesja sprzed startu trybu.
+ * Z dociążeniem: dociążenie × mnożnik (krok 0,5 kg, jak ciężar), powtórzenia
+ * z górnej granicy. Bez dociążenia (sama MC) i przy asyście: powtórzenia z bazy
+ * × mnożnik (min. 1), bez kg. Asysta świadomie przez powtórzenia: cel sesji nie
+ * ma pola asysty, a karta nie prefilluje asysty z celu.
+ */
+export const reducedModeBodyweightTarget = (
+  history: ReadonlyArray<{ date: string; maxWeight: number; bestReps: number }>,
+  mode: ReducedMode,
+  factor: number,
+  repRange: { max: number; isMax?: boolean },
+): { targetWeight: number | null; targetReps: number | null } => {
+  const last = history[history.length - 1];
+  const baseline = [...history].reverse().find((point) => point.date < mode.startDate) ?? last;
+  if (!baseline) return { targetWeight: null, targetReps: null };
+  if (baseline.maxWeight > 0) {
+    const load = reducedModeTargetWeight(history, mode, factor);
+    return { targetWeight: load > 0 ? load : null, targetReps: repRange.isMax ? null : repRange.max };
+  }
+  return { targetWeight: null, targetReps: Math.max(1, Math.round(baseline.bestReps * factor)) };
+};
+
 export const reducedModeTargetWeight = (
   history: ReadonlyArray<{ date: string; maxWeight: number }>,
   mode: ReducedMode,

@@ -56,6 +56,7 @@ import {
   resolveCompletionTracking,
   type TrackingType,
 } from '@/lib/set-tracking';
+import { formatBodyweightLoadLabel } from '@/lib/bodyweight-load';
 import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 import { SetCountdown } from '@/components/SetCountdown';
@@ -84,7 +85,8 @@ const incompleteSetMessageKey = (tracking: TrackingType): TranslationKey => {
   switch (tracking) {
     case 'weight_reps': return 'card.incompleteSetWeightReps';
     case 'bodyweight_reps':
-    case 'assisted_bodyweight': return 'card.incompleteSetReps';
+    case 'assisted_bodyweight':
+    case 'bodyweight_loaded': return 'card.incompleteSetReps';
     case 'duration': return 'card.incompleteSetDuration';
     case 'weight_distance_duration': return 'card.incompleteSetDistanceDuration';
   }
@@ -381,17 +383,21 @@ const ExerciseCardInner = ({
   const tracking: TrackingType = trackingType ?? (isBodyweight ? 'bodyweight_reps' : 'weight_reps');
   // Nowe typy mają WŁASNĄ gałąź renderu wiersza — ścieżka weight_reps/bodyweight_reps nietknięta.
   const isNewTrackingUi = tracking === 'duration' || tracking === 'weight_distance_duration' || tracking === 'assisted_bodyweight';
+  // F6: bodyweight_loaded = ćwiczenie z masą ciała (isBodyweight), ale z OPCJONALNYM
+  // polem dociążenia; weight = wyłącznie dociążenie (0/puste = sama masa ciała).
+  const isBodyweightLoaded = tracking === 'bodyweight_loaded';
+  const hidesWeight = isBodyweight && !isBodyweightLoaded;
 
   // ── Edit a set value (no auto-completion — completion is confirmed via the checkmark) ──
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight' | 'durationSec' | 'distanceM' | 'assistWeight', value: number) => {
-    if (isBodyweight && field === 'weight') return;
+    if (hidesWeight && field === 'weight') return;
     hasLocalChanges.current = true;
     setCompletionError((current) => current?.setIndex === setIndex ? null : current);
 
     const updatedSet = {
       ...sets[setIndex],
       [field]: value,
-      ...(isBodyweight && { weight: 0 }),
+      ...(hidesWeight && { weight: 0 }),
     };
 
     // Z171: seria dotknięta ręcznie = realne dane (dialog przy usuwaniu).
@@ -425,7 +431,7 @@ const ExerciseCardInner = ({
     let weight = currentSet.weight;
     if (turningOn && reps === 0 && prevForAdopt) {
       reps = prevForAdopt.reps;
-      if (!isBodyweight) weight = prevForAdopt.weight;
+      if (!hidesWeight) weight = prevForAdopt.weight;
     }
 
     // Z105: adopcja pustych pól nowych typów z poprzedniej sesji przy odhaczaniu.
@@ -440,7 +446,7 @@ const ExerciseCardInner = ({
     const updatedSet: SetData = {
       ...currentSet,
       reps,
-      weight: isBodyweight ? 0 : weight,
+      weight: hidesWeight ? 0 : weight,
       ...adoptedExtras,
       completed: turningOn,
     };
@@ -545,7 +551,7 @@ const ExerciseCardInner = ({
     const lastWorking = [...sets].reverse().find(s => !s.isWarmup);
     const newSet: SetData = {
       reps: lastWorking?.reps ?? 0,
-      weight: isBodyweight ? 0 : (lastWorking?.weight ?? 0),
+      weight: hidesWeight ? 0 : (lastWorking?.weight ?? 0),
       completed: false,
       // Z105: nowa seria dziedziczy czas/dystans/asystę z ostatniej roboczej.
       ...(lastWorking?.durationSec !== undefined && { durationSec: lastWorking.durationSec }),
@@ -646,8 +652,8 @@ const ExerciseCardInner = ({
     if (!previousSets) return null;
     const repRange = parseRepRange(exercise.sets);
     const prevWorking = previousSets.filter(s => !s.isWarmup);
-    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight, lang, unit);
-  }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight, lang, unit]);
+    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, hidesWeight, lang, unit);
+  }, [previousSets, exercise.sets, index, exercise.isSuperset, hidesWeight, lang, unit]);
 
   // Fala 2 (2026-08-20, mockup 2a): kaskada celu w JEDNYM target boxie zamiast
   // rzędu badge. Priorytety i dane identyczne jak dawny łańcuch badge'ów:
@@ -658,6 +664,10 @@ const ExerciseCardInner = ({
   type TargetTone = 'primary' | 'warning' | 'destructive';
   const targetBox = ((): { label: string; tone: TargetTone; value: string; reason?: string } | null => {
     const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
+    // F6: cel ćwiczenia z masą ciała = „MC” / „MC +2,5 kg” (weight to dociążenie).
+    const dispLoad = (kg: number) => (isBodyweightLoaded
+      ? formatBodyweightLoadLabel(kg, disp, t('bodyweightLoaded.label'))
+      : disp(kg));
     // F3: cel trybu / rampy po przerwie wygrywa z RZA — to ten ciężar wpisał prefill.
     if (rzaAdvice && !(weeklyTarget && isModeWeeklyTarget(weeklyTarget))) {
       const labels: Record<RzaAdvice['decision'], string> = {
@@ -683,7 +693,7 @@ const ExerciseCardInner = ({
         : weeklyTarget.targetReps != null ? `×${weeklyTarget.targetReps}` : '';
       const value = [
         head,
-        weeklyTarget.targetWeight != null && weeklyTarget.targetWeight > 0 ? disp(weeklyTarget.targetWeight) : null,
+        weeklyTarget.targetWeight != null && weeklyTarget.targetWeight > 0 ? dispLoad(weeklyTarget.targetWeight) : null,
         weeklyTarget.targetDurationSec != null ? formatDurationSec(weeklyTarget.targetDurationSec) : null,
       ].filter(Boolean).join(' · ');
       // Jak dawny WeeklyTargetBadge: pusta wartość = brak elementu (bez fallbacku niżej).
@@ -701,7 +711,7 @@ const ExerciseCardInner = ({
         tone: nextAdvice.kind === 'deload' ? 'warning' : 'primary',
         value: nextAdvice.isBodyweight
           ? t('card.repsValue', { n: nextAdvice.targetReps })
-          : `${disp(nextAdvice.targetWeight)} × ${nextAdvice.targetReps}`,
+          : `${dispLoad(nextAdvice.targetWeight)} × ${nextAdvice.targetReps}`,
         reason: nextAdvice.reason,
       };
     }
@@ -721,6 +731,10 @@ const ExerciseCardInner = ({
   const getPreviousHint = (workingIndex: number): string | null => {
     const prevSet = previousWorkingSet(previousSets, workingIndex);
     if (!prevSet || (prevSet.weight === 0 && prevSet.reps === 0)) return null;
+    // F6: POPRZ. dla dociążenia: „MC×8” albo „+10×6” (sama wartość, bez jednostki jak niżej).
+    if (isBodyweightLoaded) {
+      return `${prevSet.weight > 0 ? `+${fmt(prevSet.weight, { withUnit: false })}` : t('bodyweightLoaded.label')}×${prevSet.reps}`;
+    }
     if (isBodyweight) return t('card.repsValue', { n: prevSet.reps });
     // Z130: format „60×6" (ciężar × powtórzenia) — tak zapisuje się serię na
     // kartce i tak czytają to Hevy/Strong. Wcześniej było odwrotnie („6×60kg").
@@ -747,7 +761,7 @@ const ExerciseCardInner = ({
       ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
       : tracking === 'assisted_bodyweight'
         ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
-        : isBodyweight
+        : hidesWeight
           ? 'grid-cols-[26px_minmax(0,1fr)_1fr_minmax(44px,2.75rem)_minmax(44px,2.75rem)]'
           : 'grid-cols-[minmax(20px,24px)_minmax(48px,1fr)_minmax(56px,1.1fr)_minmax(44px,1fr)_minmax(44px,2.75rem)_minmax(44px,2.75rem)]';
 
@@ -1042,15 +1056,17 @@ const ExerciseCardInner = ({
           ) : (prevHint || '-')}
         </span>
 
-        {/* KG (non-bodyweight) */}
-        {!isBodyweight && (
-          renderSetField(unit, <DecimalInput
+        {/* KG (non-bodyweight); F6: bodyweight_loaded = opcjonalne +kg (puste = MC) */}
+        {!hidesWeight && (
+          renderSetField(isBodyweightLoaded ? t('card.colAddedLoad', { unit }) : unit, <DecimalInput
             value={displayWeight}
             onCommit={(n) => handleSetChange(globalIndex, 'weight', fromInput(n))}
             onClear={() => handleSetChange(globalIndex, 'weight', 0)}
-            placeholder="0"
+            placeholder={isBodyweightLoaded ? t('card.addedLoadPlaceholder') : '0'}
             disabled={!isEditable}
-            ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
+            ariaLabel={isBodyweightLoaded
+              ? `${localizedName}, ${setLabel}, ${t('card.addedLoadAria', { unit })}`
+              : `${localizedName}, ${setLabel}, ${unit}`}
             className={cn(
               'exercise-card-input h-12 min-w-0 px-1 text-base font-bold tracking-[-0.02em] focus-visible:ring-0 focus-visible:ring-offset-0',
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
@@ -1361,6 +1377,12 @@ const ExerciseCardInner = ({
             {t('card.firstTime')}
           </p>
         )}
+        {/* F6: asysta działa odwrotnie niż ciężar — mniejsza = postęp. */}
+        {tracking === 'assisted_bodyweight' && (
+          <p className="px-2 pb-2 text-[11px] font-medium text-muted-foreground" data-testid="assist-hint">
+            {t('card.assistHint')}
+          </p>
+        )}
         <div>
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
@@ -1402,8 +1424,10 @@ const ExerciseCardInner = ({
         >
           <span aria-label={t('card.colSet')} className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">#</span>
           <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colPrevious')}</span>
-          {!isBodyweight && (
-            <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{unit}</span>
+          {!hidesWeight && (
+            <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              {isBodyweightLoaded ? t('card.colAddedLoad', { unit }) : unit}
+            </span>
           )}
           <span className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('card.colReps')}</span>
           <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>

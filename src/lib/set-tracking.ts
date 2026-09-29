@@ -6,7 +6,9 @@ export type TrackingType =
   | 'bodyweight_reps'
   | 'duration'
   | 'weight_distance_duration'
-  | 'assisted_bodyweight';
+  | 'assisted_bodyweight'
+  // F6: masa ciała + opcjonalne dociążenie; weight = WYŁĄCZNIE dociążenie (0 = sama MC).
+  | 'bodyweight_loaded';
 
 export type SetField = 'weight' | 'reps' | 'duration' | 'distance' | 'assist';
 
@@ -16,6 +18,7 @@ export const TRACKING_TYPES: TrackingType[] = [
   'duration',
   'weight_distance_duration',
   'assisted_bodyweight',
+  'bodyweight_loaded',
 ];
 
 export const isTrackingType = (value: unknown): value is TrackingType =>
@@ -65,6 +68,7 @@ export const hasCompleteSetData = (
       return set.reps > 0 && set.weight > 0;
     case 'bodyweight_reps':
     case 'assisted_bodyweight':
+    case 'bodyweight_loaded':
       return set.reps > 0;
     case 'duration':
       return (set.durationSec ?? 0) > 0;
@@ -79,6 +83,7 @@ const FIELDS_BY_TRACKING: Record<TrackingType, SetField[]> = {
   duration: ['duration'],
   weight_distance_duration: ['weight', 'distance', 'duration'],
   assisted_bodyweight: ['assist', 'reps'],
+  bodyweight_loaded: ['weight', 'reps'],
 };
 
 export const visibleSetFields = (tracking: TrackingType): SetField[] =>
@@ -123,7 +128,12 @@ export const formatHistorySetLabel = (
   set: { reps: number; weight: number; completed?: boolean; isWarmup?: boolean; durationSec?: number; distanceM?: number; assistWeight?: number },
   fmtWeight: (kg: number) => string,
   bodyweightLabel: string,
+  /** F6: etykieta MC dla bodyweight_loaded ("MC" / "MC +10 kg"); brak = dotychczasowy format. */
+  bodyweightLoadedLabel?: string,
 ): string => {
+  if (bodyweightLoadedLabel !== undefined) {
+    return `${set.reps}×${set.weight > 0 ? `${bodyweightLoadedLabel} +${fmtWeight(set.weight)}` : bodyweightLoadedLabel}`;
+  }
   if ((set.assistWeight ?? 0) > 0) return `${set.reps}×-${fmtWeight(set.assistWeight!)}`;
   if ((set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0) {
     const parts = [

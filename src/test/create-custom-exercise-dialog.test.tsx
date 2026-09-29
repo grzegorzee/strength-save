@@ -94,6 +94,20 @@ describe('CreateCustomExerciseDialog (X28 WP-A)', () => {
     expect(onCreate.mock.calls[0][0].isBodyweight).toBe(true);
   });
 
+  it('F6: typ „Masa ciała + kg” jest w wyborze i zapisuje bodyweight_loaded z isBodyweight', async () => {
+    const { onCreate } = renderDialog();
+    fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), {
+      target: { value: 'Podciąganie na kółkach' },
+    });
+    const trigger = screen.getByTestId('custom-exercise-tracking');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('option', { name: 'Masa ciała + kg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1));
+    expect(onCreate.mock.calls[0][0]).toMatchObject({ tracking: 'bodyweight_loaded', isBodyweight: true });
+  });
+
   it('sukces zapisu: toast potwierdzenia + onOpenChange(false)', async () => {
     const { onOpenChange } = renderDialog();
     fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), {

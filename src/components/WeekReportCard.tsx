@@ -10,7 +10,7 @@ import {
 } from '@/lib/progression-engine';
 import { getTrackingType, formatDurationSec, type TrackingType } from '@/lib/set-tracking';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
-import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { findLibraryExercise } from '@/data/exerciseLibrary';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -51,7 +51,7 @@ export const WeekReportCard = ({ planDays, workouts, currentWeek, planStartDate,
     // świadome uproszczenie: Dashboard nie ciągnie custom_exercises).
     const trackingByName: Record<string, TrackingType> = {};
     planDays.forEach((d) => d.exercises.forEach((e) => {
-      const lib = exerciseLibrary.find((x) => x.name === e.name);
+      const lib = findLibraryExercise(e.name);
       trackingByName[e.name] = lib
         ? getTrackingType(lib)
         : getTrackingType({ isBodyweight: isBodyweightExercise(e.name) });

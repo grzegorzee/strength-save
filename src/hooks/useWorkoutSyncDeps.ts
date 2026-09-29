@@ -18,7 +18,7 @@ export const useWorkoutSyncDeps = (uid: string) => {
     return () => { mounted.current = false; };
   }, []);
   const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer, workouts, isLoaded } =
-    useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
+    useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent', rawWorkouts: true });
 
   const syncDeps = useMemo<WorkoutSyncDeps>(() => {
     const assertOwner = (ownerId = uid) => {

@@ -18,7 +18,7 @@ import { DataRepairTools } from '@/components/DataManagement';
  */
 export const AdminRepairToolsCard = () => {
   const { uid } = useCurrentUser();
-  const { workouts, isLoaded: workoutsLoaded, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { workouts, isLoaded: workoutsLoaded, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { rawWorkouts: true });
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
   const { toast } = useToast();
   const { t } = useTranslation();

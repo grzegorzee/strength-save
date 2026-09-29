@@ -1,6 +1,6 @@
 import { runTransaction } from '@/lib/firestore-transaction';
 import { workoutSyncErrorText } from '@/lib/workout-sync-conflict';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import {
   collection,
   doc,
@@ -54,6 +54,8 @@ import {
 import { createWorkoutV2SaveAdapter } from '@/lib/workout-sync-v2';
 import { restoreWorkoutBackupV3Item } from '@/lib/workout-restore-v3';
 import { countCompletedWorkouts, selectCompletedWorkouts } from '@/lib/completed-workouts';
+import { buildBodyWeightTimeline, normalizeBodyweightLoadedWorkouts } from '@/lib/bodyweight-load';
+import { isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -924,14 +926,21 @@ export const useFirebaseWorkoutActions = (
 // z PR, Achievements, Analytics, eksport, backfill cykli),
 // 'recent' — okno 120 dla ekranów bieżących (Dashboard, DayPlan, nagłówek,
 // sync); liczby all-time dostarcza agregat Z217.
+// F6: `workouts` zwracane ekranom są znormalizowane dla bodyweight_loaded
+// (legacy masa ciała wpisana jako kg = dociążenie 0), dlatego ekran z tierem
+// 'none' dostaje sondę pomiarów ('latest'). Akcje (zapisy, backfill, eksport)
+// zawsze pracują na SUROWYCH danych. `rawWorkouts` = ścieżki sync/import/naprawa:
+// surowe `workouts` i bez dodatkowej sondy.
 export const useFirebaseWorkouts = (
   userId: string,
-  opts?: { measurements?: MeasurementTier; workouts?: WorkoutTier; healthEpoch?: number },
+  opts?: { measurements?: MeasurementTier; workouts?: WorkoutTier; healthEpoch?: number; rawWorkouts?: boolean },
 ) => {
   const activeHealthGrant = useActiveHealthGrant();
+  const rawWorkouts = opts?.rawWorkouts === true;
+  const requestedMeasurementTier = opts?.measurements ?? 'full';
   const reads = useFirebaseWorkoutReads(
     userId,
-    opts?.measurements ?? 'full',
+    requestedMeasurementTier === 'none' && !rawWorkouts ? 'latest' : requestedMeasurementTier,
     opts?.workouts ?? 'full',
     activeHealthGrant,
   );
@@ -942,10 +951,25 @@ export const useFirebaseWorkouts = (
     activeHealthGrant,
   );
   const retryMeasurements = useCallback(() => retryMeasurementReads(userId), [userId]);
+  const bodyWeightTimeline = useMemo(
+    () => (rawWorkouts ? [] : buildBodyWeightTimeline(reads.measurements)),
+    [rawWorkouts, reads.measurements],
+  );
+  const workouts = useMemo(
+    () => normalizeBodyweightLoadedWorkouts(reads.workouts, bodyWeightTimeline, isBodyweightLoadedExercise),
+    [reads.workouts, bodyWeightTimeline],
+  );
+  // Tonaż klasyczny z danych znormalizowanych (Osiągnięcia): legacy MC ≠ ciężar.
+  const getTotalWeight = useCallback(
+    () => calculateTonnage(selectCompletedWorkouts(workouts)),
+    [workouts],
+  );
 
   return {
     ...reads,
     ...actions,
+    workouts,
+    getTotalWeight,
     retryMeasurements,
   };
 };

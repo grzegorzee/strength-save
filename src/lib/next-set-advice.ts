@@ -5,7 +5,8 @@ import { COMEBACK_BREAK_DAYS, decideNextSet, lastSessionRatedTooHeavy, type Next
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { reducedModeAdviceFactor, reducedModeTargetWeight, type ReducedMode } from '@/lib/reduced-mode';
+import { reducedModeAdviceFactor, reducedModeBodyweightTarget, reducedModeTargetWeight, type ReducedMode } from '@/lib/reduced-mode';
+import { formatBodyweightLoadLabel } from '@/lib/bodyweight-load';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
@@ -19,6 +20,8 @@ export interface NextSetAdvice {
   targetReps: number;
   reason: string;
   isBodyweight: boolean;
+  /** F6: targetWeight to dociążenie (0 = sama MC); UI pokazuje „MC +x kg”. */
+  isBodyweightLoaded?: boolean;
 }
 
 // Ile dni zastoju traktujemy jako plateau (próg deload).
@@ -42,7 +45,23 @@ const reasonText = (
   const { lang, unit, lastWeight, lastReps, repRange, increment, sessionsSinceProgress } = ctx;
   // Wartości wag w treści podpowiedzi w jednostce użytkownika (sam ciężar w modelu = kg).
   const disp = (kg: number): string => formatWeight(kg, unit, { withUnit: false });
+  // F6: obciążenie ćwiczenia z masą ciała: „MC” albo „MC +10 kg”.
+  const load = (kg: number): string => formatBodyweightLoadLabel(
+    kg, (value) => formatWeight(value, unit), translate(lang, 'bodyweightLoaded.label'),
+  );
   switch (decision.reasonKey) {
+    case 'loaded.progress':
+      return translate(lang, 'nsadvice.loaded.progress', { reps: lastReps, increment: disp(increment), unit, target: load(decision.targetWeight), min: repRange.min });
+    case 'loaded.hold.below':
+      return translate(lang, 'nsadvice.loaded.hold.below', { load: load(decision.targetWeight), min: repRange.min });
+    case 'loaded.hold.inrange':
+      return translate(lang, 'nsadvice.loaded.hold.inrange', { load: load(decision.targetWeight), max: repRange.max });
+    case 'loaded.deload.weight':
+      return translate(lang, 'nsadvice.loaded.deload.weight', { sessions: sessionsSinceProgress, load: load(decision.targetWeight) });
+    case 'loaded.deload.reps':
+      return translate(lang, 'nsadvice.loaded.deload.reps', { sessions: sessionsSinceProgress, reps: decision.targetReps });
+    case 'loaded.deload.break':
+      return translate(lang, 'nsadvice.loaded.deload.break', { load: load(decision.targetWeight) });
     case 'deload.bw':
       return translate(lang, 'nsadvice.deload.bw', { sessions: sessionsSinceProgress });
     case 'deload.weight':
@@ -76,24 +95,28 @@ export const getNextSetAdvice = (
     reducedMode?: ReducedMode | null;
     /** Snapshot nazwy — z nim historia i propozycje widzą sesje ad-hoc (spec C5). */
     exerciseName?: string;
+    /** F6: masa ciała + opcjonalne dociążenie (weight = dociążenie). */
+    bodyweightLoaded?: boolean;
   },
   lang: LanguageCode = 'pl',
   unit: UnitSystem = 'kg',
 ): NextSetAdvice | null => {
-  const isBodyweight = !!options?.isBodyweight;
+  const bodyweightLoaded = options?.bodyweightLoaded === true;
+  const isBodyweight = !!options?.isBodyweight && !bodyweightLoaded;
   const repRange: RepRange = parseRepRange(setsStr);
   // Przy zakresie "do upadku" (max) nie ma sensownego celu liczbowego.
   if (repRange.isMax) return null;
 
-  const history = getExerciseHistory(workouts, exerciseId, isBodyweight, options?.exerciseName);
+  const history = getExerciseHistory(workouts, exerciseId, isBodyweight, options?.exerciseName, { bodyweightLoaded });
   if (history.length === 0) return null;
 
   const last = history[history.length - 1];
   const lastWeight = last.maxWeight;
   const lastReps = last.bestReps;
 
-  const plateau = detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight);
-  const increment = isIsolationExercise(exerciseIndex, options?.isSuperset) ? 1 : 2.5;
+  const plateau = detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight, bodyweightLoaded);
+  // F6: dociążenie zawsze +2,5 kg (decyzja właściciela), niezależnie od izolacji.
+  const increment = bodyweightLoaded ? 2.5 : isIsolationExercise(exerciseIndex, options?.isSuperset) ? 1 : 2.5;
 
   // Spec C2 (Runna p.1): ostatnia sesja ćwiczenia 14+ dni temu = comeback -10%.
   const todayISO = options?.todayISO ?? formatLocalDate(new Date());
@@ -111,6 +134,7 @@ export const getNextSetAdvice = (
     // Spec A2 (Runna p.1): "za ciężko" z oceny sesji gasi podbicie w propozycji.
     lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exerciseId, options?.exerciseName),
     longBreak: breakDays >= COMEBACK_BREAK_DAYS,
+    bodyweightLoaded,
   });
 
   // Spec C3 (Runna p.1): tryb "nie na 100%" WYGRYWA z każdą inną korektą
@@ -123,6 +147,23 @@ export const getNextSetAdvice = (
     exerciseId,
     exerciseName: options?.exerciseName,
   });
+  // F6×F3: dla bodyweight_loaded ta sama funkcja co cel sesji (prefill): dociążenie
+  // × mnożnik albo, na samej MC, powtórzenia × mnożnik (bez celu „0 kg”).
+  if (modeAdjustment && bodyweightLoaded) {
+    const ramp = reducedModeBodyweightTarget(history, options!.reducedMode!, modeAdjustment.factor, repRange);
+    const phaseKey = modeAdjustment.phase === 'active' ? 'active' : 'ramp';
+    return {
+      kind: 'deload',
+      targetWeight: ramp.targetWeight ?? 0,
+      targetReps: ramp.targetReps ?? repRange.max,
+      reason: ramp.targetWeight === null
+        ? translate(lang, phaseKey === 'active' ? 'nsadvice.mode.activeReps' : 'nsadvice.mode.rampReps', { reps: ramp.targetReps ?? repRange.max })
+        : translate(lang, phaseKey === 'active' ? 'nsadvice.mode.active' : 'nsadvice.mode.ramp',
+          { weight: formatWeight(ramp.targetWeight, unit, { withUnit: false }), unit }),
+      isBodyweight,
+      isBodyweightLoaded: true,
+    };
+  }
   if (modeAdjustment && !isBodyweight) {
     const targetWeight = reducedModeTargetWeight(history, options!.reducedMode!, modeAdjustment.factor);
     return {
@@ -135,6 +176,7 @@ export const getNextSetAdvice = (
         { weight: formatWeight(targetWeight, unit, { withUnit: false }), unit },
       ),
       isBodyweight,
+      ...(bodyweightLoaded ? { isBodyweightLoaded: true } : {}),
     };
   }
 
@@ -147,5 +189,6 @@ export const getNextSetAdvice = (
       sessionsSinceProgress: plateau.sessionsSinceProgress,
     }),
     isBodyweight,
+    ...(bodyweightLoaded ? { isBodyweightLoaded: true } : {}),
   };
 };

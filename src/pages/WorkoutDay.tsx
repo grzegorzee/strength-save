@@ -43,7 +43,7 @@ import {
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId, parseWatchQuickExerciseParams } from '@/lib/adhoc-workout';
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { keepScreenAwake, allowScreenSleep } from '@/lib/keep-awake';
-import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
+import { exerciseLibrary, findLibraryExercise, type LibraryExercise } from '@/data/exerciseLibrary';
 import { formatDurationSec, getTrackingType, resolveCompletionTracking, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
@@ -67,6 +67,7 @@ import { getExerciseDetails } from '@/data/exercise-details';
 import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise } from '@/lib/pr-backfill';
 import { computeSessionPRs } from '@/lib/session-prs';
+import { selectLatestBodyWeightKg } from '@/lib/bodyweight-load';
 import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
@@ -184,10 +185,12 @@ const WorkoutDay = () => {
     createOfflineWorkoutSession,
     batchSaveWorkout,
     getWorkoutSessionFromServer,
-    getLatestMeasurement,
+    measurements,
     isLoaded: workoutsLoaded,
     workoutsFromCache,
   } = useFirebaseWorkouts(uid, { measurements: 'latest' });
+  // F6: masa ciała z najnowszego pomiaru, który ją zawiera (pomiar obwodów jej nie zasłania).
+  const latestBodyWeightKg = selectLatestBodyWeightKg(measurements);
   const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek, planDurationWeeks, reducedMode, vacation } = useTrainingPlan(uid);
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
@@ -201,10 +204,16 @@ const WorkoutDay = () => {
   const resolveTracking = useCallback((name: string): TrackingType => {
     const custom = customExercises.find((ex) => ex.name === name);
     if (custom) return getTrackingType(custom);
-    const lib = exerciseLibrary.find((e) => e.name === name);
+    const lib = findLibraryExercise(name);
     if (lib) return getTrackingType(lib);
     return getTrackingType({ isBodyweight: isBodyweightExercise(name) });
   }, [customExercises]);
+  // F6: prefill zeruje kg wyłącznie dla czystego bodyweight; bodyweight_loaded
+  // przenosi DOCIĄŻENIE z (znormalizowanej) historii, nigdy masę ciała.
+  const resolveHidesWeight = useCallback(
+    (name: string): boolean => resolveIsBodyweight(name) && resolveTracking(name) !== 'bodyweight_loaded',
+    [resolveIsBodyweight, resolveTracking],
+  );
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
   // WP-F (X37): licznik ukończonych treningów all-time (kamienie milowe);
   // null = brak agregatu, fallback na okno recent.
@@ -563,7 +572,11 @@ const WorkoutDay = () => {
       sessionDateISO: targetDate,
       trackingByName: { [pick.name]: resolveTracking(pick.name) },
     })[day.id]?.[newId];
-    const sets = createPrefilledSets(3, prevSets, resolveIsBodyweight(pick.name), modeTarget ? { weight: modeTarget.targetWeight } : null);
+    // F6: kg zeruje tylko czysty bodyweight. Rampa na powtórzeniach (MC bez dociążenia)
+    // niesie reps; przy ciężarze reps zostają z historii (syntetyczne '3 x 8').
+    const sets = createPrefilledSets(3, prevSets, resolveHidesWeight(pick.name), modeTarget
+      ? { weight: modeTarget.targetWeight, ...(modeTarget.targetWeight === null ? { reps: modeTarget.targetReps } : {}) }
+      : null);
 
     // WP-C (X38): pierwsze ćwiczenie w szybkim treningu = checkpoint OD RAZU.
     // Incydent 2026-08-26: skorupa sesji w chmurze (revision 0, zero ćwiczeń)
@@ -747,6 +760,8 @@ const WorkoutDay = () => {
           ? null
           : getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
             isBodyweight: exTracking === 'assisted_bodyweight' ? true : resolveIsBodyweight(exercise.name),
+            // F6: weight = dociążenie; progresja najpierw powtórzeniami, potem +2,5 kg.
+            bodyweightLoaded: exTracking === 'bodyweight_loaded',
             isSuperset: exercise.isSuperset,
             // Spec C3/C4 (Runna p.1): tryb "nie na 100%" albo urlop obniżają
             // propozycje (jeden naraz — kolizję blokują dialogi).
@@ -1800,7 +1815,8 @@ const WorkoutDay = () => {
         exercise,
         weeklyTargets?.[exercise.id],
         getPreviousSets(exercise.id, exercise.name),
-        resolveIsBodyweight(exercise.name),
+        // F6: bodyweight_loaded niesie dociążenie (nie zerujemy kg).
+        resolveHidesWeight(exercise.name),
       );
 
       if (result.existing) {
@@ -2517,7 +2533,7 @@ const WorkoutDay = () => {
         dayExercises: day.exercises.filter((exercise) => !skippedExercisesRef.current.includes(exercise.id)),
         resolveIsBodyweight,
         resolveTracking,
-        bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+        bodyWeightKg: latestBodyWeightKg,
         backfillWeightOf: id => backfillByExerciseId.get(id) ?? 0,
       });
       if (effectivePRs.length > 0) {
@@ -2840,7 +2856,7 @@ const WorkoutDay = () => {
       dayExercises: summaryExercises,
       resolveIsBodyweight,
       resolveTracking,
-      bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+      bodyWeightKg: latestBodyWeightKg,
       backfillWeightOf: id => backfillByExerciseId.get(id) ?? 0,
     }) : [];
     // Spec A4: PR-y sesji jako teksty na share card (hero 'Rekord').

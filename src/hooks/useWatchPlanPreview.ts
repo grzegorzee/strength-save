@@ -16,12 +16,13 @@ import {
   getWatchAvailability,
   isWatchBridgeSupported,
   sendWorkoutToWatch,
+  watchTrackingFields,
 } from '@/lib/watch-bridge';
 import { buildRecentWatchExercises } from '@/lib/watch-recent';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
-import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { findLibraryExercise } from '@/data/exerciseLibrary';
 import { getTrackingType } from '@/lib/set-tracking';
 import type { WatchCapabilitySnapshot } from '@/lib/device-management';
 import { applyLastKnownWatchLink, saveAppleWatchLinkedState } from '@/lib/device-management';
@@ -42,7 +43,7 @@ interface UseWatchPlanPreviewOptions {
 const SEND_DEBOUNCE_MS = 1200;
 
 const watchTrackingForName = (name: string) => {
-  const library = exerciseLibrary.find((exercise) => exercise.name === name);
+  const library = findLibraryExercise(name);
   return getTrackingType(library ?? { isBodyweight: isBodyweightExercise(name) });
 };
 
@@ -130,7 +131,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
               id: exercise.id,
               name: exercise.name,
               setsLabel: exercise.sets,
-              trackingType: watchTrackingForName(exercise.name),
+              ...watchTrackingFields(watchTrackingForName(exercise.name)),
               sets: draft.exerciseSets[exercise.id] ?? [],
             })),
           });
@@ -177,11 +178,13 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
             id: exercise.id,
             name: exercise.name,
             setsLabel: exercise.sets,
-            trackingType: watchTrackingForName(exercise.name),
+            ...watchTrackingFields(watchTrackingForName(exercise.name)),
+            // F6: kg zeruje tylko czysty bodyweight; bodyweight_loaded niesie dociążenie
+            // ze znormalizowanej historii (Dashboard podaje workouts z useFirebaseWorkouts).
             sets: createPrefilledSets(
               parseSetCount(exercise.sets),
               getPreviousSets(exercise.id, exercise.name),
-              isBodyweightExercise(exercise.name)
+              isBodyweightExercise(exercise.name) && watchTrackingForName(exercise.name) !== 'bodyweight_loaded',
             ),
           })),
         });

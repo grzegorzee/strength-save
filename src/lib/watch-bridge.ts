@@ -48,7 +48,23 @@ export interface WatchExercisePayload {
   /** Z122: przypięta notatka (X14A), przycięta do ekranu zegarka. */
   pinnedNote?: string;
   trackingType?: TrackingType;
+  /** F6: addytywne — seria to masa ciała + opcjonalne dociążenie (weight = dociążenie). */
+  bodyweightLoaded?: boolean;
 }
+
+/**
+ * F6: typ serii w payloadzie Watch. bodyweight_loaded wysyłamy jako weight_reps
+ * + flaga: starszy build Watch (ExerciseDetailView.showsReps) zna tylko stare typy
+ * i dla nieznanego stringa chowa pole powtórzeń. weight_reps pokazuje powtórzenia
+ * i ciężar (0 dozwolone), a ciężar = dociążenie zgodnie z kontraktem F6.
+ */
+export const watchTrackingFields = (
+  tracking: TrackingType | undefined,
+): { trackingType?: TrackingType; bodyweightLoaded?: true } => {
+  if (!tracking) return {};
+  if (tracking === 'bodyweight_loaded') return { trackingType: 'weight_reps', bodyweightLoaded: true };
+  return { trackingType: tracking };
+};
 
 export interface WatchRecentExercisePayload {
   id: string;
@@ -82,7 +98,7 @@ export function buildWatchExercises(
       sets: exerciseSets[exercise.id] ?? [],
       ...(targetLabel ? { targetLabel } : {}),
       ...(note ? { pinnedNote: note.slice(0, WATCH_NOTE_MAX) } : {}),
-      ...(trackingType ? { trackingType } : {}),
+      ...watchTrackingFields(trackingType),
     };
   });
 }

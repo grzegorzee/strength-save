@@ -6,6 +6,7 @@ import { PR_BASELINE_LIMIT, type EmailUnit, type EmailWorkout } from "./email-wo
 import type { Lang } from "./email-templates";
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { getInvalidFcmTokens, type ReminderUser } from "./daily-reminder";
+import { buildBodyWeightTimeline, hasBodyweightLoadedWeight, type BodyWeightPoint } from "./bodyweight-loaded";
 
 // X35c (WP-E, pkt 2): push o nowym rekordzie po zapisie UKOŃCZONEGO treningu.
 //
@@ -37,6 +38,8 @@ export interface PrPushDeps {
   listBaselineWorkouts: (uid: string, beforeDate: string, limit: number) => Promise<EmailWorkout[]>;
   /** Znacznik "push za ten trening wysłany". true = zajęty teraz, false = już był. */
   claimPrPush: (workoutId: string, uid: string) => Promise<boolean>;
+  /** F6: masa ciała usera (pomiary z wagą) do normalizacji legacy bodyweight_loaded. */
+  loadBodyWeightTimeline?: (uid: string) => Promise<BodyWeightPoint[]>;
   listTokenRegistrations: (uid: string) => Promise<Array<{ id: string; token: string }>>;
   sendMulticast: (tokens: string[], title: string, body: string, data: Record<string, string>) => Promise<{
     successCount: number;
@@ -109,7 +112,11 @@ export async function runPrPush(deps: PrPushDeps, workout: EmailWorkout): Promis
   if (user.access?.enabled === false || user.status === "suspended") return { status: "skipped", reason: "access" };
 
   const baseline = await deps.listBaselineWorkouts(workout.userId, workout.date, PR_BASELINE_LIMIT);
-  const { prs } = detectEmailPRs(workout, baseline);
+  // F6: pomiary czytamy tylko, gdy są serie bodyweight_loaded z kg > 0 (legacy MC albo dociążenie).
+  const needsBodyWeight = !!deps.loadBodyWeightTimeline
+    && [workout, ...baseline].some((w) => hasBodyweightLoadedWeight(w));
+  const bodyWeightTimeline = needsBodyWeight ? await deps.loadBodyWeightTimeline!(workout.userId) : [];
+  const { prs } = detectEmailPRs(workout, baseline, { bodyWeightTimeline });
   if (prs.length === 0) return { status: "no-prs" };
 
   // Tokeny PRZED znacznikiem: bez telefonu nie ma co "zajmować" (1 zapis mniej,
@@ -179,6 +186,10 @@ export const onWorkoutCompletedPrPush = onDocumentWritten(
           .limit(limit)
           .get();
         return snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<EmailWorkout, "id">) }));
+      },
+      loadBodyWeightTimeline: async (uid) => {
+        const snap = await db.collection("measurements").where("userId", "==", uid).get();
+        return buildBodyWeightTimeline(snap.docs.map((doc) => doc.data() as { date?: unknown; weight?: unknown }));
       },
       claimPrPush: async (workoutId, uid) => {
         try {

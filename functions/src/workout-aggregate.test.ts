@@ -8,6 +8,7 @@ import {
   needsAggregateRebuild,
   type WorkoutDocLike,
 } from "./workout-aggregate";
+import { buildBodyWeightTimeline, hasBodyweightLoadedWeight } from "./bodyweight-loaded";
 
 // Z217: agregat all-time dla kafli Dashboardu. Test równoważności liczy przeciw
 // golden values zamrożonym w src/test/z215-history-freeze.test.ts (fixture 600):
@@ -225,7 +226,10 @@ describe("v2 — migracja agregatu v1 bez ręcznej mutacji produkcji", () => {
     expect(needsAggregateRebuild(undefined)).toBe(true);
     expect(needsAggregateRebuild({ schemaVersion: 1, contributions: {}, totals: {} })).toBe(true);
     expect(needsAggregateRebuild({ contributions: {}, totals: {} })).toBe(true);
-    expect(needsAggregateRebuild({ schemaVersion: 2, contributions: {}, totals: {} })).toBe(false);
+    // F6: v2 bez znacznika normalizacji bodyweight_loaded = jednorazowy rebuild
+    // (legacy masa ciała z podciągania wypada z tonażu); ze znacznikiem = delta.
+    expect(needsAggregateRebuild({ schemaVersion: 2, contributions: {}, totals: {} })).toBe(true);
+    expect(needsAggregateRebuild({ schemaVersion: 2, bodyweightNormalization: 1, contributions: {}, totals: {} })).toBe(false);
   });
 
   it("delta pary provisional→remote nie podwaja licznika ani tonażu", () => {
@@ -238,5 +242,56 @@ describe("v2 — migracja agregatu v1 bez ręcznej mutacji produkcji", () => {
     expect(agg.totals.totalTonnageKg).toBe(100);
     // Sprzątnięcie provisional po promocji nie zmienia totals.
     expect(applyWorkoutChange(agg, `local-${remote}`, null).totals).toEqual(agg.totals);
+  });
+});
+
+describe("F6 — tonaż klasyczny bez legacy masy ciała (bodyweight_loaded)", () => {
+  const timeline = buildBodyWeightTimeline([
+    { date: "2026-04-08", weight: 74.6 },
+    { date: "2026-08-21" },
+    { date: "2026-09-20", weight: 72.5 },
+  ]);
+  const legacy = (date: string, sets: Array<[number, number]>, name = "Podciąganie na drążku"): WorkoutDocLike => ({
+    id: `w-${date}`, userId: "u", dayId: "day-1", date, completed: true,
+    exercises: [{ exerciseId: "ex-1", name, sets: sets.map(([reps, weight]) => ({ reps, weight, completed: true })) }],
+  });
+
+  it("74 kg przy MC 74,6 nie jest tonażem; serie i powtórzenia zostają", () => {
+    const c = buildWorkoutContribution(legacy("2026-06-04", [[6, 74], [4, 74]]), timeline);
+    expect(c).toMatchObject({ t: 0, s: 2, r: 10 });
+  });
+
+  it("realne dociążenie liczy się normalnie (Reverse Crunch 12,5 kg)", () => {
+    const c = buildWorkoutContribution(legacy("2026-03-09", [[8, 12.5]], "Reverse Crunch na ławce"), timeline);
+    expect(c).toMatchObject({ t: 100, s: 1, r: 8 });
+  });
+
+  it("bez osi masy ciała (brak pomiarów) wkład bez zmian — jak przed F6", () => {
+    expect(buildWorkoutContribution(legacy("2026-06-04", [[6, 74]]))).toMatchObject({ t: 444 });
+    expect(buildWorkoutContribution(legacy("2026-06-04", [[6, 74]]), [])).toMatchObject({ t: 444 });
+  });
+
+  it("zwykłe ćwiczenie z ciężarem ≈ masie ciała NIE jest przeliczane", () => {
+    const c = buildWorkoutContribution(legacy("2026-06-04", [[5, 74]], "Wiosłowanie sztangą"), timeline);
+    expect(c).toMatchObject({ t: 370 });
+  });
+
+  it("rebuild z osią: ten sam licznik treningów, tonaż bez masy ciała, znacznik normalizacji", () => {
+    const workouts = [legacy("2026-06-04", [[6, 74]]), legacy("2026-09-28", [[8, 72]]), legacy("2026-03-09", [[8, 12.5]], "Reverse Crunch na ławce")];
+    const raw = rebuildAggregateFromWorkouts(workouts);
+    const normalized = rebuildAggregateFromWorkouts(workouts, timeline);
+    expect(normalized.totals.workoutCount).toBe(raw.totals.workoutCount);
+    expect(normalized.totals.totalSets).toBe(raw.totals.totalSets);
+    expect(normalized.totals.totalTonnageKg).toBe(100);
+    expect(normalized.bodyweightNormalization).toBe(1);
+    expect(needsAggregateRebuild(normalized)).toBe(false);
+    // Delta zachowuje znacznik (inaczej każdy trigger robiłby pełny rebuild).
+    expect(applyWorkoutChange(normalized, "w-x", null).bodyweightNormalization).toBe(1);
+  });
+
+  it("masa ciała potrzebna tylko gdy trening ma serię bodyweight_loaded z kg > 0", () => {
+    expect(hasBodyweightLoadedWeight(legacy("2026-06-04", [[6, 74]]))).toBe(true);
+    expect(hasBodyweightLoadedWeight(legacy("2026-10-01", [[8, 0]]))).toBe(false);
+    expect(hasBodyweightLoadedWeight(legacy("2026-10-01", [[8, 80]], "Wiosłowanie sztangą"))).toBe(false);
   });
 });

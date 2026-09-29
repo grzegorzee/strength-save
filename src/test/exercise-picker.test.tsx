@@ -174,6 +174,17 @@ describe('ExercisePicker (Z69)', () => {
     expect((screen.getByRole('button', { name: 'Zapisz i wybierz' }) as HTMLButtonElement).disabled).toBe(false);
   }, 30000);
 
+  it('F6: własne ćwiczenie „Masa ciała + kg” zapisuje bodyweight_loaded jako ćwiczenie z masą ciała', async () => {
+    const onCreate = vi.fn(async (input: unknown) => ({ id: 'c2', ...(input as object) }));
+    renderPicker({ onCreateCustomExercise: onCreate as never });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
+    fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), { target: { value: 'Podciąganie na kółkach' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Masa ciała + kg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz i wybierz' }));
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1));
+    expect(onCreate.mock.calls[0][0]).toMatchObject({ name: 'Podciąganie na kółkach', tracking: 'bodyweight_loaded', isBodyweight: true });
+  }, 30000);
+
   it('udany zapis własnego ćwiczenia: bez toastu błędu, picker wybiera ćwiczenie (stary przepływ)', async () => {
     toastMock.mockClear();
     const created = { id: 'c1', name: 'Moje ćwiczenie', category: 'chest', type: 'compound', isBodyweight: false };

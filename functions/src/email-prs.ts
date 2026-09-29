@@ -4,6 +4,27 @@
 // i bez backfill — brak wcześniejszych zapisów ćwiczenia = "pierwszy zapis",
 // nie PR. Liczy się wyłącznie seria ukończona, nierozgrzewkowa.
 import type { EmailExercise, EmailWorkout } from "./email-workout";
+import {
+  BODYWEIGHT_LOADED_EXERCISE_NAMES,
+  isBodyweightLoadedName,
+  normalizeBodyweightLoadedWorkouts,
+  type BodyWeightPoint,
+} from "./bodyweight-loaded";
+import { EXERCISE_NAME_EN } from "./exercise-name-en";
+
+// F6: maile lokalizują nazwy PRZED detekcją (J-T3), więc dla EN rozpoznajemy też
+// angielskie nazwy ćwiczeń bodyweight_loaded — tylko jednoznaczne (nazwa EN nie
+// należy do żadnego ćwiczenia spoza bodyweight_loaded).
+const LOADED_EN_NAMES = (() => {
+  const loaded = new Set(BODYWEIGHT_LOADED_EXERCISE_NAMES);
+  const ambiguous = new Set(Object.entries(EXERCISE_NAME_EN).filter(([pl]) => !loaded.has(pl)).map(([, en]) => en));
+  return new Set(BODYWEIGHT_LOADED_EXERCISE_NAMES
+    .map((pl) => EXERCISE_NAME_EN[pl])
+    .filter((en): en is string => !!en && !ambiguous.has(en)));
+})();
+
+const isLoadedExerciseName = (name: string | undefined): boolean =>
+  isBodyweightLoadedName(name) || (!!name && LOADED_EN_NAMES.has(name));
 
 /** Epley: 1RM = weight × (1 + reps / 30); zaokrąglenie do 0.1 jak klient. */
 export const calculateE1RM = (weight: number, reps: number): number => {
@@ -66,10 +87,43 @@ const historicalStats = (earlier: EmailWorkout[], exerciseId: string, name?: str
   return stats;
 };
 
-export function detectEmailPRs(current: EmailWorkout, earlier: EmailWorkout[]): EmailPRResult {
+export interface EmailPROptions {
+  /** F6: oś masy ciała — legacy (MC wpisana jako kg) w bodyweight_loaded = dociążenie 0. */
+  bodyWeightTimeline?: ReadonlyArray<BodyWeightPoint>;
+}
+
+/**
+ * F6: rekord bodyweight_loaded (weight = dociążenie): najwięcej dociążenia,
+ * przy nim najwięcej powtórzeń. Reguła PR jak w kliencie (pr-utils).
+ */
+const loadedRecord = (earlier: EmailWorkout[], exerciseId: string, name?: string): { load: number; reps: number } | null => {
+  let best: { load: number; reps: number } | null = null;
+  earlier.forEach((workout) => {
+    if (!workout.completed) return;
+    (workout.exercises ?? []).forEach((ex) => {
+      if (!matchesExercise(ex, exerciseId, name)) return;
+      workingSets(ex).forEach((set) => {
+        const reps = set.reps ?? 0;
+        if (reps <= 0) return;
+        const load = Math.max(0, set.weight ?? 0);
+        if (!best || load > best.load || (load === best.load && reps > best.reps)) best = { load, reps };
+      });
+    });
+  });
+  return best;
+};
+
+export function detectEmailPRs(
+  rawCurrent: EmailWorkout,
+  rawEarlier: EmailWorkout[],
+  options: EmailPROptions = {},
+): EmailPRResult {
   const prs: EmailPR[] = [];
   const firsts: string[] = [];
-  if (!current.completed) return { prs, firsts };
+  if (!rawCurrent.completed) return { prs, firsts };
+  const timeline = options.bodyWeightTimeline ?? [];
+  const [current] = normalizeBodyweightLoadedWorkouts([rawCurrent], timeline);
+  const earlier = normalizeBodyweightLoadedWorkouts(rawEarlier, timeline);
 
   (current.exercises ?? []).forEach((ex) => {
     const sets = workingSets(ex);
@@ -79,6 +133,28 @@ export function detectEmailPRs(current: EmailWorkout, earlier: EmailWorkout[]): 
     const hist = historicalStats(earlier, ex.exerciseId, name);
     if (!hist.hasAny) {
       firsts.push(ex.exerciseId);
+      return;
+    }
+
+    if (isLoadedExerciseName(name)) {
+      const record = loadedRecord(earlier, ex.exerciseId, name);
+      if (!record) return;
+      let best: EmailPR | null = null;
+      sets.forEach((set) => {
+        const reps = set.reps ?? 0;
+        if (reps <= 0) return;
+        const load = Math.max(0, set.weight ?? 0);
+        if (load > record.load && reps >= record.reps) {
+          if (!best || best.type !== "weight" || load > best.newValue) {
+            best = { exerciseId: ex.exerciseId, exerciseName: displayName, type: "weight", newValue: load, oldValue: record.load };
+          }
+        } else if (load === record.load && reps > record.reps) {
+          if (!best || (best.type === "reps" && reps > best.newValue)) {
+            best = { exerciseId: ex.exerciseId, exerciseName: displayName, type: "reps", newValue: reps, oldValue: record.reps };
+          }
+        }
+      });
+      if (best) prs.push(best);
       return;
     }
 

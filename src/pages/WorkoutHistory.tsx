@@ -22,6 +22,9 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { buildBodyWeightTimeline, normalizeBodyweightLoadedWorkouts } from '@/lib/bodyweight-load';
+import { isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
@@ -102,6 +105,9 @@ const WorkoutHistory = () => {
   });
   // Fala 2: sesje przeszłego cyklu spoza paginowanego okna (lazy, cache per cykl).
   const { entries: cycleSessionEntries, load: loadCycleSessions } = useCycleSessions(uid);
+  // F6: sonda pomiarów (masa ciała z dnia treningu) do normalizacji legacy.
+  const { measurements } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
+  const bodyWeightTimeline = useMemo(() => buildBodyWeightTimeline(measurements ?? []), [measurements]);
 
   // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
@@ -117,8 +123,11 @@ const WorkoutHistory = () => {
         extras.push(session);
       });
     });
-    return extras.length > 0 ? [...workouts, ...extras] : workouts;
-  }, [workouts, cycleSessionEntries]);
+    const merged = extras.length > 0 ? [...workouts, ...extras] : workouts;
+    // F6: legacy masa ciała wpisana jako kg w ćwiczeniach bodyweight_loaded = MC
+    // (normalizacja przy odczycie; tonaż, PR i etykiety z tych samych danych).
+    return normalizeBodyweightLoadedWorkouts(merged, bodyWeightTimeline, isBodyweightLoadedExercise);
+  }, [workouts, cycleSessionEntries, bodyWeightTimeline]);
 
   // Czas trwania + PR per sesja liczone RAZ dla listy (Z80), nie per wiersz w renderze.
   const rowMeta = useMemo(() => buildHistoryRowMeta(allSessions), [allSessions]);

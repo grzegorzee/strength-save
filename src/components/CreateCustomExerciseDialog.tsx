@@ -33,7 +33,7 @@ export interface CreateCustomExerciseDialogProps {
 }
 
 // 'standard' = brak pola tracking w zapisie (weight_reps / bodyweight_reps z isBodyweight).
-type TrackingChoice = 'standard' | Extract<TrackingType, 'duration' | 'weight_distance_duration' | 'assisted_bodyweight'>;
+type TrackingChoice = 'standard' | Extract<TrackingType, 'duration' | 'weight_distance_duration' | 'assisted_bodyweight' | 'bodyweight_loaded'>;
 
 // X28 WP-A: kompaktowy formularz nowego własnego ćwiczenia dla /exercises —
 // bez listy biblioteki i bez suwaka kategorii (to nie picker). Walidacja jak
@@ -72,6 +72,7 @@ export const CreateCustomExerciseDialog = ({
     ['duration', t('tracking.duration')],
     ['weight_distance_duration', t('tracking.weightDistanceDuration')],
     ['assisted_bodyweight', t('tracking.assistedBodyweight')],
+    ['bodyweight_loaded', t('tracking.bodyweightLoaded')],
   ];
 
   const handleSave = async () => {
@@ -81,7 +82,8 @@ export const CreateCustomExerciseDialog = ({
       await onCreate({
         name: trimmed,
         category,
-        isBodyweight,
+        // F6: masa ciała + opcjonalne dociążenie to z definicji ćwiczenie z masą ciała.
+        isBodyweight: isBodyweight || tracking === 'bodyweight_loaded',
         type,
         ...(tracking !== 'standard' ? { tracking } : {}),
       });
