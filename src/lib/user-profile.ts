@@ -7,6 +7,7 @@ import type { RestSettings } from '@/lib/rest-timer';
 import type { PaletteThemeV2 } from '@/lib/palette-theme';
 import { sanitizeStravaSyncError, type StravaSyncError } from '@/lib/strava-sync-status';
 import { sanitizeNotificationPrefs, type NotificationPrefs } from '@/lib/notification-prefs';
+import { readCloudAppTour, type CloudAppTourState } from '@/lib/first-workout-tour';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
@@ -121,6 +122,8 @@ export interface UserProfile {
     trainerEmail?: string;
     /** WP-I (X29): imię trenera/odbiorcy — do powitania w mailu i podglądu w Profilu. */
     trainerName?: string;
+    /** Przewodnik nowego konta (2026-09-29): koniec (done/skipped), per konto. */
+    appTour?: CloudAppTourState;
   };
   /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
   consents?: ConsentMirror;
@@ -159,6 +162,13 @@ export const buildPendingAuthProfile = (seed: AuthProfileSeed): UserProfile => (
   cohorts: [],
 });
 
+const mapPreferences = (raw: AppUserProfile['preferences']): UserProfile['preferences'] => {
+  if (!raw) return undefined;
+  const { appTour, ...rest } = raw;
+  const tour = readCloudAppTour(appTour);
+  return tour ? { ...rest, appTour: tour } : rest;
+};
+
 export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: AuthProfileSeed): UserProfile => ({
   uid: userId,
   email: data.email || seed.email,
@@ -179,7 +189,9 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   features: data.features || undefined,
   // Bug 7 (X30): po wygaśnięciu grantu comp głos przejmuje zachowany stan sklepowy.
   subscription: resolveEffectiveSubscription(mapSubscription(data.subscription), mapSubscription(data.storeSubscription)),
-  preferences: data.preferences || undefined,
+  // Przewodnik nowego konta: preferences to luźna mapa, więc appTour przechodzi
+  // tylko w poprawnym kształcie (lekcja builda 88: pole bez mappera znika/psuje UI).
+  preferences: mapPreferences(data.preferences),
   // Incydent 2026-08-11 (build 87): bez przeniesienia mirrora zgód bramka
   // re-consent nie miała się jak zamknąć po udanym recordConsent.
   consents: data.consents || undefined,

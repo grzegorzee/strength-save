@@ -31,7 +31,10 @@ import { type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { isCompletedWorkout, selectCompletedWorkouts } from '@/lib/completed-workouts';
+import { countCompletedWorkouts, isCompletedWorkout, selectCompletedWorkouts } from '@/lib/completed-workouts';
+import { AppTour } from '@/components/AppTour';
+import { useAppTour } from '@/hooks/useAppTour';
+import { DASHBOARD_TOUR_STEPS } from '@/lib/first-workout-tour';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds, streakDetailsFromDates } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
@@ -173,6 +176,9 @@ const Dashboard = () => {
   // Pełny agregat jest nadal potrzebny do obliczenia streaka poza oknem
   // ostatnio załadowanych treningów.
   const aggregate = useWorkoutAggregate(uid);
+  // Przewodnik nowego konta: startuje sam, gdy wiadomo, że konto nie ma
+  // ukończonych treningów (agregat albo załadowane okno recent).
+  const appTour = useAppTour(aggregate?.totals.workoutCount ?? (isLoaded ? countCompletedWorkouts(workouts) : null));
 
   const thisWeek = useMemo(() => {
     if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today, scheduleOverrides);
@@ -500,6 +506,7 @@ const Dashboard = () => {
       {/* Naprawa r2 (2026-08-21): ten sam jezyk kinetic co CTA dnia treningowego. */}
       <Button
         data-testid="dashboard-primary-action"
+        data-tour="start-workout"
         size="lg"
         className="kinetic-primary-button mt-0.5 h-12 w-full gap-1.5 text-sm hover:brightness-105"
         onClick={() => navigate(`/workout/${entry.day.id}?date=${entry.dateKey}`)}
@@ -1026,6 +1033,7 @@ const Dashboard = () => {
               i BACK TO DASHBOARD (tokens.md par. 2.8: jeden jezyk dla CTA hero). */}
           <Button
             data-testid="dashboard-primary-action"
+            data-tour="start-workout"
             size="lg"
             className="kinetic-primary-button mt-0.5 h-12 w-full gap-1.5 text-sm hover:brightness-105"
             onClick={() => navigate(continueDraft
@@ -1269,6 +1277,17 @@ const Dashboard = () => {
         onEnable={handleVacationEnable}
         onCancel={handleVacationCancel}
       />
+      {/* Przewodnik nowego konta, etap Dashboard: legenda zakładek + start
+          treningu jako AKCJA. Chowa się przy otwartych dialogach (pomiary,
+          przełożenie), nie zużywa się przez nie. Pomiń = koniec przewodnika. */}
+      {appTour.stage === 'dashboard' && planIsLoaded && !showConfetti && (
+        <AppTour
+          steps={DASHBOARD_TOUR_STEPS}
+          onAction={(id) => { if (id === 'start') appTour.advance('workout'); }}
+          onComplete={() => appTour.advance('workout')}
+          onSkip={() => appTour.finish('skipped')}
+        />
+      )}
     </div>
   );
 };

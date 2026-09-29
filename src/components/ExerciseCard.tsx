@@ -1256,6 +1256,7 @@ const ExerciseCardInner = ({
             <button
               type="button"
               aria-label={t('card.moreActions')}
+              data-tour="exercise-menu"
               className="exercise-card-menu -mr-2 grid h-11 w-11 shrink-0 place-items-center self-start rounded-lg text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <MoreHorizontal className="h-5 w-5" />

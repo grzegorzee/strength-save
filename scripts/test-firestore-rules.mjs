@@ -495,6 +495,9 @@ add('users: klient nie zapisze activitySummary DENIED', false, await ok(() => up
 add('users: notificationPrefs nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: 'wylacz' })));
 add('users: displayName > 200 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'x'.repeat(201) })));
 add('users: preferences nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { preferences: 42 })));
+// Przewodnik nowego konta (2026-09-29): klient zapisuje koniec przewodnika dot-path
+// w preferences (ten sam kształt co persistAppTourOutcome), bez zmian w regułach.
+add('users: preferences.appTour (koniec przewodnika) ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { 'preferences.appTour': { status: 'skipped', at: '2026-09-29T10:00:00.000Z' } })));
 const validPaletteTheme = {
   version: 2, id: 'pulse', source: 'preset',
   primary: '#c6ff00', supportA: '#22d3ee', supportB: '#a78bfa',

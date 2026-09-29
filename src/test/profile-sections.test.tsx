@@ -667,7 +667,7 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(queryByText('Ustawienia zaawansowane')).toBeNull();
     // KONTO I POMOC: język przeszedł tu z sekcji Aplikacja.
     const konto = sectionByLabel(container, 'Konto i pomoc');
-    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Pierwszy trening', 'Zgłoś błąd', 'Kontakt', 'O aplikacji']
+    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Pokaż przewodnik ponownie', 'Zgłoś błąd', 'Kontakt', 'O aplikacji']
       .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
     // X37: wiersz "Konto i pomoc" bez wartości języka ("Polski" myliło właściciela).
     expect(getByTestId('profile-toggle-account').textContent).not.toContain('Polski');
@@ -716,12 +716,13 @@ describe('X36: Profil w zwijanych sekcjach (nowe grupowanie)', () => {
     expect(authFixture.resetPassword).not.toHaveBeenCalled();
   });
 
-  it('KONTO I POMOC: handoff do pierwszego treningu można uruchomić ponownie', () => {
+  it('KONTO I POMOC: przewodnik po aplikacji można odtworzyć (replay per konto)', () => {
     const { container } = renderProfile();
     openSection('account');
     const konto = sectionByLabel(container, 'Konto i pomoc');
-    expect(within(konto).getByText('Pierwszy trening')).toBeTruthy();
-    expect(within(konto).getByText('Wróć do planu i najbliższego treningu.')).toBeTruthy();
+    expect(within(konto).getByText('Zakładki, pierwsza seria i przerwa.')).toBeTruthy();
+    fireEvent.click(within(konto).getByText('Pokaż przewodnik ponownie'));
+    expect(JSON.parse(localStorage.getItem('fittracker_app_tour_v2:u1') ?? 'null')).toEqual({ stage: 'dashboard', replay: true });
   });
 
   it('narzędzia naprawcze NIE są w Profilu (przeniesione do /admin)', () => {
