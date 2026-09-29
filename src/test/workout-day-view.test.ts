@@ -328,3 +328,175 @@ describe('plSetsPluralForm: forma liczebnika do toastu "Odhaczono N serii"', () 
     expect(plSetsPluralForm(25)).toBe('many');
   });
 });
+
+import { orderDraftExerciseIds } from '@/lib/workout-day-view';
+
+// F4 (2026-09-29, sesja właściciela 28.09): zamiana ćwiczenia w trakcie treningu
+// lądowała NA KOŃCU listy (i historii) ze starą nazwą. Niezmiennik: lista dnia
+// z planu kompletna, zamiana ZASTĘPUJE na tej samej pozycji, sesja tylko dokłada.
+describe('F4: zamiana ćwiczenia w trakcie treningu, ta sama pozycja', () => {
+  const sixDay: TrainingDay = {
+    id: 'd1',
+    dayName: 'Poniedziałek',
+    weekday: 'monday',
+    focus: 'Góra',
+    exercises: [1, 2, 3, 4, 5, 6].map((n) => ({
+      id: `tpl-ex-1${n}`,
+      name: `Ćwiczenie ${n}`,
+      sets: '3 x 8-10',
+      instructions: [],
+    })),
+  };
+  const open = (n: number): SetData[] =>
+    Array.from({ length: n }, () => ({ reps: 8, weight: 40, completed: false }));
+  const prefilledAll = (): Record<string, SetData[]> =>
+    Object.fromEntries(sixDay.exercises.map((exercise) => [exercise.id, open(3)]));
+  const planWith = (index: number, id: string, name: string): TrainingDay => ({
+    ...sixDay,
+    exercises: sixDay.exercises.map((exercise, i) => (i === index ? { ...exercise, id, name } : exercise)),
+  });
+  const withoutOld = (): Record<string, SetData[]> => {
+    const all = prefilledAll();
+    delete all['tpl-ex-13'];
+    return all;
+  };
+
+  it('"tylko dziś": 6 ćwiczeń, nowe na pozycji 3, bez starego id', () => {
+    const swapKey = 'tpl-ex-13__swap-wioslowanie-hantlem';
+    const day = buildDayFromDraft(sixDay, {
+      dayId: 'd1',
+      exerciseSets: { ...withoutOld(), [swapKey]: open(3) },
+      exerciseNames: { [swapKey]: 'Wiosłowanie hantlem' },
+      sessionSwaps: { 'tpl-ex-13': { id: swapKey, name: 'Wiosłowanie hantlem', sets: '3 x 8-10' } },
+    });
+    const ids = day.exercises.map((e) => e.id);
+    expect(ids).toHaveLength(6);
+    expect(ids[2]).toBe(swapKey);
+    expect(ids).not.toContain('tpl-ex-13');
+    expect(day.exercises[2].name).toBe('Wiosłowanie hantlem');
+  });
+
+  it('"Na stałe" po aktualizacji planu: 6 ćwiczeń, nowe na pozycji 3, bez starego id', () => {
+    const newId = 'tpl-ex-13__swap-wioslowanie-hantlem';
+    const plan = planWith(2, newId, 'Wiosłowanie hantlem');
+    const day = buildDayFromDraft(plan, {
+      dayId: 'd1',
+      exerciseSets: { ...withoutOld(), [newId]: open(3) },
+      sessionSwaps: { 'tpl-ex-13': { id: newId, name: 'Wiosłowanie hantlem', sets: '3 x 8-10' } },
+    });
+    const ids = day.exercises.map((e) => e.id);
+    expect(ids).toEqual(plan.exercises.map((e) => e.id));
+    expect(ids).not.toContain('tpl-ex-13');
+  });
+
+  it('"Na stałe" zanim dojdzie snapshot planu (plan jeszcze stary): nowe już na pozycji 3', () => {
+    const newId = 'tpl-ex-13__swap-wioslowanie-hantlem';
+    const day = buildDayFromDraft(sixDay, {
+      dayId: 'd1',
+      exerciseSets: { ...withoutOld(), [newId]: open(3) },
+      sessionSwaps: { 'tpl-ex-13': { id: newId, name: 'Wiosłowanie hantlem', sets: '3 x 8-10' } },
+    });
+    expect(day.exercises.map((e) => e.id)[2]).toBe(newId);
+    expect(day.exercises).toHaveLength(6);
+  });
+
+  it('sesja w toku ze starego buildu (odwrotne dopasowanie): stary klucz X przy X__swap-* w planie, nie na końcu', () => {
+    // Stan z produkcji 28.09: plan ma już zamianę, draft trzyma stary klucz
+    // (sprzed zamiany) i nowe ćwiczenie dopisane na końcu kluczy.
+    const newId = 'tpl-ex-13__swap-wioslowanie-hantlem';
+    const plan = planWith(2, newId, 'Wiosłowanie hantlem');
+    const day = buildDayFromDraft(plan, {
+      dayId: 'd1',
+      exerciseSets: { ...prefilledAll(), [newId]: open(3) },
+      exerciseNames: { 'tpl-ex-13': 'Ćwiczenie 3' },
+    });
+    const ids = day.exercises.map((e) => e.id);
+    expect(ids.slice(0, 2)).toEqual(['tpl-ex-11', 'tpl-ex-12']);
+    expect(ids.slice(2, 4)).toEqual(['tpl-ex-13', newId]);
+    expect(ids.slice(4)).toEqual(['tpl-ex-14', 'tpl-ex-15', 'tpl-ex-16']);
+  });
+
+  it('stare z odhaczonymi seriami NIE ginie ("tylko dziś"): osobna karta tuż przed nowym', () => {
+    const swapKey = 'tpl-ex-13__swap-wioslowanie-hantlem';
+    const day = buildDayFromDraft(sixDay, {
+      dayId: 'd1',
+      exerciseSets: { ...prefilledAll(), 'tpl-ex-13': sets(2), [swapKey]: open(3) },
+      exerciseNames: { [swapKey]: 'Wiosłowanie hantlem' },
+      sessionSwaps: { 'tpl-ex-13': { id: swapKey, name: 'Wiosłowanie hantlem', sets: '3 x 8-10' } },
+    });
+    expect(day.exercises.map((e) => e.id)).toEqual([
+      'tpl-ex-11', 'tpl-ex-12', 'tpl-ex-13', swapKey, 'tpl-ex-14', 'tpl-ex-15', 'tpl-ex-16',
+    ]);
+  });
+
+  it('stare z odhaczonymi seriami NIE ginie ("Na stałe"): karta starego przed nowym, z nazwą z draftu', () => {
+    const newId = 'tpl-ex-13__swap-wioslowanie-hantlem';
+    const plan = planWith(2, newId, 'Wiosłowanie hantlem');
+    const day = buildDayFromDraft(plan, {
+      dayId: 'd1',
+      exerciseSets: { ...prefilledAll(), 'tpl-ex-13': sets(2), [newId]: open(3) },
+      exerciseNames: { 'tpl-ex-13': 'Ćwiczenie 3' },
+      sessionSwaps: { 'tpl-ex-13': { id: newId, name: 'Wiosłowanie hantlem', sets: '3 x 8-10' } },
+    });
+    expect(day.exercises.map((e) => e.id).slice(2, 4)).toEqual(['tpl-ex-13', newId]);
+    expect(day.exercises[2].name).toBe('Ćwiczenie 3');
+    expect(day.exercises).toHaveLength(7);
+  });
+
+  it('podwójny swap X__swap-a__swap-b: jedna karta na pozycji 3 (dziś, na planie po zamianie na stałe)', () => {
+    const planA = planWith(2, 'tpl-ex-13__swap-a', 'A');
+    const keyB = 'tpl-ex-13__swap-a__swap-b';
+    const day = buildDayFromDraft(planA, {
+      dayId: 'd1',
+      exerciseSets: { ...withoutOld(), [keyB]: open(3) },
+      exerciseNames: { [keyB]: 'B' },
+      sessionSwaps: { 'tpl-ex-13__swap-a': { id: keyB, name: 'B', sets: '3 x 8-10' } },
+    });
+    expect(day.exercises.map((e) => e.id)[2]).toBe(keyB);
+    expect(day.exercises).toHaveLength(6);
+  });
+
+  it('podwójny swap: plan X__swap-a__swap-b, draft ze starym X (dwie zamiany na stałe), X obok, nie na końcu', () => {
+    const planB = planWith(2, 'tpl-ex-13__swap-a__swap-b', 'B');
+    const ids = buildDayFromDraft(planB, {
+      dayId: 'd1',
+      exerciseSets: { ...prefilledAll(), 'tpl-ex-13__swap-a__swap-b': open(3) },
+    }).exercises.map((e) => e.id);
+    expect(ids.indexOf('tpl-ex-13')).toBe(2);
+    expect(ids.indexOf('tpl-ex-13__swap-a__swap-b')).toBe(3);
+  });
+
+  it('podwójny swap "tylko dziś" z odhaczonymi seriami: łańcuch X, a, b w miejscu X', () => {
+    const keyA = 'tpl-ex-13__swap-a';
+    const keyB = 'tpl-ex-13__swap-a__swap-b';
+    const ids = buildDayFromDraft(sixDay, {
+      dayId: 'd1',
+      exerciseSets: { ...prefilledAll(), 'tpl-ex-13': sets(1), [keyA]: sets(1), [keyB]: open(3) },
+      sessionSwaps: {
+        'tpl-ex-13': { id: keyA, name: 'A', sets: '3 x 8-10' },
+        [keyA]: { id: keyB, name: 'B', sets: '3 x 8-10' },
+      },
+    }).exercises.map((e) => e.id);
+    expect(ids.slice(2, 5)).toEqual(['tpl-ex-13', keyA, keyB]);
+    expect(ids).toHaveLength(8);
+  });
+
+  it('extras (dodane w locie) nadal na końcu, po zamianach', () => {
+    const swapKey = 'tpl-ex-13__swap-x';
+    const ids = buildDayFromDraft(sixDay, {
+      dayId: 'd1',
+      exerciseSets: { 'adhoc-ex-plank': open(2), ...withoutOld(), [swapKey]: open(3) },
+      sessionSwaps: { 'tpl-ex-13': { id: swapKey, name: 'X', sets: '3 x 8-10' } },
+    }).exercises.map((e) => e.id);
+    expect(ids[2]).toBe(swapKey);
+    expect(ids[ids.length - 1]).toBe('adhoc-ex-plank');
+  });
+
+  it('orderDraftExerciseIds: kolejność kluczy draftu = kolejność kart dnia (tylko klucze obecne w drafcie)', () => {
+    const swapKey = 'tpl-ex-13__swap-x';
+    const draftKeys = Object.keys({ 'adhoc-ex-plank': open(1), ...withoutOld(), [swapKey]: open(3) });
+    expect(orderDraftExerciseIds(sixDay.exercises.map((e) => e.id), draftKeys, {
+      'tpl-ex-13': { id: swapKey, name: 'X', sets: '3 x 8-10' },
+    })).toEqual(['tpl-ex-11', 'tpl-ex-12', swapKey, 'tpl-ex-14', 'tpl-ex-15', 'tpl-ex-16', 'adhoc-ex-plank']);
+  });
+});
