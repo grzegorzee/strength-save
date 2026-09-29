@@ -8,6 +8,7 @@ import { requestEmailVerificationCode, verifyEmailCode } from '@/lib/registratio
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { getInboxProviders } from '@/lib/inbox-links';
+import { mapEmailVerificationError } from '@/lib/email-verification-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -84,7 +85,7 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : t('comp.emailGate.sendError'));
+          setError(mapEmailVerificationError(requestError, t, 'send', 'comp.emailGate.sendError'));
         }
       } finally {
         if (!cancelled) {
@@ -113,7 +114,7 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
       });
       beginAwaitingRefresh();
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : t('comp.emailGate.verifyError'));
+      setError(mapEmailVerificationError(verifyError, t, 'verify', 'comp.emailGate.verifyError'));
     } finally {
       setLoading(false);
     }
@@ -138,7 +139,7 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
         });
       }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t('comp.emailGate.resendError'));
+      setError(mapEmailVerificationError(requestError, t, 'send', 'comp.emailGate.resendError'));
     } finally {
       setResending(false);
     }

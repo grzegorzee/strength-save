@@ -32,6 +32,10 @@ import { EmailVerificationGate } from '@/components/EmailVerificationGate';
 
 const onLogout = vi.fn(async () => {});
 
+// Kształt błędu callable (web SDK: code z prefiksem functions/, details z backendu).
+const callableError = (code: string, message: string, reason?: string) =>
+  Object.assign(new Error(message), { code: `functions/${code}`, details: reason ? { reason } : undefined });
+
 const renderGate = () => render(
   <LanguageProvider>
     <EmailVerificationGate email="user@gmail.com" onLogout={onLogout} />
@@ -85,12 +89,12 @@ describe('EmailVerificationGate', () => {
   });
 
   it('niezmiennik: błąd weryfikacji PRZED sukcesem nadal pokazuje destruktywny alert', async () => {
-    mocks.verifyEmailCode.mockRejectedValueOnce(new Error('Nieprawidłowy kod.'));
+    mocks.verifyEmailCode.mockRejectedValueOnce(callableError('invalid-argument', 'Nieprawidłowy kod.', 'code-invalid'));
     renderGate();
     typeCode('654321');
     fireEvent.click(verifyButton());
 
-    await waitFor(() => expect(screen.getByText('Nieprawidłowy kod.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Nieprawidłowy kod. Sprawdź najnowszy mail i spróbuj ponownie.')).toBeInTheDocument());
     expect(document.querySelector('[data-testid="email-gate-awaiting"]')).toBeNull();
     expect(verifyButton()).not.toBeDisabled();
   });
@@ -126,5 +130,58 @@ describe('EmailVerificationGate', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('B3 (2026-09-29): komunikaty kodu tłumaczone po stronie klienta', () => {
+    const renderGateEn = () => {
+      localStorage.setItem('app-language', 'en');
+      return renderGate();
+    };
+    const verifyButtonEn = () => screen.getByText('Confirm code').closest('button') as HTMLButtonElement;
+    const typeCodeEn = (value: string) => {
+      fireEvent.change(screen.getByPlaceholderText('6-digit code'), { target: { value } });
+    };
+
+    it('EN, zły kod: angielski komunikat zamiast polskiego tekstu backendu', async () => {
+      mocks.verifyEmailCode.mockRejectedValueOnce(callableError('invalid-argument', 'Nieprawidłowy kod.', 'code-invalid'));
+      renderGateEn();
+      typeCodeEn('654321');
+      fireEvent.click(verifyButtonEn());
+      await waitFor(() => expect(screen.getByText('Incorrect code. Check the latest email and try again.')).toBeInTheDocument());
+      expect(screen.queryByText('Nieprawidłowy kod.')).toBeNull();
+    });
+
+    it('EN, kod wygasł (stary backend bez details): mapowanie po samym kodzie błędu', async () => {
+      mocks.verifyEmailCode.mockRejectedValueOnce(callableError('deadline-exceeded', 'Kod wygasł.'));
+      renderGateEn();
+      typeCodeEn('654321');
+      fireEvent.click(verifyButtonEn());
+      await waitFor(() => expect(screen.getByText('This code has expired. Tap Resend to get a new one.')).toBeInTheDocument());
+    });
+
+    it('EN, cooldown ponownego wysłania: angielski komunikat', async () => {
+      mocks.requestEmailVerificationCode.mockRejectedValueOnce(
+        callableError('resource-exhausted', 'Odczekaj chwilę przed ponownym wysłaniem kodu.', 'resend-cooldown'),
+      );
+      renderGateEn();
+      await waitFor(() => expect(screen.getByText('Wait a moment before requesting another code.')).toBeInTheDocument());
+    });
+
+    it('brak profilu (failed-precondition z reason profile-missing) nie udaje "kod nieaktywny"', async () => {
+      mocks.verifyEmailCode.mockRejectedValueOnce(callableError('failed-precondition', 'User profile missing', 'profile-missing'));
+      renderGateEn();
+      typeCodeEn('654321');
+      fireEvent.click(verifyButtonEn());
+      await waitFor(() => expect(screen.getByText('Failed to confirm the code.')).toBeInTheDocument());
+    });
+
+    it('nieznany błąd nigdy nie pokazuje surowego tekstu', async () => {
+      mocks.verifyEmailCode.mockRejectedValueOnce(new Error('Some raw transport failure'));
+      renderGateEn();
+      typeCodeEn('654321');
+      fireEvent.click(verifyButtonEn());
+      await waitFor(() => expect(screen.getByText('Failed to confirm the code.')).toBeInTheDocument());
+      expect(screen.queryByText('Some raw transport failure')).toBeNull();
+    });
   });
 });
