@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-12 (stabilność treningu, osobne układy iOS/Android)
+**Ostatnia aktualizacja:** 2026-09-29 (onboarding: wyjścia, usunięcie konta, komunikaty EN; nazwy planów)
 
 ---
 
@@ -221,6 +221,59 @@ e2e `e2e/vacation-ramp.spec.ts` (chromium + webkit), przypadki mains_only
 Czego testy nie dowodzą: realnego FCM na urządzeniu, zegarków na fizycznym
 sprzęcie (Garmin tylko test funkcji, Apple Watch tylko mapowanie przerwy na
 rest), raportu tygodnia (WeekReportCard liczy cele bez daty sesji).
+
+### 2026-09-29: onboarding, paywall i bramki: wyjścia, usunięcie konta, komunikaty EN; nazwy planów bez cudzych marek
+
+Źródło: audyt R1 (onboarding B1-B12, plany sekcja 3A), zweryfikowany w kodzie
+przed naprawą (zasada 12). Każdy fix: test czerwony, potem poprawka, osobny commit.
+
+- **B1 (P1, Apple 5.1.1(v))**: usunięcie konta było tylko w Profilu, a hard
+  paywall przekierowuje `/profile` na `/paywall`. Dialog z Profilu wydzielony do
+  `DeleteAccountDialog` (ten sam callable, word gate USUŃ/DELETE) i dodany na
+  hard paywallu (teaser i cennik), w `EmailVerificationGate`, `ConsentGate` oraz
+  w dialogu wyjścia z onboardingu. `logoutAfterAccountDeletion` przekazany z
+  `App` jako `onAccountDeleted`.
+- **B2 (P1)**: logowanie/rejestracja emailem pokazywały surowe
+  „Firebase: Error (auth/...)”. `mapAuthErrorMessage` obsługuje kody email/hasło (PL+EN).
+- **B3 (P1)**: błędy kodu weryfikacji szły z backendu po polsku także w EN.
+  Kontrakt = kod callable + `details.reason` (nowe w `registration.ts`), tekst
+  tłumaczy klient (`email-verification-errors.ts`). Klient działa też ze starym
+  backendem (mapowanie po kodzie). `unavailable` = błąd dostawcy maila, więc
+  ogólny komunikat wysyłki, nie „brak sieci”.
+- **B4 (P1)**: miękki paywall po fail-open `useHardPaywall` (słaba sieć) wchodzi
+  przez `replace`, strzałka wstecz `navigate(-1)` nic nie robiła. Teraz jak
+  `Layout.handleBack`: bez historii wyjście na dashboard.
+- **B5**: surowe „Missing or insufficient permissions” przy domknięciu
+  onboardingu zastąpione komunikatem i18n. Znane ograniczenie: błąd zwracany
+  (nie rzucany) przez `useTrainingPlan.savePlan` nadal przechodzi swoim tekstem.
+- **B7**: wstecz / Android back na kroku 1 onboardingu pyta przed wylogowaniem
+  (szkic zostaje 7 dni); z tego dialogu jest też usunięcie konta.
+- **B8**: bramka nowych zgód nie blokuje treningu w toku: przy dzisiejszym
+  nieukończonym szkicu jest „Wróć do trwającego treningu”; odroczenie trwa tylko
+  na `/workout/*`, wyjście z treningu przywraca bramkę. Decyzja do potwierdzenia
+  przez właściciela: przez czas treningu user działa na poprzedniej wersji zgód.
+- **B10**: `PURCHASES_IDENTITY_NOT_READY/CHANGED` przy zakupie/restore to stan
+  przejściowy: komunikat „spróbuj za chwilę” zamiast błędu zakupu i bez telemetrii `purchase_failed`.
+- **B12**: błędy waitlisty (web) tłumaczone po kodzie callable.
+- **Pominięte**: B6 (źródło stanu hipotetyczne, wyjście istnieje: wyloguj/mail;
+  naprawa wymaga zmian w `usePlanCycles`), B9 (klucz toura per uid wymaga zmiany
+  API używanego w `WorkoutDay`, który równolegle edytuje inna sesja; skutek
+  kosmetyczny), B11 (po self-delete konto Auth znika od razu, okno
+  `ACCOUNT_DELETION_PENDING` praktycznie nieosiągalne; wymaga zmian backend + UserContext).
+- **Plany (ryzyko prawne)**: nazwy „Żelazny Cykl 5/3/1” → „Żelazny Cykl Siłowy”
+  / „Iron Strength Cycle”, „Powerbuilding PHAT” → „Siła i Masa 5 Dni” /
+  „Five-Day Powerbuilding”, EN „Power Hypertrophy Upper Lower” → „Strength &
+  Size Upper/Lower”; opisy bez Wendler, Boring But Big, nSuns, GZCLP, PHUL,
+  Layne Norton, Built With Science, Jeff Nippard, Strong Curves/Bret Contreras,
+  Renaissance Periodization, Arnold Split, r/bodyweightfitness. ID planów i dane
+  dni bez zmian. Kreator kopiuje nazwę planu do `trainingPlans.name` i
+  `choice.planName` cyklu, więc istniejące plany userów zachowują starą nazwę
+  (bez migracji, świadomie). Do weryfikacji przez właściciela: `tpl-rza-3`
+  „RZA V-Taper” (nie wiem, czy „RZA” to cudza marka/osoba).
+
+Weryfikacja: `npm run test`, typecheck, lint, functions test + build, e2e mock
+(oba silniki), e2e emulator. Deploy: functions opcjonalny (tylko `details.reason`,
+klient ma fallback); przy deployu backend-first (zasada 19).
 
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 

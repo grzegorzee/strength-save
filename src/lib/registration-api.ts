@@ -187,7 +187,11 @@ export async function requestEmailVerificationCode() {
 export async function verifyEmailCode(code: string) {
   if (isE2EMode) {
     if (code !== '123456') {
-      throw new Error('Nieprawidłowy kod.');
+      // Kształt błędu callable jak z backendu (B3): klient tłumaczy po kodzie/reason.
+      throw Object.assign(new Error('Nieprawidłowy kod.'), {
+        code: 'functions/invalid-argument',
+        details: { reason: 'code-invalid' },
+      });
     }
     return { verified: true };
   }

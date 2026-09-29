@@ -174,8 +174,10 @@ export const useAuth = () => {
       }
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('auth.err.register');
-      console.error('Register error:', errorMessage);
+      // B2 (2026-09-29): kod auth/* → i18n; formularz email nie ma "anulowania",
+      // więc null z mappera też kończy się komunikatem, nigdy surowym tekstem.
+      const errorMessage = mapAuthErrorMessage(err, t, 'auth.err.register') ?? t('auth.err.register');
+      console.error('Register error:', err instanceof Error ? err.message : err);
       setError(errorMessage);
       return false;
     }
@@ -188,8 +190,8 @@ export const useAuth = () => {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('auth.err.login');
-      console.error('Email login error:', errorMessage);
+      const errorMessage = mapAuthErrorMessage(err, t) ?? t('auth.err.login');
+      console.error('Email login error:', err instanceof Error ? err.message : err);
       setError(errorMessage);
       return false;
     }

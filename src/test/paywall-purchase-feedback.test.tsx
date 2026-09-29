@@ -27,6 +27,7 @@ const purchaseSpy = vi.hoisted(() =>
   vi.fn(async () => ({ customerInfo: { entitlements: { active: purchaseFixture.active } } })),
 );
 const telemetrySpy = vi.hoisted(() => vi.fn());
+const restoreSpy = vi.hoisted(() => vi.fn(async () => ({ customerInfo: { entitlements: { active: {} } } })));
 
 const yearlyPkg = vi.hoisted(() => ({
   identifier: '$rc_annual',
@@ -43,6 +44,7 @@ vi.mock('@revenuecat/purchases-capacitor', () => ({
     getOfferings: vi.fn(async () => ({ current: { availablePackages: [yearlyPkg] } })),
     purchasePackage: purchaseSpy,
     purchaseSubscriptionOption: vi.fn(),
+    restorePurchases: restoreSpy,
   },
 }));
 vi.mock('@/lib/purchases', () => ({
@@ -148,5 +150,31 @@ describe('feedback po zakupie na paywallu (bug 47 / X30)', () => {
     expect(toastSpy).not.toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Zakup przyjęty. PRO aktywuje się za chwilę.' }),
     );
+  });
+
+  // B10 (2026-09-29): runPurchasesForUser rzuca PURCHASES_IDENTITY_NOT_READY,
+  // gdy tożsamość RevenueCat jeszcze się wiąże z kontem. Ogólny "nie udało się
+  // przetworzyć zakupu" sugerował awarię; to stan przejściowy, ponowienie działa.
+  it('restore przy niegotowej tożsamości sklepu: komunikat "spróbuj za chwilę", nie błąd zakupu', async () => {
+    restoreSpy.mockRejectedValueOnce(new Error('PURCHASES_IDENTITY_NOT_READY'));
+    renderPaywall();
+    const restore = await screen.findByRole('button', { name: 'Przywróć zakupy' });
+    await waitFor(() => expect(restore).toBeEnabled());
+    fireEvent.click(restore);
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith({
+      title: 'Łączymy Twoje konto ze sklepem. Spróbuj ponownie za chwilę.',
+    }));
+    expect(toastSpy).not.toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Przywróć zakupy' })).toBeEnabled());
+  });
+
+  it('zakup przy niegotowej tożsamości sklepu: ten sam komunikat, bez telemetrii purchase_failed', async () => {
+    purchaseSpy.mockRejectedValueOnce(new Error('PURCHASES_IDENTITY_NOT_READY'));
+    renderPaywall();
+    await clickBuy();
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith({
+      title: 'Łączymy Twoje konto ze sklepem. Spróbuj ponownie za chwilę.',
+    }));
+    expect(telemetrySpy).not.toHaveBeenCalledWith('u1', 'purchase_failed');
   });
 });

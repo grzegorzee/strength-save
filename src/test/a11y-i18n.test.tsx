@@ -59,4 +59,19 @@ describe('błędy cycle-actions per język (Z166)', () => {
     const res = await completeOnboardingPlan(choice, deps());
     expect(res.error).toBe('Nie udało się utworzyć aktywnego cyklu');
   });
+
+  // B5 (2026-09-29): wyjątek z zapisu profilu (np. Firestore permission-denied)
+  // wychodził surowym tekstem SDK po angielsku niezależnie od języka UI.
+  it('wyjątek Firestore przy domknięciu onboardingu = komunikat w języku UI, nie surowy tekst', async () => {
+    const throwingDeps = (lang: 'pl' | 'en') => ({
+      lang,
+      savePlan: async () => ({ success: true }),
+      createActiveCycle: async () => 'cycle-1',
+      markOnboardingComplete: async () => { throw new Error('Missing or insufficient permissions.'); },
+    });
+    const pl = await completeOnboardingPlan(choice, throwingDeps('pl'));
+    expect(pl).toEqual({ success: false, error: 'Nie udało się dokończyć konfiguracji' });
+    const en = await completeOnboardingPlan(choice, throwingDeps('en'));
+    expect(en).toEqual({ success: false, error: 'Could not complete onboarding' });
+  });
 });

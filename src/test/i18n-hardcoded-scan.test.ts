@@ -18,7 +18,7 @@ const ALLOWLIST = new Set([
   'src/lib/race-predictor.ts',                // distanceLabel = klucz lookup ('Półmaraton')
   'src/lib/registration-api.ts',              // fixtury trybu E2E
   'src/lib/purchases.ts',                     // console.warn dev-only
-  'src/pages/Profile.tsx',                    // słowo potwierdzenia USUŃ (zależne od lang)
+  'src/components/DeleteAccountDialog.tsx',   // słowo potwierdzenia USUŃ (zależne od lang), wydzielone z Profile.tsx
   'src/components/ErrorBoundary.tsx',         // mini-słownik poza LanguageProvider
   'src/lib/exercise-media.ts',                // mapa diakrytyków → slug CDN
   'src/lib/exercise-swap.ts',                 // normalizacja diakrytyków do wyszukiwania

@@ -158,7 +158,14 @@ const Login = ({ mode = 'login' }: LoginProps) => {
       setWaitlistName('');
       setWaitlistNote('');
     } catch (waitlistError) {
-      setLocalError(waitlistError instanceof Error ? waitlistError.message : t('login.error.waitlistFailed'));
+      // B12 (2026-09-29): tekst backendu jest tylko po polsku, a transport
+      // potrafi zwrócić surowy komunikat; o treści decyduje kod callable.
+      const code = String((waitlistError as { code?: unknown } | null)?.code ?? '').replace(/^functions\//, '');
+      setLocalError(
+        code === 'resource-exhausted' ? t('auth.err.tooManyRequests')
+          : code === 'invalid-argument' ? t('auth.err.invalidEmail')
+            : t('login.error.waitlistFailed'),
+      );
     } finally {
       setIsWaitlistSubmitting(false);
     }

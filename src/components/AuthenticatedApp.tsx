@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import { PushRegistrar } from '@/components/PushRegistrar';
 import { IosSwipeBack } from '@/components/IosSwipeBack';
 import { AndroidBackHandler } from '@/components/AndroidBackHandler';
 import { EmailVerificationGate } from '@/components/EmailVerificationGate';
-import { ConsentGate } from '@/components/ConsentGate';
+import { ConsentGate, ConsentDeferralRearm } from '@/components/ConsentGate';
 import { needsConsentRefresh } from '@/lib/consent-selection';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from '@/lib/global-error-telemetry';
@@ -172,7 +172,11 @@ export const AccessRestrictedView = ({
   );
 };
 
-const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
+// B1 (2026-09-29): onAccountDeleted = domknięcie sesji po usunięciu konta z
+// paywalla/bramek (Apple 5.1.1(v)); opcjonalne, brak = zwykły onLogout.
+type SessionExits = { onLogout: () => Promise<void>; onAccountDeleted?: () => Promise<void> };
+
+const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
   const {
     uid,
     isNewUser,
@@ -196,9 +200,19 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
 
   useEffect(() => addBugReportCameraRestoreListener(), []);
 
+  // B8 (2026-09-29): trening w toku omija bramkę zgód na czas samego treningu
+  // (ConsentDeferralRearm przywraca ją po wyjściu z /workout/*).
+  const [consentDeferredForWorkout, setConsentDeferredForWorkout] = useState(false);
+  const rearmConsentGate = useCallback(() => setConsentDeferredForWorkout(false), []);
+  const resumeWorkoutPastConsentGate = useCallback((target: string) => {
+    // HashRouter czyta hash przy montażu, który nastąpi po zdjęciu bramki.
+    window.location.hash = `#${target}`;
+    setConsentDeferredForWorkout(true);
+  }, []);
+
   if (!profileLoaded) return <BootScreen />;
   if (needsEmailVerification) {
-    return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} />;
+    return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} onAccountDeleted={onAccountDeleted} />;
   }
   if (!hasAppAccess) {
     return (
@@ -216,18 +230,22 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   }
   // Re-consent (pakiet prawny v2): komplet aktualnych zgód wymagany przed
   // trasami. Nowi userzy zbierają zgody w onboardingu (krok Welcome).
-  if (!isNewUser && needsConsentRefresh(profile)) {
+  const consentRefreshNeeded = !isNewUser && needsConsentRefresh(profile);
+  if (consentRefreshNeeded && !consentDeferredForWorkout) {
     return (
       <ConsentGate
         profile={profile}
         onConfirmed={mergeConfirmedConsentMirror}
         onLogout={onLogout}
+        onAccountDeleted={onAccountDeleted}
+        onResumeWorkout={resumeWorkoutPastConsentGate}
       />
     );
   }
 
   return (
     <HashRouter useTransitions={false}>
+      {consentRefreshNeeded && consentDeferredForWorkout && <ConsentDeferralRearm onRearm={rearmConsentGate} />}
       <AutoSyncOnReconnect />
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <ProductTelemetry />
@@ -243,8 +261,8 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
               <>
                 <Route path="/login" element={<Navigate to="/onboarding" replace />} />
                 <Route path="/register" element={<Navigate to="/onboarding" replace />} />
-                <Route path="/onboarding" element={<Onboarding onExitBack={onLogout} />} />
-                <Route path="*" element={<Onboarding onExitBack={onLogout} />} />
+                <Route path="/onboarding" element={<Onboarding onExitBack={onLogout} onAccountDeleted={onAccountDeleted} />} />
+                <Route path="*" element={<Onboarding onExitBack={onLogout} onAccountDeleted={onAccountDeleted} />} />
               </>
             ) : (
               <Route element={<PaywallRouteGuard />}>
@@ -266,7 +284,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                   <Route path="/exercise/:slug" element={<ExerciseDetail />} />
                   <Route path="/measurements" element={<Measurements />} />
                   <Route path="/new-plan" element={<NewPlan />} />
-                  <Route path="/paywall" element={<Paywall onLogout={onLogout} />} />
+                  <Route path="/paywall" element={<Paywall onLogout={onLogout} onAccountDeleted={onAccountDeleted} />} />
                   <Route path="/cycles" element={<Cycles />} />
                   <Route path="/history" element={<WorkoutHistory />} />
                   <Route path="/strava/callback" element={<StravaCallback />} />
@@ -284,7 +302,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   );
 };
 
-export default function AuthenticatedApp({ onLogout }: { onLogout: () => Promise<void> }) {
+export default function AuthenticatedApp({ onLogout, onAccountDeleted }: SessionExits) {
   return (
     <UnitProvider>
       <UserProvider>
@@ -292,7 +310,7 @@ export default function AuthenticatedApp({ onLogout }: { onLogout: () => Promise
         <PushRegistrar />
         <PreferenceSync />
         <TimeZoneSync />
-        <AppRoutes onLogout={onLogout} />
+        <AppRoutes onLogout={onLogout} onAccountDeleted={onAccountDeleted} />
       </UserProvider>
     </UnitProvider>
   );

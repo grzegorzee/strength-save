@@ -297,9 +297,12 @@ export async function completeOnboardingPlan(
     await applyRestDefaults(deps.restDefaults, deps.choice?.objective ?? choice.objective);
     return { success: true };
   } catch (err) {
+    // B5 (2026-09-29): surowy tekst SDK (np. "Missing or insufficient
+    // permissions") nie trafia do UI; szczegół zostaje w konsoli.
+    console.error('completeOnboardingPlan failed:', err);
     return { success: false, error: err instanceof Error && err.message === 'ONBOARDING_PLAN_RECOVERY_REQUIRED'
       ? translate(deps.lang ?? 'pl', 'ob.errExistingPlanRecovery')
-      : err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
+      : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
   }
 }
 

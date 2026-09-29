@@ -10,6 +10,9 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
 import { BootScreen } from '@/components/BootScreen';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DeleteAccountDialog } from '@/components/DeleteAccountDialog';
 import {
   buildConsentSubmissions,
   getConsentMirror,
@@ -38,7 +41,11 @@ import {
 
 // Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + podgląd planu
 // (ten sam ekran co NewPlan, Z73) + zapis planu.
-const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
+const Onboarding = ({ onExitBack, onAccountDeleted }: {
+  onExitBack?: () => void | Promise<void>;
+  /** B1: domknięcie sesji po usunięciu konta z dialogu wyjścia; brak = onExitBack. */
+  onAccountDeleted?: () => Promise<void>;
+}) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { uid, profile, avatarSrc, mergeConfirmedConsentMirror } = useCurrentUser();
@@ -62,6 +69,12 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
   const latestDraftRef = useRef<OnboardingDraftInput>({ phase: 'wizard', wizardStep: 1 });
   const draftWriteQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const onboardingTelemetryStartedRef = useRef(false);
+  // B7 (2026-09-29): wstecz / Android back na kroku 1 wylogowywał bez pytania.
+  // Dialog potwierdzenia; szkic kreatora zostaje (per uid, TTL 7 dni).
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  // Osobny (siostrzany) dialog: zagnieżdżony w treści dialogu wyjścia byłby
+  // odmontowany razem z nim w stanie open (pułapka Radix z CLAUDE.md).
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const draftSaveFailureTrackedRef = useRef(false);
 
   useEffect(() => {
@@ -187,7 +200,8 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
       navigate(requiresPaywall ? '/paywall' : '/?welcome=1', { replace: true });
     } catch (err) {
       saveInFlightRef.current = false;
-      setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
+      console.error('Onboarding finish failed:', err);
+      setError(t('onboarding.error.saveFailed'));
       setIsSaving(false);
     }
   };
@@ -210,6 +224,7 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
   }
 
   return (
+    <>
     <PlanWizard
       showWelcome
       trialNotice={requiresPaywall}
@@ -231,8 +246,47 @@ const Onboarding = ({ onExitBack }: { onExitBack?: () => void }) => {
       onConfirm={handleWizardConfirm}
       isSaving={isSaving}
       error={error}
-      onExitBack={onExitBack}
+      onExitBack={onExitBack ? () => setExitConfirmOpen(true) : undefined}
     />
+    {onExitBack && (
+      <Dialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
+        <DialogContent className="rounded-xl border-0 bg-surface-low">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase">{t('ob.exitConfirm.title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('ob.exitConfirm.desc')}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setExitConfirmOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              data-testid="onboarding-exit-logout"
+              onClick={() => { setExitConfirmOpen(false); void onExitBack(); }}
+            >
+              {t('profile.logout')}
+            </Button>
+          </DialogFooter>
+          {/* B1 (Apple 5.1.1(v)): świeży user nie ma dostępu do Profilu. */}
+          <button
+            type="button"
+            data-testid="delete-account-link"
+            onClick={() => { setExitConfirmOpen(false); setDeleteAccountOpen(true); }}
+            className="min-h-11 touch-manipulation text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-destructive"
+          >
+            {t('profile.deleteAccount')}
+          </button>
+        </DialogContent>
+      </Dialog>
+    )}
+    {onExitBack && (
+      <DeleteAccountDialog
+        open={deleteAccountOpen}
+        onOpenChange={setDeleteAccountOpen}
+        onDeleted={onAccountDeleted ?? (async () => { await onExitBack(); })}
+      />
+    )}
+    </>
   );
 };
 
