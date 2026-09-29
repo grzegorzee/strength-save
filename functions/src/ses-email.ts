@@ -20,12 +20,24 @@ export interface SesEmailConfig {
   from: string;
 }
 
+/** Skrzynka supportu z odbiorem (MX seohost od 2026-09-16). */
+export const SUPPORT_REPLY_TO = "contact@strengthsave.app";
+
+export interface SesEmailHeader {
+  name: string;
+  value: string;
+}
+
 export interface SesEmailMessage {
   from: string;
   to: string;
   subject: string;
   html: string;
   text: string;
+  /** Domyślnie skrzynka supportu: odpowiedź na noreply@ nie ginie. */
+  replyTo?: string[];
+  /** Dodatkowe nagłówki (np. List-Unsubscribe dla digestu). */
+  headers?: SesEmailHeader[];
 }
 
 export interface SesEmailResult {
@@ -67,6 +79,7 @@ export const normalizeSesEmailConfig = (config: SesEmailConfig): SesEmailConfig 
 
 export const buildSesEmailCommandInput = (message: SesEmailMessage): SendEmailCommandInput => ({
   FromEmailAddress: message.from,
+  ReplyToAddresses: message.replyTo ?? [SUPPORT_REPLY_TO],
   // Jawny kontrakt transportu: telemetryka nie zależy wyłącznie od ustawienia
   // default na identity, które może zostać zmienione poza repozytorium.
   ConfigurationSetName: SES_CONFIGURATION_SET,
@@ -78,25 +91,51 @@ export const buildSesEmailCommandInput = (message: SesEmailMessage): SendEmailCo
         Html: { Data: message.html, Charset: "UTF-8" },
         Text: { Data: message.text, Charset: "UTF-8" },
       },
+      ...(message.headers && message.headers.length > 0
+        ? { Headers: message.headers.map((header) => ({ Name: header.name, Value: header.value })) }
+        : {}),
     },
   },
 });
 
-export const htmlToPlainText = (html: string): string => html
-  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-  .replace(/<br\s*\/?>/gi, "\n")
-  .replace(/<\/p>|<\/div>|<\/h[1-6]>|<\/tr>/gi, "\n")
-  .replace(/<\/td>|<\/th>/gi, "\t")
-  .replace(/<[^>]+>/g, " ")
+const decodeEntities = (value: string): string => value
   .replace(/&nbsp;/gi, " ")
-  .replace(/&amp;/gi, "&")
   .replace(/&lt;/gi, "<")
   .replace(/&gt;/gi, ">")
   .replace(/&quot;/gi, '"')
   .replace(/&#0?39;/gi, "'")
-  .replace(/[ \t]+\n/g, "\n")
+  .replace(/&#(\d+);/g, (_m, code: string) => String.fromCodePoint(Number(code)))
+  .replace(/&amp;/gi, "&");
+
+const stripTags = (html: string): string => html.replace(/<[^>]+>/g, " ");
+
+/**
+ * Wersja text/plain z HTML maila (2026-09-29: czytelna, z adresami linków).
+ * Pomija <head>, preheader (znaczniki z email-layout.ts) i komentarze; link
+ * zamienia na "etykieta: adres", a gdy etykietą jest sam adres, zostawia adres.
+ */
+export const htmlToPlainText = (html: string): string => html
+  .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, " ")
+  .replace(/<!--preheader-->[\s\S]*?<!--\/preheader-->/g, " ")
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+  .replace(/<a\b[^>]*?href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, inner: string) => {
+    const url = decodeEntities(href);
+    const label = decodeEntities(stripTags(inner)).replace(/\s+/g, " ").trim();
+    if (!label || label === url || `mailto:${label}` === url) return ` ${url} `;
+    return ` ${label}: ${url} `;
+  })
+  .replace(/<br\s*\/?>/gi, "\n")
+  .replace(/<li\b[^>]*>/gi, "\n- ")
+  .replace(/<\/p>|<\/div>|<\/h[1-6]>|<\/tr>|<\/ul>|<\/table>/gi, "\n")
+  .replace(/<\/td>|<\/th>/gi, "\t")
+  .replace(/<\/(strong|b|span|em)>(?=[:,.])/gi, "")
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;/gi, " ")
+  .split("\n")
+  .map((line) => decodeEntities(line).replace(/\u200B|\u200C|\u200D|\uFEFF|\u034F|\u2007/g, "").replace(/[ \t]+/g, " ").trim())
+  .join("\n")
   .replace(/\n{3,}/g, "\n\n")
-  .replace(/[ \t]{2,}/g, " ")
   .trim();
 
 export const sendSesEmailWithClient = async (

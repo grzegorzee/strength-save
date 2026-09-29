@@ -83,6 +83,8 @@ export { requestPasswordReset } from "./password-reset";
 
 // Re-export weekly digest
 export { weeklyDigest } from "./weekly-digest";
+// 2026-09-29: one-click unsubscribe digestu (nagłówek List-Unsubscribe).
+export { emailUnsubscribe } from "./email-unsubscribe";
 // Z125: Garmin Connect IQ — parowanie urządzenia i wymiana danych z zegarkiem.
 export {
   garminPairStart,
