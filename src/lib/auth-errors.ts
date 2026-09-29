@@ -39,10 +39,16 @@ export const isAuthCancellation = (error: unknown): boolean => {
   return CANCELLED_MESSAGE_PATTERN.test(`${code} ${readMessage(error)}`);
 };
 
-/** Komunikat błędu logowania dla usera albo null (anulowanie = cichy powrót). */
+/**
+ * Komunikat błędu logowania dla usera albo null (anulowanie = cichy powrót).
+ * B2 (2026-09-29): ta sama mapa obsługuje logowanie i rejestrację emailem
+ * (wcześniej surowe "Firebase: Error (auth/...)"); `fallbackKey` pozwala
+ * rejestracji mieć własny generyczny komunikat.
+ */
 export function mapAuthErrorMessage(
   error: unknown,
   t: (key: TranslationKey) => string,
+  fallbackKey: TranslationKey = 'auth.err.login',
 ): string | null {
   if (isAuthCancellation(error)) return null;
   switch (readCode(error)) {
@@ -52,7 +58,22 @@ export function mapAuthErrorMessage(
       return t('auth.err.network');
     case 'auth/popup-blocked':
       return t('auth.err.popupBlocked');
+    case 'auth/email-already-in-use':
+      return t('auth.err.emailInUse');
+    case 'auth/weak-password':
+      return t('auth.err.weakPassword');
+    case 'auth/invalid-email':
+      return t('auth.err.invalidEmail');
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return t('auth.err.invalidCredentials');
+    case 'auth/too-many-requests':
+      return t('auth.err.tooManyRequests');
+    case 'auth/user-disabled':
+      return t('auth.err.userDisabled');
     default:
-      return t('auth.err.login');
+      return t(fallbackKey);
   }
 }
