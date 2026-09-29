@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, setE2EPlanMeta } from './helpers';
+import { blockFirebase, localDaysAgo, localToday, navigateAndWait, plWeekdayName, setE2EPlanMeta } from './helpers';
+
+const EN_WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 for (const platform of ['ios', 'android']) test(`${platform}: duration fields retain whole seconds and usable touch targets`, async ({ page }) => {
   await blockFirebase(page);
@@ -38,12 +40,14 @@ for (const platform of ['ios', 'android']) test(`${platform}: duration fields re
 for (const width of [360, 390]) test(`iOS plank keeps time and actions aligned at ${width}px`, async ({ page }) => {
   await blockFirebase(page);
   await page.setViewportSize({ width, height: 844 });
-  await setE2EPlanMeta(page, { startDate: '2026-08-31', durationWeeks: 10,
-    days: [{ id: 'plank', dayName: 'Piątek', weekday: 'friday', focus: 'Brzuch',
+  // Data dzisiejsza: sztywna data z przeszłości otwiera widok historyczny bez startu sesji.
+  const today = localToday();
+  await setE2EPlanMeta(page, { startDate: localDaysAgo(14), durationWeeks: 10,
+    days: [{ id: 'plank', dayName: plWeekdayName(today), weekday: EN_WEEKDAYS[new Date(`${today}T12:00:00`).getDay()], focus: 'Brzuch',
       exercises: [{ id: 'plank', name: 'Plank', sets: '3 x 65s', instructions: [] }],
     }],
   });
-  await navigateAndWait(page, '/workout/plank?date=2026-09-20&autostart=true');
+  await navigateAndWait(page, `/workout/plank?date=${today}&autostart=true`);
   await expect(page.getByTestId('prestart-skip')).toBeVisible();
   await page.getByTestId('prestart-skip').click();
   await expect(page.getByTestId('prestart-sheet')).toBeHidden();
