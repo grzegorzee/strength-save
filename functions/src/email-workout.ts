@@ -12,6 +12,7 @@ import {
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { localizeFocusEn } from "./focus-en";
 import { hasActiveHealthConsent } from "./security";
+import { SUPPORT_REPLY_TO } from "./ses-email";
 
 /** WP-I: jednostka maila wg users/{uid}.preferences.unit (kg kanoniczne). */
 export type EmailUnit = "kg" | "lbs";
@@ -81,7 +82,23 @@ export interface EmailUserContext {
   displayName?: string;
   unit?: string;
   consents?: unknown;
+  /** 2026-09-29: adres konta i czy aplikacja go zweryfikowała (Reply-To). */
+  email?: string;
+  emailVerified?: boolean;
 }
+
+/**
+ * 2026-09-29 (decyzja właściciela): odpowiedź trenera trafia do właściciela
+ * konta, gdy jego adres jest prawdziwy: zweryfikowany w aplikacji i nie Apple
+ * Private Relay (relay przyjmuje pocztę tylko od zarejestrowanych nadawców,
+ * więc odpowiedź trenera by odbiła). W każdym innym przypadku support.
+ */
+export const resolveTrainerReplyTo = (ctx: Pick<EmailUserContext, "email" | "emailVerified">): string => {
+  const email = typeof ctx.email === "string" ? ctx.email.trim() : "";
+  if (ctx.emailVerified !== true || !isValidRecipient(email)) return SUPPORT_REPLY_TO;
+  if (email.toLowerCase().endsWith("@privaterelay.appleid.com")) return SUPPORT_REPLY_TO;
+  return email;
+};
 
 export interface EmailWorkoutDeps {
   /** WP-I: ownership egzekwuje ADAPTER — cudzy dokument wraca jako null,
@@ -94,7 +111,7 @@ export interface EmailWorkoutDeps {
   getUserContext: (uid: string) => Promise<EmailUserContext>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
-  sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
+  sendEmail: (to: string, subject: string, html: string, replyTo: string[]) => Promise<SendEmailResult>;
   /** T21a: html trafia do podkolekcji content (podgląd w panelu admina). */
   logEmail: (entry: EmailLogEntry, html?: string) => Promise<void>;
   /** F6: masa ciała usera (pomiary z wagą) do normalizacji legacy bodyweight_loaded. */
@@ -595,7 +612,7 @@ export async function runEmailWorkout(
   if (!rawWorkout) return { ok: false, code: "not-found" };
   if (rawWorkout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
+  const { lang, displayName, unit, includeHealth, replyTo } = await resolveUserContext(deps, params.uid, params.lang);
   // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
   let rawEarlier: EmailWorkout[] = [];
   try {
@@ -613,7 +630,7 @@ export async function runEmailWorkout(
   const { prs } = detectEmailPRs(localized, earlier.filter((w) => w.id !== workout.id));
   const subject = workoutEmailSubject(localized, lang, displayName);
   const html = buildWorkoutEmailHtml(localized, lang, { prs, unit, trainerName: sanitizeTrainerName(params.trainerName) });
-  const response = await deps.sendEmail(params.to, subject, html);
+  const response = await deps.sendEmail(params.to, subject, html, replyTo);
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response, html);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
@@ -629,7 +646,7 @@ const resolveUserContext = async (
   deps: EmailWorkoutDeps,
   uid: string,
   clientLang: Lang | undefined,
-): Promise<{ lang: Lang; displayName?: string; unit: EmailUnit; includeHealth: boolean }> => {
+): Promise<{ lang: Lang; displayName?: string; unit: EmailUnit; includeHealth: boolean; replyTo: string[] }> => {
   let ctx: EmailUserContext = {};
   try {
     ctx = await deps.getUserContext(uid);
@@ -644,6 +661,7 @@ const resolveUserContext = async (
     lang,
     unit,
     includeHealth: hasActiveHealthConsent({ consents: ctx.consents }),
+    replyTo: [resolveTrainerReplyTo(ctx)],
     ...(ctx.displayName ? { displayName: ctx.displayName } : {}),
   };
 };
@@ -660,7 +678,7 @@ export async function runEmailHistory(
     : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
   if (rawWorkouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
+  const { lang, displayName, unit, includeHealth, replyTo } = await resolveUserContext(deps, params.uid, params.lang);
   // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
   const rangeIds = new Set(rawWorkouts.map((w) => w.id));
   const oldestDate = rawWorkouts.map((w) => w.date).sort()[0];
@@ -687,7 +705,7 @@ export async function runEmailHistory(
   }
   const subject = historyEmailSubject(localizedWorkouts, lang, displayName);
   const html = buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession, unit, trainerName: sanitizeTrainerName(params.trainerName) });
-  const response = await deps.sendEmail(params.to, subject, html);
+  const response = await deps.sendEmail(params.to, subject, html, replyTo);
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response, html);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };

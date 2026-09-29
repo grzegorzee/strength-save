@@ -1253,9 +1253,9 @@ import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail } from "./ses-email";
 
 const EMAIL_SECRETS = [...SES_EMAIL_SECRETS];
 
-const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
+const sendWorkoutEmail = async (to: string, subject: string, html: string, replyTo: string[]): Promise<SendEmailResult> => {
   try {
-    return await sendSesEmail({ to, subject, html });
+    return await sendSesEmail({ to, subject, html, replyTo });
   } catch (error) {
     logger.error("[EmailWorkout] Amazon SES send failed", { errorCode: safeSesErrorCode(error) });
     return { error: { message: "ses-send-failed" } };
@@ -1318,6 +1318,9 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
       // Fail-closed: rdzeń e-mail używa centralnego predykatu i bez aktywnego
       // grantu pomija RPE, ból i ocenę sesji, zachowując bazowy eksport.
       ...(data.consents !== undefined ? { consents: data.consents } : {}),
+      // 2026-09-29: Reply-To maila do trenera (adres konta tylko zweryfikowany).
+      ...(typeof data.email === "string" ? { email: data.email } : {}),
+      emailVerified: Boolean((data.verification as { emailVerifiedAt?: unknown } | undefined)?.emailVerifiedAt),
     };
   },
   consumeQuota: async (uid, today) => {
