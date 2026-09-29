@@ -168,6 +168,7 @@ import TrainingPlan from '@/pages/TrainingPlan';
 import ExerciseLibrary from '@/pages/ExerciseLibrary';
 import Paywall from '@/pages/Paywall';
 import { StravaTab } from '@/components/strava/StravaTab';
+import { selectTemplatesForDays } from '@/lib/plan-recommendation';
 import { PlanWizard } from '@/components/PlanWizard';
 
 const TODAY_ISO = '2026-08-20';
@@ -354,7 +355,8 @@ describe('F2: kontekst Strava niepołączona', () => {
 describe('F3: karty szablonów z hero (PlanWizard, Browse plans)', () => {
   // X32: kreator bez Welcome startuje od kroku 2 (startAtPrecision usuniete),
   // a Browse pokazuje tylko szablony o liczbie dni z kroku 4 (domyślnie 4).
-  const visibleTemplates = planTemplates.filter((tpl) => tpl.daysPerWeek === 4);
+  // T6: domyślny profil kreatora = beginner, więc pula 4 dni bez szablonów F7.
+  const visibleTemplates = selectTemplatesForDays(4, planTemplates, { level: 'beginner' }).templates;
   const openBrowse = () => {
     renderPage(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));

@@ -1,4 +1,5 @@
 import type { PlanObjective, PlanTemplate } from '@/data/planTemplates';
+import { findLibraryExercise } from '@/data/exerciseLibrary';
 
 // WP-O (X30): scoring rekomendacji planu wydzielony z planTemplates.ts.
 // Moduł jest czysty (tylko typy z data/) — katalog szablonów podaje caller,
@@ -30,9 +31,31 @@ const LEVEL_RANK: Record<PlanTemplate['level'], number> = { beginner: 0, interme
 // z dokładną liczbą dni (dziś katalog pokrywa 2-6 dni, więc praktycznie nigdy).
 // Wagi X30 (100/150/10) pozwalały celowi przesunąć rekomendację o ±1 dzień:
 // user na realnym koncie wybrał redukcję + 3 dni i dostał 4-dniowy Lean Engine.
+// T6 (2026-09-29): LEVEL_WEIGHT 10 -> 60. Różnica poziomów o 2 (beginner vs
+// advanced) przeważa nad zgodnością celu (2L = 120 > O = 100), o 1 nie (60 < 100).
+// Nadal D > O + 2L (1000 > 220), więc liczba dni zostaje twardym priorytetem.
+// F7: szablon z ćwiczeniem requiresBodyweightSupport jest dla beginnera
+// niedozwolony: kara większa niż każda odległość dni (lista nadal zawiera
+// wszystkie szablony, ale takie lądują na końcu i nigdy nie są rekomendacją,
+// dopóki katalog ma jakikolwiek dozwolony szablon).
 const DAY_WEIGHT = 1000;
 const OBJECTIVE_BONUS = 100;
-const LEVEL_WEIGHT = 10;
+const LEVEL_WEIGHT = 60;
+const NOT_ALLOWED_PENALTY = 1_000_000;
+
+/** T6 (F7): szablon zawiera ćwiczenie z ciałem podpartym na rękach/przedramionach
+ *  albo podnoszonym masą ciała (flaga biblioteki, także przez aliasy nazw planu). */
+export const templateRequiresBodyweightSupport = (template: PlanTemplate): boolean =>
+  template.days.some((day) => day.exercises.some((exercise) =>
+    findLibraryExercise(exercise.name)?.requiresBodyweightSupport === true));
+
+export interface TemplateEligibilityCriteria {
+  level?: PlanTemplate['level'];
+}
+
+/** T6: czy szablon wolno pokazać/rekomendować profilowi (twarde filtry przed scoringiem). */
+export const isTemplateAllowed = (template: PlanTemplate, criteria: TemplateEligibilityCriteria): boolean =>
+  !(criteria.level === 'beginner' && templateRequiresBodyweightSupport(template));
 
 /**
  * Punktuje i sortuje szablony pod odpowiedzi usera (cel × poziom × dni/tydz).
@@ -49,7 +72,8 @@ export const scoreTemplates = (
     const objectiveMatch = template.objective === criteria.objective;
     const score = -dayDelta * DAY_WEIGHT
       + (objectiveMatch ? OBJECTIVE_BONUS : 0)
-      - levelDelta * LEVEL_WEIGHT;
+      - levelDelta * LEVEL_WEIGHT
+      - (isTemplateAllowed(template, criteria) ? 0 : NOT_ALLOWED_PENALTY);
     const reasons: RecommendationReason[] = [];
     if (dayDelta === 0) reasons.push('exact-days');
     else if (dayDelta === 1) reasons.push('close-days');
@@ -76,8 +100,11 @@ export interface TemplatesForDays {
  */
 export const selectTemplatesForDays = (
   daysPerWeek: number,
-  templates: readonly PlanTemplate[],
+  catalog: readonly PlanTemplate[],
+  /** T6: twarde filtry profilu (F7 dla beginnera) PRZED doborem po dniach. */
+  criteria: TemplateEligibilityCriteria = {},
 ): TemplatesForDays => {
+  const templates = catalog.filter((t) => isTemplateAllowed(t, criteria));
   const exact = templates.filter((t) => t.daysPerWeek === daysPerWeek);
   if (exact.length) return { templates: exact, exactDays: true };
   const near = templates.filter((t) => Math.abs(t.daysPerWeek - daysPerWeek) === 1);

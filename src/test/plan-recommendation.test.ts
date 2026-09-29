@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
+import { scoreTemplates, selectTemplatesForDays, templateRequiresBodyweightSupport } from '@/lib/plan-recommendation';
 import { getRecommendedPlan, planTemplates, type PlanObjective, type PlanTemplate } from '@/data/planTemplates';
 
 // X31 H2 (hotfix regresji WP-O): liczba dni to JAWNA decyzja usera (krok 4
@@ -29,10 +29,15 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
     expect(top.reasons).toContain('exact-days');
   });
 
-  it('WŁASNOŚĆ: dla KAŻDEJ kombinacji cel × poziom × dni(2..6) rekomendacja ma dokładnie wybraną liczbę dni', () => {
+  it('WŁASNOŚĆ: dla KAŻDEJ kombinacji cel × poziom × dni(2..6) rekomendacja ma dokładnie wybraną liczbę dni (jeśli istnieje dozwolony szablon)', () => {
     for (const objective of OBJECTIVES) {
       for (const level of LEVELS) {
         for (const daysPerWeek of DAYS) {
+          // T6 (F7): beginner nie dostaje szablonu z requiresBodyweightSupport, nawet
+          // kosztem liczby dni. Wyjątek dotyczy tylko liczby dni bez dozwolonego szablonu.
+          const allowedExact = planTemplates.some((t) => t.daysPerWeek === daysPerWeek
+            && (level !== 'beginner' || !templateRequiresBodyweightSupport(t)));
+          if (!allowedExact) continue;
           const top = scoreTemplates({ objective, level, daysPerWeek }, planTemplates)[0];
           expect(top.template.daysPerWeek, `${objective}/${level}/${daysPerWeek} → ${top.template.id}`).toBe(daysPerWeek);
         }
@@ -44,8 +49,13 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
     for (const objective of OBJECTIVES) {
       for (const level of LEVELS) {
         for (const daysPerWeek of DAYS) {
-          const scored = scoreTemplates({ objective, level, daysPerWeek }, planTemplates);
-          for (let i = 1; i < scored.length; i++) {
+          // T6 (F7): dla beginnera szablony z podporem na rękach idą na sam koniec
+          // listy; porządek po dniach obowiązuje w obrębie każdej z dwóch grup.
+          const all = scoreTemplates({ objective, level, daysPerWeek }, planTemplates);
+          const flagged = (s: typeof all[number]) => level === 'beginner' && templateRequiresBodyweightSupport(s.template);
+          const firstFlagged = all.findIndex(flagged);
+          if (firstFlagged >= 0) expect(all.slice(firstFlagged).every(flagged), `${objective}/${level}/${daysPerWeek}`).toBe(true);
+          for (const scored of [all.filter((s) => !flagged(s)), all.filter(flagged)]) for (let i = 1; i < scored.length; i++) {
             const prev = Math.abs(scored[i - 1].template.daysPerWeek - daysPerWeek);
             const cur = Math.abs(scored[i].template.daysPerWeek - daysPerWeek);
             expect(prev, `${objective}/${level}/${daysPerWeek} pozycja ${i}`).toBeLessThanOrEqual(cur);
@@ -89,7 +99,8 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
     for (const objective of OBJECTIVES) {
       for (const level of LEVELS) {
         for (const daysPerWeek of DAYS) {
-          const pool = selectTemplatesForDays(daysPerWeek, planTemplates).templates;
+          // T6: pula z twardymi filtrami profilu (F7 dla beginnera), jak w kreatorze.
+          const pool = selectTemplatesForDays(daysPerWeek, planTemplates, { level }).templates;
           expect(scoreTemplates({ objective, level, daysPerWeek }, pool)[0].template.id)
             .toBe(getRecommendedPlan(objective, level, daysPerWeek).id);
         }
@@ -108,6 +119,59 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
       expect(getRecommendedPlan(c.objective, c.level, c.daysPerWeek).id)
         .toBe(scoreTemplates(c, planTemplates)[0].template.id);
     }
+  });
+});
+
+// T6 (2026-09-29): F7 w rekomendacji + większa kara za różnicę poziomów.
+// Uzasadnienie zmian kontraktu X31 H2: liczba dni pozostaje twardym priorytetem
+// WŚRÓD szablonów dozwolonych dla profilu. Dla beginnera szablon z ćwiczeniem
+// wymagającym podporu na rękach/podnoszenia masy ciała (plank, pompki z podłogi,
+// podciąganie bez asysty, dipy, zwisy) nie jest dozwolony NIGDY; przy 5-6 dniach
+// katalog nie ma takiego szablonu, więc beginner dostaje najbliższą liczbę dni
+// z jawną etykietą (exactDays=false), zamiast planu z plankiem i podciąganiem.
+describe('T6: F7 i kara za różnicę poziomów', () => {
+  it('WŁASNOŚĆ: beginner NIGDY nie dostaje rekomendacji z requiresBodyweightSupport (każdy cel × dni)', () => {
+    for (const objective of OBJECTIVES) {
+      for (const daysPerWeek of DAYS) {
+        const viaCatalog = scoreTemplates({ objective, level: 'beginner', daysPerWeek }, planTemplates)[0].template;
+        const viaPool = scoreTemplates({ objective, level: 'beginner', daysPerWeek },
+          selectTemplatesForDays(daysPerWeek, planTemplates, { level: 'beginner' }).templates)[0].template;
+        const viaApi = getRecommendedPlan(objective, 'beginner', daysPerWeek);
+        for (const tpl of [viaCatalog, viaPool, viaApi]) {
+          expect(templateRequiresBodyweightSupport(tpl), `${objective}/beginner/${daysPerWeek} → ${tpl.id}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('pula kroku 5 dla beginnera nie zawiera szablonów z F7; inne poziomy widzą cały katalog dni', () => {
+    for (const daysPerWeek of DAYS) {
+      const beginnerPool = selectTemplatesForDays(daysPerWeek, planTemplates, { level: 'beginner' });
+      expect(beginnerPool.templates.length, `${daysPerWeek}`).toBeGreaterThan(0);
+      for (const tpl of beginnerPool.templates) expect(templateRequiresBodyweightSupport(tpl), tpl.id).toBe(false);
+      expect(selectTemplatesForDays(daysPerWeek, planTemplates, { level: 'intermediate' }))
+        .toEqual(selectTemplatesForDays(daysPerWeek, planTemplates));
+    }
+  });
+
+  it('beginner + dni bez dozwolonego szablonu: najbliższa liczba dni z jawną etykietą', () => {
+    const exactAllowed = (d: number) => planTemplates.some((t) => t.daysPerWeek === d && !templateRequiresBodyweightSupport(t));
+    for (const daysPerWeek of DAYS.filter((d) => !exactAllowed(d))) {
+      const pool = selectTemplatesForDays(daysPerWeek, planTemplates, { level: 'beginner' });
+      expect(pool.exactDays).toBe(false);
+      const top = getRecommendedPlan('build_muscle', 'beginner', daysPerWeek);
+      expect(top.daysPerWeek).not.toBe(daysPerWeek);
+    }
+  });
+
+  it('różnica poziomów o 2 przeważa nad zgodnością celu; o 1 nie', () => {
+    const tpl = (id: string, level: PlanTemplate['level'], objective: PlanObjective): PlanTemplate => ({
+      id, name: id, description: '', goal: 'muscle', objective, level, daysPerWeek: 3, durationWeeks: 8, days: [],
+    });
+    const catalog = [tpl('beg-strength', 'beginner', 'peak_strength'), tpl('adv-muscle', 'advanced', 'build_muscle')];
+    expect(scoreTemplates({ objective: 'peak_strength', level: 'advanced', daysPerWeek: 3 }, catalog)[0].template.id).toBe('adv-muscle');
+    const catalog1 = [tpl('int-strength', 'intermediate', 'peak_strength'), tpl('adv-muscle', 'advanced', 'build_muscle')];
+    expect(scoreTemplates({ objective: 'peak_strength', level: 'advanced', daysPerWeek: 3 }, catalog1)[0].template.id).toBe('int-strength');
   });
 });
 

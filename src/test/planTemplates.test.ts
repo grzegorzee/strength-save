@@ -107,9 +107,15 @@ describe('planTemplates', () => {
     // X31 H2: przywrócone po regresji WP-O (X30 pozwalał celowi przesunąć dni o ±1,
     // user z realnego konta wybrał redukcję + 3 dni i dostał 4-dniowy plan).
     for (const days of [2, 3, 4, 5, 6]) {
-      expect(getRecommendedPlan('build_muscle', 'beginner', days).daysPerWeek).toBe(days);
       expect(getRecommendedPlan('peak_strength', 'advanced', days).daysPerWeek).toBe(days);
       expect(getRecommendedPlan('fat_loss', 'intermediate', days).daysPerWeek).toBe(days);
+    }
+    // T6 (F7): beginner dostaje dokładne dni tam, gdzie katalog ma szablon bez
+    // ćwiczeń z podporem na rękach (2-4 dni). 5-6 dni: wszystkie szablony mają
+    // podciąganie/dipy/plank, więc wygrywa bezpieczeństwo (najbliższe dni, test
+    // w plan-recommendation.test.ts), a nie dokładna liczba dni.
+    for (const days of [2, 3, 4]) {
+      expect(getRecommendedPlan('build_muscle', 'beginner', days).daysPerWeek).toBe(days);
       expect(getRecommendedPlan('athletic', 'beginner', days).daysPerWeek).toBe(days);
     }
   });

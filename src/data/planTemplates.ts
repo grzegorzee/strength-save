@@ -1,6 +1,6 @@
 import { exerciseLibrary } from './exerciseLibrary';
 import type { TrainingDay, Exercise } from './trainingPlan';
-import { scoreTemplates } from '@/lib/plan-recommendation';
+import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
 
 // Gotowe (nie-AI) plany treningowe do wyboru jednym klikiem.
 // Każde ćwiczenie z source:'library' jest zakotwiczone w bibliotece (exerciseLibrary),
@@ -1781,4 +1781,8 @@ export const getRecommendedPlan = (
   objective: PlanObjective,
   level: PlanTemplate['level'],
   daysPerWeek: number,
-): PlanTemplate => scoreTemplates({ objective, level, daysPerWeek }, planTemplates)[0].template;
+): PlanTemplate => scoreTemplates(
+  { objective, level, daysPerWeek },
+  // T6: ta sama pula co krok 5 kreatora (twarde filtry profilu, potem dni).
+  selectTemplatesForDays(daysPerWeek, planTemplates, { level }).templates,
+)[0].template;

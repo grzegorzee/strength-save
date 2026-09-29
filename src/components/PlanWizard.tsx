@@ -356,7 +356,7 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
   // X32: krok 5 i Browse plans widzą WYŁĄCZNIE szablony o liczbie dni z kroku 4
   // (zgłoszenie właściciela: "wybrałem 3 dni, a dostałem 4 dni w tygodniu").
   // Pusta pula = szablony o +-1 dnia z jawną etykietą (exactDays=false).
-  const dayPool = useMemo(() => selectTemplatesForDays(daysPerWeek, planTemplates), [daysPerWeek]);
+  const dayPool = useMemo(() => selectTemplatesForDays(daysPerWeek, planTemplates, { level }), [daysPerWeek, level]);
   // WP-O (X30): jeden scoring dla rekomendacji (element [0]) i sortowania Browse
   // plans (ta sama lista, malejąco po dopasowaniu do odpowiedzi usera).
   const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, dayPool.templates), [objective, level, daysPerWeek, dayPool]);

@@ -17,6 +17,7 @@ vi.mock('@/data/planTemplates', async (importOriginal) => {
 
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 import { planTemplates } from '@/data/planTemplates';
+import { selectTemplatesForDays } from '@/lib/plan-recommendation';
 
 const withProviders = (node: React.ReactNode) => (
   <LanguageProvider>
@@ -45,7 +46,9 @@ describe('Browse plans: pusta pula dla wybranej liczby dni (X32)', () => {
     // Krok 5: rekomendacja o innej liczbie dni jest jawnie oznaczona (ostrzezenie daysMismatch).
     expect(screen.getByText(/Ten plan ma \d+ dni treningowych, wybrałeś 3/)).toBeTruthy();
 
-    const expectedCount = planTemplates.filter((t) => t.daysPerWeek === 2 || t.daysPerWeek === 4).length;
+    // T6: pula zastępcza po twardych filtrach profilu (domyślny beginner: bez szablonów F7).
+    const expectedCount = selectTemplatesForDays(3, planTemplates, { level: 'beginner' }).templates.length;
+    expect(expectedCount).toBeGreaterThan(0);
     // X33 WP-2: link biblioteki z licznikiem puli (zastępczej) zamiast "Przeglądaj plany (n)".
     fireEvent.click(screen.getByRole('button', { name: `Biblioteka planów na 3 dni (${expectedCount})` }));
     expect(screen.getByTestId('browse-nearest-note').textContent).toBe('Brak planu na 3 dni w tygodniu, pokazujemy najbliższe.');
