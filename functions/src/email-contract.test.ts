@@ -176,3 +176,12 @@ describe("workout: kafle nie rozpychają maila na telefonie", () => {
     expect(html).toContain("display:inline-block");
   });
 });
+
+describe("broadcast admina: stopka z wypisem", () => {
+  it("wersja broadcast mówi, jak wyłączyć ogłoszenia; wiadomość 1:1 nie", () => {
+    const broadcast = adminMessageEmailHtml("Treść", { broadcast: true });
+    expect(broadcast).toContain("Profil, Powiadomienia");
+    expect(broadcast).toContain("ogłoszenia e-mail");
+    expect(adminMessageEmailHtml("Treść")).not.toContain("Profil, Powiadomienia");
+  });
+});

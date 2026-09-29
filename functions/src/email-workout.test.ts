@@ -769,3 +769,37 @@ describe("maile do trenera — bodyweight_loaded (F6)", () => {
     expect(sentHtml(d)).toContain("100 kg × 5");
   });
 });
+
+// 2026-09-29 (decyzja właściciela): odpowiedź trenera ma trafić do właściciela
+// konta, gdy jego adres jest prawdziwy (zweryfikowany i nie Apple Private Relay,
+// który przyjmuje pocztę tylko od zarejestrowanych nadawców). Inaczej support.
+describe("Reply-To maila do trenera", () => {
+  const replyToOf = (d: EmailWorkoutDeps) =>
+    (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][3] as string[];
+
+  it("zweryfikowany adres właściciela = Reply-To (trening i historia)", async () => {
+    const ctx = { email: "Jan@Example.com", emailVerified: true };
+    const d = deps({ getUserContext: vi.fn(async () => ctx) });
+    await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" });
+    expect(replyToOf(d)).toEqual(["Jan@Example.com"]);
+    const h = deps({ getUserContext: vi.fn(async () => ctx) });
+    await runEmailHistory(h, { uid: "u1", to: "trener@example.com", today: "2026-08-20" });
+    expect(replyToOf(h)).toEqual(["Jan@Example.com"]);
+  });
+
+  it("Apple Private Relay, niezweryfikowany, brak adresu albo awaria profilu = contact@", async () => {
+    const cases: Array<() => Promise<Record<string, unknown>>> = [
+      async () => ({ email: "abc123@privaterelay.appleid.com", emailVerified: true }),
+      async () => ({ email: "abc123@PrivateRelay.AppleID.com", emailVerified: true }),
+      async () => ({ email: "jan@example.com", emailVerified: false }),
+      async () => ({ email: "nie-adres", emailVerified: true }),
+      async () => ({}),
+      async () => { throw new Error("firestore down"); },
+    ];
+    for (const getUserContext of cases) {
+      const d = deps({ getUserContext: vi.fn(getUserContext) });
+      await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" });
+      expect(replyToOf(d)).toEqual(["contact@strengthsave.app"]);
+    }
+  });
+});

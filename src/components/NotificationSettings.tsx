@@ -32,6 +32,7 @@ const PREF_LABEL_KEYS: Record<NotificationPrefKey, { label: TranslationKey; desc
   photoReminder: { label: 'settings.notif.photoReminder', desc: 'settings.notif.photoReminderDesc' },
   modeEnding: { label: 'settings.notif.modeEnding', desc: 'settings.notif.modeEndingDesc' },
   announcements: { label: 'settings.notif.announcements', desc: 'settings.notif.announcementsDesc' },
+  announcementEmails: { label: 'settings.notif.announcementEmails', desc: 'settings.notif.announcementEmailsDesc' },
   weeklyDigest: { label: 'settings.notif.weeklyDigest', desc: 'settings.notif.weeklyDigestDesc' },
 };
 
