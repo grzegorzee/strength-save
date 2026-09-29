@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
-import { deleteOwnAccount } from '@/lib/registration-api';
 import { cn } from '@/lib/utils';
 
 // Apple 5.1.1(v): self-service usunięcie konta. Jeden dialog (word gate
@@ -31,6 +30,9 @@ export const DeleteAccountDialog = ({ open, onOpenChange, onDeleted }: {
   const handleDelete = async () => {
     setDeleting(true);
     try {
+      // Import dynamiczny: registration-api ciągnie Firebase; bramki i paywall
+      // renderują ten dialog, ale moduł jest potrzebny dopiero przy usunięciu.
+      const { deleteOwnAccount } = await import('@/lib/registration-api');
       await deleteOwnAccount();
       // Konto Auth już nie istnieje — lokalny logout domyka sesję, gate przejmuje resztę.
       await onDeleted();
