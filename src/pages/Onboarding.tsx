@@ -200,7 +200,8 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
       navigate(requiresPaywall ? '/paywall' : '/?welcome=1', { replace: true });
     } catch (err) {
       saveInFlightRef.current = false;
-      setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
+      console.error('Onboarding finish failed:', err);
+      setError(t('onboarding.error.saveFailed'));
       setIsSaving(false);
     }
   };
