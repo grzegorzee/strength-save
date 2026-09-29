@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { getPaywallHeroUrl } from '@/lib/exercise-media';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
+import { DeleteAccountLink } from '@/components/DeleteAccountDialog';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
 // informacja o automatycznym odnowieniu, restore purchases, linki do Terms i Privacy.
@@ -31,13 +32,17 @@ import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 //
 // Tryb hard (onboarding, wariant B): świeży user bez PRO i bez treningów trafia tu
 // zaraz po wizardzie — najpierw teaser "Twój plan jest gotowy" (zamglone ćwiczenia),
-// potem cennik BEZ strzałki wstecz; jedyna ucieczka to "Wyloguj". Po zakupie/trialu
-// dashboard z confetti (/?welcome=1).
+// potem cennik BEZ strzałki wstecz; wyjścia to "Wyloguj" i "Usuń konto" (B1, Apple
+// 5.1.1(v): Profil jest za paywallem). Po zakupie/trialu dashboard z confetti (/?welcome=1).
 
 
 type PlanKey = 'yearly' | 'monthly';
 
-export default function Paywall({ onLogout }: { onLogout: () => Promise<void> }) {
+export default function Paywall({ onLogout, onAccountDeleted }: {
+  onLogout: () => Promise<void>;
+  /** Domknięcie sesji po usunięciu konta (bez cleanupu urządzeń); brak = onLogout. */
+  onAccountDeleted?: () => Promise<void>;
+}) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -301,6 +306,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           <button onClick={() => void onLogout()} className="mt-4 text-center text-xs text-muted-foreground underline underline-offset-2">
             {t('paywall.logout')}
           </button>
+          <DeleteAccountLink onDeleted={onAccountDeleted ?? onLogout} className="mt-1" />
         </div>
       </div>
     );
@@ -409,12 +415,13 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           </a>
         </div>
 
-        {/* Hard mode: jedyna ucieczka z paywalla to wylogowanie. */}
+        {/* Hard mode: wyjścia z paywalla to wylogowanie i usunięcie konta (B1). */}
         {hard && (
-          <div className="mt-5 text-center">
+          <div className="mt-5 flex flex-col items-center">
             <button onClick={() => void onLogout()} className="text-xs text-muted-foreground underline underline-offset-2">
               {t('paywall.logout')}
             </button>
+            <DeleteAccountLink onDeleted={onAccountDeleted ?? onLogout} className="mt-1" />
           </div>
         )}
       </div>

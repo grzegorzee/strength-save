@@ -12,7 +12,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES, type LanguageCode } from '@/i18n';
-import { deleteOwnAccount } from '@/lib/registration-api';
+import { DeleteAccountDialog } from '@/components/DeleteAccountDialog';
 import { useSubscription, isPaywallPlatform } from '@/hooks/useSubscription';
 import { getSubscriptionManagementUrl, isPurchasesUserCurrent } from '@/lib/purchases';
 import { summarizeSubscription, hasProPlan } from '@/lib/subscription-summary';
@@ -196,9 +196,6 @@ const Profile = () => {
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const deleteConfirmWord = lang === 'pl' ? 'USUŃ' : 'DELETE';
   // Z237: wylogowanie z potwierdzeniem i widocznym stanem — bez tego przycisk
   // wyglądał na martwy przez czas cleanupu urządzeń.
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -237,21 +234,6 @@ const Profile = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    setDeletingAccount(true);
-    try {
-      await deleteOwnAccount();
-      // Konto Auth już nie istnieje — lokalny logout domyka sesję, gate przejmuje resztę.
-      await logoutAfterAccountDeletion();
-    } catch (err) {
-      setDeletingAccount(false);
-      toast({
-        title: t('profile.deleteAccount.error'),
-        description: err instanceof Error ? err.message : '',
-        variant: 'destructive',
-      });
-    }
-  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -978,7 +960,7 @@ const Profile = () => {
         </button>
         <button
           type="button"
-          onClick={() => { setDeleteConfirmInput(''); setDeleteAccountOpen(true); }}
+          onClick={() => setDeleteAccountOpen(true)}
           className="flex min-h-11 w-full items-center justify-center text-center text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
         >
           {t('profile.deleteAccount')}
@@ -1025,39 +1007,8 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete account dialog (Apple 5.1.1(v): self-service usunięcie konta) */}
-      <Dialog open={deleteAccountOpen} onOpenChange={(open) => { if (!deletingAccount) setDeleteAccountOpen(open); }}>
-        <DialogContent className="rounded-xl border-0 bg-surface-low">
-          <DialogHeader>
-            <DialogTitle className="font-heading uppercase text-destructive">{t('profile.deleteAccount')}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t('profile.deleteAccount.desc')}</p>
-          <div className="space-y-2">
-            <label htmlFor="delete-account-confirm" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              {t('profile.deleteAccount.typeToConfirm', { word: deleteConfirmWord })}
-            </label>
-            <Input
-              id="delete-account-confirm"
-              value={deleteConfirmInput}
-              onChange={(e) => setDeleteConfirmInput(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteAccountOpen(false)} disabled={deletingAccount}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deletingAccount || deleteConfirmInput.trim().toUpperCase() !== deleteConfirmWord}
-            >
-              {deletingAccount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {t('profile.deleteAccount.confirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete account dialog (Apple 5.1.1(v): self-service usunięcie konta; B1: wspólny z paywallem i bramkami) */}
+      <DeleteAccountDialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen} onDeleted={logoutAfterAccountDeletion} />
 
       {bugReportOpen && <BugReportDialog open uid={uid} onOpenChange={setBugReportOpen} />}
 

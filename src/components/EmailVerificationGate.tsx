@@ -9,12 +9,15 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { getInboxProviders } from '@/lib/inbox-links';
 import { mapEmailVerificationError } from '@/lib/email-verification-errors';
+import { DeleteAccountLink } from '@/components/DeleteAccountDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 interface EmailVerificationGateProps {
   email: string;
   onLogout: () => Promise<void>;
+  /** B1: domknięcie sesji po usunięciu konta; brak = onLogout. */
+  onAccountDeleted?: () => Promise<void>;
 }
 
 // Po wysłaniu kodu blokujemy ponowne wysłanie na 60 s.
@@ -29,7 +32,7 @@ const SNAPSHOT_TIMEOUT_MS = 12_000;
 
 type AwaitingState = 'idle' | 'waiting' | 'timeout';
 
-export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGateProps) => {
+export const EmailVerificationGate = ({ email, onLogout, onAccountDeleted }: EmailVerificationGateProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { uid } = useCurrentUser();
@@ -239,6 +242,8 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
               {t('profile.logout')}
             </Button>
           </div>
+          {/* B1 (Apple 5.1.1(v)): konto przed weryfikacją też da się usunąć. */}
+          <DeleteAccountLink onDeleted={onAccountDeleted ?? onLogout} className="w-full" />
         </CardContent>
       </Card>
     </div>

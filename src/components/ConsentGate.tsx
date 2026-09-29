@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
+import { DeleteAccountLink } from '@/components/DeleteAccountDialog';
 import {
   EMPTY_CONSENT_SELECTION,
   buildConsentSubmissions,
@@ -23,13 +24,15 @@ import type { ConsentMirror } from '@/lib/legal-versions';
 // autorytatywny mirror zwrócony po batch.commit(); onSnapshot później go
 // rekonsyliuje, ale nie jest już krytyczną ścieżką UX.
 
-export const ConsentGate = ({ profile, onConfirmed, onLogout }: {
+export const ConsentGate = ({ profile, onConfirmed, onLogout, onAccountDeleted }: {
   profile: UserProfile | null;
   /** Autorytatywny mirror zwrócony dopiero po atomowym zapisie na serwerze. */
   onConfirmed: (mirror: ConsentMirror) => void;
   /** Zasada 6 (bug 32): bramka zastępuje cały router, więc musi mieć wyjście
    *  niezależne od zatwierdzenia zgód — symetrycznie do EmailVerificationGate. */
   onLogout: () => Promise<void>;
+  /** B1 (Apple 5.1.1(v)): domknięcie sesji po usunięciu konta; brak = onLogout. */
+  onAccountDeleted?: () => Promise<void>;
 }) => {
   const { t, lang } = useTranslation();
   const [selection, setSelection] = useState<ConsentSelection>(EMPTY_CONSENT_SELECTION);
@@ -85,6 +88,7 @@ export const ConsentGate = ({ profile, onConfirmed, onLogout }: {
           >
             {t('profile.logout')}
           </Button>
+          <DeleteAccountLink onDeleted={onAccountDeleted ?? onLogout} className="mt-1 w-full" />
         </CardContent>
       </Card>
     </div>

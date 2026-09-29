@@ -26,7 +26,7 @@ const AuthRedirect = () => {
 };
 
 const AuthenticationGate = () => {
-  const { isAuthenticated, loading, slow, logout } = useAuth();
+  const { isAuthenticated, loading, slow, logout, logoutAfterAccountDeletion } = useAuth();
 
   if (loading) return <BootScreen slow={slow} onRetry={() => window.location.reload()} />;
 
@@ -46,7 +46,7 @@ const AuthenticationGate = () => {
 
   return (
     <Suspense fallback={<BootScreen />}>
-      <AuthenticatedApp onLogout={logout} />
+      <AuthenticatedApp onLogout={logout} onAccountDeleted={logoutAfterAccountDeletion} />
     </Suspense>
   );
 };

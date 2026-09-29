@@ -172,7 +172,11 @@ export const AccessRestrictedView = ({
   );
 };
 
-const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
+// B1 (2026-09-29): onAccountDeleted = domknięcie sesji po usunięciu konta z
+// paywalla/bramek (Apple 5.1.1(v)); opcjonalne, brak = zwykły onLogout.
+type SessionExits = { onLogout: () => Promise<void>; onAccountDeleted?: () => Promise<void> };
+
+const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
   const {
     uid,
     isNewUser,
@@ -198,7 +202,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
 
   if (!profileLoaded) return <BootScreen />;
   if (needsEmailVerification) {
-    return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} />;
+    return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} onAccountDeleted={onAccountDeleted} />;
   }
   if (!hasAppAccess) {
     return (
@@ -222,6 +226,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
         profile={profile}
         onConfirmed={mergeConfirmedConsentMirror}
         onLogout={onLogout}
+        onAccountDeleted={onAccountDeleted}
       />
     );
   }
@@ -266,7 +271,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                   <Route path="/exercise/:slug" element={<ExerciseDetail />} />
                   <Route path="/measurements" element={<Measurements />} />
                   <Route path="/new-plan" element={<NewPlan />} />
-                  <Route path="/paywall" element={<Paywall onLogout={onLogout} />} />
+                  <Route path="/paywall" element={<Paywall onLogout={onLogout} onAccountDeleted={onAccountDeleted} />} />
                   <Route path="/cycles" element={<Cycles />} />
                   <Route path="/history" element={<WorkoutHistory />} />
                   <Route path="/strava/callback" element={<StravaCallback />} />
@@ -284,7 +289,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   );
 };
 
-export default function AuthenticatedApp({ onLogout }: { onLogout: () => Promise<void> }) {
+export default function AuthenticatedApp({ onLogout, onAccountDeleted }: SessionExits) {
   return (
     <UnitProvider>
       <UserProvider>
@@ -292,7 +297,7 @@ export default function AuthenticatedApp({ onLogout }: { onLogout: () => Promise
         <PushRegistrar />
         <PreferenceSync />
         <TimeZoneSync />
-        <AppRoutes onLogout={onLogout} />
+        <AppRoutes onLogout={onLogout} onAccountDeleted={onAccountDeleted} />
       </UserProvider>
     </UnitProvider>
   );
