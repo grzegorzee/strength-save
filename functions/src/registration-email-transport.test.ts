@@ -32,4 +32,16 @@ describe("registration email transport contract", () => {
       ));
     }
   });
+
+  // 2026-09-29: broadcast pomija wypisanych i niesie działający one-click
+  // unsubscribe (zakres announcementEmails, klucz z API_KEY_PEPPER).
+  it("adminBroadcastEmail: filtr wypisanych, nagłówki List-Unsubscribe, sekret peppera", () => {
+    const start = source.indexOf("export const adminBroadcastEmail");
+    const block = source.slice(start, source.indexOf("export const adminSendPush", start));
+    expect(block).toMatch(/onCall\(\{ secrets: \[\.\.\.SES_EMAIL_SECRETS, authPepper\]/);
+    expect(block).toContain("selectAnnouncementEmailRecipients(");
+    expect(block).toContain('unsubscribeUrl(recipient.uid, unsubscribeKey, "announcementEmails")');
+    expect(block).toContain("listUnsubscribeHeaders(");
+    expect(block).toContain("adminMessageEmailHtml(body, { broadcast: true })");
+  });
 });

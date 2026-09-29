@@ -206,13 +206,17 @@ ${emailParagraph(t.body, "margin:0;")}`,
 }
 
 // Maile admina (custom + broadcast): treść wpisana w panelu, zawsze PL.
-export function adminMessageEmailHtml(body: string): string {
+// 2026-09-29: broadcast ma w stopce powód i drogę wyłączenia (plus nagłówek
+// List-Unsubscribe z registration.ts); wiadomość 1:1 dotyczy konta.
+export function adminMessageEmailHtml(body: string, options: { broadcast?: boolean } = {}): string {
   const safe = esc(body).replace(/\n/g, "<br/>");
   const firstLine = body.split("\n").map((line) => line.trim()).find(Boolean) ?? "Strength Save";
   return renderEmailLayout({
     lang: "pl",
     preheader: firstLine.slice(0, 90),
-    reason: "Wiadomość od zespołu Strength Save do użytkowników aplikacji.",
+    reason: options.broadcast
+      ? "Dostajesz ten mail, bo masz włączone ogłoszenia e-mail od zespołu Strength Save. Wyłączysz w aplikacji: Profil, Powiadomienia."
+      : "Wiadomość od zespołu Strength Save dotyczy Twojego konta.",
     replyHint: true,
     bodyHtml: emailParagraph(safe, "margin:0;"),
   });

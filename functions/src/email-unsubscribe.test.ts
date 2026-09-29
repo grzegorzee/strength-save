@@ -51,7 +51,7 @@ describe("handleUnsubscribeRequest", () => {
   it("POST z poprawnym tokenem wyłącza digest i zwraca 200", async () => {
     const optOut = vi.fn(async () => undefined);
     const res = await handleUnsubscribeRequest({ key, optOut }, { method: "POST", uid: "uid-1", token });
-    expect(optOut).toHaveBeenCalledWith("uid-1");
+    expect(optOut).toHaveBeenCalledWith("uid-1", "weeklyDigest");
     expect(res.status).toBe(200);
     expect(res.body).toContain("wyłączone");
   });
@@ -87,6 +87,42 @@ describe("handleUnsubscribeRequest", () => {
     const res = await handleUnsubscribeRequest({ key, optOut: vi.fn(async () => undefined) }, { method: "POST", uid: "uid-1", token });
     expect(res.body).not.toMatch(/[–—]/);
     expect(res.body.replace("<!DOCTYPE", "")).not.toContain("!");
+  });
+});
+
+// 2026-09-29 (decyzja właściciela): ogłoszenia e-mail z panelu admina mają
+// własną flagę notificationPrefs.announcementEmails i własny token: link z
+// digestu nie wypisuje z ogłoszeń i odwrotnie.
+describe("zakres announcementEmails (broadcast admina)", () => {
+  it("token i URL rozdzielne od digestu", () => {
+    const digestToken = unsubscribeToken("uid-1", key);
+    const annToken = unsubscribeToken("uid-1", key, "announcementEmails");
+    expect(annToken).not.toBe(digestToken);
+    expect(verifyUnsubscribeToken("uid-1", annToken, key, "announcementEmails")).toBe(true);
+    expect(verifyUnsubscribeToken("uid-1", digestToken, key, "announcementEmails")).toBe(false);
+    expect(verifyUnsubscribeToken("uid-1", annToken, key)).toBe(false);
+    const url = unsubscribeUrl("uid-1", key, "announcementEmails");
+    expect(url).toContain("s=announcements");
+    expect(url).toContain(`t=${annToken}`);
+    expect(unsubscribeUrl("uid-1", key)).not.toContain("s=");
+  });
+
+  it("POST wyłącza wyłącznie announcementEmails, GET zachowuje zakres w formularzu", async () => {
+    const annToken = unsubscribeToken("uid-1", key, "announcementEmails");
+    const optOut = vi.fn(async () => undefined);
+    const post = await handleUnsubscribeRequest({ key, optOut }, { method: "POST", uid: "uid-1", token: annToken, scope: "announcementEmails" });
+    expect(post.status).toBe(200);
+    expect(optOut).toHaveBeenCalledWith("uid-1", "announcementEmails");
+    expect(post.body).toContain("Ogłoszenia e-mail");
+    const get = await handleUnsubscribeRequest({ key, optOut }, { method: "GET", uid: "uid-1", token: annToken, scope: "announcementEmails" });
+    expect(get.body).toContain("s=announcements");
+  });
+
+  it("token digestu z zakresem ogłoszeń: 400", async () => {
+    const optOut = vi.fn(async () => undefined);
+    const res = await handleUnsubscribeRequest({ key, optOut }, { method: "POST", uid: "uid-1", token: unsubscribeToken("uid-1", key), scope: "announcementEmails" });
+    expect(res.status).toBe(400);
+    expect(optOut).not.toHaveBeenCalled();
   });
 });
 
