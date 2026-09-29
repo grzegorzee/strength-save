@@ -77,7 +77,7 @@ import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, is
 import { buildPrefillForExercise, resolveSessionTargets } from '@/lib/session-targets';
 import { computeModeTargets } from '@/lib/progression-engine';
 import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats, workoutScrollStorageKey } from '@/lib/workout-day-view';
-import { applySessionExerciseSwap, buildSwappedExerciseId, swapExerciseIdentity } from '@/lib/exercise-swap';
+import { applySessionExerciseSwap, planExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
@@ -614,18 +614,18 @@ const WorkoutDay = () => {
     const currentExercise = day.exercises.find(ex => ex.id === exerciseId);
     if (!currentExercise) return;
 
-    const planExercise = scope === 'plan'
-      ? baseDay?.exercises.find(ex => ex.id === exerciseId)
-      : undefined;
-    // "Na stałe": id z tej samej funkcji co zapis planu (swapExercise), żeby klucz
-    // draftu od razu był id karty planu po dojściu snapshotu planu.
-    const swappedId = planExercise && baseDay
-      ? swapExerciseIdentity(
-        planExercise,
-        { name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
-        baseDay.exercises.map(ex => ex.id),
-      ).id
-      : buildSwappedExerciseId(exerciseId, pick.name, day.exercises.map(ex => ex.id));
+    // "Na stałe": cel w planie to ćwiczenie stojące za kartą, także gdy karta jest
+    // już zamianą "tylko dziś" (wcześniej swapExercise szukał id zamiany w planie
+    // i plan zostawał bez zmian). Id z tej samej funkcji co zapis planu.
+    const { swappedId, planExerciseId } = planExerciseSwap({
+      scope,
+      cardId: exerciseId,
+      pick,
+      currentSets,
+      planExercises: baseDay?.exercises ?? [],
+      dayExerciseIds: day.exercises.map(ex => ex.id),
+      sessionSwaps,
+    });
 
     const next = applySessionExerciseSwap({
       exerciseSets: exerciseSetsRef.current,
@@ -671,8 +671,8 @@ const WorkoutDay = () => {
       });
     }
 
-    if (scope === 'plan') {
-      await swapExercise(day.id, exerciseId, pick.name, currentSets, pick.videoUrl);
+    if (scope === 'plan' && planExerciseId) {
+      await swapExercise(day.id, planExerciseId, pick.name, currentSets, pick.videoUrl);
     }
     setSwapExerciseId(null);
   };

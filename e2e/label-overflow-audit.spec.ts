@@ -96,15 +96,7 @@ const inspectInteractiveLabels = async (page: Page, route: string, language: str
           }
         }
       }
-      // Znany dług wykryty tym warunkiem 2026-09-29 (poza zakresem F1, zgłoszony
-      // osobno, patrz DECYZJE.md): przy 320 px „Subskrypcja/Subscription" w wierszu
-      // Profilu oraz etykiety dolnej nawigacji web („Progress", „Historia"): desktopowy
-      // pasek przewijania / blokada scrolla dialogu zwęża 5 zakładek do ~61 px
-      // (na iOS etykiety są nowrap w ios.css, mobilne scrollbary są overlay).
-      // Lista jest zamknięta: każde INNE słowo łamane w środku failuje audyt.
-      const knownDebt = (currentRoute.startsWith('/profile') && /^(Subskrypcja|Subscription)$/.test(brokenWord ?? ''))
-        || candidate.closest('nav') !== null;
-      if (brokenWord && !knownDebt) {
+      if (brokenWord) {
         issues.push({ route: currentRoute, language: currentLanguage, text: `${text} [${brokenWord}]`, reason: 'word-broken-mid-word', tag: candidate.tagName });
       }
     }
@@ -207,6 +199,28 @@ for (const language of ['pl', 'en'] as const) {
 
     expect(issues, JSON.stringify(issues, null, 2)).toEqual([]);
   });
+
+  // 2026-09-29: dolna nawigacja web. 305 px = 320 px minus desktopowy pasek
+  // przewijania (tak zwężał pasek w audycie); 5 zakładek musi zmieścić każde
+  // słowo etykiety w jednej linii („PROGRESS" potrzebuje ~62 px).
+  for (const width of [305, 320]) {
+    test(`dolna nawigacja nie łamie słów przy ${width} px — ${language.toUpperCase()}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await blockFirebase(page);
+      await setE2EAuthScenario(page, 'active-user');
+      await page.addInitScript((lang) => window.localStorage.setItem('app-language', lang), language);
+      await navigateAndWait(page, '/');
+      const labels = page.locator('nav .mobile-nav-label');
+      await expect(labels).toHaveCount(5);
+      const lines = await labels.evaluateAll((elements) => elements.map((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+        return { text: element.textContent, lines: tops.size };
+      }));
+      expect(lines.filter(({ lines: count }) => count !== 1), JSON.stringify(lines)).toEqual([]);
+    });
+  }
 
   test(`panel administracyjny nie ucina etykiet — ${language.toUpperCase()}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 844 });

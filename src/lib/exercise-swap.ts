@@ -130,6 +130,67 @@ export const applySessionExerciseSwap = (
   };
 };
 
+/**
+ * Id ćwiczenia PLANU, które stoi za kartą dnia. Karta zamiany „tylko dziś”
+ * (`X__swap-a`, także łańcuch `X__swap-a__swap-b`) wskazuje oryginał X:
+ * najpierw po jawnym rekordzie `sessionSwaps` (wstecz po łańcuchu), potem po
+ * prefiksie id. Brak w planie (dodane w locie) => undefined.
+ */
+export const resolvePlanExerciseId = (
+  planIds: string[],
+  cardId: string,
+  sessionSwaps: SessionSwapMap = {},
+): string | undefined => {
+  if (planIds.includes(cardId)) return cardId;
+  const seen = new Set<string>([cardId]);
+  let current = cardId;
+  for (;;) {
+    const previous = Object.keys(sessionSwaps).find((key) => sessionSwaps[key].id === current && !seen.has(key));
+    if (!previous) break;
+    if (planIds.includes(previous)) return previous;
+    seen.add(previous);
+    current = previous;
+  }
+  return planIds
+    .filter((planId) => cardId.startsWith(`${planId}__swap-`))
+    .sort((a, b) => b.length - a.length)[0];
+};
+
+/**
+ * Cel zamiany z karty dnia. „Na stałe” celuje w ćwiczenie planu stojące za kartą
+ * (także gdy karta jest już zamianą „tylko dziś”) i bierze id z tej samej funkcji
+ * co zapis planu, żeby klucz sesji od razu był id karty planu. „Tylko dziś”
+ * (albo karta spoza planu) dostaje id zamiany sesyjnej.
+ */
+export const planExerciseSwap = (input: {
+  scope: 'today' | 'plan';
+  cardId: string;
+  pick: { name: string; videoUrl?: string };
+  currentSets: string;
+  planExercises: Exercise[];
+  dayExerciseIds: string[];
+  sessionSwaps: SessionSwapMap;
+}): { swappedId: string; planExerciseId?: string } => {
+  const planIds = input.planExercises.map((exercise) => exercise.id);
+  const planExerciseId = input.scope === 'plan'
+    ? resolvePlanExerciseId(planIds, input.cardId, input.sessionSwaps)
+    : undefined;
+  const planExercise = planExerciseId
+    ? input.planExercises.find((exercise) => exercise.id === planExerciseId)
+    : undefined;
+  if (planExercise && planExerciseId) {
+    return {
+      swappedId: swapExerciseIdentity(
+        planExercise,
+        { name: input.pick.name, sets: input.currentSets, videoUrl: input.pick.videoUrl },
+        planIds,
+      ).id,
+      planExerciseId,
+    };
+  }
+  return { swappedId: buildSwappedExerciseId(input.cardId, input.pick.name, input.dayExerciseIds) };
+};
+
 export const swapExerciseIdentity = (
   exercise: Exercise,
   replacement: { name: string; sets?: string; videoUrl?: string },
