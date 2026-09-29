@@ -40,6 +40,19 @@ describe('user profile loading', () => {
     expect(resolveProfileLoadFailure(lastKnown)).toBe(lastKnown);
   });
 
+  // Release e2e 2026-09-29: mapper gubił notificationPrefs, więc Profil →
+  // Powiadomienia po ponownym otwarciu apki pokazywał wszystkie przełączniki
+  // jako włączone (także po wypisie linkiem z maila), mimo false w Firestore.
+  it('carries notificationPrefs so notification switches show the stored state', () => {
+    const data = {
+      uid: 'user-1', email: 'user@example.com', status: 'active',
+      notificationPrefs: { announcementEmails: false, dailyReminder: false, weeklyDigest: true, bogus: 'x', prPush: 'no' },
+    } as unknown as AppUserProfile;
+    expect(mapAppUserProfile('user-1', data, seed).notificationPrefs)
+      .toEqual({ announcementEmails: false, dailyReminder: false, weeklyDigest: true });
+    expect(mapAppUserProfile('user-1', { uid: 'user-1' } as AppUserProfile, seed).notificationPrefs).toBeUndefined();
+  });
+
   it('does not invent a pending verification profile when no fallback exists', () => {
     expect(resolveProfileLoadFailure(null)).toBeNull();
   });
