@@ -2779,6 +2779,8 @@ export const pl = {
   'ob.protocol.specificDate': 'Wybierz konkretną datę',
   'ob.precision.kicker': 'Dopasowane do Ciebie',
   'ob.precision.planName': 'Nazwa planu',
+  'ob.exitConfirm.title': 'Wyjść z konfiguracji?',
+  'ob.exitConfirm.desc': 'Wylogujesz się z tego urządzenia. Twoje odpowiedzi zapamiętamy tutaj przez 7 dni, więc po ponownym zalogowaniu dokończysz od miejsca, w którym skończyłeś.',
   'ob.precision.duration': 'Czas trwania',
   'ob.precision.weeks': 'tyg.',
   'ob.precision.frequency': 'Częstotliwość',

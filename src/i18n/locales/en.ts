@@ -2754,6 +2754,8 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.protocol.specificDate': 'Select specific date',
   'ob.precision.kicker': 'Matched to you',
   'ob.precision.planName': 'Plan name',
+  'ob.exitConfirm.title': 'Leave setup?',
+  'ob.exitConfirm.desc': 'You will be logged out on this device. We keep your answers here for 7 days, so after logging back in you can pick up where you left off.',
   'ob.precision.duration': 'Duration',
   'ob.precision.weeks': 'weeks',
   'ob.precision.frequency': 'Frequency',

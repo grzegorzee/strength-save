@@ -248,8 +248,8 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
               <>
                 <Route path="/login" element={<Navigate to="/onboarding" replace />} />
                 <Route path="/register" element={<Navigate to="/onboarding" replace />} />
-                <Route path="/onboarding" element={<Onboarding onExitBack={onLogout} />} />
-                <Route path="*" element={<Onboarding onExitBack={onLogout} />} />
+                <Route path="/onboarding" element={<Onboarding onExitBack={onLogout} onAccountDeleted={onAccountDeleted} />} />
+                <Route path="*" element={<Onboarding onExitBack={onLogout} onAccountDeleted={onAccountDeleted} />} />
               </>
             ) : (
               <Route element={<PaywallRouteGuard />}>
