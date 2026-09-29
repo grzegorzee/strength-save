@@ -45,7 +45,7 @@ const makeCustom = (
 });
 
 const CATEGORIES: LibraryExercise['category'][] = [
-  'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves',
+  'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves', 'conditioning',
 ];
 
 const renderPage = (initialEntry = '/exercises') => render(
@@ -72,6 +72,23 @@ describe('E1: helper obrazków grup', () => {
 });
 
 describe('E2: poziom 1 — siatka grup', () => {
+  it('T6: kafel Kondycja bez pliku grafiki = gradient z ikoną, zero żądań o nieistniejący webp', () => {
+    renderPage();
+    const tile = screen.getAllByTestId('exercise-group-tile').find((t) => within(t).queryByText('Kondycja'));
+    expect(tile, 'kafel Kondycja').toBeTruthy();
+    expect(tile!.querySelector('img')).toBeNull();
+    expect(within(tile!).getByTestId('group-tile-fallback').querySelector('svg')).not.toBeNull();
+    const count = exerciseLibrary.filter((e) => e.category === 'conditioning').length;
+    expect(within(tile!).getByText(String(count))).toBeInTheDocument();
+  });
+
+  it('T6: hero grupy Kondycja bez obrazka (gradient)', () => {
+    renderPage('/exercises?group=conditioning');
+    const hero = screen.getByTestId('group-hero');
+    expect(hero.querySelector('img')).toBeNull();
+    expect(screen.getByText('Pchanie sań (Sled Push)')).toBeInTheDocument();
+  });
+
   it('bez frazy renderuje kafel każdej kategorii z licznikiem, licznik nagłówka = suma', () => {
     renderPage();
 

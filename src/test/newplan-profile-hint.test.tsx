@@ -107,8 +107,9 @@ describe('NewPlan: krok 5 liczy rekomendacje z profilu treningowego (X31 H2)', (
     previewFromStep5();
     fireEvent.click(await screen.findByText('PREVIEW-CONFIRM:3'));
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+    // T6: profil sprzed T6 (bez equipment) = siłownia; replan zapisuje już jawne pole.
     expect(updateDoc.mock.calls[0][1]).toEqual({
-      trainingProfile: { level: 'intermediate', objective: 'fat_loss', daysPerWeek: 3 },
+      trainingProfile: { level: 'intermediate', objective: 'fat_loss', daysPerWeek: 3, equipment: 'gym' },
     });
   });
 

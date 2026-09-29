@@ -45,6 +45,13 @@ export const BODYWEIGHT_LOADED_EXERCISE_NAMES: readonly string[] = [
   "Skręty rosyjskie",
   "Brzuszki klasyczne (Crunch)",
   "Pełne spięcie brzucha (Sit-up)",
+  "Podciąganie szerokim chwytem",
+  "Podciąganie chwytem neutralnym",
+  "Wykrok boczny (Lateral Lunge)",
+  "Przysiad jednonóż do ławki (Box Pistol)",
+  "Unoszenie kolan na poręczach (Captain's Chair)",
+  "Brzuszki na piłce (Stability Ball Crunch)",
+  "Hip Thrust jednonóż",
   // Aliasy nazw z szablonów planów (src/data/exerciseLibrary.ts LIBRARY_NAME_ALIASES).
   "Pompki na poręczach",
   "Podciaganie nachwytem",

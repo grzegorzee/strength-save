@@ -5,6 +5,7 @@ import {
   sanitizeSets,
   parseRepRange,
   parseDurationRange,
+  parseDistanceRange,
   getProgressionAdvice,
   isIsolationExercise,
   getRestDuration,
@@ -229,6 +230,32 @@ describe('parseDurationRange (WP-C X37: serie na czas z planu)', () => {
     expect(parseDurationRange('3 x MAX')).toBeNull();
     expect(parseDurationRange('1 x 10/strona')).toBeNull();
     expect(parseDurationRange('3 rundy 40s')).toBeNull();
+  });
+});
+
+// T6 (2026-09-29): sanie i spacery z ciężarem (weight_distance_duration) mają
+// w planie zapis w metrach. Metry to cel dystansu, NIE powtórzenia.
+describe('parseDistanceRange (T6: serie na dystans z planu)', () => {
+  it('czyta liczbę serii i metry', () => {
+    expect(parseDistanceRange('6 x 20 m')).toEqual({ sets: 6, min: 20, max: 20 });
+    expect(parseDistanceRange('3 x 20 m/strona')).toEqual({ sets: 3, min: 20, max: 20 });
+    expect(parseDistanceRange('4 x 15-20m')).toEqual({ sets: 4, min: 15, max: 20 });
+  });
+
+  it('powtórzenia, sekundy i minuty to nie dystans', () => {
+    expect(parseDistanceRange('3 x 8-12')).toBeNull();
+    expect(parseDistanceRange('3 x 30s')).toBeNull();
+    expect(parseDistanceRange('3 x 10/noga')).toBeNull();
+    expect(parseDistanceRange('1 x 10 min')).toBeNull();
+    expect(parseDistanceRange('3 x MAX')).toBeNull();
+  });
+
+  it('parseRepRange nie bierze metrów za powtórzenia', () => {
+    expect(parseRepRange('6 x 20 m')).toEqual({ min: 0, max: 0, isMax: true });
+    expect(parseRepRange('3 x 20 m/strona')).toEqual({ min: 0, max: 0, isMax: true });
+    expect(parseSetCount('6 x 20 m')).toBe(6);
+    // Bez zmian dla zwykłych zapisów.
+    expect(parseRepRange('3 x 10')).toEqual({ min: 10, max: 10, isFixed: true });
   });
 });
 

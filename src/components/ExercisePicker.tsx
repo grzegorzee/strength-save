@@ -236,8 +236,9 @@ export const ExercisePicker = ({
             )}
           </div>
 
-          {/* X35a WP-A: 9 kategorii jako siatka 3x3 kompaktowych kafli (wszystkie
-              widoczne od razu, bez przewijania w bok). */}
+          {/* X35a WP-A: kategorie jako siatka kompaktowych kafli (wszystkie
+              widoczne od razu, bez przewijania w bok). T6: "Wszystkie" na pełną
+              szerokość, 9 partii (z Kondycją) w siatce 3x3. */}
           <div className={cn('grid grid-cols-3 gap-1.5', searchFocused && 'hidden')} data-testid="picker-category-grid">
             {(['all', ...Object.keys(categoryLabels)] as (LibraryExercise['category'] | 'all')[]).map((key) => {
               const on = category === key;
@@ -248,6 +249,7 @@ export const ExercisePicker = ({
                   aria-pressed={on}
                   onClick={() => setCategory(key)}
                   className={cn('flex min-h-[38px] touch-manipulation select-none items-center justify-center rounded-xl px-1.5 py-1.5 text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                    key === 'all' && 'col-span-3',
                     toggleButtonClasses(on),
                     on ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                 >

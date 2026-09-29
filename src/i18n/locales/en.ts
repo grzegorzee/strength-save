@@ -2811,6 +2811,13 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.matching.objective': 'Goal',
   // X33 WP-2: krok 5A "Dopasowane do Ciebie" = dwie karty planów (Polecany / Alternatywa / Wybrany).
   'ob.match.title': 'Plans for {days} days a week',
+  'ob.equipment.title': 'Where do you train?',
+  'ob.equipment.gym': 'Gym',
+  'ob.equipment.dumbbells_home': 'Dumbbells at home',
+  'ob.equipment.bodyweight': 'Bodyweight',
+  'ob.match.noTemplateTitle': 'No ready-made plan for these answers',
+  'ob.match.noTemplateDesc': 'Bodyweight plans rely on push-ups, pull-ups and planks, which we do not suggest at the start. Pick another training place or build your own plan.',
+  'ob.match.changeEquipment': 'Change training place',
   'ob.match.badgeRecommended': 'Recommended',
   'ob.match.badgeAlternative': 'Alternative',
   'ob.match.badgeChosen': 'Your pick',

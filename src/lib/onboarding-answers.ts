@@ -12,7 +12,20 @@ export interface TrainingProfileSnapshot {
   level?: string;
   objective?: string;
   daysPerWeek?: number;
+  /** T6: miejsce treningu ('gym' | 'dumbbells_home' | 'bodyweight'); stare dokumenty
+   *  bez pola czytamy jako 'gym' (resolvePlanEquipment). */
+  equipment?: string;
 }
+
+/** T6: jedna logika zapisu users/{uid}.trainingProfile (onboarding i replan). */
+export const buildTrainingProfile = (choice: {
+  level: string; objective: string; daysPerWeek: number; equipment?: string;
+}): TrainingProfileSnapshot => ({
+  level: choice.level,
+  objective: choice.objective,
+  daysPerWeek: choice.daysPerWeek,
+  ...(choice.equipment ? { equipment: choice.equipment } : {}),
+});
 
 export interface OnboardingAnswers {
   version: number;

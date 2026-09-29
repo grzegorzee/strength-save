@@ -147,3 +147,29 @@ describe('bug 6 (X30): przecinek dziesiętny w polu dystansu', () => {
     expect(lastSets(onSetsChange)[0].distanceM).toBe(0);
   });
 });
+
+// T6 (2026-09-29): sanie w szablonie mają zapis "6 x 20 m". Metry to cel
+// dystansu: placeholder pola Dystans = 20, a pole powtórzeń nie dostaje 20.
+describe('T6: plan na dystans ("6 x 20 m")', () => {
+  it('placeholder dystansu z planu, 6 serii, zero celu powtórzeń', () => {
+    const { card } = renderCard({
+      exercise: { id: 'ex-sled', name: 'Pchanie sań (Sled Push)', sets: '6 x 20 m', instructions: [] },
+      trackingType: 'weight_distance_duration',
+    });
+    const distanceInputs = within(card).getAllByLabelText(/Dystans$/) as HTMLInputElement[];
+    expect(distanceInputs).toHaveLength(6);
+    expect(distanceInputs[0].placeholder).toBe('20');
+    const nonDistance = [...card.querySelectorAll('input')].filter((i) => !/Dystans$/.test(i.getAttribute('aria-label') ?? ''));
+    expect(nonDistance.some((i) => i.placeholder === '20')).toBe(false);
+    expect(within(card).queryByTestId('zero-weight-rep-hint')).toBeNull();
+  });
+
+  it('"3 x 20 m/strona" nie pokazuje podpowiedzi „0 na stronę”', () => {
+    const { card } = renderCard({
+      exercise: { id: 'ex-carry', name: 'Spacer walizkowy (Suitcase Carry)', sets: '3 x 20 m/strona', instructions: [] },
+      trackingType: 'weight_distance_duration',
+    });
+    expect((within(card).getAllByLabelText(/Dystans$/)[0] as HTMLInputElement).placeholder).toBe('20');
+    expect(within(card).queryByTestId('zero-weight-rep-hint')).toBeNull();
+  });
+});

@@ -15,6 +15,8 @@ import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions, type WizardLevel } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
 import type { PlanObjective } from '@/data/planTemplates';
+import { buildTrainingProfile } from '@/lib/onboarding-answers';
+import { resolvePlanEquipment, type PlanEquipment } from '@/lib/plan-equipment';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
@@ -33,7 +35,7 @@ const MEDAL_STYLE: Record<SeasonMedal, { labelKey: TranslationKey; tone: string 
   bronze: { labelKey: 'achievements.seasons.bronze', tone: 'bg-amber-600/15 text-amber-600' },
 };
 
-interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number }
+interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number; equipment?: PlanEquipment }
 
 interface NewPlanDraft { chosen: PlanWizardChoice; reviewDays: TrainingDay[] }
 
@@ -125,7 +127,10 @@ const NewPlan = () => {
     if (!uid) { setProfileHint(null); return; }
     getDoc(doc(db, 'users', uid)).then((snap) => {
       const tp = snap.exists() ? (snap.data() as { trainingProfile?: ProfileHint }).trainingProfile : null;
-      setProfileHint(tp && tp.level && tp.objective ? { level: tp.level, objective: tp.objective, daysPerWeek: tp.daysPerWeek || 4 } : null);
+      // T6: profil sprzed T6 nie ma equipment -> 'gym' (dotychczasowy katalog).
+      setProfileHint(tp && tp.level && tp.objective ? {
+        level: tp.level, objective: tp.objective, daysPerWeek: tp.daysPerWeek || 4, equipment: resolvePlanEquipment(tp.equipment),
+      } : null);
     }).catch(() => {
       // brak profilu / offline — wizard użyje domyślnych, nie czeka w nieskończoność
       setProfileHint(null);
@@ -201,7 +206,7 @@ const NewPlan = () => {
       // wystartował, awaria tego zapisu nie ma prawa go cofnąć.
       try {
         await updateDoc(doc(db, 'users', uid), {
-          trainingProfile: { level: plan.level, objective: plan.objective, daysPerWeek: plan.daysPerWeek },
+          trainingProfile: buildTrainingProfile(plan),
         });
       } catch {
         // profil to tylko podpowiedź dla następnego kreatora
