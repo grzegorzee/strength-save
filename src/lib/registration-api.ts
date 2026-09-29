@@ -86,6 +86,8 @@ export interface AppUserProfile {
   stravaConnected?: boolean;
   /** ISO ostatniego udanego syncu (pisze backend); null po (re)połączeniu. */
   stravaLastSync?: string | null;
+  /** F5b: `{ kind, status, at }` z functions `stravaSyncErrorDoc`; czytane przez sanitizer. */
+  stravaSyncError?: unknown;
   /** Bug 11 (X30): strefa IANA urządzenia (Intl), pisze klient; backend liczy z niej
    *  porę i dzień pusha/digestu. Brak = Europe/Warsaw. */
   timeZone?: string;

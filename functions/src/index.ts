@@ -42,6 +42,13 @@ import {
   type StravaActivityDoc,
 } from "./strava-activity";
 import { disconnectStravaForUser } from "./strava-disconnect";
+import {
+  StravaSyncFailure,
+  classifyStravaFailure,
+  httpsErrorForStravaFailure,
+  stravaSyncErrorDoc,
+  withStravaFailureRecording,
+} from "./strava-sync-failure";
 import { stravaHealthGrantStillCurrent } from "./strava-health-commit";
 export {
   createInvite,
@@ -344,8 +351,16 @@ const saveStravaConnection = async (userId: string, tokenData: StravaTokenPayloa
     stravaAthleteId: tokenData.athlete?.id || null,
     stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
     stravaLastSync: null,
+    // F5b: ponowne połączenie jest wyjściem ze stanu błędu synchronizacji.
+    stravaSyncError: FieldValue.delete(),
     stravaTokens: FieldValue.delete(),
   }, { merge: true });
+};
+
+/** F5b: rodzaj błędu synchronizacji widoczny dla usera (Profil, Strava, Twoje liczby). */
+const recordStravaSyncFailure = (userId: string) => async (failure: StravaSyncFailure) => {
+  logger.warn(`[Strava] Recording sync failure for ${userId}: ${failure.kind} (${failure.status})`);
+  await getUserRef(userId).set({ stravaSyncError: stravaSyncErrorDoc(failure, new Date().toISOString()) }, { merge: true });
 };
 
 const getStravaConnection = async (userId: string): Promise<StravaConnectionDoc | null> => {
@@ -513,7 +528,19 @@ export const stravaCallback = onCall(
     }
 
     logger.info(`[Strava] Starting initial sync for ${userId}...`);
-    const result = await syncUserActivities(userId, tokenData.access_token);
+    let result: SyncResult;
+    try {
+      result = await withStravaFailureRecording(
+        () => syncUserActivities(userId, tokenData.access_token),
+        recordStravaSyncFailure(userId),
+      );
+    } catch (error) {
+      if (error instanceof StravaSyncFailure) {
+        const mapped = httpsErrorForStravaFailure(error.kind);
+        throw new HttpsError(mapped.code, mapped.message);
+      }
+      throw error;
+    }
     logger.info(`[Strava] Callback complete: synced=${result.synced}, total=${result.totalFetched}`);
 
     return { success: true, ...result };
@@ -552,15 +579,26 @@ export const stravaSync = onCall(
       throw new HttpsError("resource-exhausted", `Retry in ${retryAfterSec}s`);
     }
 
-    let accessToken = connection.accessToken;
-    const now = Math.floor(Date.now() / 1000);
+    let result: SyncResult;
+    try {
+      result = await withStravaFailureRecording(async () => {
+        let accessToken = connection.accessToken;
+        const now = Math.floor(Date.now() / 1000);
 
-    if (connection.expiresAt <= now) {
-      logger.info(`[Strava] Token expired (${connection.expiresAt} <= ${now}), refreshing...`);
-      accessToken = await refreshStravaToken(userId, connection.refreshToken);
+        if (connection.expiresAt <= now) {
+          logger.info(`[Strava] Token expired (${connection.expiresAt} <= ${now}), refreshing...`);
+          accessToken = await refreshStravaToken(userId, connection.refreshToken);
+        }
+
+        return syncUserActivities(userId, accessToken, !!fullSync);
+      }, recordStravaSyncFailure(userId));
+    } catch (error) {
+      if (error instanceof StravaSyncFailure) {
+        const mapped = httpsErrorForStravaFailure(error.kind);
+        throw new HttpsError(mapped.code, mapped.message);
+      }
+      throw error;
     }
-
-    const result = await syncUserActivities(userId, accessToken, !!fullSync);
     logger.info(`[Strava] Manual sync complete: synced=${result.synced}, total=${result.totalFetched}, lookback=${result.lookbackDays}d`);
     return { ...result, success: true };
   },
@@ -984,7 +1022,7 @@ async function refreshStravaToken(userId: string, refreshToken: string): Promise
   if (!response.ok) {
     const errorText = await response.text();
     logger.error(`[Strava] Token refresh failed (${response.status}):`, errorText);
-    throw new HttpsError("internal", "Failed to refresh Strava token");
+    throw new StravaSyncFailure(classifyStravaFailure(response.status, errorText, "refresh"), response.status);
   }
 
   const tokenData = await response.json() as StravaTokenPayload;
@@ -1043,7 +1081,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
     if (!response.ok) {
       const errorText = await response.text();
       logger.error(`[Strava] API failed (${response.status}):`, errorText);
-      throw new HttpsError("internal", `Strava API error ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new StravaSyncFailure(classifyStravaFailure(response.status, errorText, "api"), response.status);
     }
 
     const pageActivities = await response.json() as unknown;
@@ -1103,6 +1141,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
     const maxHR = nextEstimatedMaxHr(activities, profile.estimatedMaxHR, profile.maxHRManualOverride === true, includeHealth);
     transaction.update(getUserRef(userId), {
       stravaLastSync: new Date().toISOString(),
+      stravaSyncError: FieldValue.delete(),
       ...(maxHR !== null ? { estimatedMaxHR: maxHR, estimatedMaxHREpoch: (profile.consents as { healthEpoch: number }).healthEpoch } : {}),
     });
   });
@@ -1146,15 +1185,17 @@ export const stravaScheduledSync = onSchedule(
           continue;
         }
 
-        let accessToken = connection.accessToken;
-        const now = Math.floor(Date.now() / 1000);
+        const result = await withStravaFailureRecording(async () => {
+          let accessToken = connection.accessToken;
+          const now = Math.floor(Date.now() / 1000);
 
-        if (connection.expiresAt <= now) {
-          logger.info(`[Strava] Refreshing token for ${userId}`);
-          accessToken = await refreshStravaToken(userId, connection.refreshToken);
-        }
+          if (connection.expiresAt <= now) {
+            logger.info(`[Strava] Refreshing token for ${userId}`);
+            accessToken = await refreshStravaToken(userId, connection.refreshToken);
+          }
 
-        const result = await syncUserActivities(userId, accessToken);
+          return syncUserActivities(userId, accessToken);
+        }, recordStravaSyncFailure(userId));
         logger.info(`[Strava] Scheduled sync OK for ${userId}: synced=${result.synced}`);
       } catch (error) {
         logger.error(`[Strava] Scheduled sync FAILED for ${userId}:`, error);
@@ -1182,6 +1223,7 @@ export const stravaDisconnect = onCall(async (request) => {
       stravaAthleteId: null,
       stravaAthleteName: null,
       stravaLastSync: null,
+      stravaSyncError: FieldValue.delete(),
       estimatedMaxHR: null,
       maxHRManualOverride: null,
       stravaTokens: FieldValue.delete(),

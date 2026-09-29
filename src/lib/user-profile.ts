@@ -5,6 +5,7 @@ import type { OnboardingAnswers, TrainingProfileSnapshot } from '@/lib/onboardin
 import type { LanguageCode } from '@/i18n';
 import type { RestSettings } from '@/lib/rest-timer';
 import type { PaletteThemeV2 } from '@/lib/palette-theme';
+import { sanitizeStravaSyncError, type StravaSyncError } from '@/lib/strava-sync-status';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
@@ -88,6 +89,8 @@ export interface UserProfile {
   stravaConnected: boolean;
   /** F5: data ostatniego udanego syncu Stravy (ISO), do „Twoich liczb". */
   stravaLastSync?: string;
+  /** F5b: ostatni błąd synchronizacji Stravy (pisze backend, czyści po sukcesie). */
+  stravaSyncError?: StravaSyncError;
   onboardingCompleted: boolean;
   primaryProvider: 'google' | 'password' | 'apple';
   registrationSource: string;
@@ -164,6 +167,7 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   stravaConnected: data.stravaConnected || false,
   ...(typeof data.stravaLastSync === 'string' && Number.isFinite(new Date(data.stravaLastSync).getTime())
     ? { stravaLastSync: data.stravaLastSync } : {}),
+  ...(sanitizeStravaSyncError(data.stravaSyncError) ? { stravaSyncError: sanitizeStravaSyncError(data.stravaSyncError) } : {}),
   onboardingCompleted: data.onboardingCompleted || false,
   primaryProvider: data.auth?.primaryProvider || 'google',
   registrationSource: data.registration?.source || data.auth?.primaryProvider || 'google',

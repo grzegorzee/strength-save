@@ -5,6 +5,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { buildAllTimeActivityStats } from '@/lib/all-time-stats';
+import { stravaSyncHealth } from '@/lib/strava-sync-status';
 import { fetchAllTimeActivityHistory, type AllTimeActivityHistory } from '@/lib/activity-read-store';
 import { Button } from '@/components/ui/button';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -89,6 +90,10 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, uid }: AllTimeStatsSheet
   };
   const sinceLabel = shortDate(summary.since);
   const lastSyncLabel = shortDate(currentUser.profile?.stravaLastSync);
+  // F5b: stojący sync podważa liczby cardio, więc mówimy o nim tutaj i wskazujemy wyjście.
+  const stravaSyncProblem = includeStrava && stravaSyncHealth(
+    currentUser.profile?.stravaLastSync, currentUser.profile?.stravaSyncError, Date.now(),
+  ).state !== 'ok';
   const beforeCount = summary.beforeSince.manual + (includeStrava ? summary.beforeSince.strava : 0);
   const activityTypeLabel = (type: string): string => {
     const key = `cardio.type.${type}`;
@@ -202,6 +207,11 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, uid }: AllTimeStatsSheet
                 <p>{t('stats.note.stravaImport')}</p>
                 <p>{t('stats.note.stravaStrength')}</p>
                 {lastSyncLabel && <p data-testid="stat-strava-last-sync">{t('stats.stravaLastSync', { date: lastSyncLabel })}</p>}
+                {stravaSyncProblem && (
+                  <p data-testid="stat-strava-sync-problem" className="font-medium text-fitness-warning">
+                    {t('strava.syncNotice.title')}. {t('strava.syncNotice.where')}
+                  </p>
+                )}
               </>}
             </div>
             {stats.workoutCount > 0 && <>

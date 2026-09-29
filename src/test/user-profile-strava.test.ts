@@ -18,4 +18,10 @@ describe('mapAppUserProfile: pola Stravy', () => {
     expect(map({ stravaLastSync: 'nie-data' }).stravaLastSync).toBeUndefined();
     expect(map({}).stravaLastSync).toBeUndefined();
   });
+
+  it('F5b: przenosi zsanityzowany błąd synchronizacji zapisany przez backend', () => {
+    expect(map({ stravaSyncError: { kind: 'app_inactive', status: 403, at: '2026-08-31T08:00:06.014Z' } }).stravaSyncError)
+      .toEqual({ kind: 'app_inactive', at: '2026-08-31T08:00:06.014Z' });
+    expect(map({ stravaSyncError: { kind: 'x' } }).stravaSyncError).toBeUndefined();
+  });
 });

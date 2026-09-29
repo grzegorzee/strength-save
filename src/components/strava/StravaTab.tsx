@@ -39,6 +39,7 @@ import { RacePredictor } from './RacePredictor';
 import { TrainingLoadChart } from './TrainingLoadChart';
 import { MonthlyActivities } from './MonthlyActivities';
 import { PoweredByStrava, StravaConnectButton } from './StravaBranding';
+import { StravaSyncNotice } from './StravaSyncNotice';
 
 // X27/WP-C: chipsy filtra typu nad listą aktywności.
 const TYPE_FILTERS: Array<{ id: ActivityTypeFilter; labelKey: 'strava.filter.all' | 'strava.filter.runs' | 'strava.filter.walks' | 'strava.filter.rides' | 'strava.filter.other' }> = [
@@ -152,6 +153,9 @@ export const StravaTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* F5b: zastój lub błąd synchronizacji (bez ręcznego syncu tutaj, T7). */}
+      <StravaSyncNotice connection={connection} onReconnect={connectStrava} />
 
       {/* Error */}
       {error && (

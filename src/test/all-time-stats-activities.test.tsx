@@ -168,6 +168,23 @@ describe('F5: skąd są aktywności i od kiedy liczymy', () => {
     expect(screen.getByTestId('stat-strava-last-sync')).toHaveTextContent('22 sie 2026');
   });
 
+  it('F5b: zastój lub błąd synchronizacji Stravy jest widoczny przy dacie, ze wskazaniem wyjścia', async () => {
+    render(renderSheet());
+    // Właściciel: ostatni sync 22.08, dziś dużo później = zastój.
+    expect(await screen.findByTestId('stat-strava-sync-problem')).toHaveTextContent('Synchronizacja Stravy nie działa');
+    expect(screen.getByTestId('stat-strava-sync-problem')).toHaveTextContent('Profil → Urządzenia i połączenia');
+  });
+
+  it('F5b: świeży sync bez błędu nie pokazuje ostrzeżenia', async () => {
+    fixtures.user = {
+      uid: 'u1', canUseStrava: true,
+      profile: { uid: 'u1', stravaConnected: true, stravaLastSync: new Date().toISOString() } as typeof fixtures.user.profile,
+    };
+    render(renderSheet());
+    await screen.findByTestId('stat-strava-last-sync');
+    expect(screen.queryByTestId('stat-strava-sync-problem')).not.toBeInTheDocument();
+  });
+
   it('bez Stravy: tylko ręczne źródło, bez przypisów o Stravie', async () => {
     fixtures.user = { uid: 'u1', canUseStrava: false, profile: { uid: 'u1', stravaConnected: false } };
     render(renderSheet());

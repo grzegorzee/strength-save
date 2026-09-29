@@ -11,6 +11,52 @@
 
 ## DECYZJE
 
+### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
+
+Objaw: u właściciela `stravaLastSync` = 2026-08-22T08:00:08Z, ostatnia aktywność
+z 2026-08-16, a Profil pokazywał „Połączono”.
+
+Dowody z produkcji (tylko odczyt, konto g.jasionowicz@gmail.com; konto
+grzegorzee@gmail.com dostaje PERMISSION_DENIED na log views):
+- `gcloud logging read` dla `stravascheduledsync`: jedyny bieg w oknie retencji
+  logów (30 dni) to 2026-08-31 08:00 UTC. Oba połączone konta: refresh tokenu
+  OK („Token refreshed”), potem `GET /athlete/activities` = 403
+  `{"resource":"Application","field":"Status","code":"Inactive"}`.
+- Cloud Scheduler: `firebase-schedule-stravaScheduledSync-us-central1` ma stan
+  PAUSED; audit log: `PauseJob` 2026-08-31 15:53:35 UTC z gcloud (skrypt, konto
+  właściciela), zgodnie z notatką w `docs/RELEASE-READINESS-2026-08-27.md`
+  („wstrzymany po potwierdzonym 403 dostawcy”).
+- `strava_connections/{uid}`: token odświeżony 2026-08-31, więc to NIE jest
+  odwołana autoryzacja usera ani zły refresh token. Paginacja i limit 20 stron nie
+  mają znaczenia (pada pierwsza strona).
+
+Root cause: aplikacja API Strength Save w Stravie ma status Inactive (poziom
+aplikacji, dotyczy wszystkich userów), a job syncu jest świadomie wstrzymany.
+Kod tego nie naprawi. Wymagane akcje właściciela: przywrócenie statusu aplikacji
+w panelu Strava API, potem `gcloud scheduler jobs resume
+firebase-schedule-stravaScheduledSync-us-central1 --location us-central1`.
+
+Błąd w kodzie (naprawiony, zasada 6): błąd syncu istniał tylko w logach; callable
+zwracał surowe `Strava API error 403: {...}`, a przy wstrzymanym jobie UI nie
+miało żadnego sygnału. Fix:
+- functions: `strava-sync-failure.ts` klasyfikuje błąd (app_inactive,
+  reauth_required, rate_limited, provider_error) na podstawie dosłownej
+  odpowiedzi z produkcji; refresh i API rzucają `StravaSyncFailure`; sync ręczny,
+  codzienny i callback zapisują `users/{uid}.stravaSyncError {kind,status,at}`
+  i zwracają stabilny kod (`STRAVA_APP_INACTIVE`, `STRAVA_REAUTH_REQUIRED`,
+  `STRAVA_UNAVAILABLE`); udany sync, ponowne połączenie i rozłączenie czyszczą pole.
+- klient: `strava-sync-status.ts` liczy stan (błąd albo zastój ponad 48 h od
+  ostatniego udanego syncu, więc działa także przy wstrzymanym jobie, bez deployu
+  functions). `StravaSyncNotice` w Profilu (wyjście: „Połącz ponownie Stravę” przy
+  cofniętym dostępie, „Sprawdź teraz” w pozostałych) i w zakładce Strava (bez
+  ręcznego syncu, T7: przycisk połączenia albo wskazanie Profilu); „Twoje liczby”
+  pokazują ostrzeżenie przy dacie ostatniej synchronizacji. Rozłączenie NIE jest
+  proponowane jako wyjście, bo kasuje zaimportowane aktywności.
+
+Kolejność wydania (zasada 19): functions przed klientem. Stary klient z nowym
+backendem dostaje kody zamiast surowego tekstu (pokaże kod), nowy klient ze starym
+backendem pokazuje zastój z daty.
+
 ### 2026-09-29: F5 „Twoje liczby” liczone od pierwszego treningu w apce (wariant A)
 
 Zgłoszenie: „Ukończone aktywności 270” u właściciela. Liczby były poprawne
