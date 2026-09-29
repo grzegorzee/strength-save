@@ -2,7 +2,12 @@
 // Czysta logika + wstrzykiwane deps (ten sam wzorzec co weekly-digest):
 // callable w index.ts skleja Firestore + wspólny transport Amazon SES.
 import { esc, type Lang } from "./email-templates";
-import { detectEmailPRs, type EmailPR } from "./email-prs";
+import { detectEmailPRs, isLoadedExerciseName, type EmailPR } from "./email-prs";
+import {
+  hasBodyweightLoadedWeight,
+  normalizeBodyweightLoadedWorkouts,
+  type BodyWeightPoint,
+} from "./bodyweight-loaded";
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { localizeFocusEn } from "./focus-en";
 import { hasActiveHealthConsent } from "./security";
@@ -91,7 +96,27 @@ export interface EmailWorkoutDeps {
   sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
   /** T21a: html trafia do podkolekcji content (podgląd w panelu admina). */
   logEmail: (entry: EmailLogEntry, html?: string) => Promise<void>;
+  /** F6: masa ciała usera (pomiary z wagą) do normalizacji legacy bodyweight_loaded. */
+  loadBodyWeightTimeline?: (uid: string) => Promise<BodyWeightPoint[]>;
 }
+
+/**
+ * F6: legacy bodyweight_loaded (masa ciała wpisana jako kg) = sama MC, ta sama
+ * reguła co agregat. Pomiary czytamy tylko przy seriach bodyweight_loaded z kg > 0;
+ * błąd odczytu = mail bez przeliczenia (dodatek, nie blokada wysyłki).
+ */
+const normalizeForEmail = async (
+  deps: EmailWorkoutDeps,
+  uid: string,
+  workouts: EmailWorkout[],
+): Promise<EmailWorkout[]> => {
+  if (!deps.loadBodyWeightTimeline || !workouts.some((w) => hasBodyweightLoadedWeight(w))) return workouts;
+  try {
+    return normalizeBodyweightLoadedWorkouts(workouts, await deps.loadBodyWeightTimeline(uid));
+  } catch {
+    return workouts;
+  }
+};
 
 export const EMAIL_DAILY_LIMIT = 10;
 /** H-T2: koniec z wysyłką 200 naraz — twardy limit 30. */
@@ -153,7 +178,7 @@ const lbValue = (kg: number): string => {
 const weightLabel = (kg: number, unit: EmailUnit): string =>
   unit === "lbs" ? `${lbValue(kg)} lb` : `${kg} kg`;
 
-const fmtSet = (set: EmailSet, unit: EmailUnit): string => {
+const fmtSet = (set: EmailSet, unit: EmailUnit, lang: Lang = "pl", bodyweightLoaded = false): string => {
   if (typeof set.durationSec === "number" && set.durationSec > 0) {
     const m = Math.floor(set.durationSec / 60);
     const s = set.durationSec % 60;
@@ -161,6 +186,11 @@ const fmtSet = (set: EmailSet, unit: EmailUnit): string => {
   }
   const weight = typeof set.weight === "number" ? set.weight : 0;
   const reps = typeof set.reps === "number" ? set.reps : 0;
+  // F6: masa ciała + dociążenie: „MC × 8” / „MC +10 kg × 8” (EN BW).
+  if (bodyweightLoaded) {
+    const bw = lang === "pl" ? "MC" : "BW";
+    return `${weight > 0 ? `${bw} +${weightLabel(weight, unit)}` : bw} × ${reps}`;
+  }
   return `${weightLabel(weight, unit)} × ${reps}`;
 };
 
@@ -389,6 +419,7 @@ const exerciseSetsSummary = (ex: EmailExercise, lang: Lang): string => {
 const exercisesTableHtml = (workout: EmailWorkout, lang: Lang, unit: EmailUnit): string => {
   const rows = (workout.exercises ?? []).map((ex) => {
     const bestIndex = pickBestSetIndex(ex);
+    const bodyweightLoaded = isLoadedExerciseName(ex.name);
     const sets = (ex.sets ?? []).map((s, i) => {
       const warmupBadge = s.isWarmup
         ? ` <span style="background-color:#fef3c7;color:${C.pain};font-size:11px;font-weight:700;padding:0 6px;border-radius:8px;">${t(lang, "rozgrzewkowa", "warm-up")}</span>`
@@ -397,7 +428,7 @@ const exercisesTableHtml = (workout: EmailWorkout, lang: Lang, unit: EmailUnit):
         ? ` <span style="background-color:${C.lime};color:${C.text};font-size:11px;font-weight:700;padding:0 6px;border-radius:8px;">${t(lang, "najlepsza", "best")}</span>`
         : "";
       const status = s.isWarmup ? "" : ` <span style="color:${C.muted};">(${s.completed ? t(lang, "zrobiona", "done") : t(lang, "pominięta", "skipped")})</span>`;
-      return `<li style="margin:2px 0;">${esc(fmtSet(s, unit))}${status}${warmupBadge}${bestBadge}</li>`;
+      return `<li style="margin:2px 0;">${esc(fmtSet(s, unit, lang, bodyweightLoaded))}${status}${warmupBadge}${bestBadge}</li>`;
     }).join("");
     const extras: string[] = [];
     if (typeof ex.rpe === "number") extras.push(`RPE ${ex.rpe}`);
@@ -572,23 +603,25 @@ export async function runEmailWorkout(
   if (!isValidRecipient(params.to)) return { ok: false, code: "invalid-recipient" };
   // WP-I: adapter filtruje ownership (cudzy = null); check niżej zostaje jako
   // pas i szelki na wypadek adaptera bez filtra.
-  const workout = await deps.getWorkout(params.workoutId, params.uid);
-  if (!workout) return { ok: false, code: "not-found" };
-  if (workout.userId !== params.uid) return { ok: false, code: "forbidden" };
+  const rawWorkout = await deps.getWorkout(params.workoutId, params.uid);
+  if (!rawWorkout) return { ok: false, code: "not-found" };
+  if (rawWorkout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
+  // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
+  let rawEarlier: EmailWorkout[] = [];
+  try {
+    rawEarlier = await deps.listWorkoutsInRange(params.uid, { beforeDate: rawWorkout.date, limit: PR_BASELINE_LIMIT });
+  } catch {
+    // Sekcja PR jest dodatkiem: mail ma wyjść mimo braku bazy.
+  }
+  // F6: normalizacja legacy PRZED tłumaczeniem (nazwy PL) i detekcją PR.
+  const [workout, ...earlier] = await normalizeForEmail(deps, params.uid, [rawWorkout, ...rawEarlier]);
   // J-T3: tłumaczenie PRZED detekcją PR — nazwy w sekcji rekordów idą z sesji.
   const localized = localizeEmailWorkout(
     includeHealth ? workout : withoutWorkoutHealthFields(workout),
     lang,
   );
-  // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
-  let earlier: EmailWorkout[] = [];
-  try {
-    earlier = await deps.listWorkoutsInRange(params.uid, { beforeDate: workout.date, limit: PR_BASELINE_LIMIT });
-  } catch {
-    // Sekcja PR jest dodatkiem: mail ma wyjść mimo braku bazy.
-  }
   const { prs } = detectEmailPRs(localized, earlier.filter((w) => w.id !== workout.id));
   const subject = workoutEmailSubject(localized, lang, displayName);
   const html = buildWorkoutEmailHtml(localized, lang, { prs, unit, trainerName: sanitizeTrainerName(params.trainerName) });
@@ -634,26 +667,30 @@ export async function runEmailHistory(
   if (!isValidRecipient(params.to)) return { ok: false, code: "invalid-recipient" };
   const range = params.range ?? "week";
   if (range !== "week" && range !== "last30") return { ok: false, code: "invalid-range" };
-  const workouts = await deps.listWorkoutsInRange(params.uid, range === "week"
+  const rawWorkouts = await deps.listWorkoutsInRange(params.uid, range === "week"
     ? { sinceDate: dateMinusDays(params.today, 6), limit: WEEK_RANGE_MAX_WORKOUTS }
     : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
-  if (workouts.length === 0) return { ok: false, code: "empty-history" };
+  if (rawWorkouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
+  // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
+  const rangeIds = new Set(rawWorkouts.map((w) => w.id));
+  const oldestDate = rawWorkouts.map((w) => w.date).sort()[0];
+  let rawBaseline: EmailWorkout[] = [];
+  try {
+    rawBaseline = await deps.listWorkoutsInRange(params.uid, { beforeDate: oldestDate, limit: PR_BASELINE_LIMIT });
+  } catch {
+    // Sekcje PR to dodatek: historia ma wyjść mimo braku bazy.
+  }
+  // F6: jedna normalizacja zakresu i bazy (legacy MC = dociążenie 0).
+  const normalizedAll = await normalizeForEmail(deps, params.uid, [...rawWorkouts, ...rawBaseline]);
+  const workouts = normalizedAll.slice(0, rawWorkouts.length);
+  const baseline = normalizedAll.slice(rawWorkouts.length);
   // J-T3: tłumaczenie PRZED detekcją PR — nazwy w sekcjach rekordów idą z sesji.
   const localizedWorkouts = workouts.map((w) => localizeEmailWorkout(
     includeHealth ? w : withoutWorkoutHealthFields(w),
     lang,
   ));
-  // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
-  const rangeIds = new Set(workouts.map((w) => w.id));
-  const oldestDate = workouts.map((w) => w.date).sort()[0];
-  let baseline: EmailWorkout[] = [];
-  try {
-    baseline = await deps.listWorkoutsInRange(params.uid, { beforeDate: oldestDate, limit: PR_BASELINE_LIMIT });
-  } catch {
-    // Sekcje PR to dodatek: historia ma wyjść mimo braku bazy.
-  }
   let accumulated = baseline.filter((w) => !rangeIds.has(w.id));
   const prsBySession: Record<string, EmailPR[]> = {};
   for (const session of [...localizedWorkouts].sort((a, b) => (a.date < b.date ? -1 : 1))) {
