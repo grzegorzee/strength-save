@@ -33,6 +33,17 @@ export const NOTIFICATION_PREF_CHANNELS: Record<NotificationPrefKey, readonly No
   weeklyDigest: ['email'],
 };
 
+/** Mapper profilu: tylko znane klucze z wartością boolean (brak = undefined). */
+export const sanitizeNotificationPrefs = (raw: unknown): NotificationPrefs | undefined => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const source = raw as Record<string, unknown>;
+  const prefs: NotificationPrefs = {};
+  for (const key of NOTIFICATION_PREF_KEYS) {
+    if (typeof source[key] === 'boolean') prefs[key] = source[key] as boolean;
+  }
+  return Object.keys(prefs).length > 0 ? prefs : undefined;
+};
+
 export const isNotificationPrefEnabled = (
   prefs: NotificationPrefs | null | undefined,
   key: NotificationPrefKey,

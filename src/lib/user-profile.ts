@@ -6,6 +6,7 @@ import type { LanguageCode } from '@/i18n';
 import type { RestSettings } from '@/lib/rest-timer';
 import type { PaletteThemeV2 } from '@/lib/palette-theme';
 import { sanitizeStravaSyncError, type StravaSyncError } from '@/lib/strava-sync-status';
+import { sanitizeNotificationPrefs, type NotificationPrefs } from '@/lib/notification-prefs';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
@@ -125,6 +126,8 @@ export interface UserProfile {
   consents?: ConsentMirror;
   /** Bug 11 (X30): strefa IANA zapisana w profilu (TimeZoneSync porównuje z Intl). */
   timeZone?: string;
+  /** X35c: przełączniki powiadomień (Profil → Powiadomienia); brak klucza = włączone. */
+  notificationPrefs?: NotificationPrefs;
   /** Rekordy sprzed instalacji (Runna p.1, spec A5) — baseline detekcji PR. */
   prBackfill?: PRBackfill;
   /** WP-O (X30): profil treningowy (onboarding + replan): poziom/cel/dni w tygodniu. */
@@ -183,6 +186,8 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   // Lekcja builda 88: mapper pole-po-polu — nowe pole bez wpisu tutaj znika.
   prBackfill: sanitizePRBackfill(data.prBackfill),
   timeZone: typeof data.timeZone === 'string' && data.timeZone ? data.timeZone : undefined,
+  // Release e2e 2026-09-29: bez tego pola Profil pokazywał każdy przełącznik jako włączony.
+  notificationPrefs: sanitizeNotificationPrefs(data.notificationPrefs),
   // WP-O (X30): passthrough jak consents — karta admina (p12) i kreator czytają z profilu.
   trainingProfile: data.trainingProfile || undefined,
   onboardingAnswers: data.onboardingAnswers || undefined,

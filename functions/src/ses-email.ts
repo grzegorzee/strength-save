@@ -5,6 +5,7 @@ import {
   type SendEmailCommandOutput,
 } from "@aws-sdk/client-sesv2";
 import { defineSecret } from "firebase-functions/params";
+import * as admin from "firebase-admin";
 
 export const sesRegion = defineSecret("SES_REGION");
 export const sesAccessKeyId = defineSecret("SES_ACCESS_KEY_ID");
@@ -175,11 +176,34 @@ const getSesClient = (config: SesEmailConfig): SESv2Client => {
   return cachedClient;
 };
 
+// Release e2e (2026-09-29): w emulatorze Functions z kluczem-fixture E2E
+// (scripts/ensure-functions-emulator-secrets.mjs) mail trafia do kolekcji
+// Firestore zamiast do SES, żeby testy e2e mogły przeczytać kod weryfikacji
+// i link resetu hasła. Produkcja nie ma FUNCTIONS_EMULATOR ani tego klucza.
+export const EMULATOR_EMAIL_OUTBOX_COLLECTION = "emulator_email_outbox";
+const EMULATOR_SES_ACCESS_KEY_ID = "e2e-emulator-only";
+
+export const shouldUseEmulatorOutbox = (
+  env: Record<string, string | undefined>,
+  config: SesEmailConfig,
+): boolean => env.FUNCTIONS_EMULATOR === "true" && config.accessKeyId === EMULATOR_SES_ACCESS_KEY_ID;
+
 export const sendSesEmail = async (message: Omit<SesEmailMessage, "from" | "text"> & {
   text?: string;
 }): Promise<SesEmailResult> => {
   const config = readSesEmailConfig();
   if (!config) throw new Error("Amazon SES email transport is not configured");
+  if (shouldUseEmulatorOutbox(process.env, config)) {
+    const ref = await admin.firestore().collection(EMULATOR_EMAIL_OUTBOX_COLLECTION).add({
+      to: message.to,
+      subject: message.subject,
+      html: message.html,
+      headers: message.headers ?? [],
+      replyTo: message.replyTo ?? null,
+      createdAt: new Date().toISOString(),
+    });
+    return { transport: "ses", sesMessageId: `emulator-${ref.id}` };
+  }
   return sendSesEmailWithClient(getSesClient(config), {
     ...message,
     from: config.from,

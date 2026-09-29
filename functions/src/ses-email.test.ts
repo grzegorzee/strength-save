@@ -4,6 +4,7 @@ import {
   normalizeSesEmailConfig,
   safeSesErrorCode,
   sendSesEmailWithClient,
+  shouldUseEmulatorOutbox,
 } from "./ses-email";
 
 describe("shared Amazon SES email transport", () => {
@@ -89,5 +90,21 @@ describe("shared Amazon SES email transport", () => {
       .toBe("TooManyRequestsException");
     expect(safeSesErrorCode(new Error("raw socket and credential context")))
       .toBe("ses-send-failed");
+  });
+
+  // Release e2e (2026-09-29): emulator zapisuje maile do Firestore zamiast SES.
+  // Tylko gdy działa emulator Functions ORAZ klucz to fixture E2E, nigdy w produkcji.
+  it("routes mail to the emulator outbox only for the E2E fixture key inside the Functions emulator", () => {
+    const fixture = {
+      region: "eu-central-1",
+      accessKeyId: "e2e-emulator-only",
+      secretAccessKey: "e2e-emulator-only",
+      from: "Strength Save <noreply@example.invalid>",
+    };
+    const realKey = { ...fixture, accessKeyId: "AKIAREALKEY" };
+    expect(shouldUseEmulatorOutbox({ FUNCTIONS_EMULATOR: "true" }, fixture)).toBe(true);
+    expect(shouldUseEmulatorOutbox({}, fixture)).toBe(false);
+    expect(shouldUseEmulatorOutbox({ FUNCTIONS_EMULATOR: "false" }, fixture)).toBe(false);
+    expect(shouldUseEmulatorOutbox({ FUNCTIONS_EMULATOR: "true" }, realKey)).toBe(false);
   });
 });

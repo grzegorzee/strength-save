@@ -207,6 +207,67 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
   return { candidates, sent, failed, invalidTokens, skippedActive };
 }
 
+// Release e2e (2026-09-29): produkcyjne loadery Firestore wydzielone z handlera,
+// żeby test na emulatorze biegł dokładnie tę ścieżkę (m.in. przepisanie `vacation`
+// przez mapReminderPlanDoc), podmieniając tylko zegar i transport FCM.
+export const buildFirestoreReminderDeps = (
+  db: admin.firestore.Firestore,
+  now: Date,
+  sendMulticast: DailyReminderDeps["sendMulticast"],
+): DailyReminderDeps => {
+  const chunkedGetAll = async (refs: admin.firestore.DocumentReference[]) => {
+    const snapshots: admin.firestore.DocumentSnapshot[] = [];
+    for (let i = 0; i < refs.length; i += 300) {
+      snapshots.push(...await db.getAll(...refs.slice(i, i + 300)));
+    }
+    return snapshots;
+  };
+
+  return {
+    listTokenRegistrations: async () => {
+      const snap = await db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).get();
+      return snap.docs.map((doc) => ({
+        id: doc.id,
+        userId: String(doc.data().userId ?? ""),
+        token: typeof doc.data().token === "string" ? doc.data().token as string : "",
+      }));
+    },
+    getUsers: async (userIds) => {
+      const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("users").doc(uid)));
+      return new Map(snapshots
+        .filter((snap) => snap.exists)
+        .map((snap) => [snap.id, snap.data() as ReminderUser]));
+    },
+    getPlanDays: async (userIds) => {
+      const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("training_plans").doc(uid)));
+      return new Map(snapshots
+        .filter((snap) => snap.exists)
+        .map((snap) => [snap.id, mapReminderPlanDoc(snap.data() ?? {})] as [string, ReminderPlan]));
+    },
+    sendMulticast,
+    deleteRegistrations: async (registrationIds) => {
+      await Promise.all(registrationIds.map((id) => (
+        db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(id).delete()
+      )));
+    },
+    getTodayWorkout: async (userId, todayDate) => {
+      // Query z composite indexem userId+date (istnieje w firestore.indexes.json).
+      const snap = await db.collection("workouts")
+        .where("userId", "==", userId)
+        .where("date", "==", todayDate)
+        .limit(1)
+        .get();
+      if (snap.empty) return null;
+      const data = snap.docs[0].data();
+      return {
+        ...(data.startedAt !== undefined && { startedAt: Number(data.startedAt) }),
+        ...(data.completed !== undefined && { completed: !!data.completed }),
+      };
+    },
+    now,
+  };
+};
+
 export const dailyTrainingReminder = onSchedule(
   {
     // Bug 11 (X30): pełna godzina UTC, co godzinę — każda strefa ma swoje 07:00
@@ -220,64 +281,16 @@ export const dailyTrainingReminder = onSchedule(
     const now = new Date();
     logger.info(`[dailyReminder] start, ${now.toISOString()}`);
 
-    const chunkedGetAll = async (refs: admin.firestore.DocumentReference[]) => {
-      const snapshots: admin.firestore.DocumentSnapshot[] = [];
-      for (let i = 0; i < refs.length; i += 300) {
-        snapshots.push(...await db.getAll(...refs.slice(i, i + 300)));
-      }
-      return snapshots;
-    };
-
-    const result = await runDailyReminder({
-      listTokenRegistrations: async () => {
-        const snap = await db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).get();
-        return snap.docs.map((doc) => ({
-          id: doc.id,
-          userId: String(doc.data().userId ?? ""),
-          token: typeof doc.data().token === "string" ? doc.data().token as string : "",
-        }));
-      },
-      getUsers: async (userIds) => {
-        const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("users").doc(uid)));
-        return new Map(snapshots
-          .filter((snap) => snap.exists)
-          .map((snap) => [snap.id, snap.data() as ReminderUser]));
-      },
-      getPlanDays: async (userIds) => {
-        const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("training_plans").doc(uid)));
-        return new Map(snapshots
-          .filter((snap) => snap.exists)
-          .map((snap) => [snap.id, mapReminderPlanDoc(snap.data() ?? {})] as [string, ReminderPlan]));
-      },
-      sendMulticast: (tokens, title, body) => admin.messaging().sendEachForMulticast({
+    const result = await runDailyReminder(buildFirestoreReminderDeps(db, now, (tokens, title, body) => (
+      admin.messaging().sendEachForMulticast({
         tokens,
         notification: { title, body },
         // Z146: typ w payloadzie — klient nie pokazuje toastu dla daily-reminder,
         // gdy user ma aktywną sesję treningową (koniec podwójnego banera).
         data: { type: "daily-reminder" },
         apns: { payload: { aps: { sound: "default" } } },
-      }),
-      deleteRegistrations: async (registrationIds) => {
-        await Promise.all(registrationIds.map((id) => (
-          db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(id).delete()
-        )));
-      },
-      getTodayWorkout: async (userId, todayDate) => {
-        // Query z composite indexem userId+date (istnieje w firestore.indexes.json).
-        const snap = await db.collection("workouts")
-          .where("userId", "==", userId)
-          .where("date", "==", todayDate)
-          .limit(1)
-          .get();
-        if (snap.empty) return null;
-        const data = snap.docs[0].data();
-        return {
-          ...(data.startedAt !== undefined && { startedAt: Number(data.startedAt) }),
-          ...(data.completed !== undefined && { completed: !!data.completed }),
-        };
-      },
-      now,
-    });
+      })
+    )));
 
     logger.info("[dailyReminder] done", result);
   },

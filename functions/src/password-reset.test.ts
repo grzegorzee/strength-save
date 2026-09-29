@@ -9,6 +9,7 @@ vi.mock("./registration", () => ({ sendTransactionalEmail: vi.fn() }));
 import {
   PASSWORD_RESET_COOLDOWN_MS,
   PASSWORD_RESET_DAILY_LIMIT,
+  normalizeEmulatorActionLink,
   requestPasswordResetCore,
   rewriteResetLink,
   type PasswordResetRateDoc,
@@ -32,6 +33,27 @@ describe("rewriteResetLink", () => {
 
   it("odrzuca link spoza handlera Firebase Auth (nie przepisuje dowolnego URL-a)", () => {
     expect(() => rewriteResetLink("https://evil.example.com/x?oobCode=1", "pl")).toThrow();
+  });
+});
+
+// Release e2e (2026-09-29): Auth emulator wystawia linki na /emulator/action
+// (firebase-tools lib/emulator/auth/operations.js:956). Tylko w emulatorze
+// Functions ścieżka jest mapowana na handler Firebase; produkcja bez zmian.
+describe("normalizeEmulatorActionLink", () => {
+  const EMULATOR_LINK = "http://127.0.0.1:9099/emulator/action?mode=resetPassword&lang=en&oobCode=XYZ&apiKey=fake-api-key";
+
+  it("w emulatorze Functions mapuje /emulator/action na /__/auth/action (oobCode bez zmian)", () => {
+    const normalized = normalizeEmulatorActionLink(EMULATOR_LINK, { FUNCTIONS_EMULATOR: "true" });
+    const rewritten = new URL(rewriteResetLink(normalized, "pl"));
+    expect(rewritten.origin).toBe("https://auth.strengthsave.app");
+    expect(rewritten.searchParams.get("oobCode")).toBe("XYZ");
+    expect(rewritten.searchParams.get("lang")).toBe("pl");
+  });
+
+  it("poza emulatorem link zostaje nietknięty, więc strażnik kształtu nadal go odrzuca", () => {
+    expect(normalizeEmulatorActionLink(EMULATOR_LINK, {})).toBe(EMULATOR_LINK);
+    expect(() => rewriteResetLink(normalizeEmulatorActionLink(EMULATOR_LINK, {}), "pl")).toThrow();
+    expect(normalizeEmulatorActionLink(FIREBASE_LINK, { FUNCTIONS_EMULATOR: "true" })).toBe(FIREBASE_LINK);
   });
 });
 

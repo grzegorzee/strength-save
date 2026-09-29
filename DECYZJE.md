@@ -11,6 +11,53 @@
 
 ## DECYZJE
 
+### 2026-09-29: release e2e na realnym backendzie (emulatory Auth + Firestore + Functions)
+
+Cel właściciela: przed premierą każda funkcja przetestowana end-to-end na
+prawdziwych rules i Functions, nie na mockach. Nowy suite `e2e/emulator/release/`
+(biegnie w `npm run e2e:emulator`), sekwencje zamiast ekranów, każdy krok
+sprawdza UI i Firestore. Dane budowane realnym flow: zaproszenie admina
+(`createInvite`), rejestracja/`syncUserProfile`, kod z maila, `verifyEmailCode`,
+PRO przez `adminGrantSubscription` (comp), zgody i plan przez kreator w UI.
+Admin REST (owner) tylko do odczytu stanu i do nadania roli admina (w produkcji
+też ręcznie). R1 rejestracja PL/EN + usunięcie konta, R2 trening ze swapem i
+szybkim treningiem, R3 urlop (0 pushy, rampa 34/37, mains_only), R4 masa ciała
+(MC, PR, agregat), R5 „Twoje liczby”, R6 kod i reset hasła, R7 przełożenie i
+odpuszczenie dnia, R8 wypis z ogłoszeń linkiem z maila.
+
+Zmiany wspierające (tylko emulator, produkcja bez zmian zachowania):
+- `ses-email.ts`: przy `FUNCTIONS_EMULATOR=true` ORAZ kluczu-fixture
+  `e2e-emulator-only` mail ląduje w `emulator_email_outbox` (temat, HTML,
+  nagłówki, Reply-To) zamiast w SES.
+- `password-reset.ts`: Auth emulator wystawia linki na `/emulator/action`
+  (firebase-tools `lib/emulator/auth/operations.js:956`); w emulatorze mapowane
+  na `/__/auth/action`, strażnik kształtu linku bez zmian.
+- `daily-reminder.ts`: loadery Firestore wydzielone do
+  `buildFirestoreReminderDeps`; test uruchamia `runDailyReminder` z
+  `functions/lib` na emulatorze z podmienionym zegarem i transportem FCM.
+
+Błąd produktu znaleziony i naprawiony: `mapAppUserProfile` nie przenosił
+`notificationPrefs`, więc Profil → Powiadomienia po ponownym otwarciu apki
+pokazywał każdy przełącznik jako włączony (także po wyłączeniu w UI i po
+wypisie linkiem z maila; backend respektował `false`). Fix:
+`sanitizeNotificationPrefs` w mapperze. Unit czerwony przed fixem, R8/R8b
+czerwone z wyłączonym fixem, zielone po.
+
+Do decyzji właściciela (nie zmieniane): przy „Zakończ trening” seria
+wypełniona WYŁĄCZNIE prefillem (np. progresja +2,5 kg × 10), nieodhaczona,
+zapisuje się jako zrobiona (`autoCompleteFilledSets`,
+`src/lib/workout-day-view.ts:231`, wywołanie `WorkoutDay.tsx:2344`; prefill
+wpisuje dane do serii w `WorkoutDay.tsx:1859`). Toast mówi o „wpisanym wyniku”,
+a wynik wpisała apka. Wpływa na tonaż, PR i progresję.
+
+Nie udowodnione: WebKit (w Playwright WebKit zapytania kolekcji na instancji
+Firestore apki wiszą na emulatorze, pojedyncze dokumenty i transakcje działają,
+świeża instancja SDK w tej samej stronie działa; kreator nie kończy zapisu
+planu; nie rozstrzygnięte, czy to artefakt Playwright WebKit + emulator, czy
+błąd produktu, do sprawdzenia na symulatorze iOS), paywall twardy (tylko natywny
+iOS), realny push FCM, realna wysyłka SES, StoreKit/Billing, zgaszony ekran,
+fizyczne urządzenie.
+
 ### 2026-09-29: T6, baza ćwiczeń 379, kategoria Kondycja, 16 planów, F7 dla początkujących, „Gdzie trenujesz?”
 
 Źródło: zwalidowane dane T6 (`exercises-new.json`, `plans-new.json`, `beginner-fixes.json`,
