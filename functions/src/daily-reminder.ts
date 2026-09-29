@@ -6,6 +6,7 @@ import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import { localDayParts } from "./local-time";
 import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
+import { isPlannedDateBlocked, type DateWindow } from "./plan-date-block";
 
 // Codzienne poranne przypomnienie o treningu (push). Spersonalizowane: imię + dzisiejszy focus.
 // Wysyłamy TYLKO gdy: user ma token, nie wyłączył przypomnień, ma dostęp i dziś jest dzień treningowy.
@@ -25,7 +26,44 @@ export interface ReminderPlan {
   skippedDates?: string[];
   scheduleOverrides?: ScheduleOverrides;
   status?: string;
+  /** F2: urlop — dni w oknie nie są dniami treningowymi (brak pusha). */
+  vacation?: DateWindow;
+  /** F2: tryb "nie na 100%"; level "pause" blokuje dni jak urlop. */
+  reducedMode?: DateWindow & { level: string };
 }
+
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+const toDateWindow = (raw: unknown): DateWindow | null => {
+  if (typeof raw !== "object" || raw === null) return null;
+  const source = raw as Record<string, unknown>;
+  if (typeof source.startDate !== "string" || !DATE_KEY.test(source.startDate)) return null;
+  if (typeof source.endDate !== "string" || !DATE_KEY.test(source.endDate)) return null;
+  return { startDate: source.startDate, endDate: source.endDate };
+};
+
+/** Dokument training_plans/{uid} -> pola, których potrzebuje przypomnienie. */
+export const mapReminderPlanDoc = (data: Record<string, unknown>): ReminderPlan => {
+  const rawOverrides = data.scheduleOverrides;
+  const vacation = toDateWindow(data.vacation);
+  const reducedWindow = toDateWindow(data.reducedMode);
+  const reducedLevel = (data.reducedMode as { level?: unknown } | undefined)?.level;
+  return {
+    days: Array.isArray(data.days) ? data.days as PlanDay[] : [],
+    ...(typeof data.startDate === "string" ? { startDate: data.startDate } : {}),
+    ...(Array.isArray(data.skippedDates)
+      ? { skippedDates: data.skippedDates.filter((date): date is string => typeof date === "string") }
+      : {}),
+    ...(rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
+      ? { scheduleOverrides: rawOverrides as ScheduleOverrides }
+      : {}),
+    ...(typeof data.status === "string" ? { status: data.status } : {}),
+    ...(vacation ? { vacation } : {}),
+    ...(reducedWindow && typeof reducedLevel === "string"
+      ? { reducedMode: { ...reducedWindow, level: reducedLevel } }
+      : {}),
+  };
+};
 
 type DeliveryResponse = { success: boolean; error?: { code?: string } };
 
@@ -124,7 +162,8 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     const rawPlan = plans.get(uid);
     const plan: ReminderPlan = Array.isArray(rawPlan) ? { days: rawPlan } : (rawPlan ?? { days: [] });
     const local = localDayParts(deps.now, user.timeZone);
-    if (plan.status === "ended" || plan.skippedDates?.includes(local.dateStr)) return;
+    // F2: urlop / pauza / pominięty dzień = nie dzień treningowy (wspólny resolver).
+    if (plan.status === "ended" || isPlannedDateBlocked(local.dateStr, plan)) return;
     const todayDay = resolvePlannedDayForDate(
       local.dateStr,
       plan.days,
@@ -227,21 +266,7 @@ export const dailyTrainingReminder = onSchedule(
         const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("training_plans").doc(uid)));
         return new Map(snapshots
           .filter((snap) => snap.exists)
-          .map((snap) => {
-            const data = snap.data() ?? {};
-            const rawOverrides = data.scheduleOverrides;
-            return [snap.id, {
-              days: Array.isArray(data.days) ? data.days as PlanDay[] : [],
-              ...(typeof data.startDate === "string" ? { startDate: data.startDate } : {}),
-              ...(Array.isArray(data.skippedDates)
-                ? { skippedDates: data.skippedDates.filter((date): date is string => typeof date === "string") }
-                : {}),
-              ...(rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
-                ? { scheduleOverrides: rawOverrides as ScheduleOverrides }
-                : {}),
-              ...(typeof data.status === "string" ? { status: data.status } : {}),
-            } satisfies ReminderPlan] as [string, ReminderPlan];
-          }));
+          .map((snap) => [snap.id, mapReminderPlanDoc(snap.data() ?? {})] as [string, ReminderPlan]));
       },
       sendMulticast: (tokens, title, body) => admin.messaging().sendEachForMulticast({
         tokens,

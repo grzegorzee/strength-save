@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getInvalidFcmTokens, runDailyReminder, type DailyReminderDeps } from "./daily-reminder";
+import { getInvalidFcmTokens, mapReminderPlanDoc, runDailyReminder, type DailyReminderDeps } from "./daily-reminder";
 import { shouldLogLoginSuccess } from "./registration";
 
 // Bug 11 (X30): "dziś" i pora liczone per user ze strefy; testy podają CHWILĘ biegu.
@@ -317,6 +317,95 @@ describe("runDailyReminder: strefa usera (bug 11, X30)", () => {
     expect(deps.getPlanDays).toHaveBeenCalledWith([]);
     expect(deps.sendMulticast).not.toHaveBeenCalled();
     expect(result.candidates).toBe(0);
+  });
+});
+
+// F2 (2026-09-29): urlop 22-27.09 u właściciela, a dailyReminder wysłał pushe
+// 22, 23 i 25.09. Guard znał tylko skippedDates, loader gubił pole vacation.
+// Niezmiennik: dzień w [vacation.startDate, vacation.endDate] nie jest dniem
+// treningowym (pusha nie ma), dzień po urlopie znowu jest.
+describe("runDailyReminder: urlop i pauza (F2)", () => {
+  // Kształt z produkcji: d1 pon, d2 śr, d3 pt; override przenosi d1 na wtorek 22.09.
+  const prodPlanDoc = {
+    days: [
+      { id: "d1", weekday: "monday", focus: "Push" },
+      { id: "d2", weekday: "wednesday", focus: "Pull" },
+      { id: "d3", weekday: "friday", focus: "Nogi" },
+    ],
+    startDate: "2026-09-01",
+    scheduleOverrides: { "2026-09-22": "d1" },
+    vacation: { startDate: "2026-09-22", endDate: "2026-09-27", activity: "none", extendedWeeks: 1 },
+    status: "active",
+  };
+  const warsaw07 = (dateISO: string) => new Date(`${dateISO}T05:00:00Z`); // 07:00 CEST
+
+  const makeDeps = (now: Date, planDoc: Record<string, unknown> = prodPlanDoc): DailyReminderDeps => ({
+    listTokenRegistrations: vi.fn(async () => [{ id: "r1", userId: "u1", token: "t1" }]),
+    getUsers: vi.fn(async () => new Map([["u1", { displayName: "Grzegorz" }]])),
+    getPlanDays: vi.fn(async () => new Map([["u1", mapReminderPlanDoc(planDoc)]])),
+    sendMulticast: vi.fn(async (tokens: string[]) => ({
+      successCount: tokens.length,
+      failureCount: 0,
+      responses: tokens.map(() => ({ success: true })),
+    })),
+    deleteRegistrations: vi.fn(async () => undefined),
+    getTodayWorkout: vi.fn(async () => null),
+    now,
+  });
+
+  it("loader przepisuje vacation i reducedMode z dokumentu planu", () => {
+    const mapped = mapReminderPlanDoc({
+      ...prodPlanDoc,
+      reducedMode: { startDate: "2026-10-01", endDate: "2026-10-05", level: "pause" },
+    });
+    expect(mapped.vacation).toEqual({ startDate: "2026-09-22", endDate: "2026-09-27" });
+    expect(mapped.reducedMode).toEqual({ startDate: "2026-10-01", endDate: "2026-10-05", level: "pause" });
+  });
+
+  it("loader odrzuca śmieciowe vacation (brak pola zamiast wyjątku)", () => {
+    const mapped = mapReminderPlanDoc({ ...prodPlanDoc, vacation: { startDate: 5, endDate: null } });
+    expect(mapped.vacation).toBeUndefined();
+  });
+
+  it.each(["2026-09-22", "2026-09-23", "2026-09-25"])(
+    "dzień treningowy %s w urlopie (także z override) = zero pushy",
+    async (dateISO) => {
+      const deps = makeDeps(warsaw07(dateISO));
+      const result = await runDailyReminder(deps);
+      expect(deps.sendMulticast).not.toHaveBeenCalled();
+      expect(result.candidates).toBe(0);
+    },
+  );
+
+  it("pierwszy dzień treningowy po urlopie (pon 28.09) = push z planem dnia", async () => {
+    const deps = makeDeps(warsaw07("2026-09-28"));
+    const result = await runDailyReminder(deps);
+    expect(result.candidates).toBe(1);
+    expect(deps.sendMulticast).toHaveBeenCalledWith(["t1"], "Cześć Grzegorz! Czas na trening", "Dziś w planie: Push. Wejdź i odhacz pierwszą serię.");
+  });
+
+  it("bez urlopu ten sam dzień dostaje push (niezmiennik: urlop jedynym powodem ciszy)", async () => {
+    const { vacation: _vacation, ...withoutVacation } = prodPlanDoc;
+    const deps = makeDeps(warsaw07("2026-09-23"), withoutVacation);
+    await runDailyReminder(deps);
+    expect(deps.sendMulticast).toHaveBeenCalledTimes(1);
+  });
+
+  it("tryb pauzy (reducedMode level pause) wycisza push, tryb lżejszy nie", async () => {
+    const { vacation: _vacation, ...withoutVacation } = prodPlanDoc;
+    const paused = makeDeps(warsaw07("2026-09-23"), {
+      ...withoutVacation,
+      reducedMode: { startDate: "2026-09-22", endDate: "2026-09-25", level: "pause" },
+    });
+    await runDailyReminder(paused);
+    expect(paused.sendMulticast).not.toHaveBeenCalled();
+
+    const lighter = makeDeps(warsaw07("2026-09-23"), {
+      ...withoutVacation,
+      reducedMode: { startDate: "2026-09-22", endDate: "2026-09-25", level: "lighter" },
+    });
+    await runDailyReminder(lighter);
+    expect(lighter.sendMulticast).toHaveBeenCalledTimes(1);
   });
 });
 
