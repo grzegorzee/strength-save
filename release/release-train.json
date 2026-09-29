@@ -31,7 +31,7 @@
     "url": "https://app.strengthsave.app/",
     "state": "deployed-verified",
     "deliveryEvidence": "audit/bug-reports-2026-09-16/web-delivery.json",
-    "verifiedDelivery": "live index-CVfOfaKu.js from source d82a2bb9 build (2026-09-29)"
+    "verifiedDelivery": "live index-CVfOfaKu.js from source 8d4a77bc build (2026-09-29)"
   },
   "functions": {
     "project": "fittracker-workouts",
