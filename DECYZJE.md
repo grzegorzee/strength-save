@@ -21,6 +21,15 @@
    bez `shrink-0` (ustępuje, łamie się między słowami). Test: warunek „brak
    łamania w środku słowa” w `label-overflow-audit.spec.ts` bez wyjątku dla
    Profilu, czerwony przed fixem (PL i EN, oba silniki), zielony po.
+2. Dolna nawigacja web łamała „PROGRESS” / „HISTORIA”. Root cause nie był sam
+   desktopowy pasek przewijania: zakładki miały `flex-1 min-w-0` (równy podział,
+   ok. 56 px przy 320 px), a EN „PROGRESS” potrzebuje ok. 62 px; pasek (305 px)
+   dokładał PL „HISTORIA”. Fix: zakładki `flex-auto` bez `min-w-0` (szerokość
+   z treści, nadwyżka po równo, kolumna nie schodzi poniżej słowa). Test: nowy
+   „dolna nawigacja nie łamie słów przy 305/320 px” (PL/EN, oba silniki), czerwony
+   przed fixem, zielony po. Lista znanego długu w audycie usunięta w całości.
+   Uwaga: „panel administracyjny” w WebKit bywa czerwony (`outside-viewport`)
+   także na kodzie sprzed zmiany (1/6), zastana niestabilność.
 
 ### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
 

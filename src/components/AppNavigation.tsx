@@ -301,7 +301,10 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
             <NavLink
               key={`mobile-${item.to}`}
               to={item.to}
-              className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              // 2026-09-29: flex-auto zamiast flex-1 + min-w-0. Równy podział dawał
+              // 56 px na zakładkę przy 320 px, a „PROGRESS" potrzebuje ~62 px, więc
+              // słowo łamało się w środku. Szerokość z treści, nadwyżka po równo.
+              className="flex min-h-11 flex-auto flex-col items-center justify-center gap-1 rounded-2xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {({ isActive }) => (
                 <>
