@@ -412,8 +412,8 @@ brak „!” sprawdzany na wersji tekstowej, sekrety `weeklyDigest` + `unsubscri
 Objaw: u właściciela `stravaLastSync` = 2026-08-22T08:00:08Z, ostatnia aktywność
 z 2026-08-16, a Profil pokazywał „Połączono”.
 
-Dowody z produkcji (tylko odczyt, konto g.jasionowicz@gmail.com; konto
-grzegorzee@gmail.com dostaje PERMISSION_DENIED na log views):
+Dowody z produkcji (tylko odczyt, konto właściciela z rolą logów; drugie konto właściciela
+dostaje PERMISSION_DENIED na log views):
 - `gcloud logging read` dla `stravascheduledsync`: jedyny bieg w oknie retencji
   logów (30 dni) to 2026-08-31 08:00 UTC. Oba połączone konta: refresh tokenu
   OK („Token refreshed”), potem `GET /athlete/activities` = 403
@@ -4332,7 +4332,7 @@ Podsumowanie autonomicznego wykonania (2026-07-19/20, prompt docs/PROMPT-WDROZEN
 
 ### 2026-07-17 — X13A RELEASE TRAIN: telemetria produktowa wdrożona (rules + functions + web + iOS 56)
 
-**Wdrożone:** firestore.rules (zamknięte liczniki + expiresAt), functions (scheduled activityRollup 03:30 Europe/Warsaw), web index-BtD9oq7c (ProductTelemetry aktywna), iOS build 1.0.0 (56) VALID w grupie Wewnętrzni. Polityka TTL 180 dni na app_telemetry_daily przez gcloud (konto g.jasionowicz@gmail.com; konto grzegorzee@ nie ma uprawnień - zapisana lekcja: gcloud --account).
+**Wdrożone:** firestore.rules (zamknięte liczniki + expiresAt), functions (scheduled activityRollup 03:30 Europe/Warsaw), web index-BtD9oq7c (ProductTelemetry aktywna), iOS build 1.0.0 (56) VALID w grupie Wewnętrzni. Polityka TTL 180 dni na app_telemetry_daily przez gcloud (konto właściciela z rolą logów; drugie konto właściciela grzegorzee@ nie ma uprawnień - zapisana lekcja: gcloud --account).
 
 **Weryfikacja end-to-end:** ścieżka kliencka potwierdzona e2e (nawigacja po 3 ekranach zostawia w buforze localStorage session_active=1 + screen_dashboard/analytics/profile; flush wymaga realnego auth, więc dokument produkcyjny pojawi się przy pierwszym użyciu apki przez usera, a users.activitySummary po pierwszym nocnym rollupie ~03:30). Skrypt read-only tmp/x12-diagnoza.mjs pozwala to sprawdzić następnego dnia.
 

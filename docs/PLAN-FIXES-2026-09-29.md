@@ -1,7 +1,7 @@
 # Plan poprawek 2026-09-29 (zgłoszenia właściciela po treningach 22-28.09)
 
 Diagnoza tylko do odczytu: kod na main 23c7ce59 + produkcja (konto właściciela
-uid `U6GDdfg7GmP1k1xJuISIsK9uSUE2`, Firestore i logi Functions, bez zapisów).
+konto właściciela, Firestore i logi Functions, bez zapisów).
 Stan sklepów w dniu diagnozy: iOS 150 zatwierdzony (publikacja MANUAL),
 Google Play produkcja = 54 (`completed`), internal = 55.
 

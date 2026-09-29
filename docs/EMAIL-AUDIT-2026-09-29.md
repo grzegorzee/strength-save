@@ -78,7 +78,7 @@ Generator: `node scripts/email-previews.mjs <katalog>` + `node scripts/email-scr
 | DKIM Resend | `resend._domainkey` TXT | OK (landing, `api/feedback.ts`, `api/waitlist.ts`) |
 | `send.strengthsave.app` | MX `feedback-smtp.us-east-1.amazonses.com`, TXT `v=spf1 include:amazonses.com ~all` | **To jest domena zwrotna Resend** (Resend działa na SES us-east-1), a nie zepsuty MAIL FROM naszego SES. Notatka z RELEASE-READINESS-2026-08-27 („błędny region”) była błędną diagnozą. **Nie zmieniać** tego MX, bo zepsuje SPF maili z landingu |
 | Custom MAIL FROM (SES eu-central-1) | **brak** (`MailFromAttributes` bez `MailFromDomain`) | Return-Path = `amazonses.com`: SPF przechodzi, ale NIE jest wyrównany z `strengthsave.app`. DMARC przechodzi dziś wyłącznie dzięki DKIM |
-| DMARC `_dmarc` | `v=DMARC1; p=none; rua=mailto:grzegorzee@gmail.com` | Polityka monitorująca. **Raporty prawdopodobnie nie dochodzą**: adres rua w obcej domenie wymaga rekordu autoryzacji `strengthsave.app._report._dmarc.gmail.com`, którego Gmail nie publikuje (sprawdzone: brak), a Google i Microsoft to weryfikują |
+| DMARC `_dmarc` | `v=DMARC1; p=none; rua=mailto:(prywatny adres gmail.com właściciela)` | Polityka monitorująca. **Raporty prawdopodobnie nie dochodzą**: adres rua w obcej domenie wymaga rekordu autoryzacji `strengthsave.app._report._dmarc.gmail.com`, którego Gmail nie publikuje (sprawdzone: brak), a Google i Microsoft to weryfikują |
 | MX `strengthsave.app` | `mail.strengthsave.app` (seohost h19) | OK od 16.09, contact@ ma odbiór |
 | DKIM skrzynek seohost | brak rekordu (`default._domainkey` pusty) | odpowiedzi wysyłane ręcznie z contact@ mają tylko SPF (wyrównany); przed zaostrzeniem DMARC włączyć DKIM w panelu seohost |
 
