@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "recordedAt": "2026-09-20",
+  "recordedAt": "2026-09-29",
   "scope": "Source configuration for test-distribution candidates. Delivery evidence separately records actual artifacts and store status; physical iPhone QA runs through TestFlight.",
   "historicalDeliverySnapshot": "release/history/release-train-before-launch-audit.json",
   "product": {
@@ -42,19 +42,17 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 150,
-    "state": "testflight-delivered-verified",
-    "priorDeliveryEvidence": "release/ios/testflight-149.json",
-    "deliveryEvidence": "release/ios/testflight-150.json",
-    "verifiedDelivery": "150 VALID / APPROVED / IN_BETA_TESTING in both groups; autoNotify enabled; release notes verified"
+    "build": 151,
+    "state": "source-version-requires-current-delivery-verification",
+    "priorDeliveryEvidence": "release/ios/testflight-150.json",
+    "verifiedDelivery": "pending: 151 candidate (fixes F1-F7, onboarding guide, exercise base, emails)"
   },
   "android": {
     "version": "1.0.0",
-    "versionCode": 55,
+    "versionCode": 56,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
-    "state": "internal-delivered-verified",
-    "deliveryEvidence": "release/android/internal-2026-09-16-55/artifact.json",
-    "verifiedDelivery": "55 COMPLETED; uploaded AAB hash and fresh track readback confirmed",
+    "state": "source-version-requires-current-delivery-verification",
+    "verifiedDelivery": "pending: 56 candidate",
     "playDeliveryEvidence": "release/android/internal-2026-09-16-55/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
@@ -64,9 +62,10 @@
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
       "evidence": "release/android/internal-2026-09-16-55/play-api-check.json",
-      "checkCommand": "uv run scripts/google_play_check.py --expect-version 55"
+      "checkCommand": "uv run scripts/google_play_check.py --expect-version 56"
     },
-    "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile"
+    "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile",
+    "priorDeliveryEvidence": "release/android/internal-2026-09-16-55/artifact.json"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",
