@@ -11,6 +11,22 @@
 
 ## DECYZJE
 
+### 2026-09-29: tap ✓ tuż po wpisaniu ciężaru ginął (przewinięcie Z47 w żywej sesji)
+
+Objaw: test „wszystkie serie wpisane, 1 odhaczona” w WebKit padał ok. 1 na
+40 przy obciążeniu (licznik 0/3, kursor nad ✓ serii 2). Hipoteza, że winna
+jest flaga `prefilled`, odrzucona: w tym przepływie serie nie mają prefillu,
+a obiekty serii są identyczne jak przed zmianą. Root cause (pomiar rAF +
+zdarzeń): Z47 („po hydracji przewiń do ostatnio dotykanego ćwiczenia”)
+uzbrajał się przy pierwszym szkicu z `lastTouchedExerciseId`, czyli w świeżej
+sesji po PIERWSZEJ edycji serii, i 300/900 ms później przewijał stronę o ok.
+80 px. Gdy to trafiło między mousedown a mouseup, click nie powstawał.
+Fix: strażnik zużywa się przy pierwszym szkicu widzianym przez mount;
+przewinięcie tylko, gdy ten szkic już miał `lastTouched` (reload, powrót po
+zabiciu apki). Dowód: nowy e2e `workout-no-scroll-on-edit` czerwony przed
+fixem w obu silnikach (scroll [81]/[82]), zielony po; oryginalny test WebKit
+60/60 przy `--workers=4` i load ok. 40; Z47 po reloadzie zielony.
+
 ### 2026-09-29: „Zakończ” zalicza tylko serie dotknięte przez usera; WebKit getDocs = artefakt testowy
 
 **A. Auto-odhaczenie przy „Zakończ” (X37 WP-D) bez prefillu.** Decyzja
