@@ -269,7 +269,15 @@ export async function provisionVerifiedProUser(
 
 // ---------- UI ----------
 
-export async function loginThroughUi(page: Page, email: string, lang: 'pl' | 'en' = 'pl', password = PASSWORD): Promise<void> {
+export async function loginThroughUi(
+  page: Page, email: string, lang: 'pl' | 'en' = 'pl', password = PASSWORD, opts: { tourSeen?: boolean } = {},
+): Promise<void> {
+  // Przewodnik nowego konta (2026-09-29) startuje sam przy 0 treningach i przechwytuje
+  // kliki. Scenariusze R2-R8 nie testują przewodnika (ma własny first-workout-tour.spec),
+  // więc seed legacy "widziany" jak w playwright.config mocków.
+  if (opts.tourSeen !== false) {
+    await page.addInitScript(() => { window.localStorage.setItem('fittracker_first_workout_tour_v1', '1'); });
+  }
   await page.goto('./#/login');
   await page.waitForLoadState('domcontentloaded');
   await page.getByRole('button', { name: lang === 'pl' ? 'Kontynuuj z emailem' : 'Continue with email' }).click();
