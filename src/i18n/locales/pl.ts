@@ -2858,6 +2858,18 @@ export const pl = {
   'stats.historyLoading': 'Wczytuję pełną historię…',
   'stats.historyError': 'Nie udało się wczytać pełnej historii. Spróbuj ponownie.',
   'stats.strengthDetails': 'Statystyki siłowe',
+  // F5 (2026-09-29): skąd są aktywności i od kiedy liczymy.
+  'stats.activitiesSince': 'od {date}',
+  'stats.cardioSources': 'Skąd jest cardio',
+  'stats.source.strava': 'Strava',
+  'stats.source.manual': 'Dodane ręcznie',
+  'stats.cardioTypes': 'Rodzaje cardio',
+  'stats.note.sinceStrength': 'Liczymy od pierwszego ukończonego treningu siłowego w apce.',
+  'stats.note.sinceActivity': 'Liczymy od najstarszej zapisanej aktywności.',
+  'stats.note.before': 'Starsze aktywności ({n}) nie wchodzą do tej liczby.',
+  'stats.note.stravaImport': 'Strava: przy połączeniu importujemy do 12 miesięcy wstecz. Zaimportowane aktywności, także starsze, znajdziesz w Postępy → Wykresy → Strava.',
+  'stats.note.stravaStrength': 'Treningi siłowe ze Stravy (WeightTraining, Crossfit) pomijamy, bo dublowałyby treningi zapisane w apce.',
+  'stats.stravaLastSync': 'Ostatnia synchronizacja Stravy: {date}',
   'trainingplan.activity.loading': 'Wczytywanie aktywności…',
   'trainingplan.activity.error': 'Nie udało się wczytać aktywności',
 } as const;

@@ -21,6 +21,8 @@ const statsActivity = (id: string, data: DocumentData, uid: string, source: Stat
   // Only retain the fields used by these statistics, not HR or other health details.
   return {
     id, userId: uid, source, type: data.type,
+    // F5: okno „od pierwszego treningu" porównuje dni; zły kształt daty odpada.
+    ...(typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(data.date) ? { date: data.date.slice(0, 10) } : {}),
     ...(typeof data.stravaId === 'number' && data.stravaId > 0 ? { stravaId: data.stravaId } : {}),
     ...(typeof data.movingTime === 'number' && Number.isFinite(data.movingTime) && data.movingTime >= 0
       ? { movingTime: data.movingTime } : {}),

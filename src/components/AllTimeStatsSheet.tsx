@@ -77,6 +77,25 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, uid }: AllTimeStatsSheet
   const stats = summary.strength;
   if (!open || !ownerUid) return null;
 
+  // Zasada 11: etykieta daty nie rzuca; zły string = brak etykiety, nie crash.
+  const shortDate = (value: string | null | undefined): string | null => {
+    if (!value) return null;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)))
+      : new Date(value);
+    return Number.isFinite(date.getTime())
+      ? date.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
+  };
+  const sinceLabel = shortDate(summary.since);
+  const lastSyncLabel = shortDate(currentUser.profile?.stravaLastSync);
+  const beforeCount = summary.beforeSince.manual + (includeStrava ? summary.beforeSince.strava : 0);
+  const activityTypeLabel = (type: string): string => {
+    const key = `cardio.type.${type}`;
+    const label = t(key as Parameters<typeof t>[0]);
+    return label === key ? type : label;
+  };
+
   // Z158: kafle tekstowe (ulubione ćwiczenie, data) — pełna szerokość i zawijanie
   // zamiast "..."; liczbowe zostają zwarte z truncate + tabular-nums.
   const tiles: Array<{ label: string; value: string; wide?: boolean; text?: boolean }> = [
@@ -129,9 +148,14 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, uid }: AllTimeStatsSheet
           <p className="mt-8 text-sm text-muted-foreground" data-testid="stats-empty">{t('stats.empty')}</p>
         ) : (
           <div className="mt-6 space-y-6" data-testid="all-time-stats">
-            <div data-testid="stat-activities">
+            <div>
               <p className="text-xs font-medium text-muted-foreground">{t('stats.activities')}</p>
-              <p className="font-heading text-4xl font-bold leading-tight tabular-nums">{summary.activityCount}</p>
+              <p data-testid="stat-activities" className="font-heading text-4xl font-bold leading-tight tabular-nums">{summary.activityCount}</p>
+              {sinceLabel && (
+                <p data-testid="stat-activities-since" className="text-sm text-muted-foreground">
+                  {t('stats.activitiesSince', { date: sinceLabel })}
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               {[
@@ -144,6 +168,41 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, uid }: AllTimeStatsSheet
                   <p className="text-lg font-semibold tabular-nums">{value}</p>
                 </div>
               ))}
+            </div>
+            {summary.cardioCount > 0 && (
+              <div className="space-y-3" data-testid="stats-cardio-breakdown">
+                <div>
+                  <h3 className="text-sm font-semibold">{t('stats.cardioSources')}</h3>
+                  <ul className="mt-1.5 divide-y divide-border/40 rounded-xl bg-muted/40 px-3">
+                    {(includeStrava ? ['strava', 'manual'] as const : ['manual'] as const).map((source) => (
+                      <li key={source} data-testid={`stat-source-${source}`} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                        <span>{t(`stats.source.${source}`)}</span>
+                        <span className="font-semibold tabular-nums">{summary.cardioBySource[source]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">{t('stats.cardioTypes')}</h3>
+                  <ul className="mt-1.5 divide-y divide-border/40 rounded-xl bg-muted/40 px-3">
+                    {summary.cardioByType.map(({ type, count }) => (
+                      <li key={type} data-testid={`stat-type-${type}`} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                        <span className="min-w-0 break-words">{activityTypeLabel(type)}</span>
+                        <span className="font-semibold tabular-nums">{count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+            <div className="space-y-1 text-[11px] text-muted-foreground" data-testid="stats-notes">
+              <p>{t(summary.sinceSource === 'strength' ? 'stats.note.sinceStrength' : 'stats.note.sinceActivity')}</p>
+              {beforeCount > 0 && <p>{t('stats.note.before', { n: String(beforeCount) })}</p>}
+              {includeStrava && <>
+                <p>{t('stats.note.stravaImport')}</p>
+                <p>{t('stats.note.stravaStrength')}</p>
+                {lastSyncLabel && <p data-testid="stat-strava-last-sync">{t('stats.stravaLastSync', { date: lastSyncLabel })}</p>}
+              </>}
             </div>
             {stats.workoutCount > 0 && <>
             <div className="space-y-4">

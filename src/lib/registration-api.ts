@@ -84,6 +84,8 @@ export interface AppUserProfile {
   /** Bug 7 (X30): stan sklepowy zachowany obok aktywnego grantu comp (webhook RC pisze tu, póki grant trwa). */
   storeSubscription?: AppSubscriptionDoc;
   stravaConnected?: boolean;
+  /** ISO ostatniego udanego syncu (pisze backend); null po (re)połączeniu. */
+  stravaLastSync?: string | null;
   /** Bug 11 (X30): strefa IANA urządzenia (Intl), pisze klient; backend liczy z niej
    *  porę i dzień pusha/digestu. Brak = Europe/Warsaw. */
   timeZone?: string;

@@ -11,6 +11,34 @@
 
 ## DECYZJE
 
+### 2026-09-29: F5 „Twoje liczby” liczone od pierwszego treningu w apce (wariant A)
+
+Zgłoszenie: „Ukończone aktywności 270” u właściciela. Liczby były poprawne
+(siłowe 94 od 2026-01-26 + cardio 176 = Strava 169 od 2025-04-04 + ręczne 7),
+ale mieszały okresy: import Stravy sięga 365 dni wstecz od pierwszego połączenia
+(`functions/src/index.ts` `syncUserActivities`), więc 116 aktywności było sprzed
+pierwszego treningu w apce, a ekran niczego nie wyjaśniał.
+
+Decyzja właściciela (wariant A): licznik od pierwszego ukończonego treningu
+siłowego (u niego 94 + 53 + 7 = 154) z jawną datą „od 26 sty 2026”. Bez treningów
+siłowych okno zaczyna się od najstarszej aktywności (nic nie jest wykluczone, a
+przypis mówi, od czego liczymy). Arkusz pokazuje rozbicie cardio na źródła (Strava,
+dodane ręcznie) i rodzaje (etykiety `cardio.type.*`, nieznany typ = surowa nazwa),
+przypisy: od czego liczymy, ile starszych aktywności nie weszło, import Stravy do
+12 miesięcy wstecz (starsze są w Postępy → Wykresy → Strava), pomijanie
+WeightTraining/Crossfit ze Stravy, data ostatniej synchronizacji Stravy. Badge
+w nagłówku bez zmian (liczba treningów siłowych).
+
+Implementacja: `buildAllTimeActivityStats` zwraca `since`, `sinceSource`,
+`cardioBySource`, `cardioByType`, `beforeSince`; `activity-read-store` przenosi
+`date` (zły kształt odpada); mapper profilu przenosi `stravaLastSync`.
+Niezmienniki w testach: aktywności = siłowe + cardio, cardio = suma źródeł = suma
+typów, wykluczenie sprzed pierwszego treningu, nieukończony trening nie przesuwa
+„od”, aktywność bez daty nie ginie. Etykiety dat przez wariant bezpieczny
+(zasada 11). Weryfikacja: vitest (logika, render PL/EN, stany: bez Stravy, bez
+cardio, bez treningów siłowych, pusto), e2e `all-time-stats.spec.ts` Chromium i
+WebKit.
+
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 
 Apple odrzuciło wersję 1.0 (148) za 5.1.2(i) i 2.3.2. Pierwszy powód: w ankiecie

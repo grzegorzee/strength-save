@@ -86,6 +86,8 @@ export interface UserProfile {
   accessEnabled: boolean;
   status: 'pending_verification' | 'active' | 'suspended' | 'deleted';
   stravaConnected: boolean;
+  /** F5: data ostatniego udanego syncu Stravy (ISO), do „Twoich liczb". */
+  stravaLastSync?: string;
   onboardingCompleted: boolean;
   primaryProvider: 'google' | 'password' | 'apple';
   registrationSource: string;
@@ -160,6 +162,8 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   accessEnabled: data.access?.enabled !== false,
   status: data.status || 'active',
   stravaConnected: data.stravaConnected || false,
+  ...(typeof data.stravaLastSync === 'string' && Number.isFinite(new Date(data.stravaLastSync).getTime())
+    ? { stravaLastSync: data.stravaLastSync } : {}),
   onboardingCompleted: data.onboardingCompleted || false,
   primaryProvider: data.auth?.primaryProvider || 'google',
   registrationSource: data.registration?.source || data.auth?.primaryProvider || 'google',
