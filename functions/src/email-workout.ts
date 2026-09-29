@@ -2,6 +2,7 @@
 // Czysta logika + wstrzykiwane deps (ten sam wzorzec co weekly-digest):
 // callable w index.ts skleja Firestore + wspólny transport Amazon SES.
 import { esc, type Lang } from "./email-templates";
+import { EMAIL_COLORS, EMAIL_FONT, renderEmailLayout } from "./email-layout";
 import { detectEmailPRs, isLoadedExerciseName, type EmailPR } from "./email-prs";
 import {
   hasBodyweightLoadedWeight,
@@ -11,6 +12,7 @@ import {
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { localizeFocusEn } from "./focus-en";
 import { hasActiveHealthConsent } from "./security";
+import { SUPPORT_REPLY_TO } from "./ses-email";
 
 /** WP-I: jednostka maila wg users/{uid}.preferences.unit (kg kanoniczne). */
 export type EmailUnit = "kg" | "lbs";
@@ -80,7 +82,23 @@ export interface EmailUserContext {
   displayName?: string;
   unit?: string;
   consents?: unknown;
+  /** 2026-09-29: adres konta i czy aplikacja go zweryfikowała (Reply-To). */
+  email?: string;
+  emailVerified?: boolean;
 }
+
+/**
+ * 2026-09-29 (decyzja właściciela): odpowiedź trenera trafia do właściciela
+ * konta, gdy jego adres jest prawdziwy: zweryfikowany w aplikacji i nie Apple
+ * Private Relay (relay przyjmuje pocztę tylko od zarejestrowanych nadawców,
+ * więc odpowiedź trenera by odbiła). W każdym innym przypadku support.
+ */
+export const resolveTrainerReplyTo = (ctx: Pick<EmailUserContext, "email" | "emailVerified">): string => {
+  const email = typeof ctx.email === "string" ? ctx.email.trim() : "";
+  if (ctx.emailVerified !== true || !isValidRecipient(email)) return SUPPORT_REPLY_TO;
+  if (email.toLowerCase().endsWith("@privaterelay.appleid.com")) return SUPPORT_REPLY_TO;
+  return email;
+};
 
 export interface EmailWorkoutDeps {
   /** WP-I: ownership egzekwuje ADAPTER — cudzy dokument wraca jako null,
@@ -93,7 +111,7 @@ export interface EmailWorkoutDeps {
   getUserContext: (uid: string) => Promise<EmailUserContext>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
-  sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
+  sendEmail: (to: string, subject: string, html: string, replyTo: string[]) => Promise<SendEmailResult>;
   /** T21a: html trafia do podkolekcji content (podgląd w panelu admina). */
   logEmail: (entry: EmailLogEntry, html?: string) => Promise<void>;
   /** F6: masa ciała usera (pomiary z wagą) do normalizacji legacy bodyweight_loaded. */
@@ -297,17 +315,9 @@ export function historyEmailSubject(workouts: EmailWorkout[], lang: Lang, displa
 // --- G-T3: szablon w stylu marki (klienci pocztowi: tabele + inline CSS,
 // zero obrazków i zewnętrznych zasobów, limonka tylko jako akcent). ---
 
-const FONT = "font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
-const C = {
-  bg: "#f6f7f9",
-  card: "#ffffff",
-  text: "#111827",
-  body: "#374151",
-  muted: "#6b7280",
-  border: "#e5e7eb",
-  lime: "#cefc22",
-  pain: "#b45309",
-} as const;
+// 2026-09-29: kolory i font ze wspólnego layoutu (akcent marki #ccfc22).
+const FONT = EMAIL_FONT;
+const C = { ...EMAIL_COLORS, pain: "#b45309" } as const;
 
 /** H-T4: serie robocze zrobione/planowane (rozgrzewkowe nie liczą się). */
 const workingSetCounts = (workout: EmailWorkout): { done: number; planned: number } =>
@@ -355,13 +365,14 @@ const heroTilesHtml = (workout: EmailWorkout, lang: Lang, prCount: number, unit:
   tiles.push([t(lang, "Serie", "Sets"), `${sets.done}/${sets.planned}`]);
   tiles.push([t(lang, "Ćwiczenia", "Exercises"), String((workout.exercises ?? []).length)]);
   if (prCount > 0) tiles.push([t(lang, "Rekordy", "Records"), String(prCount)]);
-  const gap = `<td width="8" style="font-size:0;line-height:0;">&nbsp;</td>`;
+  // 2026-09-29: kafle jako inline-block, żeby zawijały się na wąskim ekranie
+  // (5 komórek jednej tabeli rozpychało mail do ~450 px przy 375 px).
   const cells = tiles.map(([label, value]) =>
-    `<td valign="top" style="padding:10px 12px;background-color:${C.bg};border-top:3px solid ${C.lime};">
-      <div style="${FONT}font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${C.muted};">${esc(label)}</div>
-      <div style="${FONT}font-size:18px;font-weight:700;color:${C.text};">${esc(value)}</div>
-    </td>`).join(gap);
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:16px 0 4px;"><tr>${cells}</tr></table>`;
+    `<div style="display:inline-block;vertical-align:top;min-width:92px;margin:0 8px 8px 0;padding:10px 12px;background-color:${C.bg};border-top:3px solid ${C.lime};">
+      <div style="${FONT}font-size:11px;line-height:1.4;letter-spacing:1px;text-transform:uppercase;color:${C.muted};">${esc(label)}</div>
+      <div style="${FONT}font-size:18px;line-height:1.3;font-weight:700;color:${C.text};white-space:nowrap;">${esc(value)}</div>
+    </div>`).join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:16px 0 4px;"><tr><td style="font-size:0;line-height:0;">${cells}</td></tr></table>`;
 };
 
 const dayNoteHtml = (workout: EmailWorkout, lang: Lang): string =>
@@ -470,26 +481,16 @@ const greetingHtml = (trainerName: string | undefined, lang: Lang): string =>
     ? `<div style="${FONT}font-size:15px;color:${C.body};margin-bottom:12px;">${t(lang, "Cześć", "Hi")} ${esc(trainerName)},</div>`
     : "";
 
-/** Rama maila: jasne tło, biała karta, logo tekstowe z limonkowym akcentem. */
-const wrap = (bodyHtml: string, lang: Lang): string => `
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background-color:${C.bg};margin:0;padding:0;">
-    <tr><td align="center" style="padding:24px 12px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:640px;">
-        <tr><td style="padding:0 4px 12px;">
-          <div style="${FONT}font-size:14px;font-weight:800;letter-spacing:3px;color:${C.text};">STRENGTH SAVE</div>
-          <div style="height:4px;width:56px;background-color:${C.lime};margin-top:4px;font-size:0;line-height:0;">&nbsp;</div>
-        </td></tr>
-        <tr><td style="background-color:${C.card};border:1px solid ${C.border};border-radius:12px;padding:24px;">
-          ${bodyHtml}
-        </td></tr>
-        <tr><td style="padding:16px 4px 0;">
-          <div style="${FONT}font-size:12px;color:${C.muted};">${t(lang,
+/** Rama maila: wspólny layout (email-layout.ts). Mail idzie do osoby trzeciej
+ *  (trener), więc bez zachęty do odpowiedzi i bez linków (G-T3). */
+const wrap = (bodyHtml: string, lang: Lang, preheader: string): string => renderEmailLayout({
+  lang,
+  preheader,
+  reason: t(lang,
     "Wysłane ze Strength Save na prośbę właściciela konta.",
-    "Sent from Strength Save at the account owner's request.")}</div>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>`;
+    "Sent from Strength Save at the account owner's request."),
+  bodyHtml,
+});
 
 export interface WorkoutEmailOptions {
   /** H-T4: nowe rekordy sesji (liczone server-side względem wcześniejszych treningów). */
@@ -511,7 +512,9 @@ export function buildWorkoutEmailHtml(workout: EmailWorkout, lang: Lang, options
     ${dayNoteHtml(workout, lang)}
     ${prSectionHtml(prs, lang, unit)}
     ${exercisesTableHtml(workout, lang, unit)}`;
-  return wrap(body, lang);
+  return wrap(body, lang, t(lang,
+    `Podsumowanie treningu z ${fmtDateLang(workout.date, "pl")}`,
+    `Workout summary for ${fmtDateLang(workout.date, "en")}`));
 }
 
 export interface HistoryEmailOptions {
@@ -561,7 +564,9 @@ export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang, opti
   const body = workouts.length > HISTORY_FULL_SECTIONS_MAX
     ? historyOverviewTableHtml(workouts, lang, options, unit)
     : workouts.map((w) => workoutSectionHtml(w, lang, options.prsBySession?.[w.id] ?? [], unit)).join("");
-  return wrap(header + body, lang);
+  return wrap(header + body, lang, t(lang,
+    `Historia treningów: ${historyDateRangeLabel(workouts, "pl")}`,
+    `Workout history: ${historyDateRangeLabel(workouts, "en")}`));
 }
 
 export type EmailWorkoutResult =
@@ -607,7 +612,7 @@ export async function runEmailWorkout(
   if (!rawWorkout) return { ok: false, code: "not-found" };
   if (rawWorkout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
+  const { lang, displayName, unit, includeHealth, replyTo } = await resolveUserContext(deps, params.uid, params.lang);
   // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
   let rawEarlier: EmailWorkout[] = [];
   try {
@@ -625,7 +630,7 @@ export async function runEmailWorkout(
   const { prs } = detectEmailPRs(localized, earlier.filter((w) => w.id !== workout.id));
   const subject = workoutEmailSubject(localized, lang, displayName);
   const html = buildWorkoutEmailHtml(localized, lang, { prs, unit, trainerName: sanitizeTrainerName(params.trainerName) });
-  const response = await deps.sendEmail(params.to, subject, html);
+  const response = await deps.sendEmail(params.to, subject, html, replyTo);
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response, html);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
@@ -641,7 +646,7 @@ const resolveUserContext = async (
   deps: EmailWorkoutDeps,
   uid: string,
   clientLang: Lang | undefined,
-): Promise<{ lang: Lang; displayName?: string; unit: EmailUnit; includeHealth: boolean }> => {
+): Promise<{ lang: Lang; displayName?: string; unit: EmailUnit; includeHealth: boolean; replyTo: string[] }> => {
   let ctx: EmailUserContext = {};
   try {
     ctx = await deps.getUserContext(uid);
@@ -656,6 +661,7 @@ const resolveUserContext = async (
     lang,
     unit,
     includeHealth: hasActiveHealthConsent({ consents: ctx.consents }),
+    replyTo: [resolveTrainerReplyTo(ctx)],
     ...(ctx.displayName ? { displayName: ctx.displayName } : {}),
   };
 };
@@ -672,7 +678,7 @@ export async function runEmailHistory(
     : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
   if (rawWorkouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang, displayName, unit, includeHealth } = await resolveUserContext(deps, params.uid, params.lang);
+  const { lang, displayName, unit, includeHealth, replyTo } = await resolveUserContext(deps, params.uid, params.lang);
   // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
   const rangeIds = new Set(rawWorkouts.map((w) => w.id));
   const oldestDate = rawWorkouts.map((w) => w.date).sort()[0];
@@ -699,7 +705,7 @@ export async function runEmailHistory(
   }
   const subject = historyEmailSubject(localizedWorkouts, lang, displayName);
   const html = buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession, unit, trainerName: sanitizeTrainerName(params.trainerName) });
-  const response = await deps.sendEmail(params.to, subject, html);
+  const response = await deps.sendEmail(params.to, subject, html, replyTo);
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response, html);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };

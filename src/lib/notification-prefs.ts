@@ -2,7 +2,9 @@
 // users/{uid}.notificationPrefs = WŁĄCZONE (jak dotąd dailyReminder !== false),
 // więc istniejące konta nie tracą żadnego powiadomienia po wydaniu.
 // Backend (functions) czyta te same klucze: dailyReminder, weeklyDigest,
-// photoReminder, modeEnding, prPush, announcements.
+// photoReminder, modeEnding, prPush, announcements, announcementEmails.
+// 2026-09-29: announcementEmails = osobna zgoda na ogłoszenia e-mail (broadcast
+// admina); ustawia ją też one-click unsubscribe z nagłówka List-Unsubscribe.
 
 export const NOTIFICATION_PREF_KEYS = [
   'dailyReminder',
@@ -10,6 +12,7 @@ export const NOTIFICATION_PREF_KEYS = [
   'photoReminder',
   'modeEnding',
   'announcements',
+  'announcementEmails',
   'weeklyDigest',
 ] as const;
 
@@ -26,6 +29,7 @@ export const NOTIFICATION_PREF_CHANNELS: Record<NotificationPrefKey, readonly No
   modeEnding: ['push'],
   // Wyłączenie ogłoszeń = brak pusha; wpis w dzwonku zostaje (mirror adminSendPush).
   announcements: ['push', 'inApp'],
+  announcementEmails: ['email'],
   weeklyDigest: ['email'],
 };
 

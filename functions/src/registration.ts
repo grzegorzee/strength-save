@@ -37,7 +37,9 @@ import { writeEmailLog } from "./email-log";
 import { buildAnnouncementEvents } from "./announcement-events";
 import { splitAnnouncementRecipients } from "./announcement-recipients";
 import { forEachWithConcurrency } from "./bounded-concurrency";
-import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail } from "./ses-email";
+import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail, type SesEmailHeader } from "./ses-email";
+import { deriveUnsubscribeKey, listUnsubscribeHeaders, unsubscribeUrl } from "./email-unsubscribe";
+import { selectAnnouncementEmailRecipients } from "./announcement-recipients";
 
 const authPepper = defineSecret("API_KEY_PEPPER");
 
@@ -296,6 +298,8 @@ async function sendEmail(params: {
   html: string;
   type: string;
   userId?: string | null;
+  /** 2026-09-29: np. List-Unsubscribe dla broadcastu. */
+  headers?: SesEmailHeader[];
 }): Promise<void> {
   let result: Awaited<ReturnType<typeof sendSesEmail>> | null = null;
   let errorMessage: string | null = null;
@@ -304,6 +308,7 @@ async function sendEmail(params: {
       to: params.to,
       subject: params.subject,
       html: params.html,
+      ...(params.headers ? { headers: params.headers } : {}),
     });
   } catch (error) {
     errorMessage = safeSesErrorCode(error);
@@ -1152,7 +1157,7 @@ export const adminResendVerification = onCall({ secrets: [...SES_EMAIL_SECRETS, 
 });
 
 // Broadcast mailowy do wszystkich lub do cohorty.
-export const adminBroadcastEmail = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
+export const adminBroadcastEmail = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepper] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
   const target = normalizeOptionalString(request.data?.target, 60) || "all"; // 'all' | nazwa cohorty
@@ -1163,21 +1168,33 @@ export const adminBroadcastEmail = onCall({ secrets: [...SES_EMAIL_SECRETS] }, a
   let query: FirebaseFirestore.Query = getDb().collection(USERS_COLLECTION);
   if (target !== "all") query = query.where("cohorts", "array-contains", target);
   const snap = await query.get();
-  const recipients = snap.docs
-    .map((d) => (d.data() as UserProfileDoc).email)
-    .filter((e): e is string => !!e);
+  const withEmail = snap.docs.filter((d) => !!(d.data() as UserProfileDoc).email).length;
+  // 2026-09-29: wypisani (notificationPrefs.announcementEmails === false) odpadają.
+  const recipients = selectAnnouncementEmailRecipients(snap.docs.map((d) => ({
+    uid: d.id,
+    email: (d.data() as UserProfileDoc).email,
+    notificationPrefs: (d.data() as { notificationPrefs?: { announcementEmails?: boolean } }).notificationPrefs,
+  })));
 
-  const html = adminMessageEmailHtml(body);
+  const html = adminMessageEmailHtml(body, { broadcast: true });
+  const unsubscribeKey = deriveUnsubscribeKey(authPepper.value());
   let sent = 0;
-  for (const email of recipients) {
+  for (const recipient of recipients) {
     try {
-      await sendEmail({ to: email, subject, html, type: "admin_broadcast", userId: null });
+      await sendEmail({
+        to: recipient.email,
+        subject,
+        html,
+        type: "admin_broadcast",
+        userId: null,
+        headers: listUnsubscribeHeaders(unsubscribeUrl(recipient.uid, unsubscribeKey, "announcementEmails")),
+      });
       sent += 1;
     } catch {
       // pojedynczy błąd nie przerywa broadcastu
     }
   }
-  return { success: true, sent, total: recipients.length };
+  return { success: true, sent, total: recipients.length, skippedUnsubscribed: withEmail - recipients.length };
 });
 
 // Push (FCM) do wszystkich lub do cohorty. Registry tokenów jest jedynym source of truth.

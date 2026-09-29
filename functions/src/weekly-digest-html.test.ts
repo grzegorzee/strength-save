@@ -33,7 +33,7 @@ describe("buildWeeklyDigest (Z160)", () => {
 
   it("wariant PL: tytuły sekcji i temat po polsku", () => {
     const { subject, html } = buildWeeklyDigest(baseInput());
-    expect(subject).toContain("3 treningów");
+    expect(subject).toContain("3 treningi");
     expect(subject).toContain("12.4 t");
     expect(subject).toContain("Twój tydzień 21 - 27 lipca 2026");
     expect(html).toContain("Rekordy tygodnia");

@@ -11,6 +11,31 @@
 
 ## DECYZJE
 
+### 2026-09-29: maile, decyzje właściciela (Reply-To do trenera, wypis z broadcastu)
+
+1. Mail z treningiem i historią do trenera: Reply-To = `users/{uid}.email`, gdy
+   aplikacja go zweryfikowała (`verification.emailVerifiedAt`) i nie jest to Apple
+   Private Relay (relay przyjmuje pocztę tylko od zarejestrowanych nadawców, odpowiedź
+   trenera by odbiła). W każdym innym przypadku, także przy awarii odczytu profilu,
+   `contact@strengthsave.app`. Testy obu gałęzi (`email-workout.test.ts`).
+2. Broadcast e-mail z panelu admina: osobna flaga zgody
+   `notificationPrefs.announcementEmails` (brak pola = włączone, jak reszta prefs;
+   maile o koncie bez zmian), przełącznik „Ogłoszenia e-mail od zespołu” w Profil,
+   Powiadomienia (PL/EN). `adminBroadcastEmail` pomija wypisanych (zwraca
+   `skippedUnsubscribed`) i dodaje `List-Unsubscribe` + `List-Unsubscribe-Post`
+   z tokenem o osobnym zakresie (`&s=announcements`): link z digestu nie wypisuje
+   z ogłoszeń i odwrotnie. Stopka broadcastu podaje powód i drogę wyłączenia.
+   Kanoniczne stany nie mają `notificationPrefs`, więc route-smoke renderuje ścieżkę
+   domyślną; reguły Firestore przyjmują dowolny klucz w mapie `notificationPrefs`.
+   Uwaga prawna: flaga to zgoda na ogłoszenia. Treść stricte marketingowa wymaga
+   dodatkowo `consents.marketingGranted` (tego broadcast nie sprawdza).
+
+Weryfikacja: functions 806 passed + build; aplikacja 511 plików / 4527 testów
+passed (w tym route-smoke), typecheck, lint 0 błędów. Commity `eea14c5b`,
+`21a52c28`, `9d2646f4`. **Wymaga deployu functions** (`emailWorkoutSummary`,
+`emailWorkoutHistory`, `adminBroadcastEmail`, `emailUnsubscribe`) PRZED webem
+z nowym przełącznikiem (backend-first, zasada 19).
+
 ### 2026-09-29: F6, ćwiczenia z masą ciała i opcjonalnym dociążeniem (`bodyweight_loaded`)
 
 Root cause (dane produkcyjne, odczyt read-only): podciąganie było `weight_reps`,
@@ -55,6 +80,44 @@ mutacja (wyłączona normalizacja) wykrywana przez e2e.
 Wymaga: deploy functions PRZED klientem (backend-first), build Apple Watch
 (opcjonalny, starszy działa w trybie degradacji). Nie udowodnione: fizyczny
 zegarek (Apple Watch, Garmin epix), zgaszony ekran, konto QA.
+
+### 2026-09-29: maile, wspólny layout i dostarczalność (audyt, bez deployu)
+
+Pełny audyt: `docs/EMAIL-AUDIT-2026-09-29.md`.
+
+1. **Wspólny layout** `functions/src/email-layout.ts` dla wszystkich maili do userów
+   (tabele, inline CSS, `color-scheme: light`, ukryty preheader, wordmark tekstowy z
+   akcentem #ccfc22 bez obrazów, stopka z powodem wysyłki i nadawcą z adresem z
+   polityki prywatności). Root cause chaosu: każdy szablon miał własny markup, 6 z 8
+   bez szkieletu dokumentu. Mail z treningiem rozpychał się do ~450 px przy 375 px
+   (5 kafli w jednym wierszu) - kafle `inline-block`.
+2. **Treść:** digest „4 treningów” (zła odmiana) i pauza em w temacie, stopka digestu
+   wskazywała nieistniejące „Ustawienia → Powiadomienia” (realnie Profil, Powiadomienia),
+   powitanie bez żargonu „onboarding”. Digest dalej bez linków w treści (X29).
+3. **Nagłówki:** Reply-To `contact@strengthsave.app` domyślnie (noreply@ nie ma skrzynki,
+   odpowiedzi ginęły). Digest dostał działający one-click unsubscribe (RFC 8058):
+   nowa funkcja `emailUnsubscribe`, token HMAC z klucza wyprowadzonego z `API_KEY_PEPPER`,
+   GET tylko potwierdza (skanery linków), POST wyłącza `notificationPrefs.weeklyDigest`.
+4. **Linki z danymi logowania** (reset hasła, zaproszenie) z `ses:no-track`: config set
+   ma włączone zdarzenia OPEN/CLICK, więc SES przepisywał link z `oobCode` przez `awstrack.me`.
+5. **text/plain** z adresami linków, bez preheadera i `<head>`.
+6. **DNS (ustalenie):** `send.strengthsave.app` (MX us-east-1) to domena zwrotna Resend,
+   nie błędny MAIL FROM naszego SES; notatka z RELEASE-READINESS-2026-08-27 była błędną
+   diagnozą, tego rekordu nie ruszać. SES eu-central-1 nie ma custom MAIL FROM (SPF nie
+   wyrównany, DMARC przechodzi tylko przez DKIM). DMARC `rua` na gmail.com bez rekordu
+   autoryzacji, raporty najpewniej nie dochodzą. Rekordy do dodania: sekcja 6 audytu
+   (MX+TXT `bounce`, zmiana `_dmarc`, rejestracja domeny w Apple Private Relay,
+   wyłączenie OPEN/CLICK w config secie).
+
+Weryfikacja: baseline functions 610 passed przed zmianą; po zmianie 776 passed
+(`email-contract.test.ts` 152 przypadki PL/EN czerwone przed implementacją,
+`email-unsubscribe.test.ts`, nowe przypadki w `ses-email.test.ts` i `weekly-digest.test.ts`),
+`tsc`, build, lint 0 błędów. Zrzuty przed/po (light, dark, forced-dark, 375/600 px)
+w `tmp/email-preview/` worktree (niecommitowane), generator `scripts/email-previews.mjs`
++ `scripts/email-screenshots.mjs`. Zmienione asercje istniejących testów: akcent
+#cefc22 -> #ccfc22, szerokość 640 -> 600, „3 treningów” -> „3 treningi” (bug),
+brak „!” sprawdzany na wersji tekstowej, sekrety `weeklyDigest` + `unsubscribePepper`.
+**Wymaga deployu functions** (`emailUnsubscribe` razem z `weeklyDigest`); klient bez zmian.
 
 ### 2026-09-29: dług wykryty przy F1/F4 (Profil, dolna nawigacja web, „Na stałe” na zamianie)
 

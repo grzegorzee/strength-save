@@ -13,7 +13,12 @@ import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-
 import type { Lang } from "./email-templates";
 import { writeEmailLog, type EmailLogWrite } from "./email-log";
 import { localDayParts, shiftDateStr } from "./local-time";
-import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail } from "./ses-email";
+import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail, type SesEmailHeader } from "./ses-email";
+import { defineSecret } from "firebase-functions/params";
+import { deriveUnsubscribeKey, listUnsubscribeHeaders, unsubscribeUrl } from "./email-unsubscribe";
+
+// 2026-09-29: klucz tokenów one-click unsubscribe wyprowadzany z tego sekretu.
+const unsubscribePepper = defineSecret("API_KEY_PEPPER");
 
 const DIGEST_CONCURRENCY = 10;
 /** Bug 11 (X30): digest wychodzi w poniedziałek o tej lokalnej godzinie ODBIORCY. */
@@ -67,7 +72,7 @@ export interface WeeklyDigestDeps {
    *  userów akceptowalne; przy wzroście → per-user limit albo agregaty. */
   queryWorkoutHistory: (beforeStr: string) => Promise<DigestWorkout[]>;
   queryStravaActivities: (startStr: string, endStr: string) => Promise<Array<StravaDoc & { userId: string }>>;
-  sendEmail: (to: string, subject: string, html: string) => Promise<{
+  sendEmail: (to: string, subject: string, html: string, headers?: SesEmailHeader[]) => Promise<{
     transport?: "ses";
     sesMessageId?: string;
     error?: { message: string };
@@ -80,6 +85,8 @@ export interface WeeklyDigestDeps {
     payload: Record<string, string | number | boolean | null>;
     deepLink: string | null;
   }) => Promise<void>;
+  /** 2026-09-29: nagłówki List-Unsubscribe (one-click) per odbiorca. */
+  unsubscribeHeaders?: (uid: string) => SesEmailHeader[];
   /** T21b: rejestr wysyłek email_log (best-effort, wpis per odbiorca). */
   logEmail?: (entry: EmailLogWrite, html?: string) => Promise<void>;
   now?: () => Date;
@@ -224,7 +231,7 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
         rangeLabel,
       });
 
-      const response = await deps.sendEmail(user.email, subject, html);
+      const response = await deps.sendEmail(user.email, subject, html, deps.unsubscribeHeaders?.(user.uid));
       // T21b: wpis do email_log po każdej próbie (udanej i nieudanej);
       // awaria rejestru nie może zabrać digestu pozostałym odbiorcom.
       if (deps.logEmail) {
@@ -277,13 +284,13 @@ export const weeklyDigest = onSchedule(
     schedule: "0 * * * 0,1",
     timeZone: "UTC",
     timeoutSeconds: 300,
-    secrets: [...SES_EMAIL_SECRETS],
+    secrets: [...SES_EMAIL_SECRETS, unsubscribePepper],
   },
   async () => {
     const db = admin.firestore();
     logger.info("[WeeklyDigest] Starting...");
 
-    await runWeeklyDigest(buildWeeklyDigestDeps(db));
+    await runWeeklyDigest(buildWeeklyDigestDeps(db, sendSesEmail, deriveUnsubscribeKey(unsubscribePepper.value())));
   },
 );
 
@@ -292,8 +299,12 @@ export const weeklyDigest = onSchedule(
 export function buildWeeklyDigestDeps(
   db: FirebaseFirestore.Firestore,
   emailSender: typeof sendSesEmail = sendSesEmail,
+  unsubscribeKey?: Buffer,
 ): WeeklyDigestDeps {
   return {
+    ...(unsubscribeKey
+      ? { unsubscribeHeaders: (uid: string) => listUnsubscribeHeaders(unsubscribeUrl(uid, unsubscribeKey)) }
+      : {}),
     listUsers: async () => {
       // Paginacja po kolekcji users (1 read/user) zamiast listUsers z Auth —
       // profil niesie status, notificationPrefs, język i jednostki.
@@ -341,9 +352,9 @@ export function buildWeeklyDigestDeps(
         .get();
       return snapshot.docs.map((doc) => doc.data() as StravaDoc & { userId: string });
     },
-    sendEmail: async (to, subject, html) => {
+    sendEmail: async (to, subject, html, headers) => {
       try {
-        return await emailSender({ to, subject, html });
+        return await emailSender({ to, subject, html, ...(headers ? { headers } : {}) });
       } catch (error) {
         return {
           transport: "ses",

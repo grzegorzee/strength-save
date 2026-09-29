@@ -396,6 +396,8 @@ export const en: Record<keyof typeof pl, string> = {
   'settings.notif.modeEndingDesc': 'In the evening of the last day: from tomorrow we ramp back up to full power.',
   'settings.notif.announcements': 'Announcements from the team',
   'settings.notif.announcementsDesc': 'News and important info. When off, the inbox entry stays, without a push.',
+  'settings.notif.announcementEmails': 'Announcement emails from the team',
+  'settings.notif.announcementEmailsDesc': 'News about the app sent by email. Account emails (codes, password reset) always arrive.',
   'settings.toast.saved': 'Saved',
   'settings.toast.error': 'Error',
   'settings.toast.saveFailed': 'Could not save.',
