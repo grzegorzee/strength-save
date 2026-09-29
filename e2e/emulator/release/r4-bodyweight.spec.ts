@@ -98,16 +98,24 @@ test('R4: podciąganie MC i MC +10 kg → sync → Historia MC → PR za docią�
   // Progresja po górze zakresu z samą MC = +2,5 kg DOCIĄŻENIA (nie masa ciała + 2,5).
   const pullCard = page.locator('.exercise-card').filter({ has: page.getByRole('heading', { name: PULL, exact: true }) });
   await expect(pullCard.getByRole('textbox', { name: LOAD(1) })).toHaveValue('2.5', { timeout: 10_000 });
-  // Wszystkie serie jawnie (nieodhaczona seria z prefillem progresji zostałaby przy
-  // „Zakończ” odhaczona automatycznie jako 2,5 kg, patrz raport release e2e).
   await doSet(page, 1, top, '');
   await doSet(page, 2, top, '10');
-  for (let set = 3; set <= setCount; set += 1) await doSet(page, set, top, '');
+  // Pozostałe serie zostają z samym prefillem progresji (2,5 kg): user ich nie
+  // dotknął, więc „Zakończ” NIE może ich zaliczyć (decyzja 2026-09-29).
+  const untouched = setCount - 2;
+  expect(untouched, 'plan musi mieć serię do zostawienia nietkniętą').toBeGreaterThan(0);
+  for (let set = 3; set <= setCount; set += 1) {
+    await expect(pullCard.getByRole('textbox', { name: LOAD(set) })).toHaveValue('2.5');
+  }
   await finish(page);
   await expect(page.getByText(/^Nowe rekordy/).first()).toBeVisible({ timeout: 20_000 });
   const s2 = `workouts/workout-${user.uid}-${day1.id}-${day2Date}`;
-  await expect.poll(() => pullSets(s2), { timeout: 20_000 })
-    .toEqual([[0, Number(top)], [10, Number(top)], ...Array.from({ length: setCount - 2 }, () => [0, Number(top)])]);
+  await expect.poll(() => pullSets(s2), { timeout: 20_000 }).toEqual([[0, Number(top)], [10, Number(top)]]);
+  // Nietknięte serie są w dokumencie jako niezaliczone, a znacznik prefillu nie trafia do chmury.
+  const s2Doc = await readDoc(s2) as { exercises: Array<{ name: string; sets: Array<{ weight: number; completed: boolean }> }> };
+  expect(s2Doc.exercises.find((e) => e.name === PULL)!.sets.filter((s) => !s.completed).map((s) => s.weight))
+    .toEqual(Array.from({ length: untouched }, () => 2.5));
+  expect(JSON.stringify(s2Doc)).not.toContain('prefilled');
 
   // Historia: etykiety MC w szczegółach sesji; PR tylko w sesji z dociążeniem.
   await page.goto('./#/history');
@@ -120,14 +128,14 @@ test('R4: podciąganie MC i MC +10 kg → sync → Historia MC → PR za docią�
     await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
   }
   await expect(page.getByText(`${top}×MC +10 kg`, { exact: true })).toHaveCount(1);
-  await expect(page.getByText(`${top}×MC`, { exact: true })).toHaveCount(2 * setCount - 1);
+  await expect(page.getByText(`${top}×MC`, { exact: true })).toHaveCount(setCount + 1);
 
   // Agregat all-time (trigger Functions): 2 treningi, tonaż = tylko dociążenie.
   await expect.poll(async () => (await readDoc(`users/${user.uid}/aggregates/allTime`))?.totals, { timeout: 20_000 })
     .toMatchObject({
       workoutCount: 2,
       totalTonnageKg: 10 * Number(top),
-      totalSets: 2 * setCount,
-      totalReps: Number(top) * 2 * setCount,
+      totalSets: setCount + 2,
+      totalReps: Number(top) * (setCount + 2),
     });
 });

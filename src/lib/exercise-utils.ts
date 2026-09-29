@@ -1,4 +1,5 @@
 import type { SetData } from '@/types';
+export { withoutPrefilledFlag } from '@/lib/workout-sanitizers';
 import { exerciseLibrary, findLibraryExercise } from '@/data/exerciseLibrary';
 import { translate, type LanguageCode } from '@/i18n';
 import { toDisplayWeight, type UnitSystem } from '@/lib/units';
@@ -249,6 +250,7 @@ export const createPrefilledSets = (
         weight: isBodyweight ? 0 : (typeof target?.weight === 'number' ? target.weight : prevSet.weight),
         completed: false,
         ...carrySetExtras(prevSet),
+        prefilled: true,
       });
     } else {
       workingSets.push({ reps: 0, weight: 0, completed: false });
@@ -274,5 +276,8 @@ export const sanitizeSets = (
     completed: set?.completed ?? false,
     ...(set?.isWarmup && { isWarmup: true }),
     ...carrySetExtras(set),
+    // Stan karty musi nieść znacznik prefillu, bo edycja jednej serii odsyła
+    // całą tablicę karty do szkicu (inaczej pozostałe serie traciłyby flagę).
+    ...(set?.prefilled === true && { prefilled: true as const }),
   }));
 };

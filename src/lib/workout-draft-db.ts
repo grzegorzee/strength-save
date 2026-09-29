@@ -113,6 +113,8 @@ const normalizeSet = (set: unknown): SetData => {
       ? { updatedAt: Number(set.updatedAt) } : {}),
     ...(typeof set.updatedEventId === 'string' && set.updatedEventId.length > 0
       ? { updatedEventId: set.updatedEventId.slice(0, 120) } : {}),
+    // Znacznik prefillu przeżywa wyjście/powrót (tylko szkic, nie chmura).
+    ...(set.prefilled === true ? { prefilled: true as const } : {}),
   };
 };
 

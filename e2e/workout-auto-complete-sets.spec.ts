@@ -8,8 +8,10 @@ import {
   blockFirebase,
   clearWorkoutDraftDb,
   expectPageRendered,
+  localDaysAgo,
   navigateAndWait,
   readWorkoutDraftDb,
+  setE2EWorkouts,
   skipPreStartWarmupIfShown,
 } from './helpers';
 
@@ -116,5 +118,43 @@ test.describe('WP-D (X37): aktywna seria i auto-odhaczanie przy Zakończ', () =>
     await page.getByRole('button', { name: 'Tak, zakończ' }).click();
     await expect(page.getByText('Pusty trening').first()).toBeVisible();
     await expect(page.getByText(/Odhaczono/)).toHaveCount(0);
+  });
+
+  // Decyzja 2026-09-29: seria z samym prefillem apki (historia/cel), której user
+  // nie dotknął, NIE jest zaliczana przy „Zakończ”; toast mówi ile pominięto.
+  test('prefill z historii: zmieniona seria zaliczona, nietknięte pominięte, toast mówi prawdę', async ({ page }) => {
+    await setE2EWorkouts(page, [{
+      id: 'w-prev', userId: 'e2e-test-user', dayId: 'day-1', dayName: 'Poniedziałek', date: localDaysAgo(7), completed: true,
+      exercises: [{
+        exerciseId: 'ex-1-1', name: 'Wyciskanie hantli (Lekki skos)',
+        sets: [1, 2, 3].map(() => ({ reps: 8, weight: 60, completed: true })),
+      }],
+    }]);
+    await navigateAndWait(page, '/workout/day-1');
+    await clearWorkoutDraftDb(page, 'e2e-test-user');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
+
+    const firstCard = page.locator('.exercise-card').first();
+    const repsInputs = firstCard.getByLabel(/Set \d+, Powt\./);
+    await expect(firstCard.getByLabel(/Set 1, (kg|lbs)/).first()).toHaveValue('60', { timeout: 5000 });
+    const workingCount = await repsInputs.count();
+    expect(workingCount).toBeGreaterThanOrEqual(3);
+
+    // Seria 1 odhaczona ręcznie, seria 2 zmieniona bez odhaczenia, reszta nietknięta.
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
+    await firstCard.getByLabel(/Set 2, Powt\./).first().fill('9');
+    await page.getByTestId('finish-workout').click();
+    await page.getByRole('button', { name: 'Tak, zakończ' }).click();
+
+    await expect(page.getByText('Odhaczono 1 serię z wpisanymi danymi').first()).toBeVisible();
+    await expect(page.getByText(new RegExp(`Pominięto ${workingCount - 2} seri(ę|e|i) bez wpisanego wyniku`)).first()).toBeVisible();
+
+    await expect.poll(async () => {
+      const draft = await readWorkoutDraftDb(page, 'e2e-test-user') as DraftShape;
+      const sets = (Object.values(draft?.exerciseSets ?? {})[0] ?? []).filter((s) => !s.isWarmup);
+      return sets.map((s) => s.completed);
+    }, { timeout: 10000 }).toEqual([true, true, ...Array.from({ length: workingCount - 2 }, () => false)]);
   });
 });

@@ -22,6 +22,10 @@ export interface SetData {
   updatedAt?: number;
   /** Deterministyczny tie-break, gdy dwa eventy mają ten sam updatedAt. */
   updatedEventId?: string;
+  /** Wartości wpisała apka (prefill: historia, cel, rampa), user ich nie dotknął.
+   *  Żyje tylko w szkicu sesji (IDB); każda edycja usera ją zdejmuje, zapis do
+   *  chmury ją odrzuca. „Zakończ” nie zalicza takiej serii automatycznie. */
+  prefilled?: true;
 }
 
 // Metryki autoregulacji per ćwiczenie (Faza 2 — model RZA). Wszystkie opcjonalne:

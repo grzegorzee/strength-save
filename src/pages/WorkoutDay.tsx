@@ -1943,6 +1943,8 @@ const WorkoutDay = () => {
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
       ...carrySetExtras(s),
+      // Znacznik prefillu (seria nietknięta przez usera) zostaje w szkicu.
+      ...(s.prefilled === true && { prefilled: true as const }),
     })), Date.now(), newPhoneSetEventId());
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
     exerciseSetsRef.current = nextExerciseSets;
@@ -1987,6 +1989,8 @@ const WorkoutDay = () => {
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
       ...carrySetExtras(s),
+      // Znacznik prefillu (seria nietknięta przez usera) zostaje w szkicu.
+      ...(s.prefilled === true && { prefilled: true as const }),
     })), Date.now(), newPhoneSetEventId());
     // Runna p.1 (spec A4): PR na żywo — porównanie ze stanem SPRZED tej zmiany
     // (exerciseSetsRef jeszcze nie zaktualizowany).
@@ -2351,17 +2355,32 @@ const WorkoutDay = () => {
     for (const exerciseId of autoCompletion.changedExerciseIds) {
       handleSetsChange(exerciseId, autoCompletion.exerciseSets[exerciseId]);
     }
-    if (autoCompletion.autoCompleted > 0) {
-      const form = plSetsPluralForm(autoCompletion.autoCompleted);
+    // Decyzja 2026-09-29: toast mówi, ile wpisanych wyników zaliczono i ile serii
+    // z samą podpowiedzią apki pominięto (te zostają niezaliczone).
+    const { autoCompleted, skippedPrefilled } = autoCompletion;
+    const skippedTitle = skippedPrefilled > 0
+      ? t(
+        plSetsPluralForm(skippedPrefilled) === 'one'
+          ? 'workout.toast.skippedPrefilledOne'
+          : plSetsPluralForm(skippedPrefilled) === 'few' ? 'workout.toast.skippedPrefilledFew' : 'workout.toast.skippedPrefilledMany',
+        { n: skippedPrefilled },
+      )
+      : null;
+    if (autoCompleted > 0) {
+      const form = plSetsPluralForm(autoCompleted);
       toast({
         title: t(
           form === 'one'
             ? 'workout.toast.autoCompletedOne'
             : form === 'few' ? 'workout.toast.autoCompletedFew' : 'workout.toast.autoCompletedMany',
-          { n: autoCompletion.autoCompleted },
+          { n: autoCompleted },
         ),
-        description: t('workout.toast.autoCompletedDesc'),
+        description: skippedTitle
+          ? `${t('workout.toast.autoCompletedDesc')} ${skippedTitle}.`
+          : t('workout.toast.autoCompletedDesc'),
       });
+    } else if (skippedTitle) {
+      toast({ title: skippedTitle, description: t('workout.toast.skippedPrefilledDesc') });
     }
 
     // Trening bez ANI JEDNEJ odhaczonej serii nie ma czego zapisać: walidacja finalna

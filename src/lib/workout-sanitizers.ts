@@ -1,5 +1,13 @@
 import type { SetData } from '@/types';
 
+/** Seria dotknięta przez usera (wpis, stepper, kalkulator, zegarek, odhaczenie):
+ *  wartości są jego, więc znika znacznik prefillu. Bez flagi = ta sama referencja. */
+export const withoutPrefilledFlag = <T extends Partial<SetData>>(set: T): T => {
+  if (!('prefilled' in set)) return set;
+  const { prefilled: _prefilled, ...rest } = set;
+  return rest as T;
+};
+
 export const clampSet = (set: Partial<SetData>): SetData => ({
   reps: Math.max(0, Math.min(999, Math.round(Number(set.reps) || 0))),
   weight: Math.max(0, Math.min(999, Number(set.weight) || 0)),

@@ -231,16 +231,23 @@ export const countCompletedWorkingSets = (exerciseSets: Record<string, SetData[]
 export const autoCompleteFilledSets = (
   exerciseSets: Record<string, SetData[]>,
   trackingOf: (exerciseId: string) => TrackingType,
-): { exerciseSets: Record<string, SetData[]>; autoCompleted: number; changedExerciseIds: string[] } => {
+): { exerciseSets: Record<string, SetData[]>; autoCompleted: number; skippedPrefilled: number; changedExerciseIds: string[] } => {
   const next: Record<string, SetData[]> = {};
   const changedExerciseIds: string[] = [];
   let autoCompleted = 0;
+  let skippedPrefilled = 0;
 
   for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
     const tracking = trackingOf(exerciseId);
     let changed = false;
     const nextSets = sets.map((set) => {
       if (set.isWarmup || set.completed || !hasCompleteSetData(set, tracking)) return set;
+      // Decyzja 2026-09-29: sam prefill apki (user nic nie wpisał) NIE jest wynikiem.
+      // Seria zostaje na ekranie jako niezaliczona. Legacy szkic bez flagi = jak dotąd.
+      if (set.prefilled === true) {
+        skippedPrefilled += 1;
+        return set;
+      }
       changed = true;
       autoCompleted += 1;
       return { ...set, completed: true };
@@ -249,7 +256,7 @@ export const autoCompleteFilledSets = (
     if (changed) changedExerciseIds.push(exerciseId);
   }
 
-  return { exerciseSets: next, autoCompleted, changedExerciseIds };
+  return { exerciseSets: next, autoCompleted, skippedPrefilled, changedExerciseIds };
 };
 
 /** Forma liczebnika PL dla "N serii" (1 seria / 2-4 serie / 5+ serii, z regułą 22-24). */
