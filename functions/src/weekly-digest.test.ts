@@ -91,6 +91,22 @@ describe("runWeeklyDigest (R2-10)", () => {
     expect(deps.sendEmail.mock.calls[0][0]).toBe("x@y.z");
   });
 
+  it("każdy digest dostaje nagłówki one-click unsubscribe z uid odbiorcy", async () => {
+    const unsubscribeHeaders = vi.fn((uid: string) => [
+      { name: "List-Unsubscribe", value: `<https://example.com/u?u=${uid}>` },
+      { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
+    ]);
+    const deps = makeDeps([{ uid: "u1", email: "a@b.c" }], { unsubscribeHeaders });
+
+    await runWeeklyDigest(deps);
+
+    expect(unsubscribeHeaders).toHaveBeenCalledWith("u1");
+    expect(deps.sendEmail.mock.calls[0][3]).toEqual([
+      { name: "List-Unsubscribe", value: "<https://example.com/u?u=u1>" },
+      { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
+    ]);
+  });
+
   it("brak pola notificationPrefs/status = mail wychodzi (default wysyłaj)", async () => {
     const deps = makeDeps([{ uid: "u1", email: "a@b.c" }]);
 
@@ -279,7 +295,8 @@ describe("weekly digest: wspólny transport Amazon SES", () => {
   it("nie ma runtime Resend i binduje wszystkie sekrety SES", () => {
     expect(source).toContain('from "./ses-email"');
     expect(source).toContain("sendSesEmail");
-    expect(source).toMatch(/secrets: \[\.\.\.SES_EMAIL_SECRETS\]/);
+    // 2026-09-29: + API_KEY_PEPPER (klucz tokenów one-click unsubscribe).
+    expect(source).toMatch(/secrets: \[\.\.\.SES_EMAIL_SECRETS, unsubscribePepper\]/);
     expect(source).not.toContain('from "resend"');
     expect(source).not.toContain("RESEND_API_KEY");
   });
@@ -295,6 +312,17 @@ describe("weekly digest: wspólny transport Amazon SES", () => {
       subject: "Temat",
       html: "<p>Treść</p>",
     });
+  });
+
+  // 2026-09-29: one-click unsubscribe. Nagłówki per odbiorca idą do SES,
+  // brak nagłówków = wywołanie jak dotąd (bez pola headers).
+  it("adapter przekazuje nagłówki List-Unsubscribe do SES", async () => {
+    const sender = vi.fn(async () => ({ transport: "ses" as const }));
+    const deps = buildWeeklyDigestDeps({} as FirebaseFirestore.Firestore, sender);
+    const headers = [{ name: "List-Unsubscribe", value: "<https://x/u>" }];
+
+    await deps.sendEmail("user@example.com", "Temat", "<p>Treść</p>", headers);
+    expect(sender).toHaveBeenCalledWith({ to: "user@example.com", subject: "Temat", html: "<p>Treść</p>", headers });
   });
 
   it("adapter zamienia odrzucenie SES na błąd per odbiorca", async () => {

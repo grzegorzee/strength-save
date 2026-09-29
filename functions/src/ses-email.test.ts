@@ -26,6 +26,7 @@ describe("shared Amazon SES email transport", () => {
       text: "Błąd\n\nNie zapisuje serii.",
     })).toEqual({
       FromEmailAddress: "Strength Save <noreply@strengthsave.app>",
+      ReplyToAddresses: ["contact@strengthsave.app"],
       ConfigurationSetName: "strengthsave",
       Destination: { ToAddresses: ["contact@strengthsave.app"] },
       Content: {
@@ -38,6 +39,31 @@ describe("shared Amazon SES email transport", () => {
         },
       },
     });
+  });
+
+  // 2026-09-29: odpowiedź na mail z noreply@ trafiała w próżnię. Domyślny
+  // Reply-To prowadzi do skrzynki supportu, która ma odbiór (MX od 16.09).
+  it("defaults Reply-To to the support mailbox and lets a message override it", () => {
+    const base = { from: "noreply@strengthsave.app", to: "u@example.com", subject: "S", html: "<p>B</p>", text: "B" };
+    expect(buildSesEmailCommandInput(base).ReplyToAddresses).toEqual(["contact@strengthsave.app"]);
+    expect(buildSesEmailCommandInput({ ...base, replyTo: ["jan@example.com"] }).ReplyToAddresses)
+      .toEqual(["jan@example.com"]);
+  });
+
+  it("passes custom headers (List-Unsubscribe) and omits the field when there are none", () => {
+    const base = { from: "noreply@strengthsave.app", to: "u@example.com", subject: "S", html: "<p>B</p>", text: "B" };
+    expect(buildSesEmailCommandInput(base).Content?.Simple?.Headers).toBeUndefined();
+    const withHeaders = buildSesEmailCommandInput({
+      ...base,
+      headers: [
+        { name: "List-Unsubscribe", value: "<https://example.com/u?t=1>" },
+        { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
+      ],
+    });
+    expect(withHeaders.Content?.Simple?.Headers).toEqual([
+      { Name: "List-Unsubscribe", Value: "<https://example.com/u?t=1>" },
+      { Name: "List-Unsubscribe-Post", Value: "List-Unsubscribe=One-Click" },
+    ]);
   });
 
   it("returns the SES MessageId used by delivery-event correlation", async () => {

@@ -1,6 +1,7 @@
 // F-T3: mail podsumowania treningu — kontrakty: treść (serie/notatki/RPE/ból),
 // ownership, limit dzienny, walidacja adresu, pusta historia.
 import { describe, expect, it, vi } from "vitest";
+import { htmlToPlainText } from "./ses-email";
 import {
   buildHistoryEmailHtml,
   buildWorkoutEmailHtml,
@@ -458,13 +459,14 @@ describe("przepływ PR w wysyłce (H-T4)", () => {
 // akcent przy ciemnym tekście, layout tabelaryczny, zero obrazków, zero
 // wykrzykników i AI-slopu w copy.
 describe("szablon marki (G-T3)", () => {
-  it("pojedynczy: jasne tło, biała karta, logo tekstowe, akcent limonkowy, max 640", () => {
+  // 2026-09-29: wspólny layout maili: akcent marki #ccfc22 i szerokość 600 px.
+  it("pojedynczy: jasne tło, biała karta, logo tekstowe, akcent limonkowy, max 600", () => {
     const html = buildWorkoutEmailHtml(workout(), "pl");
     expect(html).toContain("#f6f7f9");
     expect(html).toContain("#ffffff");
     expect(html).toContain("STRENGTH SAVE");
-    expect(html).toContain("#cefc22");
-    expect(html).toContain("max-width:640px");
+    expect(html).toContain("#ccfc22");
+    expect(html).toContain("max-width:600px");
   });
 
   it("kafle hero: tonaż, czas, serie, ćwiczenia (PL i EN)", () => {
@@ -491,9 +493,11 @@ describe("szablon marki (G-T3)", () => {
 
   it("zero wykrzykników w copy (poza treścią wpisaną przez usera)", () => {
     const clean = workout({ notes: undefined, exercises: [{ exerciseId: "ex-1", name: "Wyciskanie", sets: [{ reps: 5, weight: 100, completed: true }] }] });
-    expect(buildWorkoutEmailHtml(clean, "pl")).not.toContain("!");
-    expect(buildWorkoutEmailHtml(clean, "en")).not.toContain("!");
-    expect(buildHistoryEmailHtml([clean], "pl")).not.toContain("!");
+    // 2026-09-29: pełny dokument ma <!DOCTYPE> i komentarze, więc copy
+    // sprawdzamy na wersji tekstowej (to, co czyta odbiorca).
+    expect(htmlToPlainText(buildWorkoutEmailHtml(clean, "pl"))).not.toContain("!");
+    expect(htmlToPlainText(buildWorkoutEmailHtml(clean, "en"))).not.toContain("!");
+    expect(htmlToPlainText(buildHistoryEmailHtml([clean], "pl"))).not.toContain("!");
   });
 
   it("stopka: wysłane na prośbę właściciela konta", () => {
@@ -763,5 +767,39 @@ describe("maile do trenera — bodyweight_loaded (F6)", () => {
     expect(await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
     expect(reader).not.toHaveBeenCalled();
     expect(sentHtml(d)).toContain("100 kg × 5");
+  });
+});
+
+// 2026-09-29 (decyzja właściciela): odpowiedź trenera ma trafić do właściciela
+// konta, gdy jego adres jest prawdziwy (zweryfikowany i nie Apple Private Relay,
+// który przyjmuje pocztę tylko od zarejestrowanych nadawców). Inaczej support.
+describe("Reply-To maila do trenera", () => {
+  const replyToOf = (d: EmailWorkoutDeps) =>
+    (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][3] as string[];
+
+  it("zweryfikowany adres właściciela = Reply-To (trening i historia)", async () => {
+    const ctx = { email: "Jan@Example.com", emailVerified: true };
+    const d = deps({ getUserContext: vi.fn(async () => ctx) });
+    await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" });
+    expect(replyToOf(d)).toEqual(["Jan@Example.com"]);
+    const h = deps({ getUserContext: vi.fn(async () => ctx) });
+    await runEmailHistory(h, { uid: "u1", to: "trener@example.com", today: "2026-08-20" });
+    expect(replyToOf(h)).toEqual(["Jan@Example.com"]);
+  });
+
+  it("Apple Private Relay, niezweryfikowany, brak adresu albo awaria profilu = contact@", async () => {
+    const cases: Array<() => Promise<Record<string, unknown>>> = [
+      async () => ({ email: "abc123@privaterelay.appleid.com", emailVerified: true }),
+      async () => ({ email: "abc123@PrivateRelay.AppleID.com", emailVerified: true }),
+      async () => ({ email: "jan@example.com", emailVerified: false }),
+      async () => ({ email: "nie-adres", emailVerified: true }),
+      async () => ({}),
+      async () => { throw new Error("firestore down"); },
+    ];
+    for (const getUserContext of cases) {
+      const d = deps({ getUserContext: vi.fn(getUserContext) });
+      await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" });
+      expect(replyToOf(d)).toEqual(["contact@strengthsave.app"]);
+    }
   });
 });

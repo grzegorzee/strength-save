@@ -402,6 +402,8 @@ export const pl = {
   'settings.notif.modeEndingDesc': 'Wieczorem w ostatnim dniu trybu: od jutra wracamy stopniowo do pełnej mocy.',
   'settings.notif.announcements': 'Ogłoszenia od zespołu',
   'settings.notif.announcementsDesc': 'Nowości i ważne informacje. Po wyłączeniu wpis zostaje w dzwonku, bez pusha.',
+  'settings.notif.announcementEmails': 'Ogłoszenia e-mail od zespołu',
+  'settings.notif.announcementEmailsDesc': 'Wiadomości o nowościach w aplikacji wysyłane mailem. Maile o koncie (kody, reset hasła) przychodzą zawsze.',
   'settings.toast.saved': 'Zapisano',
   'settings.toast.error': 'Błąd',
   'settings.toast.saveFailed': 'Nie udało się zapisać.',

@@ -2,23 +2,30 @@
 // wersjonowane w git, testowalne, typowane, i18n PL/EN, łatwa zmiana providera.
 // registration.ts importuje stąd buildery i przekazuje wynik do Amazon SES.
 
-export type Lang = "pl" | "en";
+// Lang i esc żyją w email-layout.ts (wspólny layout maili, 2026-09-29);
+// re-eksport zostawia dotychczasowe importy bez zmian.
+import {
+  emailButton,
+  emailCode,
+  emailHeading,
+  emailLink,
+  emailMuted,
+  emailParagraph,
+  esc,
+  renderEmailLayout,
+  type Lang,
+} from "./email-layout";
+
+export { esc, type Lang };
 
 // Adres webowy aplikacji. X29 WP-J: wcześniej deep link z custom URL scheme,
 // ale taki link jest martwy w webmailach (Gmail/Outlook go nie otworzą).
 const APP_WEB_URL = "https://app.strengthsave.app/";
 
-// Escape HTML dla wartości interpolowanych do maili (email, displayName, note, body
-// mogą zawierać znaki sterujące z OAuth/inputu admina). Zapobiega HTML injection.
-// Eksport: używa go też weekly-digest-html.ts (Z160).
-export function esc(value: string): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+const ACCOUNT_REASON: Record<Lang, string> = {
+  pl: "Wiadomość dotyczy Twojego konta w Strength Save.",
+  en: "This email is about your Strength Save account.",
+};
 
 // ── Tematy maili (i18n; kod wstawiony w temat weryfikacji) ───────────────────
 export function verificationSubject(code: string, lang: Lang): string {
@@ -41,42 +48,48 @@ export function accessChangedSubject(lang: Lang): string {
     : "Strength Save: zmiana dostępu do konta";
 }
 
-// ── Treści HTML ──────────────────────────────────────────────────────────────
+// ── Treści HTML (wspólny layout: email-layout.ts) ────────────────────────────
 export function verificationEmailHtml(code: string, email: string, lang: Lang): string {
   const e = esc(email);
   const t = lang === "en"
     ? {
         title: "Confirm your email",
+        preheader: "Your code expires in 10 minutes.",
         intro: `Use the code below to finish signing up for Strength Save for ${e}.`,
         expires: "The code expires in 10 minutes.",
+        reason: "You got this email because this address was used to sign up for Strength Save. If it wasn't you, ignore it.",
       }
     : {
         title: "Potwierdź adres email",
+        preheader: "Kod wygasa po 10 minutach.",
         intro: `Użyj poniższego kodu, aby dokończyć rejestrację w Strength Save dla ${e}.`,
         expires: "Kod wygasa po 10 minutach.",
+        reason: "Dostajesz ten mail, bo ten adres podano przy rejestracji w Strength Save. Jeśli to nie Ty, zignoruj go.",
       };
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
-      <p style="margin:0 0 24px;color:#475569;">${t.intro}</p>
-      <div style="font-size:36px;font-weight:700;letter-spacing:0.18em;text-align:center;padding:20px 0;border-radius:12px;background:#0f172a;color:#fff;">
-        ${code}
-      </div>
-      <p style="margin:24px 0 0;color:#64748b;font-size:14px;">${t.expires}</p>
-    </div>
-  </div>`;
+  return renderEmailLayout({
+    lang,
+    preheader: t.preheader,
+    reason: t.reason,
+    replyHint: true,
+    bodyHtml: `${emailHeading(t.title)}
+${emailParagraph(t.intro)}
+${emailCode(code)}
+${emailMuted(t.expires, "margin:0;")}`,
+  });
 }
 
 // Reset hasła (2026-09-13): link z Firebase Auth wysyłany naszym kanałem (SES),
 // bo Google blokuje edycję szablonów Firebase na tym projekcie. Przycisk +
 // ten sam link jako tekst zapasowy (klienci pocztowi bez CSS, kopiowanie).
+// Oba linki z ses:no-track: link z oobCode nie idzie przez przekierowanie
+// śledzenia kliknięć SES (awstrack.me).
 export function passwordResetEmailHtml(link: string, email: string, lang: Lang): string {
   const e = esc(email);
   const l = esc(link);
   const t = lang === "en"
     ? {
         title: "Set a new password",
+        preheader: "Link to set a new password for your Strength Save account.",
         intro: `We received a request to set a new password for the Strength Save account <strong>${e}</strong>.`,
         cta: "Set a new password",
         fallback: "Button not working? Copy this link into your browser:",
@@ -84,30 +97,24 @@ export function passwordResetEmailHtml(link: string, email: string, lang: Lang):
       }
     : {
         title: "Ustaw nowe hasło",
+        preheader: "Link do ustawienia nowego hasła do konta Strength Save.",
         intro: `Dostaliśmy prośbę o ustawienie nowego hasła do konta <strong>${e}</strong> w Strength Save.`,
         cta: "Ustaw nowe hasło",
         fallback: "Przycisk nie działa? Skopiuj ten link do przeglądarki:",
         ignore: "Jeśli to nie Twoje zgłoszenie, zignoruj tę wiadomość: hasło zostaje bez zmian.",
       };
-  // Przycisk odporny na tryb ciemny: bgcolor jako atrybut, obramowanie w tym
-  // samym kolorze i jawny kolor tekstu (klienty w dark mode wycinają background
-  // z CSS, ale zostawiają atrybut i border). Komentarz poza HTML: test EN
-  // sprawdza brak polskich znaków w treści maila.
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
-      <p style="margin:0 0 24px;color:#475569;">${t.intro}</p>
-      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 20px;">
-        <tr><td bgcolor="#0f172a" style="border-radius:10px;background-color:#0f172a;border:2px solid #0f172a;">
-          <a href="${l}" style="display:inline-block;padding:12px 20px;border-radius:8px;background-color:#0f172a;color:#ffffff !important;font-weight:600;text-decoration:none;"><span style="color:#ffffff;">${t.cta}</span></a>
-        </td></tr>
-      </table>
-      <p style="margin:0 0 6px;color:#64748b;font-size:13px;">${t.fallback}</p>
-      <p style="margin:0 0 24px;font-size:13px;word-break:break-all;"><a href="${l}" style="color:#0f172a;">${l}</a></p>
-      <p style="margin:0;color:#64748b;font-size:14px;">${t.ignore}</p>
-    </div>
-  </div>`;
+  return renderEmailLayout({
+    lang,
+    preheader: t.preheader,
+    reason: ACCOUNT_REASON[lang],
+    replyHint: true,
+    bodyHtml: `${emailHeading(t.title)}
+${emailParagraph(t.intro, "margin:0 0 24px;")}
+${emailButton(link, t.cta, { noTrack: true })}
+${emailMuted(t.fallback, "margin:0 0 6px;")}
+${emailMuted(emailLink(link, l, { noTrack: true }), "margin:0 0 24px;word-break:break-all;")}
+${emailMuted(t.ignore, "margin:0;font-size:14px;")}`,
+  });
 }
 
 export function welcomeEmailHtml(displayName: string, lang: Lang): string {
@@ -115,22 +122,25 @@ export function welcomeEmailHtml(displayName: string, lang: Lang): string {
   const t = lang === "en"
     ? {
         title: "Welcome to Strength Save",
-        body: `${name || "Hi"}, your account is ready. You can head to onboarding and start building your training plan.`,
+        preheader: "Your account is ready. Set up your training plan.",
+        body: `${name || "Hi"}, your account is ready. Open the app to set up your training plan.`,
         cta: "Open the app",
       }
     : {
         title: "Witamy w Strength Save",
-        body: `${name || "Cześć"}, konto jest gotowe. Możesz przejść do onboardingu i zacząć układać swój plan treningowy.`,
+        preheader: "Konto jest gotowe, możesz ułożyć plan treningowy.",
+        body: `${name || "Cześć"}, konto jest gotowe. Otwórz aplikację i ułóż swój plan treningowy.`,
         cta: "Otwórz aplikację",
       };
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
-      <p style="margin:0 0 24px;color:#475569;">${t.body}</p>
-      <a href="${APP_WEB_URL}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">${t.cta}</a>
-    </div>
-  </div>`;
+  return renderEmailLayout({
+    lang,
+    preheader: t.preheader,
+    reason: ACCOUNT_REASON[lang],
+    replyHint: true,
+    bodyHtml: `${emailHeading(t.title)}
+${emailParagraph(t.body, "margin:0 0 24px;")}
+${emailButton(APP_WEB_URL, t.cta)}`,
+  });
 }
 
 export function inviteEmailHtml(
@@ -143,30 +153,32 @@ export function inviteEmailHtml(
   const t = lang === "en"
     ? {
         title: esc("You're invited to Strength Save"),
+        preheader: "Your invite code and a link to the app.",
         body: "You can sign in with Google or email + password using this invite code:",
         link: "Direct link:",
         cta: "Open the app",
+        reason: "You got this email because a Strength Save administrator sent an invite to this address.",
       }
     : {
         title: "Masz zaproszenie do Strength Save",
+        preheader: "Kod zaproszenia i link do aplikacji.",
         body: "Możesz wejść do aplikacji przez Google albo email + hasło. Jeśli aplikacja poprosi o kod zaproszenia, użyj:",
         link: "Bezpośredni link:",
         cta: "Otwórz aplikację",
+        reason: "Dostajesz ten mail, bo administrator Strength Save wysłał zaproszenie na ten adres.",
       };
-
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
-      <p style="margin:0 0 16px;color:#475569;">${t.body}</p>
-      <div style="font-size:28px;font-weight:700;letter-spacing:0.12em;text-align:center;padding:18px 0;border-radius:12px;background:#0f172a;color:#fff;">
-        ${code}
-      </div>
-      ${note ? `<p style="margin:16px 0 0;color:#334155;">${esc(note)}</p>` : ""}
-      <p style="margin:20px 0 12px;color:#64748b;">${t.link}</p>
-      <a href="${esc(inviteUrl)}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">${t.cta}</a>
-    </div>
-  </div>`;
+  return renderEmailLayout({
+    lang,
+    preheader: t.preheader,
+    reason: t.reason,
+    replyHint: true,
+    bodyHtml: `${emailHeading(t.title)}
+${emailParagraph(t.body)}
+${emailCode(code)}
+${note ? emailParagraph(esc(note)) : ""}
+${emailMuted(t.link)}
+${emailButton(inviteUrl, t.cta, { noTrack: true })}`,
+  });
 }
 
 export function accessChangedEmailHtml(enabled: boolean, lang: Lang): string {
@@ -183,23 +195,31 @@ export function accessChangedEmailHtml(enabled: boolean, lang: Lang): string {
           ? "Administrator ponownie włączył dostęp do aplikacji."
           : "Administrator wyłączył dostęp do aplikacji.",
       };
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
-      <p style="margin:0;color:#475569;">${t.body}</p>
-    </div>
-  </div>`;
+  return renderEmailLayout({
+    lang,
+    preheader: t.body,
+    reason: ACCOUNT_REASON[lang],
+    replyHint: true,
+    bodyHtml: `${emailHeading(t.title)}
+${emailParagraph(t.body, "margin:0;")}`,
+  });
 }
 
-// Prosty branded HTML dla maili admina (custom + broadcast).
-export function adminMessageEmailHtml(body: string): string {
+// Maile admina (custom + broadcast): treść wpisana w panelu, zawsze PL.
+// 2026-09-29: broadcast ma w stopce powód i drogę wyłączenia (plus nagłówek
+// List-Unsubscribe z registration.ts); wiadomość 1:1 dotyczy konta.
+export function adminMessageEmailHtml(body: string, options: { broadcast?: boolean } = {}): string {
   const safe = esc(body).replace(/\n/g, "<br/>");
-  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
-    <p style="font-weight:700;font-size:18px;color:#0e0e0e;margin:0 0 16px">Strength Save</p>
-    <div style="font-size:15px;line-height:1.6">${safe}</div>
-    <p style="margin-top:24px;font-size:12px;color:#888">Strength Save</p>
-  </div>`;
+  const firstLine = body.split("\n").map((line) => line.trim()).find(Boolean) ?? "Strength Save";
+  return renderEmailLayout({
+    lang: "pl",
+    preheader: firstLine.slice(0, 90),
+    reason: options.broadcast
+      ? "Dostajesz ten mail, bo masz włączone ogłoszenia e-mail od zespołu Strength Save. Wyłączysz w aplikacji: Profil, Powiadomienia."
+      : "Wiadomość od zespołu Strength Save dotyczy Twojego konta.",
+    replyHint: true,
+    bodyHtml: emailParagraph(safe, "margin:0;"),
+  });
 }
 
 // ── Powiadomienie operatora o samodzielnym usunięciu konta (Z238) ─────────────

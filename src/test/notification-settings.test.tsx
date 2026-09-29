@@ -48,7 +48,8 @@ beforeEach(() => {
 });
 
 describe('NotificationSettings (X35c: wszystkie typy powiadomień)', () => {
-  it('renderuje 6 przełączników, wszystkie włączone bez pola notificationPrefs', () => {
+  it('renderuje 7 przełączników, wszystkie włączone bez pola notificationPrefs', () => {
+    expect(NOTIFICATION_PREF_KEYS).toHaveLength(7);
     renderSettings();
     const switches = screen.getAllByRole('switch');
     expect(switches).toHaveLength(NOTIFICATION_PREF_KEYS.length);
@@ -84,6 +85,27 @@ describe('NotificationSettings (X35c: wszystkie typy powiadomień)', () => {
     expect(screen.getByLabelText('Ogłoszenia od zespołu').getAttribute('aria-checked')).toBe('false');
   });
 
+  // 2026-09-29: osobna zgoda na ogłoszenia e-mail (broadcast admina). Ten sam
+  // klucz ustawia one-click unsubscribe z nagłówka List-Unsubscribe.
+  it('ogłoszenia e-mail: osobny przełącznik kanału e-mail, zapis notificationPrefs.announcementEmails', async () => {
+    renderSettings();
+    const row = screen.getByTestId('notif-pref-announcementEmails');
+    expect(row.textContent).toContain('Ogłoszenia e-mail od zespołu');
+    expect(row.textContent).toContain('E-mail');
+    fireEvent.click(screen.getByLabelText('Ogłoszenia e-mail od zespołu'));
+    await waitFor(() => expect(updateDocMock).toHaveBeenCalledWith(
+      { path: 'users/u1' },
+      { 'notificationPrefs.announcementEmails': false },
+    ));
+  });
+
+  it('wypis z maila (announcementEmails: false) widoczny jako wyłączony przełącznik', () => {
+    state.profile = { notificationPrefs: { announcementEmails: false } };
+    renderSettings();
+    expect(screen.getByLabelText('Ogłoszenia e-mail od zespołu').getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByLabelText('Ogłoszenia od zespołu').getAttribute('aria-checked')).toBe('true');
+  });
+
   it('błąd zapisu cofa przełącznik', async () => {
     updateDocMock.mockRejectedValueOnce(new Error('offline'));
     renderSettings();
@@ -96,7 +118,7 @@ describe('NotificationSettings (X35c: wszystkie typy powiadomień)', () => {
   it('web: informacja "push tylko w aplikacji mobilnej", przełączniki nadal dostępne', () => {
     renderSettings();
     expect(screen.getByText(/aplikacji mobilnej/)).toBeTruthy();
-    expect(screen.getAllByRole('switch')).toHaveLength(6);
+    expect(screen.getAllByRole('switch')).toHaveLength(7);
   });
 
   it('native z udzieloną zgodą: status włączone', async () => {
