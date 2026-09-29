@@ -11,6 +11,51 @@
 
 ## DECYZJE
 
+### 2026-09-29: F6, ćwiczenia z masą ciała i opcjonalnym dociążeniem (`bodyweight_loaded`)
+
+Root cause (dane produkcyjne, odczyt read-only): podciąganie było `weight_reps`,
+a zaliczenie serii wymagało `weight > 0`. Właściciel wpisywał więc masę ciała
+(74 kg w 12 sesjach 4.06-20.08, 72 kg 28.09; pomiary 74,6 / 74 / 75 / 72,5).
+Skutek: zawyżony tonaż (Historia, Dashboard, agregat all-time), PR i 1RM z masy
+ciała, progresja „+2,5 kg” doklejana do 74 kg. Przy okazji: `Dipy na maszynie`
+były `weight_reps` zamiast asysty, `computeWeeklyTargets` bez `trackingByName`
+brał typ z heurystyki (asysta gubiła całą historię przez filtr `weight > 0`),
+a pomiar bez wagi (realny wpis 2026-08-21) zasłaniał starszą masę.
+
+Decyzje właściciela i wdrożenie (6 commitów, branch `worktree-agent-af66df09adf005ef1`):
+- Nowy typ `bodyweight_loaded`: pole „+kg” opcjonalne (puste = sama masa ciała),
+  `weight` = WYŁĄCZNIE dociążenie, seria zaliczona przy `reps > 0`, etykieta
+  MC / MC +10 kg (EN BW). 33 ćwiczenia z tabeli właściciela, Dipy na maszynie =
+  asysta, L-sit i skakanka = czas. Aliasy z szablonów: „Pompki na poręczach” →
+  Dips, „Podciaganie nachwytem” → Podciąganie na drążku.
+- Tonaż KLASYCZNY (tylko dociążenie), bez tonażu efektywnego.
+- Legacy normalizowane PRZY ODCZYCIE, zero zapisów: ciężar w ±3 kg od masy ciała
+  z pomiaru z dnia treningu lub wcześniejszego (brak = najnowsza masa, brak masy =
+  bez zmian) = sama MC. `useFirebaseWorkouts` oddaje ekranom dane znormalizowane,
+  akcje (zapis, backfill, eksport) i ścieżki sync/import/naprawa (`rawWorkouts`)
+  pracują na surowych. Historia normalizuje paginację i sesje cykli.
+- PR: więcej dociążenia przy powtórzeniach >= rekordowych albo przy równym
+  dociążeniu więcej powtórzeń. Progresja: najpierw powtórzenia do góry zakresu,
+  potem +2,5 kg dociążenia i powrót na dół; deload z dociążeniem obniża kg
+  (w dół do 0,5), bez dociążenia obniża powtórzenia (-20%).
+- Agregat backendu: TAK, trzeba było zmienić, bo liczy z surowych danych.
+  Normalizacja tą samą regułą (parytet testem), jednorazowy rebuild per user
+  wymuszony polem `bodyweightNormalization: 1`, BEZ bumpu `schemaVersion`
+  (klient wymaga `=== 2`; bump odciąłby starsze buildy od agregatu).
+- Zegarki: Apple Watch dostaje `weight_reps` + addytywne `bodyweightLoaded`
+  (starszy build chowałby pole powtórzeń dla nieznanego typu), nowy Swift
+  pokazuje MC / MC +x. Garmin bez zmian w aplikacji: backend wysyła
+  `weight_reps` ze znormalizowaną historią i celem „+2.5 kg × 6” / „× 8”.
+
+Weryfikacja: vitest 495 plików zielone, functions 597 testów + build, typecheck,
+lint, `swiftc -typecheck` watchOS, e2e sekwencji (plan → MC → +10 kg → szybki
+trening → powrót → zakończenie → sync → Historia/PR) w chromium i webkit,
+mutacja (wyłączona normalizacja) wykrywana przez e2e.
+
+Wymaga: deploy functions PRZED klientem (backend-first), build Apple Watch
+(opcjonalny, starszy działa w trybie degradacji). Nie udowodnione: fizyczny
+zegarek (Apple Watch, Garmin epix), zgaszony ekran, konto QA.
+
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 
 Apple odrzuciło wersję 1.0 (148) za 5.1.2(i) i 2.3.2. Pierwszy powód: w ankiecie
