@@ -5,7 +5,7 @@
 import { useEffect } from 'react';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { SetData, WorkoutSession } from '@/types';
-import { createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { createPrefilledSets, parseSetCount, isBodyweightExercise, withoutPrefilledFlag } from '@/lib/exercise-utils';
 import { formatLocalDate } from '@/lib/utils';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import {
@@ -181,11 +181,12 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
             ...watchTrackingFields(watchTrackingForName(exercise.name)),
             // F6: kg zeruje tylko czysty bodyweight; bodyweight_loaded niesie dociążenie
             // ze znormalizowanej historii (Dashboard podaje workouts z useFirebaseWorkouts).
+            // Znacznik prefillu jest wyłącznie stanem szkicu telefonu.
             sets: createPrefilledSets(
               parseSetCount(exercise.sets),
               getPreviousSets(exercise.id, exercise.name),
               isBodyweightExercise(exercise.name) && watchTrackingForName(exercise.name) !== 'bodyweight_loaded',
-            ),
+            ).map(withoutPrefilledFlag),
           })),
         });
       })();

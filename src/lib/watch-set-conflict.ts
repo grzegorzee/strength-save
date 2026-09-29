@@ -1,4 +1,5 @@
 import type { SetData } from '@/types';
+import { withoutPrefilledFlag } from '@/lib/workout-sanitizers';
 import type { WatchSetLoggedEvent } from '@/lib/watch-bridge';
 
 const sameSetValue = (left: SetData | undefined, right: SetData): boolean => !!left
@@ -41,7 +42,7 @@ export const mergeWatchSetEvent = (
   return {
     applied: true,
     sets: current.map((set, index) => index === event.setIndex ? {
-      ...set,
+      ...withoutPrefilledFlag(set),
       reps: event.reps,
       weight: event.weight,
       completed: event.completed,

@@ -9,6 +9,7 @@ import { isRevisionConflictError, workoutSyncErrorText } from '@/lib/workout-syn
 import { draftWriteId } from '@/lib/workout-write-attempt';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { withTimeout } from '@/lib/promise-timeout';
+import { withoutPrefilledFlag } from '@/lib/workout-sanitizers';
 import type { ActiveHealthGrant } from '@/lib/legal-versions';
 import { selectFencedHealthMetrics } from '@/lib/workout-health-fence';
 
@@ -148,7 +149,8 @@ export const buildDraftExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSa
     .filter(([exerciseId]) => !draft.skippedExercises.includes(exerciseId))
     .map(([exerciseId, sets]) => ({
     exerciseId,
-    sets,
+    // Znacznik prefillu żyje tylko w szkicu; do chmury idą same wartości.
+    sets: sets.map(withoutPrefilledFlag),
     ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),
     ...(draft.exerciseNames?.[exerciseId] && { name: draft.exerciseNames[exerciseId] }),
     ...(draft.exerciseMetrics[exerciseId] ?? {}),
@@ -160,7 +162,8 @@ export const buildDraftBaseExercisesPayload = (draft: ActiveWorkoutDraft): Worko
     .filter(([exerciseId]) => !draft.skippedExercises.includes(exerciseId))
     .map(([exerciseId, sets]) => ({
     exerciseId,
-    sets,
+    // Znacznik prefillu żyje tylko w szkicu; do chmury idą same wartości.
+    sets: sets.map(withoutPrefilledFlag),
     ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),
     ...(draft.exerciseNames?.[exerciseId] && { name: draft.exerciseNames[exerciseId] }),
   }))

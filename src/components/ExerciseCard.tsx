@@ -26,6 +26,7 @@ import {
   supportsZeroWeight,
   isPerSideRepTarget,
 } from '@/lib/exercise-utils';
+import { withoutPrefilledFlag } from '@/lib/workout-sanitizers';
 import { getExerciseAnimationUrl, getExercisePosterUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { buildRecordBadges, formatEst1RMBadge, formatMaxLiftBadge } from '@/lib/record-labels';
@@ -395,8 +396,9 @@ const ExerciseCardInner = ({
     hasLocalChanges.current = true;
     setCompletionError((current) => current?.setIndex === setIndex ? null : current);
 
+    // Edycja usera = wartości są jego (znika znacznik prefillu apki).
     const updatedSet = {
-      ...sets[setIndex],
+      ...withoutPrefilledFlag(sets[setIndex]),
       [field]: value,
       ...(hidesWeight && { weight: 0 }),
     };
@@ -445,7 +447,7 @@ const ExerciseCardInner = ({
       : {};
 
     const updatedSet: SetData = {
-      ...currentSet,
+      ...withoutPrefilledFlag(currentSet),
       reps,
       weight: hidesWeight ? 0 : weight,
       ...adoptedExtras,
@@ -559,6 +561,9 @@ const ExerciseCardInner = ({
       ...(lastWorking?.distanceM !== undefined && { distanceM: lastWorking.distanceM }),
       ...(lastWorking?.assistWeight !== undefined && { assistWeight: lastWorking.assistWeight }),
     };
+    // Kopia wartości z ostatniej serii to podpowiedź apki, nie wynik usera.
+    if (newSet.reps > 0 || newSet.weight > 0 || (newSet.durationSec ?? 0) > 0
+      || (newSet.distanceM ?? 0) > 0 || (newSet.assistWeight ?? 0) > 0) newSet.prefilled = true;
     const newSets = [...sets, newSet];
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
