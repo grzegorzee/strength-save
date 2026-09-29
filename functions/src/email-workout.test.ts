@@ -719,3 +719,49 @@ describe("WP-I: ownership w adapterze getWorkout", () => {
     expect(d.consumeQuota).not.toHaveBeenCalled();
   });
 });
+
+// F6: maile do trenera przeliczają legacy bodyweight_loaded jak agregat
+// (masa ciała wpisana jako kg = MC), a serie podpisują MC / MC +x kg.
+describe("maile do trenera — bodyweight_loaded (F6)", () => {
+  const pull = (id: string, date: string, sets: Array<[number, number]>): EmailWorkout => ({
+    id, userId: "u1", date, completed: true, dayName: "Plecy",
+    exercises: [{ exerciseId: "ex-pull", name: "Podciąganie na drążku", sets: sets.map(([reps, weight]) => ({ reps, weight, completed: true })) }],
+  });
+  const loadBodyWeightTimeline = vi.fn(async () => [{ date: "2026-06-10", weightKg: 74 }]);
+
+  it("mail z treningu: legacy 74 kg = MC (bez tonażu), +10 kg to PR i etykieta MC +10 kg", async () => {
+    const current = pull("w-now", "2026-10-08", [[8, 10], [8, 74]]);
+    const d = deps({
+      getWorkout: vi.fn(async () => current),
+      listWorkoutsInRange: vi.fn(async () => [pull("w-old", "2026-09-01", [[8, 74], [8, 74]])]),
+      loadBodyWeightTimeline,
+    });
+    expect(await runEmailWorkout(d, { uid: "u1", workoutId: "w-now", to: "trener@example.com", today: "2026-10-08" })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).not.toContain("74 kg");
+    expect(html).toContain("MC +10 kg × 8");
+    expect(html).toContain("MC × 8");
+    expect(html).toContain("Nowe rekordy");
+    expect(loadBodyWeightTimeline).toHaveBeenCalledWith("u1");
+  });
+
+  it("mail z historią: legacy przeliczone we wszystkich sesjach", async () => {
+    const d = deps({
+      listWorkoutsInRange: vi.fn(async () => [pull("w-1", "2026-10-06", [[8, 74]]), pull("w-2", "2026-10-08", [[8, 10]])]),
+      loadBodyWeightTimeline,
+    });
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-10-08" })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).not.toContain("74 kg");
+    expect(html).toContain("MC × 8");
+    expect(html).toContain("MC +10 kg × 8");
+  });
+
+  it("bez serii bodyweight_loaded z kg pomiary nie są czytane; zwykłe ćwiczenia bez zmian", async () => {
+    const reader = vi.fn(async () => []);
+    const d = deps({ loadBodyWeightTimeline: reader });
+    expect(await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
+    expect(reader).not.toHaveBeenCalled();
+    expect(sentHtml(d)).toContain("100 kg × 5");
+  });
+});

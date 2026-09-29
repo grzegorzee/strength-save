@@ -45,6 +45,8 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
 vi.mock('@/hooks/usePlanCycles', () => ({
   usePlanCycles: () => ({ cycles: fixtures.cycles }),
 }));
+// F6: Historia rozpoznaje własne ćwiczenia bodyweight_loaded (etykiety MC, PR dociążenia).
+vi.mock('@/hooks/useCustomExercises', () => ({ useCustomExercises: () => ({ customExercises: [] }) }));
 // F6: Historia czyta sondę pomiarów (masa ciała do normalizacji bodyweight_loaded).
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({ measurements: [] }),
