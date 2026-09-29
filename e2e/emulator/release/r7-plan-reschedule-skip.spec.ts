@@ -67,9 +67,11 @@ test('R7: przełożenie na dzień wolny i odpuszczenie dnia → Dashboard dzień
   await expect(page.getByTestId('next-session-hero')).toContainText(
     noonOf(tomorrow).toLocaleDateString('pl-PL', { weekday: 'long' }), { ignoreCase: true },
   );
-  // Push: dziś nie (przełożone), jutro tak (przełożony trening).
-  expect((await runReminderAt(today)).pushedTokens).not.toContain(token);
-  expect((await runReminderAt(tomorrow)).pushedTokens).toContain(token);
+  // Push: dziś nie (przełożone), jutro tak (przełożony trening). Strefa z profilu
+  // (TimeZoneSync zapisuje strefę przeglądarki; w CI to UTC), tak jak w R3.
+  const tz = String((await readDoc(`users/${user.uid}`))?.timeZone ?? 'Europe/Warsaw');
+  expect((await runReminderAt(today, tz)).pushedTokens).not.toContain(token);
+  expect((await runReminderAt(tomorrow, tz)).pushedTokens).toContain(token);
 
   // 2. Odpuszczenie dnia T+2 (Plan → Więcej akcji → Odpuść trening).
   await page.goto('./#/plan');
@@ -89,7 +91,7 @@ test('R7: przełożenie na dzień wolny i odpuszczenie dnia → Dashboard dzień
   await expect(page.getByTestId('next-session-hero')).toContainText(
     noonOf(addDays(today, 4)).toLocaleDateString('pl-PL', { weekday: 'long' }), { ignoreCase: true },
   );
-  expect((await runReminderAt(skipDate)).pushedTokens).not.toContain(token);
-  expect((await runReminderAt(addDays(today, 4))).pushedTokens).toContain(token);
+  expect((await runReminderAt(skipDate, tz)).pushedTokens).not.toContain(token);
+  expect((await runReminderAt(addDays(today, 4), tz)).pushedTokens).toContain(token);
   expect(await readDoc(`training_plans/${user.uid}`)).toMatchObject({ days: planBefore.days });
 });
