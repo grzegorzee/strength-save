@@ -155,6 +155,43 @@ test.describe('Emulator critical: auth + rules', () => {
     await expect(dashboardGreeting(page)).toHaveCount(0);
   });
 
+  // B3 (2026-09-29): prawdziwy callable verifyEmailCode pisze tylko po polsku;
+  // klient tłumaczy po kodzie / details.reason. User EN nie może zobaczyć PL.
+  test('EN: zły kod weryfikacji z realnego backendu = komunikat po angielsku', async ({ page }) => {
+    const email = `pending-en-${Date.now()}@e2e.test`;
+    const uid = await createAuthUser(email);
+    await seedUserProfile(uid, {
+      uid,
+      email,
+      displayName: 'E2E Pending EN',
+      role: 'user',
+      status: 'pending_verification',
+      onboardingCompleted: false,
+      access: { enabled: true },
+      registration: { source: 'email' },
+      language: 'en',
+    });
+    await page.addInitScript(() => localStorage.setItem('app-language', 'en'));
+
+    await page.goto('./#/login');
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('button', { name: 'Continue with email' }).click();
+    await page.getByPlaceholder('Email').first().fill(email);
+    await page.getByPlaceholder('Password', { exact: true }).fill(PASSWORD);
+    await page.getByRole('button', { name: 'Sign in with email' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Confirm your email address' })).toBeVisible({ timeout: 15000 });
+    // Najpierw niech się rozstrzygnie automatyczna wysyłka kodu (w emulatorze
+    // SES nie jest skonfigurowany, więc kończy się ogólnym błędem wysyłki).
+    await expect(page.getByText(/^(Failed to send the code\.|Resend \(\d+s\))$/)).toBeVisible({ timeout: 15000 });
+    await page.getByPlaceholder('6-digit code').fill('000000');
+    await page.getByRole('button', { name: 'Confirm code' }).click();
+    // Zależnie od tego, czy emulator zdążył wysłać kod: zły kod albo brak aktywnego kodu.
+    await expect(page.getByText(/^(Incorrect code\. Check the latest email and try again\.|This code is no longer active\. Tap Resend to get a new one\.)$/))
+      .toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Nieprawidłowy kod|Brak aktywnego kodu|Kod nie/)).toHaveCount(0);
+  });
+
   test('start treningu zapisuje sesję przez realne Firestore Rules', async ({ page }) => {
     const email = `workout-start-${Date.now()}@e2e.test`;
     const uid = await createAuthUser(email);

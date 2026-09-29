@@ -175,6 +175,16 @@ describe('EmailVerificationGate', () => {
       await waitFor(() => expect(screen.getByText('Failed to confirm the code.')).toBeInTheDocument());
     });
 
+    it('unavailable z backendu (odrzucony mail) = ogólny błąd wysyłki, nie "brak sieci"', async () => {
+      mocks.requestEmailVerificationCode.mockRejectedValueOnce(
+        callableError('unavailable', 'Email provider rejected message: throttled'),
+      );
+      renderGateEn();
+      await waitFor(() => expect(screen.getByText('Failed to send the code.')).toBeInTheDocument());
+      expect(screen.queryByText(/No network connection/)).toBeNull();
+      expect(screen.queryByText(/Email provider/)).toBeNull();
+    });
+
     it('nieznany błąd nigdy nie pokazuje surowego tekstu', async () => {
       mocks.verifyEmailCode.mockRejectedValueOnce(new Error('Some raw transport failure'));
       renderGateEn();

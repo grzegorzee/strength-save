@@ -49,7 +49,6 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   'not-found': 'comp.emailGate.err.codeInactive',
   'permission-denied': 'comp.emailGate.err.codeInactive',
   'deadline-exceeded': 'comp.emailGate.err.codeExpired',
-  'unavailable': 'auth.err.network',
 };
 
 /** Komunikat błędu weryfikacji/wysyłki kodu w języku UI. Nigdy surowy tekst. */
@@ -70,6 +69,7 @@ export function mapEmailVerificationError(
     return t(operation === 'send' ? 'comp.emailGate.err.resendCooldown' : 'comp.emailGate.err.tooManyAttempts');
   }
   if (operation === 'verify' && CODE_KEYS[code]) return t(CODE_KEYS[code]);
-  if (code === 'unavailable') return t('auth.err.network');
+  // 'unavailable' z backendu = odrzucenie przez dostawcę maila (sendEmail),
+  // nie brak sieci po stronie usera: zostaje ogólny komunikat operacji.
   return t(fallbackKey);
 }
