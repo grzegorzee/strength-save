@@ -43,7 +43,8 @@ struct ExerciseDetailView: View {
                         NavigationLink {
                             SetEditorView(exerciseId: exerciseId, setIndex: index)
                         } label: {
-                            SetRow(index: index, set: set, sets: exercise.sets, trackingType: exercise.trackingType)
+                            SetRow(index: index, set: set, sets: exercise.sets, trackingType: exercise.trackingType,
+                                   bodyweightLoaded: exercise.bodyweightLoaded == true)
                         }
                     }
                 }
@@ -61,6 +62,7 @@ struct SetRow: View {
     let set: WatchSet
     let sets: [WatchSet]
     let trackingType: String?
+    var bodyweightLoaded: Bool = false
 
     private var label: String {
         if set.isWarmup == true { return L10n.warmup }
@@ -76,7 +78,7 @@ struct SetRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if set.reps > 0 || set.weight > 0 || (set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0 || (set.assistWeight ?? 0) > 0 {
-                    Text(set.valueText(unit: unit, trackingType: trackingType))
+                    Text(set.valueText(unit: unit, trackingType: trackingType, bodyweightLoaded: bodyweightLoaded))
                         .font(.body)
                 } else {
                     Text("—")
@@ -127,6 +129,10 @@ struct SetEditorView: View {
         trackingType == "weight_reps" || trackingType == "bodyweight_reps" || trackingType == "assisted_bodyweight"
     }
 
+    private var isBodyweightLoaded: Bool {
+        store.payload?.exercises?.first(where: { $0.id == exerciseId })?.bodyweightLoaded == true
+    }
+
     private var showsWeight: Bool {
         trackingType == "weight_reps" || trackingType == "weight_distance_duration"
     }
@@ -146,7 +152,7 @@ struct SetEditorView: View {
 
                 if showsWeight {
                     HStack {
-                        Text(L10n.weight).font(.caption).foregroundStyle(.secondary)
+                        Text(isBodyweightLoaded ? L10n.addedLoad : L10n.weight).font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         Stepper(value: $weight, in: 0...4400, step: store.weightUnit.step) {
                             Text("\(weight.weightText) \(store.weightUnit.label)").font(.title3.monospacedDigit())

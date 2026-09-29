@@ -1,6 +1,8 @@
 // Z122: kontrakt telefon<->zegarek — rozszerzenia v1 (cel tygodnia, przypięta
 // notatka, deduplikacja zapisu Health przez flagę hkSession w eventach).
 import { beforeEach, describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   buildWatchExercises,
   buildWatchHealthBoundary,
@@ -39,6 +41,32 @@ describe('buildWatchExercises (Z122)', () => {
       pinnedNoteByExerciseId: { 'ex-1': 'x'.repeat(500) },
     });
     expect(out[0].pinnedNote).toHaveLength(140);
+  });
+
+  it('F6: bodyweight_loaded idzie jako weight_reps + addytywna flaga (starszy Watch bez zmian)', () => {
+    const out = buildWatchExercises(exercises, { 'ex-1': [{ reps: 8, weight: 0, completed: false }] }, {
+      trackingByExerciseId: { 'ex-1': 'bodyweight_loaded', 'ex-2': 'duration' },
+    });
+    // Stary build Watch zna tylko listę typów w ExerciseDetailView.showsReps:
+    // nieznany string chowa pole powtórzeń, więc nowego typu nie wysyłamy.
+    expect(out[0].trackingType).toBe('weight_reps');
+    expect(out[0].bodyweightLoaded).toBe(true);
+    expect(out[0].sets[0].weight).toBe(0);
+    expect(out[1].trackingType).toBe('duration');
+    expect(out[1].bodyweightLoaded).toBeUndefined();
+    expect(JSON.stringify(out)).not.toContain('bodyweight_loaded');
+  });
+
+  it('F6: źródło Watch — degradacja działa (weight_reps pokazuje powtórzenia i kg), flaga opcjonalna', () => {
+    const root = resolve(__dirname, '../../ios/App/WatchApp');
+    const models = readFileSync(resolve(root, 'WorkoutModels.swift'), 'utf8');
+    const detail = readFileSync(resolve(root, 'ExerciseDetailView.swift'), 'utf8');
+    // Opcjonalne pole: nowy Watch dekoduje payload starszego telefonu bez flagi.
+    expect(models).toMatch(/var bodyweightLoaded: Bool\?/);
+    // Starszy Watch: weight_reps ma pole powtórzeń i ciężaru (0 dozwolone w stepperze).
+    expect(detail).toMatch(/showsReps: Bool \{\s*trackingType == "weight_reps"/);
+    expect(detail).toMatch(/showsWeight: Bool \{\s*trackingType == "weight_reps"/);
+    expect(detail).toMatch(/Stepper\(value: \$weight, in: 0\.\.\./);
   });
 
   it('bez extras zachowuje dotychczasowy kształt payloadu', () => {

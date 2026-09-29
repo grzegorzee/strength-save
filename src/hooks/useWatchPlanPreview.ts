@@ -16,6 +16,7 @@ import {
   getWatchAvailability,
   isWatchBridgeSupported,
   sendWorkoutToWatch,
+  watchTrackingFields,
 } from '@/lib/watch-bridge';
 import { buildRecentWatchExercises } from '@/lib/watch-recent';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
@@ -130,7 +131,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
               id: exercise.id,
               name: exercise.name,
               setsLabel: exercise.sets,
-              trackingType: watchTrackingForName(exercise.name),
+              ...watchTrackingFields(watchTrackingForName(exercise.name)),
               sets: draft.exerciseSets[exercise.id] ?? [],
             })),
           });
@@ -177,11 +178,13 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capabil
             id: exercise.id,
             name: exercise.name,
             setsLabel: exercise.sets,
-            trackingType: watchTrackingForName(exercise.name),
+            ...watchTrackingFields(watchTrackingForName(exercise.name)),
+            // F6: kg zeruje tylko czysty bodyweight; bodyweight_loaded niesie dociążenie
+            // ze znormalizowanej historii (Dashboard podaje workouts z useFirebaseWorkouts).
             sets: createPrefilledSets(
               parseSetCount(exercise.sets),
               getPreviousSets(exercise.id, exercise.name),
-              isBodyweightExercise(exercise.name)
+              isBodyweightExercise(exercise.name) && watchTrackingForName(exercise.name) !== 'bodyweight_loaded',
             ),
           })),
         });
