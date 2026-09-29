@@ -21,7 +21,12 @@ export interface HistoryRowMeta {
   prCount: number;
 }
 
-export const buildHistoryRowMeta = (workouts: WorkoutSession[]): Map<string, HistoryRowMeta> => {
+export const buildHistoryRowMeta = (
+  workouts: WorkoutSession[],
+  // F6: typ bodyweight_loaded po nazwie — domyślnie biblioteka; Historia podaje
+  // predykat z własnymi ćwiczeniami (custom_exercises.tracking).
+  isBodyweightLoaded: (name: string) => boolean = isBodyweightLoadedExercise,
+): Map<string, HistoryRowMeta> => {
   const meta = new Map<string, HistoryRowMeta>();
   // Chronologicznie: PR sesji liczony względem WCZEŚNIEJSZYCH ukończonych sesji.
   const chronological = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
@@ -37,7 +42,7 @@ export const buildHistoryRowMeta = (workouts: WorkoutSession[]): Map<string, His
       workoutExercises(w).forEach((ex) => {
         if (ex.name) names.set(ex.exerciseId, ex.name);
         if (isBodyweightExercise(ex.name ?? '')) bodyweightIds.add(ex.exerciseId);
-        if (isBodyweightLoadedExercise(ex.name ?? '')) trackingByExerciseId.set(ex.exerciseId, 'bodyweight_loaded');
+        if (isBodyweightLoaded(ex.name ?? '')) trackingByExerciseId.set(ex.exerciseId, 'bodyweight_loaded');
       });
       prCount = detectNewPRs(w, seen, names, bodyweightIds, { trackingByExerciseId }).length;
       seen.push(w);
