@@ -11,6 +11,17 @@
 
 ## DECYZJE
 
+### 2026-09-29: dług wykryty przy F1/F4 (Profil, dolna nawigacja web, „Na stałe” na zamianie)
+
+1. Wiersz Profilu „Subskryp / cja” przy 320 px. Root cause:
+   `ProfileAccordionSection` miał etykietę `min-w-0 flex-1` i wartość `shrink-0`
+   (do 46% szerokości), więc przy długiej wartości („Brak aktywnej subskrypcji”)
+   etykieta kurczyła się poniżej najdłuższego słowa, a `break-words` łamał je
+   w środku. Fix: etykieta bez `min-w-0` (minimum = najdłuższe słowo), wartość
+   bez `shrink-0` (ustępuje, łamie się między słowami). Test: warunek „brak
+   łamania w środku słowa” w `label-overflow-audit.spec.ts` bez wyjątku dla
+   Profilu, czerwony przed fixem (PL i EN, oba silniki), zielony po.
+
 ### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
 
 Objaw: u właściciela `stravaLastSync` = 2026-08-22T08:00:08Z, ostatnia aktywność

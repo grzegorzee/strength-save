@@ -96,14 +96,10 @@ const inspectInteractiveLabels = async (page: Page, route: string, language: str
           }
         }
       }
-      // Znany dług wykryty tym warunkiem 2026-09-29 (poza zakresem F1, zgłoszony
-      // osobno, patrz DECYZJE.md): przy 320 px „Subskrypcja/Subscription" w wierszu
-      // Profilu oraz etykiety dolnej nawigacji web („Progress", „Historia"): desktopowy
-      // pasek przewijania / blokada scrolla dialogu zwęża 5 zakładek do ~61 px
-      // (na iOS etykiety są nowrap w ios.css, mobilne scrollbary są overlay).
-      // Lista jest zamknięta: każde INNE słowo łamane w środku failuje audyt.
-      const knownDebt = (currentRoute.startsWith('/profile') && /^(Subskrypcja|Subscription)$/.test(brokenWord ?? ''))
-        || candidate.closest('nav') !== null;
+      // Znany dług wykryty tym warunkiem 2026-09-29: etykiety dolnej nawigacji web
+      // („Progress", „Historia") przy 320 px (równy podział 5 zakładek). Lista jest
+      // zamknięta: każde INNE słowo łamane w środku failuje audyt.
+      const knownDebt = candidate.closest('nav') !== null;
       if (brokenWord && !knownDebt) {
         issues.push({ route: currentRoute, language: currentLanguage, text: `${text} [${brokenWord}]`, reason: 'word-broken-mid-word', tag: candidate.tagName });
       }
