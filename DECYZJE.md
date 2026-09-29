@@ -11,6 +11,80 @@
 
 ## DECYZJE
 
+### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
+
+Objaw: u właściciela `stravaLastSync` = 2026-08-22T08:00:08Z, ostatnia aktywność
+z 2026-08-16, a Profil pokazywał „Połączono”.
+
+Dowody z produkcji (tylko odczyt, konto g.jasionowicz@gmail.com; konto
+grzegorzee@gmail.com dostaje PERMISSION_DENIED na log views):
+- `gcloud logging read` dla `stravascheduledsync`: jedyny bieg w oknie retencji
+  logów (30 dni) to 2026-08-31 08:00 UTC. Oba połączone konta: refresh tokenu
+  OK („Token refreshed”), potem `GET /athlete/activities` = 403
+  `{"resource":"Application","field":"Status","code":"Inactive"}`.
+- Cloud Scheduler: `firebase-schedule-stravaScheduledSync-us-central1` ma stan
+  PAUSED; audit log: `PauseJob` 2026-08-31 15:53:35 UTC z gcloud (skrypt, konto
+  właściciela), zgodnie z notatką w `docs/RELEASE-READINESS-2026-08-27.md`
+  („wstrzymany po potwierdzonym 403 dostawcy”).
+- `strava_connections/{uid}`: token odświeżony 2026-08-31, więc to NIE jest
+  odwołana autoryzacja usera ani zły refresh token. Paginacja i limit 20 stron nie
+  mają znaczenia (pada pierwsza strona).
+
+Root cause: aplikacja API Strength Save w Stravie ma status Inactive (poziom
+aplikacji, dotyczy wszystkich userów), a job syncu jest świadomie wstrzymany.
+Kod tego nie naprawi. Wymagane akcje właściciela: przywrócenie statusu aplikacji
+w panelu Strava API, potem `gcloud scheduler jobs resume
+firebase-schedule-stravaScheduledSync-us-central1 --location us-central1`.
+
+Błąd w kodzie (naprawiony, zasada 6): błąd syncu istniał tylko w logach; callable
+zwracał surowe `Strava API error 403: {...}`, a przy wstrzymanym jobie UI nie
+miało żadnego sygnału. Fix:
+- functions: `strava-sync-failure.ts` klasyfikuje błąd (app_inactive,
+  reauth_required, rate_limited, provider_error) na podstawie dosłownej
+  odpowiedzi z produkcji; refresh i API rzucają `StravaSyncFailure`; sync ręczny,
+  codzienny i callback zapisują `users/{uid}.stravaSyncError {kind,status,at}`
+  i zwracają stabilny kod (`STRAVA_APP_INACTIVE`, `STRAVA_REAUTH_REQUIRED`,
+  `STRAVA_UNAVAILABLE`); udany sync, ponowne połączenie i rozłączenie czyszczą pole.
+- klient: `strava-sync-status.ts` liczy stan (błąd albo zastój ponad 48 h od
+  ostatniego udanego syncu, więc działa także przy wstrzymanym jobie, bez deployu
+  functions). `StravaSyncNotice` w Profilu (wyjście: „Połącz ponownie Stravę” przy
+  cofniętym dostępie, „Sprawdź teraz” w pozostałych) i w zakładce Strava (bez
+  ręcznego syncu, T7: przycisk połączenia albo wskazanie Profilu); „Twoje liczby”
+  pokazują ostrzeżenie przy dacie ostatniej synchronizacji. Rozłączenie NIE jest
+  proponowane jako wyjście, bo kasuje zaimportowane aktywności.
+
+Kolejność wydania (zasada 19): functions przed klientem. Stary klient z nowym
+backendem dostaje kody zamiast surowego tekstu (pokaże kod), nowy klient ze starym
+backendem pokazuje zastój z daty.
+
+### 2026-09-29: F5 „Twoje liczby” liczone od pierwszego treningu w apce (wariant A)
+
+Zgłoszenie: „Ukończone aktywności 270” u właściciela. Liczby były poprawne
+(siłowe 94 od 2026-01-26 + cardio 176 = Strava 169 od 2025-04-04 + ręczne 7),
+ale mieszały okresy: import Stravy sięga 365 dni wstecz od pierwszego połączenia
+(`functions/src/index.ts` `syncUserActivities`), więc 116 aktywności było sprzed
+pierwszego treningu w apce, a ekran niczego nie wyjaśniał.
+
+Decyzja właściciela (wariant A): licznik od pierwszego ukończonego treningu
+siłowego (u niego 94 + 53 + 7 = 154) z jawną datą „od 26 sty 2026”. Bez treningów
+siłowych okno zaczyna się od najstarszej aktywności (nic nie jest wykluczone, a
+przypis mówi, od czego liczymy). Arkusz pokazuje rozbicie cardio na źródła (Strava,
+dodane ręcznie) i rodzaje (etykiety `cardio.type.*`, nieznany typ = surowa nazwa),
+przypisy: od czego liczymy, ile starszych aktywności nie weszło, import Stravy do
+12 miesięcy wstecz (starsze są w Postępy → Wykresy → Strava), pomijanie
+WeightTraining/Crossfit ze Stravy, data ostatniej synchronizacji Stravy. Badge
+w nagłówku bez zmian (liczba treningów siłowych).
+
+Implementacja: `buildAllTimeActivityStats` zwraca `since`, `sinceSource`,
+`cardioBySource`, `cardioByType`, `beforeSince`; `activity-read-store` przenosi
+`date` (zły kształt odpada); mapper profilu przenosi `stravaLastSync`.
+Niezmienniki w testach: aktywności = siłowe + cardio, cardio = suma źródeł = suma
+typów, wykluczenie sprzed pierwszego treningu, nieukończony trening nie przesuwa
+„od”, aktywność bez daty nie ginie. Etykiety dat przez wariant bezpieczny
+(zasada 11). Weryfikacja: vitest (logika, render PL/EN, stany: bez Stravy, bez
+cardio, bez treningów siłowych, pusto), e2e `all-time-stats.spec.ts` Chromium i
+WebKit.
+
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 
 Apple odrzuciło wersję 1.0 (148) za 5.1.2(i) i 2.3.2. Pierwszy powód: w ankiecie

@@ -88,7 +88,16 @@ describe('complete activity history read', () => {
     const history = await fetchAllTimeActivityHistory('u1', { includeStrava: true });
     expect(history.activities.map((activity) => activity.source)).toEqual(['manual', 'strava']);
     expect(history.activities.every((activity) => !('averageHeartrate' in activity))).toBe(true);
+    // F5: data jest potrzebna do okna „od pierwszego treningu".
+    expect(history.activities.every((activity) => activity.date === '2026-09-01')).toBe(true);
     expect(fixtures.getDocsFromServer.mock.calls.map(([q]) => q.path)).toEqual(['manual_activities', 'strava_activities']);
+  });
+
+  it('drops a malformed date instead of passing it to the window logic', async () => {
+    fixtures.getDocsFromServer.mockResolvedValueOnce({ docs: [raw('bad-date', { date: 20260105 })] });
+    const history = await fetchAllTimeActivityHistory('u1', { includeStrava: false });
+    expect(history.activities).toHaveLength(1);
+    expect(history.activities[0]).not.toHaveProperty('date');
   });
 
   it.each([null, { uid: 'u2' }])('rejects logout/account change before IO: %s', async (owner) => {

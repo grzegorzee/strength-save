@@ -35,15 +35,17 @@ const syncActivitiesSpy = vi.hoisted(() => vi.fn(async () => ({ ok: true, synced
 const stravaMockState = vi.hoisted(() => ({
   activities: [] as unknown[],
   nextSyncAvailableAt: null as Date | null,
+  connection: { connected: true, athleteName: 'Test Athlete' } as Record<string, unknown>,
 }));
+const connectStravaSpy = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useStrava', () => ({
   useStrava: () => ({
     activities: stravaMockState.activities,
     isLoaded: true,
-    connection: { connected: true, athleteName: 'Test Athlete' },
+    connection: stravaMockState.connection,
     isSyncing: false,
     error: null,
-    connectStrava: vi.fn(),
+    connectStrava: connectStravaSpy,
     syncActivities: syncActivitiesSpy,
     saveMaxHR: vi.fn(),
     disconnectStrava: vi.fn(),
@@ -91,6 +93,65 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   stravaMockState.activities = [];
   stravaMockState.nextSyncAvailableAt = null;
+  stravaMockState.connection = { connected: true, athleteName: 'Test Athlete' };
+  connectStravaSpy.mockReset();
+  syncActivitiesSpy.mockClear();
+});
+
+// F5b (2026-09-29): sync stał od 22.08 (403 Application Inactive, job
+// wstrzymany), a panel mówił tylko „Połączono". Każdy stan błędu ma wyjście.
+describe('stan synchronizacji Stravy (F5b)', () => {
+  const recent = () => new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  it('aplikacja zablokowana przez Stravę: komunikat, data ostatniego syncu i „Sprawdź teraz"', () => {
+    stravaMockState.connection = {
+      connected: true, athleteName: 'Test Athlete', lastSync: '2026-08-22T08:00:08.263Z',
+      syncError: { kind: 'app_inactive', at: '2026-08-31T08:00:06.014Z' },
+    };
+    renderWithProviders(<StravaConnectionCard />);
+    const notice = screen.getByTestId('strava-sync-notice');
+    expect(notice).toHaveTextContent('Synchronizacja Stravy nie działa');
+    expect(notice).toHaveTextContent('Strava zablokowała dostęp');
+    expect(notice).toHaveTextContent('22 sie 2026');
+    fireEvent.click(screen.getByRole('button', { name: 'Sprawdź teraz' }));
+    expect(syncActivitiesSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('cofnięty dostęp: przycisk „Połącz ponownie Stravę" w panelu i w zakładce Strava', () => {
+    stravaMockState.connection = {
+      connected: true, lastSync: recent(), syncError: { kind: 'reauth_required', at: new Date().toISOString() },
+    };
+    const view = renderWithProviders(<StravaConnectionCard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Połącz ponownie Stravę' }));
+    expect(connectStravaSpy).toHaveBeenCalledTimes(1);
+    view.unmount();
+    renderWithProviders(<StravaTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Połącz ponownie Stravę' }));
+    expect(connectStravaSpy).toHaveBeenCalledTimes(2);
+    // Niezmiennik T7: zakładka nadal bez ręcznego syncu.
+    expect(screen.queryByRole('button', { name: /Synchronizuj|Sprawdź teraz/ })).toBeNull();
+  });
+
+  it('zastój bez zapisanego błędu (job nie odpala) też jest widoczny', () => {
+    stravaMockState.connection = { connected: true, lastSync: new Date(Date.now() - 5 * 24 * 3600_000).toISOString() };
+    renderWithProviders(<StravaConnectionCard />);
+    expect(screen.getByTestId('strava-sync-notice')).toHaveTextContent('Nowe aktywności nie spłynęły od 5 dni');
+    expect((screen.getByRole('button', { name: 'Sprawdź teraz' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('w zakładce Strava błąd bez akcji usera wskazuje, gdzie ponowić', () => {
+    stravaMockState.connection = {
+      connected: true, lastSync: '2026-08-22T08:00:08.263Z', syncError: { kind: 'app_inactive', at: '2026-08-31T08:00:06.014Z' },
+    };
+    renderWithProviders(<StravaTab />);
+    expect(screen.getByTestId('strava-sync-notice')).toHaveTextContent('Profil → Urządzenia i połączenia');
+  });
+
+  it('zdrowy sync: brak komunikatu', () => {
+    stravaMockState.connection = { connected: true, lastSync: recent() };
+    renderWithProviders(<StravaConnectionCard />);
+    expect(screen.queryByTestId('strava-sync-notice')).toBeNull();
+  });
 });
 
 describe('ręczny sync Stravy (T7)', () => {

@@ -6,6 +6,7 @@ import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { stravaCallableErrorKey } from '@/lib/strava-sync-status';
 
 const StravaCallback = () => {
   const [searchParams] = useSearchParams();
@@ -59,7 +60,9 @@ const StravaCallback = () => {
         // T7: po "Połączono" od razu na dashboard — tam (T5) czeka cardio tygodnia.
         setTimeout(() => navigate('/'), 1500);
       } catch (err) {
-        const message = err instanceof Error ? err.message : t('strava.callback.exchangeError');
+        // F5b: stabilne kody backendu (np. aplikacja zablokowana przez Stravę) po ludzku.
+        const key = stravaCallableErrorKey(err);
+        const message = key ? t(key) : err instanceof Error ? err.message : t('strava.callback.exchangeError');
         console.error('[Strava] Callback failed:', message);
         setStatus('error');
         setErrorMessage(message);

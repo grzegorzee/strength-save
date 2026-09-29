@@ -1,7 +1,7 @@
 // X17D Z138: statystyki WSZYSTKICH treningów. Prośba usera: po tapnięciu w licznik
 // treningów zobaczyć ile czasu spędził na siłowni i ile ton podniósł.
 import { describe, expect, it } from 'vitest';
-import { buildAllTimeStats } from '@/lib/all-time-stats';
+import { buildAllTimeActivityStats, buildAllTimeStats, type StatsActivity } from '@/lib/all-time-stats';
 import { calculateTonnage } from '@/lib/summary-utils';
 import type { WorkoutSession, SetData } from '@/types';
 
@@ -214,5 +214,79 @@ describe('jedna semantyka ukończonego treningu (nagłówek = szczegóły)', () 
     ]);
     expect(s.workoutCount).toBe(2);
     expect(s.totalTonnageKg).toBe(750);
+  });
+});
+
+// F5 (2026-09-29, wariant A właściciela): „Ukończone aktywności" liczone od
+// pierwszego ukończonego treningu siłowego w apce, z rozbiciem na źródła i typy.
+describe('F5: okno „od pierwszego treningu" i rozbicie cardio', () => {
+  const cardio = (id: string, date: string, type: string, source: StatsActivity['source'] = 'strava', extra: Partial<StatsActivity> = {}): StatsActivity => ({
+    id, userId: 'u1', source, type, date, movingTime: 600,
+    ...(source === 'strava' ? { stravaId: Number(id.replace(/\D/g, '')) || 1 } : {}),
+    ...extra,
+  });
+  const strength = [
+    withSets('s1', '2026-01-26', [set({ reps: 5, weight: 100, completed: true })]),
+    withSets('s2', '2026-03-01', [set({ reps: 5, weight: 100, completed: true })]),
+  ];
+  const activities = [
+    cardio('r1', '2025-04-04', 'Run'), cardio('r2', '2026-01-25', 'Run'),
+    cardio('r3', '2026-01-26', 'Run'), cardio('r4', '2026-05-01', 'Run'),
+    cardio('h5', '2026-02-10', 'Hike'), cardio('y6', '2026-06-01', 'Yoga'),
+    cardio('m1', '2025-12-01', 'Swim', 'manual'), cardio('m2', '2026-08-01', 'Swim', 'manual'),
+    cardio('w7', '2026-04-01', 'WeightTraining'),
+  ];
+
+  it('liczy od daty pierwszego ukończonego treningu siłowego (włącznie), starsze wykluczone i policzone osobno', () => {
+    const r = buildAllTimeActivityStats(strength, activities);
+    expect(r.since).toBe('2026-01-26');
+    expect(r.sinceSource).toBe('strength');
+    expect(r.cardioCount).toBe(5);
+    expect(r.beforeSince).toEqual({ strava: 2, manual: 1 });
+    expect(r.cardioDurationSec).toBe(5 * 600);
+  });
+
+  it('niezmienniki: aktywności = siłowe + cardio; cardio = suma źródeł = suma typów', () => {
+    const r = buildAllTimeActivityStats(strength, activities);
+    expect(r.activityCount).toBe(r.strength.workoutCount + r.cardioCount);
+    expect(r.cardioBySource.strava + r.cardioBySource.manual).toBe(r.cardioCount);
+    expect(r.cardioByType.reduce((sum, t) => sum + t.count, 0)).toBe(r.cardioCount);
+    expect(r.cardioBySource).toEqual({ strava: 4, manual: 1 });
+    expect(r.cardioByType).toEqual([
+      { type: 'Run', count: 2 }, { type: 'Hike', count: 1 }, { type: 'Swim', count: 1 }, { type: 'Yoga', count: 1 },
+    ]);
+  });
+
+  it('WeightTraining/Crossfit ze Stravy nie wchodzą ani do cardio, ani do typów, ani do „starszych"', () => {
+    const r = buildAllTimeActivityStats(strength, [cardio('w1', '2025-01-01', 'WeightTraining'), cardio('c2', '2026-05-01', 'Crossfit')]);
+    expect(r.cardioCount).toBe(0);
+    expect(r.cardioByType).toEqual([]);
+    expect(r.beforeSince).toEqual({ strava: 0, manual: 0 });
+  });
+
+  it('bez treningów siłowych okno zaczyna się od najstarszej aktywności i nic nie jest wykluczone', () => {
+    const r = buildAllTimeActivityStats([], [cardio('m1', '2026-03-05', 'Swim', 'manual'), cardio('m2', '2026-02-01', 'Walk', 'manual')]);
+    expect(r.since).toBe('2026-02-01');
+    expect(r.sinceSource).toBe('activity');
+    expect(r.activityCount).toBe(2);
+    expect(r.beforeSince).toEqual({ strava: 0, manual: 0 });
+  });
+
+  it('pusta historia: brak daty „od" i same zera', () => {
+    const r = buildAllTimeActivityStats([], []);
+    expect(r).toMatchObject({ since: null, sinceSource: null, activityCount: 0, cardioCount: 0, cardioByType: [] });
+  });
+
+  it('nieukończony trening nie przesuwa daty „od"', () => {
+    const r = buildAllTimeActivityStats(
+      [workout({ id: 'draft', date: '2025-01-01', completed: false }), ...strength],
+      activities,
+    );
+    expect(r.since).toBe('2026-01-26');
+  });
+
+  it('aktywność bez daty (stary kształt) jest liczona, a nie gubiona', () => {
+    const r = buildAllTimeActivityStats(strength, [{ id: 'x', userId: 'u1', source: 'manual', type: 'Swim' }]);
+    expect(r.cardioCount).toBe(1);
   });
 });

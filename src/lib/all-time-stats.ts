@@ -108,17 +108,47 @@ export interface StatsActivity {
   userId: string;
   source: 'manual' | 'strava';
   type: string;
+  /** YYYY-MM-DD; brak w starych kształtach = aktywność liczona (nie gubimy jej). */
+  date?: string;
   stravaId?: number;
   movingTime?: number;
   elapsedTime?: number;
 }
 
+type BySource = Record<StatsActivity['source'], number>;
+
+export interface AllTimeActivityStats {
+  strength: AllTimeStats;
+  /**
+   * F5 (wariant A właściciela, 2026-09-29): początek okna liczenia. Pierwszy
+   * ukończony trening siłowy w apce; bez niego najstarsza aktywność (wtedy nic
+   * nie jest wykluczone). Import Stravy sięga 12 miesięcy PRZED połączeniem,
+   * więc bez tego okna licznik mieszał okresy.
+   */
+  since: string | null;
+  sinceSource: 'strength' | 'activity' | null;
+  activityCount: number;
+  cardioCount: number;
+  cardioDurationSec: number;
+  cardioBySource: BySource;
+  /** Posortowane malejąco po liczbie, remis alfabetycznie po typie. */
+  cardioByType: Array<{ type: string; count: number }>;
+  /** Cardio sprzed `since`: nie wchodzi do licznika, ale istnieje (np. zakładka Strava). */
+  beforeSince: BySource;
+}
+
+const dayOf = (date: string | undefined): string | null => (
+  typeof date === 'string' && date.length >= 10 ? date.slice(0, 10) : null
+);
+
 /** Cardio never changes strength volume, PRs, sets or training streaks. */
-export const buildAllTimeActivityStats = (workouts: WorkoutSession[], activities: StatsActivity[]) => {
+export const buildAllTimeActivityStats = (
+  workouts: WorkoutSession[],
+  activities: StatsActivity[],
+): AllTimeActivityStats => {
   const strength = buildAllTimeStats(workouts);
   const seen = new Set<string>();
-  let cardioCount = 0;
-  let cardioDurationSec = 0;
+  const cardio: StatsActivity[] = [];
   for (const activity of activities) {
     const type = activity.type.toLowerCase();
     // Strava may mirror the strength session already saved by Strength Save.
@@ -127,11 +157,45 @@ export const buildAllTimeActivityStats = (workouts: WorkoutSession[], activities
       ? activity.stravaId : activity.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    cardioCount += 1;
+    cardio.push(activity);
+  }
+
+  const strengthStart = dayOf(strength.firstWorkoutDate ?? undefined);
+  const oldestActivity = cardio.reduce<string | null>((oldest, a) => {
+    const day = dayOf(a.date);
+    return day && (oldest === null || day < oldest) ? day : oldest;
+  }, null);
+  const since = strengthStart ?? oldestActivity;
+
+  const cardioBySource: BySource = { strava: 0, manual: 0 };
+  const beforeSince: BySource = { strava: 0, manual: 0 };
+  const byType = new Map<string, number>();
+  let cardioDurationSec = 0;
+  for (const activity of cardio) {
+    const day = dayOf(activity.date);
+    if (since && day && day < since) {
+      beforeSince[activity.source] += 1;
+      continue;
+    }
+    cardioBySource[activity.source] += 1;
+    byType.set(activity.type, (byType.get(activity.type) ?? 0) + 1);
     const duration = activity.movingTime ?? activity.elapsedTime;
     if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
       cardioDurationSec += duration;
     }
   }
-  return { strength, activityCount: strength.workoutCount + cardioCount, cardioCount, cardioDurationSec };
+  const cardioCount = cardioBySource.strava + cardioBySource.manual;
+  return {
+    strength,
+    since,
+    sinceSource: strengthStart ? 'strength' : since ? 'activity' : null,
+    activityCount: strength.workoutCount + cardioCount,
+    cardioCount,
+    cardioDurationSec,
+    cardioBySource,
+    cardioByType: [...byType.entries()]
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type)),
+    beforeSince,
+  };
 };
