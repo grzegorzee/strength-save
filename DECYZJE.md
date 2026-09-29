@@ -11,6 +11,39 @@
 
 ## DECYZJE
 
+### 2026-09-29: „Zakończ” zalicza tylko serie dotknięte przez usera; WebKit getDocs = artefakt testowy
+
+**A. Auto-odhaczenie przy „Zakończ” (X37 WP-D) bez prefillu.** Decyzja
+właściciela-koordynatora po błędzie 2 z release e2e: seria, w której wartości
+wpisała apka (historia, cel progresji, rampa urlopu, kopia przy „Dodaj serię”),
+a user jej nie dotknął, NIE jest zaliczana. Intencja X37 (wpisałem wynik,
+zapomniałem odhaczyć) zostaje. Model: `SetData.prefilled: true` ustawiane
+w `createPrefilledSets` i `handleAddSet`, zdejmowane przy każdej edycji
+(`handleSetChange`: pole, stepper, kalkulator talerzy; odhaczenie; event Apple
+Watch w `mergeWatchSetEvent`; Garmin i merge z chmurą podmieniają serię
+w całości). Flaga przeżywa stan karty (`sanitizeSets`), handlery WorkoutDay
+i IDB; legacy szkic bez flagi działa po staremu. Do chmury nie wychodzi
+(`withoutPrefilledFlag` w payloadzie szkicu i podglądzie na zegarek,
+`clampSet`; serwer `cleanSet` v2 whitelistuje pola, reguły nie pozwalają
+klientowi pisać `exercises`). Toast PL/EN: ile zaliczono, ile pominięto.
+Nietknięta seria zostaje na ekranie jako niezaliczona. Dowód: unit +
+sekwencja IDB, mock e2e (Chromium + WebKit, czerwony przed fixem), emulator
+R4 (serie 2,5 kg z samą progresją niezaliczone w Firestore, brak klucza).
+
+**B. WebKit + emulator: zapytania kolekcji wiszą.** Dowód z produkcji (tylko
+odczyt, ADC, 30 dni do 29.09): `client_errors` = 70 wpisów (iOS 68, Android 2,
+web 0). Timeouty i asercje: 22 × `promote-session timed out`, 12 × FIRESTORE
+3c6b, 1 × `Native callable timed out`, wszystkie z JEDNEJ sesji 12.09 (znany
+incydent 3c6b, naprawiony tego dnia), plus 2 × `server-read timed out` z jednej
+sesji 9.09. Po 12.09 zero. Brak kodów zapytań/`getDocs`/watchdog. Ponieważ
+wiszące `getDocs` bez timeoutu nie trafiłoby do telemetrii, sprawdzony też
+przepływ, który w WebKit wisiał: 2 cykle z `choice.entry = onboarding`
+utworzone w 30 dniach (oba konta Apple, więc natywny iOS), 0 kont
+zarejestrowanych w tym okresie z `onboarding.state = in_progress`.
+Klasyfikacja: artefakt Playwright WebKit + emulator, nie błąd produktu
+(zastrzeżenie: mała próba, 2 onboardingi). WebKit nie wchodzi do suite'u
+emulatorowego; urządzeniowo potwierdza TestFlight.
+
 ### 2026-09-29: release e2e na realnym backendzie (emulatory Auth + Firestore + Functions)
 
 Cel właściciela: przed premierą każda funkcja przetestowana end-to-end na
@@ -43,12 +76,7 @@ wypisie linkiem z maila; backend respektował `false`). Fix:
 `sanitizeNotificationPrefs` w mapperze. Unit czerwony przed fixem, R8/R8b
 czerwone z wyłączonym fixem, zielone po.
 
-Do decyzji właściciela (nie zmieniane): przy „Zakończ trening” seria
-wypełniona WYŁĄCZNIE prefillem (np. progresja +2,5 kg × 10), nieodhaczona,
-zapisuje się jako zrobiona (`autoCompleteFilledSets`,
-`src/lib/workout-day-view.ts:231`, wywołanie `WorkoutDay.tsx:2344`; prefill
-wpisuje dane do serii w `WorkoutDay.tsx:1859`). Toast mówi o „wpisanym wyniku”,
-a wynik wpisała apka. Wpływa na tonaż, PR i progresję.
+Punkt „Zakończ zalicza serię z samym prefillem” rozstrzygnięty i naprawiony (wpis wyżej).
 
 Nie udowodnione: WebKit (w Playwright WebKit zapytania kolekcji na instancji
 Firestore apki wiszą na emulatorze, pojedyncze dokumenty i transakcje działają,
