@@ -5,11 +5,93 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-29 (onboarding: wyjścia, usunięcie konta, komunikaty EN; nazwy planów)
+**Ostatnia aktualizacja:** 2026-09-29 (przewodnik nowego konta; onboarding: wyjścia, usunięcie konta, komunikaty EN; nazwy planów)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-29: przewodnik nowego konta (onboarding w aplikacji) startuje sam i prowadzi do pierwszej serii
+
+Zlecenie właściciela: onboarding dla nowych kont, „pokazanie co i jak działa,
+odhaczanie pierwszej serii, gdzie co jest; ma się samo odpalać, efekt wow”.
+Research: `docs/ONBOARDING-RESEARCH-2026-09-29.md` (NN/g: tutorial z góry nie
+pomaga i pogarsza odbiór; Chameleon: 3-4 kroki 72-74% ukończeń, 7+ 16%, tour
+po akcji 67% vs po czasie 31%; HIG: ucz przez wykonanie, pominięty nie wraca,
+dostępny w ustawieniach; Hevy/Strong/Fitbod uczą W TRAKCIE pierwszego treningu).
+
+**Audyt stanu przed zmianą (main 76c2a611):**
+- `FirstWorkoutTour` (X37 WP-E): 3 spotlighty w `WorkoutDay` (inputy, ptaszek,
+  Zakończ), „Dalej” na każdym kroku (odhaczenie przechodziło dalej po samym
+  kliknięciu, także nieudanym), klucz URZĄDZENIA `fittracker_first_workout_tour_v1`
+  (nie per konto: drugi user na telefonie go nie dostawał, nowy telefon
+  pokazywał go ponownie; B9 z 29.09 pominięte).
+- Kiedy NIE startował: tylko jawny tap „Rozpocznij trening” na ekranie
+  treningu przy 0 ukończonych. Dashboard startuje trening przez
+  `?autostart=true`, a autostart był wykluczony, więc **główna ścieżka nowego
+  usera (Dashboard -> Rozpocznij) nigdy nie pokazywała toura**. Karta
+  PostPlanGuide po kreatorze prowadziła bez autostartu, więc tour pojawiał się
+  tylko przy tej ścieżce. Resume i desktop wyłączone.
+- Pierwsze odhaczenie: brak celebracji i wyjaśnienia przerwy; brak „gdzie co
+  jest” (zakładki) i „co dalej” po treningu.
+- 320 px / EN / Dynamic Type: dymek z safe-area i przewijaną treścią był OK
+  (test klas); brak testu e2e dla 320 px i skali.
+- Obcy overlay (celebracja PR, dialog) ZAMYKAŁ tour jako „widziany”
+  (`useExclusiveOverlay`), więc zużywał go np. przypadkowy dialog.
+- Zgaszenie ekranu / wyjście: stan tylko w pamięci komponentu; wyjście z
+  treningu gubiło tour na zawsze (klucz zapisany dopiero przy zamknięciu, ale
+  uzbrojenie ginęło), bez scroll-locka (portal, nie Radix).
+- Kolizje: prestart sheet i dialog rozgrzewki obsłużone (`warmupQueued`);
+  bramka zgód i paywall podmieniają całe drzewo tras (tour odmontowany, nic
+  nie wisi). Guard zdarzeń oparty o `event.timeStamp < performance.now()` był
+  kruchy (fałszywy zegar e2e = „Tak, rozgrzewka” + Escape paliło tour).
+- `post-plan-guide`: karta inline po kreatorze (`?welcome=1`), klucz per uid
+  w localStorage, replay z Profilu (`/?guide=1`). Innych coach-marków brak.
+
+**Projekt i implementacja (jeden mechanizm, przebudowa X37):**
+- `AppTour` (dawny `FirstWorkoutTour`): spotlight z wycięciem, pętla rAF,
+  portal; kroki-akcje bez „Dalej” (tap w cel, REALNE odhaczenie = wzrost
+  liczby odhaczonych serii), porcje max 3 kroki ze wskaźnikiem postępu,
+  „Pomiń przewodnik” zawsze. Obcy overlay (dialog/arkusz/menu/celebracja)
+  CHOWA przewodnik do zamknięcia, nie zużywa go (`closeOnOtherOpen: false`).
+  Brak celu = nic się nie renderuje (zero paneli bez wyjścia); zamknięty =
+  null od razu (start, który się nie powiódł, nie zostawia pułapki). Escape i
+  kliknięcia uzbrajane klatkę po montażu.
+- Etapy: Dashboard (legenda 4 zakładek, start jako akcja; cel = CTA karty
+  planu albo hero dnia) -> Trening (krok startu przy wejściu bez autostartu;
+  wpis, odhaczenie, celebracja: pop ptaszka + `hapticSuccess` raz, bez dźwięku,
+  zdanie o przerwie tylko gdy pasek przerwy ruszył: „telefon da znać, możesz
+  zgasić ekran”; menu „…”; Zakończ) -> karta inline „Co dalej?” (Historia,
+  Postępy) w podsumowaniu pierwszego treningu.
+- Stan per konto: `users/{uid}.preferences.appTour = {status, at}` (reguły bez
+  zmian; `test:rules` dostał przypadek), `mapAppUserProfile` waliduje kształt
+  (`readCloudAppTour`), localStorage `fittracker_app_tour_v2:<uid>` z etapem,
+  krokiem (powrót do treningu w połowie wznawia krok) i `pendingSync`
+  (ponowienie zapisu po offline). Stary klucz X37 = widziany (seed
+  `playwright.config` bez zmian). Start tylko gdy liczba ukończonych treningów
+  jest ZNANA (agregat albo załadowane okno recent) i równa 0.
+- Pomiń na Dashboardzie i w treningu kończy cały przewodnik (HIG: pominięty
+  nie wraca). Profil > Konto i pomoc: „Pokaż przewodnik ponownie” (replay,
+  omija warunek treningów). Wiersz „Pierwszy trening” (`/?guide=1`) zastąpiony;
+  tryb replay karty PostPlanGuide nie ma już wejścia z UI (kod zostaje).
+- Wyłączony: desktop md+, start z zegarka/Garmina, przegląd przeszłych dni.
+
+**Weryfikacja:** unit `app-tour.test.tsx` 31 testów (warunek startu, pętla
+zapis -> snapshot -> mapper -> warunek, offline + ponowienie, stary klucz,
+replay, akcja odhaczenia, pauza przy obcym overlayu, brak pułapek, reduced
+motion, guard zdarzeń z dispatchu montażu); e2e `first-workout-tour.spec.ts`
+21 scenariuszy x 2 silniki. Bramki: vitest 4649/4649 (baseline 4634 przed
+zmianą, 0 czerwonych), typecheck, lint 0 błędów, build, `test:rules` 328 PASS
+(nowy: `preferences.appTour` ALLOWED), e2e (tour + critical + onboarding-* +
+post-plan-guide + bottom-navigation) 102/102 Chromium+WebKit, pełny mock
+Chromium 421/421; zrzuty
+kroków PL/EN 390 px w `tmp/tour-shots/` (apka ma wymuszony ciemny motyw,
+jasnego nie ma). Czego testy NIE dowodzą: haptyka i zachowanie przy
+zgaszonym ekranie (web e2e), realny Dynamic Type iOS (proxy skaluje font
+elementów), klawiatura ekranowa przy kroku wpisu, VoiceOver, natywne
+safe-area. Checklista urządzeniowa dla właściciela: nowe konto na iPhonie ->
+cała sekwencja, zgaszenie ekranu na kroku celebracji i powrót, Dynamic Type
+135%, Android Back na każdym kroku.
 
 ### 2026-09-29: tap ✓ tuż po wpisaniu ciężaru ginął (przewinięcie Z47 w żywej sesji)
 
