@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateE1RM, detectEmailPRs } from "./email-prs";
 import type { EmailWorkout } from "./email-workout";
+import { buildBodyWeightTimeline } from "./bodyweight-loaded";
 
 const session = (over: Partial<EmailWorkout> = {}): EmailWorkout => ({
   id: "w-now",
@@ -105,5 +106,42 @@ describe("detectEmailPRs (H-T4)", () => {
     const { prs, firsts } = detectEmailPRs(now, [earlier(100, 5)]);
     expect(prs).toEqual([]);
     expect(firsts).toEqual([]);
+  });
+});
+
+// F6: bodyweight_loaded (weight = dociążenie, 0 = sama MC). Reguła jak w kliencie
+// (pr-utils): więcej dociążenia przy powtórzeniach >= rekordowych = PR ciężaru,
+// równe dociążenie i więcej powtórzeń = PR powtórzeń. Legacy (MC wpisana jako kg)
+// normalizowane osią masy ciała, inaczej PR za dociążenie byłby przegapiony.
+describe("detectEmailPRs — bodyweight_loaded (F6)", () => {
+  const PULL = "Podciąganie na drążku";
+  const pull = (id: string, date: string, sets: Array<[number, number]>): EmailWorkout => ({
+    id, userId: "u1", date, completed: true,
+    exercises: [{ exerciseId: "ex-pull", name: PULL, sets: sets.map(([reps, weight]) => ({ reps, weight, completed: true })) }],
+  });
+  const timeline = buildBodyWeightTimeline([{ date: "2026-06-10", weight: 74 }]);
+
+  it("MC 8 powt. -> +10 kg x 8 = PR ciężaru (stara wartość 0 = sama MC)", () => {
+    const { prs } = detectEmailPRs(pull("w-now", "2026-10-08", [[8, 10]]), [pull("w-1", "2026-10-01", [[8, 0]])]);
+    expect(prs).toEqual([expect.objectContaining({ type: "weight", newValue: 10, oldValue: 0 })]);
+  });
+
+  it("równe dociążenie, więcej powtórzeń = PR powtórzeń; więcej kg przy mniej powtórzeniach = brak", () => {
+    const base = [pull("w-1", "2026-10-01", [[8, 0]])];
+    expect(detectEmailPRs(pull("w-now", "2026-10-08", [[9, 0]]), base).prs)
+      .toEqual([expect.objectContaining({ type: "reps", newValue: 9, oldValue: 8 })]);
+    expect(detectEmailPRs(pull("w-now", "2026-10-08", [[5, 10]]), base).prs).toEqual([]);
+  });
+
+  it("legacy 74 kg (MC 74) z osią masy ciała nie blokuje PR za +10 kg", () => {
+    const legacy = [pull("w-1", "2026-09-01", [[8, 74], [8, 74]])];
+    expect(detectEmailPRs(pull("w-now", "2026-10-08", [[8, 10]]), legacy).prs).toEqual([]);
+    expect(detectEmailPRs(pull("w-now", "2026-10-08", [[8, 10]]), legacy, { bodyWeightTimeline: timeline }).prs)
+      .toEqual([expect.objectContaining({ type: "weight", newValue: 10, oldValue: 0 })]);
+  });
+
+  it("zwykłe ćwiczenie bez zmian (e1RM, próg > 0)", () => {
+    expect(detectEmailPRs(session(), [earlier(100)], { bodyWeightTimeline: timeline }).prs)
+      .toEqual([expect.objectContaining({ type: "weight", newValue: 105 })]);
   });
 });
