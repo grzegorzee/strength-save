@@ -82,21 +82,43 @@ export const buildSesEmailCommandInput = (message: SesEmailMessage): SendEmailCo
   },
 });
 
-export const htmlToPlainText = (html: string): string => html
-  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-  .replace(/<br\s*\/?>/gi, "\n")
-  .replace(/<\/p>|<\/div>|<\/h[1-6]>|<\/tr>/gi, "\n")
-  .replace(/<\/td>|<\/th>/gi, "\t")
-  .replace(/<[^>]+>/g, " ")
+const decodeEntities = (value: string): string => value
   .replace(/&nbsp;/gi, " ")
-  .replace(/&amp;/gi, "&")
   .replace(/&lt;/gi, "<")
   .replace(/&gt;/gi, ">")
   .replace(/&quot;/gi, '"')
   .replace(/&#0?39;/gi, "'")
-  .replace(/[ \t]+\n/g, "\n")
+  .replace(/&#(\d+);/g, (_m, code: string) => String.fromCodePoint(Number(code)))
+  .replace(/&amp;/gi, "&");
+
+const stripTags = (html: string): string => html.replace(/<[^>]+>/g, " ");
+
+/**
+ * Wersja text/plain z HTML maila (2026-09-29: czytelna, z adresami linków).
+ * Pomija <head>, preheader (znaczniki z email-layout.ts) i komentarze; link
+ * zamienia na "etykieta: adres", a gdy etykietą jest sam adres, zostawia adres.
+ */
+export const htmlToPlainText = (html: string): string => html
+  .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, " ")
+  .replace(/<!--preheader-->[\s\S]*?<!--\/preheader-->/g, " ")
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+  .replace(/<a\b[^>]*?href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, inner: string) => {
+    const url = decodeEntities(href);
+    const label = decodeEntities(stripTags(inner)).replace(/\s+/g, " ").trim();
+    if (!label || label === url || `mailto:${label}` === url) return ` ${url} `;
+    return ` ${label}: ${url} `;
+  })
+  .replace(/<br\s*\/?>/gi, "\n")
+  .replace(/<li\b[^>]*>/gi, "\n- ")
+  .replace(/<\/p>|<\/div>|<\/h[1-6]>|<\/tr>|<\/ul>|<\/li>|<\/table>/gi, "\n")
+  .replace(/<\/td>|<\/th>/gi, "\t")
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;/gi, " ")
+  .split("\n")
+  .map((line) => decodeEntities(line).replace(/[\u200B-\u200D\uFEFF\u034F\u2007]/g, "").replace(/[ \t]+/g, " ").trim())
+  .join("\n")
   .replace(/\n{3,}/g, "\n\n")
-  .replace(/[ \t]{2,}/g, " ")
   .trim();
 
 export const sendSesEmailWithClient = async (

@@ -1,6 +1,7 @@
 // F-T3: mail podsumowania treningu — kontrakty: treść (serie/notatki/RPE/ból),
 // ownership, limit dzienny, walidacja adresu, pusta historia.
 import { describe, expect, it, vi } from "vitest";
+import { htmlToPlainText } from "./ses-email";
 import {
   buildHistoryEmailHtml,
   buildWorkoutEmailHtml,
@@ -458,13 +459,14 @@ describe("przepływ PR w wysyłce (H-T4)", () => {
 // akcent przy ciemnym tekście, layout tabelaryczny, zero obrazków, zero
 // wykrzykników i AI-slopu w copy.
 describe("szablon marki (G-T3)", () => {
-  it("pojedynczy: jasne tło, biała karta, logo tekstowe, akcent limonkowy, max 640", () => {
+  // 2026-09-29: wspólny layout maili: akcent marki #ccfc22 i szerokość 600 px.
+  it("pojedynczy: jasne tło, biała karta, logo tekstowe, akcent limonkowy, max 600", () => {
     const html = buildWorkoutEmailHtml(workout(), "pl");
     expect(html).toContain("#f6f7f9");
     expect(html).toContain("#ffffff");
     expect(html).toContain("STRENGTH SAVE");
-    expect(html).toContain("#cefc22");
-    expect(html).toContain("max-width:640px");
+    expect(html).toContain("#ccfc22");
+    expect(html).toContain("max-width:600px");
   });
 
   it("kafle hero: tonaż, czas, serie, ćwiczenia (PL i EN)", () => {
@@ -491,9 +493,11 @@ describe("szablon marki (G-T3)", () => {
 
   it("zero wykrzykników w copy (poza treścią wpisaną przez usera)", () => {
     const clean = workout({ notes: undefined, exercises: [{ exerciseId: "ex-1", name: "Wyciskanie", sets: [{ reps: 5, weight: 100, completed: true }] }] });
-    expect(buildWorkoutEmailHtml(clean, "pl")).not.toContain("!");
-    expect(buildWorkoutEmailHtml(clean, "en")).not.toContain("!");
-    expect(buildHistoryEmailHtml([clean], "pl")).not.toContain("!");
+    // 2026-09-29: pełny dokument ma <!DOCTYPE> i komentarze, więc copy
+    // sprawdzamy na wersji tekstowej (to, co czyta odbiorca).
+    expect(htmlToPlainText(buildWorkoutEmailHtml(clean, "pl"))).not.toContain("!");
+    expect(htmlToPlainText(buildWorkoutEmailHtml(clean, "en"))).not.toContain("!");
+    expect(htmlToPlainText(buildHistoryEmailHtml([clean], "pl"))).not.toContain("!");
   });
 
   it("stopka: wysłane na prośbę właściciela konta", () => {
