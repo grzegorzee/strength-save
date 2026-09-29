@@ -1198,6 +1198,7 @@ export const en: Record<keyof typeof pl, string> = {
   'tracking.duration': 'Timed',
   'tracking.weightDistanceDuration': 'Weight + distance + time',
   'tracking.assistedBodyweight': 'Assisted',
+  'tracking.bodyweightLoaded': 'Bodyweight + kg',
   'adhoc.dayName': 'Quick workout',
   'adhoc.start': 'Quick workout',
   'adhoc.addExercise': 'Add exercise',

@@ -1216,6 +1216,7 @@ export const pl = {
   'tracking.duration': 'Na czas',
   'tracking.weightDistanceDuration': 'Ciężar + dystans + czas',
   'tracking.assistedBodyweight': 'Z asystą',
+  'tracking.bodyweightLoaded': 'Masa ciała + kg',
   // szybki trening bez planu (Z104)
   'adhoc.dayName': 'Szybki trening',
   'adhoc.start': 'Szybki trening',

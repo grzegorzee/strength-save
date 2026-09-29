@@ -109,7 +109,10 @@ export const ExercisePicker = ({
 
     let pending = pendingCustomSaveRef.current;
     if (!pending) {
-      pending = onCreateCustomExercise(customForm);
+      // F6: masa ciała + opcjonalne dociążenie to z definicji ćwiczenie z masą ciała.
+      pending = onCreateCustomExercise(customForm.tracking === 'bodyweight_loaded'
+        ? { ...customForm, isBodyweight: true }
+        : customForm);
       pendingCustomSaveRef.current = pending;
       setHasPendingCustomSave(true);
 
@@ -344,6 +347,7 @@ export const ExercisePicker = ({
                     ['duration', t('tracking.duration')],
                     ['weight_distance_duration', t('tracking.weightDistanceDuration')],
                     ['assisted_bodyweight', t('tracking.assistedBodyweight')],
+                    ['bodyweight_loaded', t('tracking.bodyweightLoaded')],
                   ] as Array<[CustomExerciseInput['tracking'], string]>).map(([value, label]) => (
                     <button
                       key={label}
