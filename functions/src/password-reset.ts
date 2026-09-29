@@ -67,6 +67,20 @@ export function rewriteResetLink(link: string, lang: Lang): string {
 }
 
 /**
+ * Release e2e (2026-09-29): Auth emulator wystawia link na ścieżce
+ * /emulator/action (firebase-tools lib/emulator/auth/operations.js:956).
+ * Wyłącznie w emulatorze Functions mapujemy ją na handler Firebase, żeby
+ * e2e przeszło przez rewriteResetLink; produkcja dostaje link bez zmian.
+ */
+export function normalizeEmulatorActionLink(link: string, env: Record<string, string | undefined>): string {
+  if (env.FUNCTIONS_EMULATOR !== "true") return link;
+  const url = new URL(link);
+  if (url.pathname !== "/emulator/action") return link;
+  url.pathname = ACTION_PATH;
+  return url.toString();
+}
+
+/**
  * Nieznany adres. Projekt ma włączoną ochronę przed enumeracją kont, więc
  * backend Firebase odpowiada sukcesem bez linku, a Admin SDK rzuca wtedy
  * auth/internal-error "Unable to create the email action link"
@@ -148,7 +162,10 @@ export const requestPasswordReset = onCall({ secrets: [...SES_EMAIL_SECRETS] }, 
           expiresAt: Timestamp.fromDate(new Date(Date.now() + 2 * DAY_MS)),
         });
       },
-      generateLink: (email) => admin.auth().generatePasswordResetLink(email),
+      generateLink: async (email) => normalizeEmulatorActionLink(
+        await admin.auth().generatePasswordResetLink(email),
+        process.env,
+      ),
       sendEmail: (params) => sendTransactionalEmail(params),
     },
   );
