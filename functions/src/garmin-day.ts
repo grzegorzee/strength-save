@@ -183,7 +183,12 @@ export const resolvePlannedGarminDay = (
   return resolvePlannedDayForDate(date, planDays, scheduleOverrides, planStartDate);
 };
 
-const parseRepRange = (setsStr: string): { min: number; max: number } => {
+// T6: "6 x 20 m" (sanie, spacery z ciężarem) to cel dystansu, nie powtórzeń;
+// parytet z parseDistanceRange klienta (src/lib/exercise-utils.ts).
+const DISTANCE_SETS_RE = /(\d+)\s*x\s*(\d+)(?:\s*-\s*(\d+))?\s*m\b/i;
+
+const parseRepRange = (setsStr: string): { min: number; max: number } | null => {
+  if (DISTANCE_SETS_RE.test(setsStr)) return null;
   const range = setsStr.match(/(\d+)\s*-\s*(\d+)/);
   if (range) return { min: parseInt(range[1], 10), max: parseInt(range[2], 10) };
   const single = setsStr.match(/x\s*(\d+)/i);
@@ -331,14 +336,14 @@ export function buildGarminDayContext(
 
       // F3 x F6: tryb / urlop / rampa / comeback dają ten sam cel co telefon
       // (session-ramp.ts, parytet fixtures/cross-platform/session-ramp-v1.json).
-      const ramp = tracking === "weight_reps"
+      const ramp = tracking === "weight_reps" && range
         ? sessionRampTarget({
           workouts, exerciseId: exercise.id, exerciseName: exercise.name, dateISO: date,
           range, bodyweightLoaded, window: rampWindowFromContext(blockContext),
         })
         : null;
       let target: { reps: number; weight: number } | null = ramp;
-      if (!target && last) {
+      if (!target && last && range) {
         if (last.reps >= range.max) {
           // Parytet z decideNextSet: góra zakresu => +2.5 kg, reps do dołu.
           target = { reps: range.min, weight: last.weight + 2.5 };

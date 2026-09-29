@@ -19,6 +19,7 @@ import {
   sanitizeSets,
   parseRepRange,
   parseDurationRange,
+  parseDistanceRange,
   getProgressionAdvice,
   getExerciseInstructions,
   previousWorkingSet,
@@ -643,7 +644,10 @@ const ExerciseCardInner = ({
     return min === max ? String(min) : `${min}-${max}`;
   }, [exercise.sets]);
   const zeroWeightAllowed = !isBodyweight && tracking === 'weight_reps' && supportsZeroWeight(exercise.name);
-  const perSideTarget = isPerSideRepTarget(exercise.sets);
+  // T6: "6 x 20 m" = cel dystansu (placeholder pola Dystans), nie powtórzeń;
+  // "/strona" przy dystansie nie daje podpowiedzi "N powtórzeń na stronę".
+  const planDistanceM = useMemo(() => parseDistanceRange(exercise.sets)?.min ?? null, [exercise.sets]);
+  const perSideTarget = isPerSideRepTarget(exercise.sets) && planDistanceM === null;
 
   // WP-C (X37): sekundy z zapisu planu ("3 x 45s" → 45) jako fallback celu odliczania.
   const planDurationSec = useMemo(() => parseDurationRange(exercise.sets)?.min ?? null, [exercise.sets]);
@@ -873,7 +877,7 @@ const ExerciseCardInner = ({
             value={set.distanceM || ''}
             onCommit={(n) => handleSetChange(globalIndex, 'distanceM', n)}
             onClear={() => handleSetChange(globalIndex, 'distanceM', 0)}
-            placeholder="m"
+            placeholder={isWarmupRow || planDistanceM === null ? 'm' : String(planDistanceM)}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
