@@ -11,6 +11,38 @@
 
 ## DECYZJE
 
+### 2026-09-29: dług wykryty przy F1/F4 (Profil, dolna nawigacja web, „Na stałe” na zamianie)
+
+1. Wiersz Profilu „Subskryp / cja” przy 320 px. Root cause:
+   `ProfileAccordionSection` miał etykietę `min-w-0 flex-1` i wartość `shrink-0`
+   (do 46% szerokości), więc przy długiej wartości („Brak aktywnej subskrypcji”)
+   etykieta kurczyła się poniżej najdłuższego słowa, a `break-words` łamał je
+   w środku. Fix: etykieta bez `min-w-0` (minimum = najdłuższe słowo), wartość
+   bez `shrink-0` (ustępuje, łamie się między słowami). Test: warunek „brak
+   łamania w środku słowa” w `label-overflow-audit.spec.ts` bez wyjątku dla
+   Profilu, czerwony przed fixem (PL i EN, oba silniki), zielony po.
+2. Dolna nawigacja web łamała „PROGRESS” / „HISTORIA”. Root cause nie był sam
+   desktopowy pasek przewijania: zakładki miały `flex-1 min-w-0` (równy podział,
+   ok. 56 px przy 320 px), a EN „PROGRESS” potrzebuje ok. 62 px; pasek (305 px)
+   dokładał PL „HISTORIA”. Fix: zakładki `flex-auto` bez `min-w-0` (szerokość
+   z treści, nadwyżka po równo, kolumna nie schodzi poniżej słowa). Test: nowy
+   „dolna nawigacja nie łamie słów przy 305/320 px” (PL/EN, oba silniki), czerwony
+   przed fixem, zielony po. Lista znanego długu w audycie usunięta w całości.
+   Uwaga: „panel administracyjny” w WebKit bywa czerwony (`outside-viewport`)
+   także na kodzie sprzed zmiany (1/6), zastana niestabilność.
+3. „Na stałe” na karcie, która jest już zamianą „tylko dziś”, nie zmieniało planu.
+   Root cause: `handleApplySwap` przekazywał do `swapExercise` id karty
+   (`X__swap-a`), którego nie ma w planie, więc zapis planu był no-op.
+   Fix: `planExerciseSwap` + `resolvePlanExerciseId` (`exercise-swap.ts`)
+   znajdują ćwiczenie planu stojące za kartą (rekord `sessionSwaps` wstecz po
+   łańcuchu, potem prefiks id) i biorą nowe id z `swapExerciseIdentity` na
+   oryginale; plan zmienia się na pozycji oryginału, sesja migruje kartę jak
+   dotąd (`applySessionExerciseSwap`). Testy: unit (rozwiązywanie celu, łańcuch,
+   sekwencja start → „tylko dziś” → „Na stałe” na tej samej karcie → plan
+   zmieniony → powrót z IDB → odhaczenie → final sync w kolejności planu) i e2e
+   w `workout-swap-position.spec.ts` (plan w mocku ma nowe ćwiczenie na
+   pozycji 3, reload), czerwone przed fixem w obu silnikach, zielone po.
+
 ### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
 
 Objaw: u właściciela `stravaLastSync` = 2026-08-22T08:00:08Z, ostatnia aktywność
