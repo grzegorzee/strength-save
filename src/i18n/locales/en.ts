@@ -2706,6 +2706,8 @@ export const en: Record<keyof typeof pl, string> = {
   'consent.gateTitle': 'Consent update',
   'consent.gateDesc': 'Accept the Terms and confirm that you have read the Privacy Policy. Health features are optional.',
   'consent.gateSubmit': 'Continue',
+  'consent.resumeWorkout': 'Back to your workout in progress',
+  'consent.resumeWorkoutHint': 'You have a workout in progress. Finish it now and confirm the consents after you leave the workout screen.',
   'consent.settingsTitle': 'Consents & privacy',
   'consent.settingsMarketing': 'Marketing e-mails',
   'consent.settingsMarketingDesc': 'News and promotions. You can turn this off at any time.',

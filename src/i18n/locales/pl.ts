@@ -2734,6 +2734,8 @@ export const pl = {
   'consent.gateTitle': 'Aktualizacja zgód',
   'consent.gateDesc': 'Zaakceptuj Regulamin i potwierdź zapoznanie się z Polityką prywatności. Funkcje zdrowotne są opcjonalne.',
   'consent.gateSubmit': 'Dalej',
+  'consent.resumeWorkout': 'Wróć do trwającego treningu',
+  'consent.resumeWorkoutHint': 'Masz trening w toku. Dokończ go teraz, a zgody potwierdzisz po wyjściu z ekranu treningu.',
   'consent.settingsTitle': 'Zgody i prywatność',
   'consent.settingsMarketing': 'E-maile marketingowe',
   'consent.settingsMarketingDesc': 'Nowości i promocje. Możesz wyłączyć w każdej chwili.',

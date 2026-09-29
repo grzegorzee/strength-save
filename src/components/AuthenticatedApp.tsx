@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import { PushRegistrar } from '@/components/PushRegistrar';
 import { IosSwipeBack } from '@/components/IosSwipeBack';
 import { AndroidBackHandler } from '@/components/AndroidBackHandler';
 import { EmailVerificationGate } from '@/components/EmailVerificationGate';
-import { ConsentGate } from '@/components/ConsentGate';
+import { ConsentGate, ConsentDeferralRearm } from '@/components/ConsentGate';
 import { needsConsentRefresh } from '@/lib/consent-selection';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from '@/lib/global-error-telemetry';
@@ -200,6 +200,16 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
 
   useEffect(() => addBugReportCameraRestoreListener(), []);
 
+  // B8 (2026-09-29): trening w toku omija bramkę zgód na czas samego treningu
+  // (ConsentDeferralRearm przywraca ją po wyjściu z /workout/*).
+  const [consentDeferredForWorkout, setConsentDeferredForWorkout] = useState(false);
+  const rearmConsentGate = useCallback(() => setConsentDeferredForWorkout(false), []);
+  const resumeWorkoutPastConsentGate = useCallback((target: string) => {
+    // HashRouter czyta hash przy montażu, który nastąpi po zdjęciu bramki.
+    window.location.hash = `#${target}`;
+    setConsentDeferredForWorkout(true);
+  }, []);
+
   if (!profileLoaded) return <BootScreen />;
   if (needsEmailVerification) {
     return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} onAccountDeleted={onAccountDeleted} />;
@@ -220,19 +230,22 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
   }
   // Re-consent (pakiet prawny v2): komplet aktualnych zgód wymagany przed
   // trasami. Nowi userzy zbierają zgody w onboardingu (krok Welcome).
-  if (!isNewUser && needsConsentRefresh(profile)) {
+  const consentRefreshNeeded = !isNewUser && needsConsentRefresh(profile);
+  if (consentRefreshNeeded && !consentDeferredForWorkout) {
     return (
       <ConsentGate
         profile={profile}
         onConfirmed={mergeConfirmedConsentMirror}
         onLogout={onLogout}
         onAccountDeleted={onAccountDeleted}
+        onResumeWorkout={resumeWorkoutPastConsentGate}
       />
     );
   }
 
   return (
     <HashRouter useTransitions={false}>
+      {consentRefreshNeeded && consentDeferredForWorkout && <ConsentDeferralRearm onRearm={rearmConsentGate} />}
       <AutoSyncOnReconnect />
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <ProductTelemetry />
