@@ -11,6 +11,38 @@
 
 ## DECYZJE
 
+### 2026-09-29: F1, chip „Rozgrzewka” łamał się w środku słowa przy Dynamic Type
+
+Zgłoszenie: na iPhonie przy Dynamic Type 112% chip pokazywał „Rozgrzewk / a”.
+
+Root cause: siatka chipów karty ćwiczenia (`ExerciseCard.tsx`,
+`data-testid="exercise-card-chips"`) miała minimum kolumny
+`minmax(min(100%,6rem),1fr)`. iOS skaluje tekst od body (`src/styles/ios.css`),
+więc rem stoi w miejscu, a tekst rośnie; przy 393 px i 112% trzy chipy
+(Rozgrzewka, Talerze, Metryki przy zgodzie zdrowotnej) dostawały po ok. 76 px
+na słowo, a `[overflow-wrap:anywhere]` w `chipClass` łamał je w środku.
+
+Fix: `minmax(min(100%,6em),1fr)`. Odstępstwo od planu (`8em`) po pomiarze:
+kontener siatki ma computed font 16 px, nie 12 px, więc `8em` = 128 px zmieniłoby
+układ już przy 100% (2 kolumny na 393 px). `6em` = 96 px przy 100% (bez zmian)
+i rośnie razem z tekstem (em śledzi skalę, jak progi w ios.css).
+`overflow-wrap:anywhere` zostaje jako bezpiecznik przed poziomym scrollem.
+
+Weryfikacja: nowy `e2e/exercise-card-chips-text-scale.spec.ts` (Chromium + WebKit),
+320/375/393/430 px × 100/112/135%, proxy mnoży computed font-size całego drzewa
+body (model `text-size-adjust` na body), Range.getClientRects węzła tekstu = 1 linia.
+Na starym kodzie czerwony (393/112 w Chromium i WebKit, 135% na każdej szerokości),
+po fixie zielony. `label-overflow-audit.spec.ts` dostał warunek „brak łamania
+w środku słowa” (każde słowo etykiety interaktywnej w jednej linii). Warunek
+od razu znalazł istniejący dług poza F1, zapisany w audycie jako zamknięta lista:
+„Subskrypcja/Subscription” w wierszu Profilu przy 320 px (realne, widoczne na
+zrzucie) i etykiety dolnej nawigacji web („Progress”, „Historia”) zwężone
+desktopowym paskiem przewijania. Do osobnej poprawki.
+
+Nie dowodzi: realnego renderu WKWebView z systemowym Dynamic Type (proxy),
+skal powyżej 135% ani innych ekranów niż karta ćwiczenia. Do potwierdzenia na
+iPhonie przy 112% i 135%.
+
 ### 2026-09-29: F4, zamiana ćwiczenia w trakcie treningu zostaje na swojej pozycji
 
 Dane z produkcji (sesja właściciela 28.09, d1): zamiana „Na stałe” na pozycji 3
