@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { planTemplates, getPlanTemplateById, getRecommendedPlan } from '@/data/planTemplates';
 import { exerciseLibrary, findLibraryExercise } from '@/data/exerciseLibrary';
+import { parseDistanceRange, parseRepRange } from '@/lib/exercise-utils';
+import { getTrackingType } from '@/lib/set-tracking';
 
 const libraryNames = new Set(exerciseLibrary.map((e) => e.name));
 const validWeekdays = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
@@ -72,6 +74,27 @@ describe('planTemplates', () => {
   // istniejącego przepływu (remis score rozstrzyga pozycja w tablicy).
   it('FBW nie zmienia rekomendacji: build_muscle/intermediate/3 dni nadal daje Balanced Builder', () => {
     expect(getRecommendedPlan('build_muscle', 'intermediate', 3).id).toBe('tpl-fullbody-3');
+  });
+
+  // T6 (2026-09-29): 16 nowych szablonów, sanie/spacery na dystans.
+  it('T6: katalog ma 41 szablonów, w tym 16 nowych', () => {
+    expect(planTemplates).toHaveLength(41);
+    for (const id of ['tpl-fatloss-3', 'tpl-home-db-3', 'tpl-glutes-4', 'tpl-strength-2', 'tpl-beginner-ul-4', 'tpl-athletic-3', 'tpl-home-db-4', 'tpl-fatloss-2', 'tpl-fatloss-5', 'tpl-strength-ul-4', 'tpl-strength-6', 'tpl-glutes-2', 'tpl-health-50-2', 'tpl-kettlebell-3', 'tpl-express-3', 'tpl-travel-2']) {
+      expect(getPlanTemplateById(id), id).toBeTruthy();
+    }
+  });
+
+  it('T6: zapis w metrach tylko przy ćwiczeniach ciężar+dystans; metry to nie powtórzenia', () => {
+    const rows = planTemplates.flatMap((tpl) => tpl.days.flatMap((d) => d.exercises.map((e) => ({ tpl, e }))));
+    const distanceRows = rows.filter(({ e }) => parseDistanceRange(e.sets));
+    expect(distanceRows.length).toBeGreaterThan(0);
+    for (const { tpl, e } of distanceRows) {
+      const lib = findLibraryExercise(e.name);
+      expect(lib && getTrackingType(lib), `${tpl.id}: ${e.name} "${e.sets}"`).toBe('weight_distance_duration');
+      expect(parseRepRange(e.sets).isMax, `${tpl.id}: ${e.name}`).toBe(true);
+    }
+    // Pchanie sań w planie (sanie -> dystans).
+    expect(distanceRows.some(({ e }) => e.name === 'Pchanie sań (Sled Push)' && e.sets === '6 x 20 m')).toBe(true);
   });
 
   it('getPlanTemplateById resolves known ids and returns undefined otherwise', () => {

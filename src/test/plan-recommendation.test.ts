@@ -71,9 +71,10 @@ describe('scoreTemplates: liczba dni twardym priorytetem (X31 H2)', () => {
   });
 
   it('brak szablonu celu przy wybranych dniach: dokładne dni + najbliższy poziom (cel wtórny)', () => {
-    // fat_loss/3: brak fat_loss w 3 dniach → pierwszy 3-dniowy intermediate z katalogu.
-    const top = scoreTemplates({ objective: 'fat_loss', level: 'intermediate', daysPerWeek: 3 }, planTemplates)[0];
-    expect(top.template.id).toBe('tpl-fullbody-3');
+    // fat_loss/6: brak fat_loss w 6 dniach → pierwszy 6-dniowy intermediate z katalogu.
+    // (T6: fat_loss/3 ma już własny szablon tpl-express-3, więc przypadek przeniesiony na 6 dni.)
+    const top = scoreTemplates({ objective: 'fat_loss', level: 'intermediate', daysPerWeek: 6 }, planTemplates)[0];
+    expect(top.template.id).toBe('tpl-ppl-6');
     expect(top.reasons).toEqual(['exact-days', 'level-match']);
   });
 

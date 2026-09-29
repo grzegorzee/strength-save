@@ -47,6 +47,9 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   'Szerokie': 'Wide',
   'Uda': 'Thighs',
   'Przysiad': 'Squat',
+  // T6: focus nowych szablonów (Moc Góra/Dół/Tył, Objętość A/B/C).
+  'Moc': 'Power',
+  'Objętość': 'Volume',
 };
 
 const WEEKDAY_SHORT_EN: Record<string, string> = {
@@ -175,6 +178,22 @@ const PLAN_NAME: Record<string, PlanText> = {
   'tpl-hybrid-5': { pl: 'Hybryda Pięciu Dni', en: 'Hybrid Five' },
   'tpl-nsuns-5': { pl: 'Objętość Maksymalna', en: 'Volume Max LP' },
   'tpl-arnold-6': { pl: 'Złota Era', en: 'Golden Era Split' },
+  'tpl-fatloss-3': { pl: 'Redukcja na Start', en: 'Fat Loss Starter' },
+  'tpl-home-db-3': { pl: 'Hantle w Domu', en: 'Home Dumbbell Basics' },
+  'tpl-glutes-4': { pl: 'Pośladki Priorytet', en: 'Glute Priority' },
+  'tpl-strength-2': { pl: 'Siła w Dwa Dni', en: 'Two-Day Strength' },
+  'tpl-beginner-ul-4': { pl: 'Góra/Dół na Start', en: 'Upper Lower Starter' },
+  'tpl-athletic-3': { pl: 'Atleta w Trzy Dni', en: 'Three-Day Athlete' },
+  'tpl-home-db-4': { pl: 'Domowy Góra/Dół', en: 'Home Upper Lower' },
+  'tpl-fatloss-2': { pl: 'Redukcja w Dwa Dni', en: 'Two-Day Fat Loss' },
+  'tpl-fatloss-5': { pl: 'Redukcja Plus', en: 'Fat Loss Plus' },
+  'tpl-strength-ul-4': { pl: 'Siła Góra/Dół na Start', en: 'Strength Upper Lower Starter' },
+  'tpl-strength-6': { pl: 'Siła Falowa', en: 'Wave Strength' },
+  'tpl-glutes-2': { pl: 'Pośladki w Dwa Dni', en: 'Two-Day Glutes' },
+  'tpl-health-50-2': { pl: 'Sprawna Codzienność', en: 'Everyday Strength' },
+  'tpl-kettlebell-3': { pl: 'Kettlebell Podstawy', en: 'Kettlebell Basics' },
+  'tpl-express-3': { pl: 'Ekspres 35 Minut', en: 'Express 35' },
+  'tpl-travel-2': { pl: 'Trening w Podróży', en: 'Travel Workout' },
 };
 
 const PLAN_DESC: Record<string, PlanText> = {
@@ -278,6 +297,70 @@ const PLAN_DESC: Record<string, PlanText> = {
   'tpl-arnold-6': {
     pl: 'Klasyczny split złotej ery kulturystyki w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
     en: 'The classic golden-era bodybuilding split at modern volume: Chest+Back, Shoulders+Arms, Legs. Each session 2× a week, antagonist supersets (chest with back, biceps with triceps). For advanced lifters.',
+  },
+  'tpl-fatloss-3': {
+    pl: 'Plan pod redukcję dla początkujących: 3 treningi całego ciała na maszynach i hantlach. Najpierw blok siłowy (3 ćwiczenia wielostawowe), potem krótki obwód i interwały na sprzęcie cardio.',
+    en: 'A beginner fat-loss plan: 3 full-body sessions on machines and dumbbells. A strength block (3 compound lifts) first, then a short circuit and cardio machine intervals.',
+  },
+  'tpl-home-db-3': {
+    pl: 'Trzy treningi całego ciała w domu: para hantli i ławka. Proste ruchy wielostawowe, 3 serie, progres przez dokładanie powtórzeń, potem ciężaru.',
+    en: 'Three full-body sessions at home with a pair of dumbbells and a bench. Simple compound lifts, 3 sets, progress by adding reps first, then load.',
+  },
+  'tpl-glutes-4': {
+    pl: 'Cztery treningi z priorytetem pośladków: dwa dni dołu z różnymi wzorcami (wypychanie bioder, przysiad, zawias, wykrok), jeden dzień góry i jeden całego ciała. Zakresy 6-30 powtórzeń.',
+    en: 'Four sessions with a glute priority: two lower days with different patterns (hip thrust, squat, hinge, lunge), one upper day and one full-body day. Rep ranges from 6 to 30.',
+  },
+  'tpl-strength-2': {
+    pl: 'Siła na dwóch treningach w tygodniu: przysiad, wyciskanie leżąc, martwy ciąg i wyciskanie nad głowę po 5 powtórzeń, plus wiosłowanie, podciąganie i noszenie ciężaru. Progres liniowy ciężaru na bojach.',
+    en: 'Strength on two sessions a week: squat, bench press, deadlift and overhead press for sets of 5, plus rows, pull-ups and a loaded carry. Linear load progression on the main lifts.',
+  },
+  'tpl-beginner-ul-4': {
+    pl: 'Pierwszy plan 4-dniowy: góra i dół ciała na zmianę, głównie maszyny i hantle. Pięć ćwiczeń po 2-3 serie, zostawiaj 2-3 powtórzenia w zapasie.',
+    en: 'A first 4-day plan: upper and lower body in turns, mostly machines and dumbbells. Five exercises of 2-3 sets, leave 2-3 reps in reserve.',
+  },
+  'tpl-athletic-3': {
+    pl: 'Moc, siła i kondycja w trzech treningach. Każdy dzień zaczyna ćwiczenie eksplozywne (skok albo rzut piłką), potem bój siłowy, praca jednonóż, core przeciw rotacji i krótkie interwały.',
+    en: 'Power, strength and conditioning in three sessions. Each day opens with an explosive drill (jump or medicine ball throw), then a main lift, single-leg work, anti-rotation core and short intervals.',
+  },
+  'tpl-home-db-4': {
+    pl: 'Góra/dół 4 razy w tygodniu w domu: hantle, ławka i drążek do podciągania. Dwa warianty każdego dnia, praca jednonóż zamiast ciężkiej sztangi.',
+    en: 'Upper/lower 4 times a week at home: dumbbells, a bench and a pull-up bar. Two versions of each day, single-leg work instead of a heavy barbell.',
+  },
+  'tpl-fatloss-2': {
+    pl: 'Redukcja przy dwóch treningach w tygodniu: całe ciało na maszynach i hantlach, krótka superseria na koniec i 10 interwałów na rowerze albo wioślarzu.',
+    en: 'Fat loss on two sessions a week: full body on machines and dumbbells, a short superset to finish and 10 intervals on a bike or rower.',
+  },
+  'tpl-fatloss-5': {
+    pl: 'Redukcja na 5 treningach: góra/dół dwa razy w tygodniu na ciężarach plus jeden dzień kondycyjny (interwały, sanie, noszenie ciężaru, rzuty piłką).',
+    en: 'Fat loss on 5 sessions: upper/lower twice a week with weights plus one conditioning day (intervals, sled, loaded carries, medicine ball throws).',
+  },
+  'tpl-strength-ul-4': {
+    pl: 'Pierwszy plan siłowy na 4 dni: każdy z czterech bojów (przysiad, wyciskanie leżąc, martwy ciąg, wyciskanie nad głowę) raz w tygodniu ciężko po 5 powtórzeń, reszta to lżejsze ćwiczenia pomocnicze. Progres liniowy.',
+    en: 'A first 4-day strength plan: each of the four main lifts (squat, bench press, deadlift, overhead press) once a week heavy for sets of 5, the rest are lighter accessories. Linear progression.',
+  },
+  'tpl-strength-6': {
+    pl: 'Siła na 6 dniach z falującą objętością: każdy z trzech bojów (przysiad, wyciskanie leżąc, martwy ciąg) ma w tygodniu dzień ciężki (niskie powtórzenia) i dzień objętościowy (warianty z pauzą, więcej serii). Dla osób z kilkuletnim stażem.',
+    en: 'Strength on 6 days with undulating volume: each of the three main lifts (squat, bench press, deadlift) gets a heavy day (low reps) and a volume day (paused variations, more sets) every week. For lifters with several years of training.',
+  },
+  'tpl-glutes-2': {
+    pl: 'Dwa treningi całego ciała z akcentem na pośladki: wypychanie bioder, przysiad, zawias biodrowy, wejścia na skrzynię i odwodzenie z gumą. Hantle, wyciąg i guma oporowa.',
+    en: 'Two full-body sessions with a glute emphasis: hip thrusts, squats, hip hinges, step-ups and banded abduction. Dumbbells, a cable station and a resistance band.',
+  },
+  'tpl-health-50-2': {
+    pl: 'Dwa spokojne treningi całego ciała na maszynach i w stabilnych pozycjach, bez sztangi nad głową: nogi, pchanie, przyciąganie, noszenie ciężaru i core. Dla osób 50+ i wracających po długiej przerwie.',
+    en: 'Two steady full-body sessions on machines and in stable positions, no barbell overhead: legs, pushing, pulling, loaded carries and core. For people over 50 and anyone returning after a long break.',
+  },
+  'tpl-kettlebell-3': {
+    pl: 'Trzy treningi z jednym lub dwoma odważnikami kettlebell: martwy ciąg, wymachy, przysiad, wyciskanie, wiosłowanie i noszenie. Wystarczy kawałek podłogi.',
+    en: 'Three sessions with one or two kettlebells: deadlifts, swings, squats, presses, rows and carries. A bit of floor space is enough.',
+  },
+  'tpl-express-3': {
+    pl: 'Trzy krótkie treningi (ok. 35 minut) na superseriach antagonistycznych: pchanie z przyciąganiem, nogi przód z tyłem, na koniec 6 interwałów. Pod redukcję przy małej ilości czasu.',
+    en: 'Three short sessions (about 35 minutes) built on antagonist supersets: push with pull, front of the legs with the back, then 6 intervals to finish. For fat loss on a tight schedule.',
+  },
+  'tpl-travel-2': {
+    pl: 'Dwa obwody bez siłowni: masa ciała i guma oporowa, do hotelowego pokoju. Stół do wiosłowania odwrotnego, krzesło do wykroków, krótkie interwały na koniec.',
+    en: 'Two circuits without a gym: bodyweight and a resistance band, made for a hotel room. A sturdy table for inverted rows, a chair for split squats, short intervals to finish.',
   },
 };
 

@@ -62,7 +62,8 @@ describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () =
     goToBrowseAsFatLoss3Days();
 
     const headings = screen.getAllByRole('heading', { level: 2 });
-    expect(headings[0].textContent).toBe('Siła Fundamentalna'); // tpl-strength-5x5 (PL): 3 dni, beginner
+    // T6: redukcja + początkujący + 3 dni ma własny szablon (wcześniej tpl-strength-5x5).
+    expect(headings[0].textContent).toBe('Redukcja na Start'); // tpl-fatloss-3 (PL): 3 dni, beginner, fat_loss
     expect(screen.getAllByTestId('browse-recommended-badge')).toHaveLength(1);
     expect(screen.getByTestId('browse-recommended-badge').textContent).toBe('Polecany');
   });

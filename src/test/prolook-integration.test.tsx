@@ -202,11 +202,19 @@ describe('F1: assety pro-look skopiowane do public/', () => {
 
   it('każdy szablon planu ma hero public/plan-templates/<id>.webp', () => {
     const dir = join(process.cwd(), 'public', 'plan-templates');
+    // T6: nowe szablony bez własnej grafiki wskazują istniejący hero dobrany celem
+    // (PLAN_TEMPLATE_HERO_ALIAS) — URL karty musi trafiać w istniejący plik.
     const missing = planTemplates
       .filter((tpl) => !KNOWN_TEMPLATES_WITHOUT_HERO.includes(tpl.id))
-      .filter((tpl) => !existsSync(join(dir, `${tpl.id}.webp`)))
+      .filter((tpl) => !existsSync(join(dir, getPlanTemplateImageUrl(tpl.id).replace('/plan-templates/', ''))))
       .map((tpl) => tpl.id);
     expect(missing).toEqual([]);
+  });
+
+  it('T6: nowy szablon bez własnego pliku = alias do istniejącego hero; szablony z plikiem bez zmian', () => {
+    expect(getPlanTemplateImageUrl('tpl-fatloss-3')).toBe('/plan-templates/tpl-lean-engine-4.webp');
+    expect(getPlanTemplateImageUrl('tpl-glutes-4')).toBe('/plan-templates/tpl-glutes-3.webp');
+    expect(getPlanTemplateImageUrl('tpl-ppl-3')).toBe('/plan-templates/tpl-ppl-3.webp');
   });
 
   it('empty states, paywall hero i kafel custom istnieją w public/', () => {

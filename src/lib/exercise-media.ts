@@ -171,7 +171,29 @@ export const getMuscleImageUrl = (primaryMuscle: string): string =>
  *  nazwane 1:1 id szablonu (tpl-*.webp); brak/błąd pliku obsługuje UI
  *  (onError → karta jak dotąd), test kompletności pilnuje pełnej listy. */
 export const getPlanTemplateImageUrl = (templateId: string): string =>
-  `${import.meta.env.BASE_URL ?? '/'}plan-templates/${templateId}.webp`;
+  `${import.meta.env.BASE_URL ?? '/'}plan-templates/${PLAN_TEMPLATE_HERO_ALIAS[templateId] ?? templateId}.webp`;
+
+/** T6 (2026-09-29): szablony bez własnej grafiki (nie generujemy nowych) pokazują
+ *  istniejący hero dobrany celem/sprzętem; w obrębie jednej liczby dni bez
+ *  powtórzeń tam, gdzie się da. Test kompletności sprawdza, że plik istnieje. */
+const PLAN_TEMPLATE_HERO_ALIAS: Record<string, string> = {
+  'tpl-fatloss-3': 'tpl-lean-engine-4',
+  'tpl-home-db-3': 'tpl-minimalist-2',
+  'tpl-glutes-4': 'tpl-glutes-3',
+  'tpl-strength-2': 'tpl-strength-5x5',
+  'tpl-beginner-ul-4': 'tpl-phat-5',
+  'tpl-athletic-3': 'tpl-athletic-4',
+  'tpl-home-db-4': 'tpl-six-lifts-3',
+  'tpl-fatloss-2': 'tpl-lean-engine-4',
+  'tpl-fatloss-5': 'tpl-lean-engine-4',
+  'tpl-strength-ul-4': 'tpl-nsuns-5',
+  'tpl-strength-6': 'tpl-gzclp-3',
+  'tpl-glutes-2': 'tpl-glutes-3',
+  'tpl-health-50-2': 'tpl-fullbody-3',
+  'tpl-kettlebell-3': 'tpl-push-pull-4',
+  'tpl-express-3': 'tpl-hybrid-5',
+  'tpl-travel-2': 'tpl-calisthenics-3',
+};
 
 /** X28 WP-F: ilustracje pustych stanów (pro-look dark-gym-v1) w public/empty-states/. */
 export const getEmptyStateImageUrl = (name: 'history' | 'measurements' | 'no-plan' | 'strava'): string =>

@@ -4,6 +4,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
+import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 
 // X33 (plan docs/PLAN-X33-2026-08-25.md, sekcja 1): krok 5A "Dopasowane do Ciebie".
 // WP-1 natychmiastowa rekomendacja bez sztucznego oczekiwania,
@@ -86,7 +87,7 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     expect(first.textContent).not.toContain('Pierwszy trening');
     // Hero webp z getPlanTemplateImageUrl; blad pliku = karta bez obrazka, tresc zostaje.
     const img = first.querySelector('img')!;
-    expect(img.getAttribute('src')).toBe(`/plan-templates/${tpl.id}.webp`);
+    expect(img.getAttribute('src')).toBe(getPlanTemplateImageUrl(tpl.id));
     fireEvent.error(img);
     expect(first.querySelector('img')).toBeNull();
     expect(cardName(first)).toBe(localizePlanName(tpl.id, tpl.name, 'pl'));
@@ -157,13 +158,14 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
 
   it('chipy celu w bibliotece filtruja w obrebie puli dni; "Wszystkie" domyslnie; pusty cel = komunikat z wyjsciem', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5(3);
+    // T6: 3 dni mają już szablony redukcyjne; pusty cel sprawdzamy na 6 dniach (brak redukcji).
+    goToStep5(6);
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
 
     const chips = within(screen.getByTestId('browse-objective-chips')).getAllByRole('button');
     expect(chips.map((c) => c.textContent)).toEqual(['Wszystkie', 'Masa', 'Siła', 'Redukcja', 'Atletyka']);
     expect(chips[0].getAttribute('aria-pressed')).toBe('true');
-    const pool = planTemplates.filter((t) => t.daysPerWeek === 3);
+    const pool = planTemplates.filter((t) => t.daysPerWeek === 6);
     expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(pool.length);
 
     fireEvent.click(screen.getByRole('button', { name: 'Siła' }));
@@ -172,9 +174,9 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
       .toEqual(strength.map((t) => localizePlanName(t.id, t.name, 'pl')));
     // Naglowek nadal liczy cala pule dni, nie filtr.
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na 3 dni w tygodniu (${pool.length})`);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na 6 dni w tygodniu (${pool.length})`);
 
-    // 3 dni: brak szablonu redukcyjnego = komunikat, chipy zostaja (wyjscie ze stanu).
+    // 6 dni: brak szablonu redukcyjnego = komunikat, chipy zostaja (wyjscie ze stanu).
     fireEvent.click(screen.getByRole('button', { name: 'Redukcja' }));
     expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
     expect(screen.getByTestId('browse-empty-objective')).toBeInTheDocument();
