@@ -724,6 +724,9 @@ test.describe('Wybór 6 dni (Z72)', () => {
   test('wizard z 6 dniami rekomenduje plan 6-dniowy bez ostrzeżenia', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
     // X32: /new-plan startuje od kroku 2 (poziom), bez "Zmień ustawienia".
+    // T6 (F7): każdy plan 6-dniowy ma podciąganie/dipy/plank, więc Z72 sprawdzamy
+    // na poziomie średnim; początkujący ma osobny test niżej.
+    await page.getByText('Średnio zaawansowany', { exact: true }).click();
     await page.getByRole('button', { name: 'Następny krok' }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: '6', exact: true }).click();
@@ -735,6 +738,17 @@ test.describe('Wybór 6 dni (Z72)', () => {
     await expect(recommendedCard.getByText('Push Pull Legs ×2')).toBeVisible();
     await expect(recommendedCard.getByTestId('plan-choice-meta')).toContainText('6 dni');
     await expect(page.getByText(/Ten plan ma \d+ dni treningowych/)).toBeHidden();
+  });
+
+  test('T6 (F7): początkujący + 6 dni: najbliższy plan bez podporu na rękach z JAWNYM ostrzeżeniem', async ({ page }) => {
+    await navigateAndWait(page, '/new-plan');
+    await page.getByRole('button', { name: 'Następny krok' }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByRole('button', { name: '6', exact: true }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    const recommendedCard = page.getByTestId('plan-choice-recommended');
+    await expect(recommendedCard.getByText('Push Pull Legs ×2')).toHaveCount(0);
+    await expect(page.getByText(/Ten plan ma \d+ dni treningowych, wybrałeś 6/)).toBeVisible();
   });
 
   test('poziom elite nie istnieje w wizardzie', async ({ page }) => {
