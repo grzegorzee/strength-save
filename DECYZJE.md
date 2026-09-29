@@ -11,6 +11,31 @@
 
 ## DECYZJE
 
+### 2026-09-29: maile, decyzje właściciela (Reply-To do trenera, wypis z broadcastu)
+
+1. Mail z treningiem i historią do trenera: Reply-To = `users/{uid}.email`, gdy
+   aplikacja go zweryfikowała (`verification.emailVerifiedAt`) i nie jest to Apple
+   Private Relay (relay przyjmuje pocztę tylko od zarejestrowanych nadawców, odpowiedź
+   trenera by odbiła). W każdym innym przypadku, także przy awarii odczytu profilu,
+   `contact@strengthsave.app`. Testy obu gałęzi (`email-workout.test.ts`).
+2. Broadcast e-mail z panelu admina: osobna flaga zgody
+   `notificationPrefs.announcementEmails` (brak pola = włączone, jak reszta prefs;
+   maile o koncie bez zmian), przełącznik „Ogłoszenia e-mail od zespołu” w Profil,
+   Powiadomienia (PL/EN). `adminBroadcastEmail` pomija wypisanych (zwraca
+   `skippedUnsubscribed`) i dodaje `List-Unsubscribe` + `List-Unsubscribe-Post`
+   z tokenem o osobnym zakresie (`&s=announcements`): link z digestu nie wypisuje
+   z ogłoszeń i odwrotnie. Stopka broadcastu podaje powód i drogę wyłączenia.
+   Kanoniczne stany nie mają `notificationPrefs`, więc route-smoke renderuje ścieżkę
+   domyślną; reguły Firestore przyjmują dowolny klucz w mapie `notificationPrefs`.
+   Uwaga prawna: flaga to zgoda na ogłoszenia. Treść stricte marketingowa wymaga
+   dodatkowo `consents.marketingGranted` (tego broadcast nie sprawdza).
+
+Weryfikacja: functions 806 passed + build; aplikacja 511 plików / 4527 testów
+passed (w tym route-smoke), typecheck, lint 0 błędów. Commity `eea14c5b`,
+`21a52c28`, `9d2646f4`. **Wymaga deployu functions** (`emailWorkoutSummary`,
+`emailWorkoutHistory`, `adminBroadcastEmail`, `emailUnsubscribe`) PRZED webem
+z nowym przełącznikiem (backend-first, zasada 19).
+
 ### 2026-09-29: F6, ćwiczenia z masą ciała i opcjonalnym dociążeniem (`bodyweight_loaded`)
 
 Root cause (dane produkcyjne, odczyt read-only): podciąganie było `weight_reps`,

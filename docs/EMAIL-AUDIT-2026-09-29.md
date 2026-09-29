@@ -206,12 +206,11 @@ potwierdzoną awarią.
 
 ## 7. Poza zakresem, do decyzji
 
-- **Broadcast admina** idzie do wszystkich userów bez możliwości wypisu i bez sprawdzania
-  zgody marketingowej. Przed pierwszym realnym broadcastem: osobny przełącznik „Wiadomości
-  o produkcie” + ten sam mechanizm one-click (`email-unsubscribe.ts` ma zakres `weekly_digest`, łatwo dodać drugi).
-- Mail z treningiem do trenera: Reply-To = contact@ (odpowiedź trenera trafi do supportu).
-  Alternatywa: Reply-To = adres właściciela konta, ale nie dla adresów Apple Relay
-  (relay przyjmuje tylko zarejestrowanych nadawców). Decyzja produktowa.
+- **Zrobione po decyzji właściciela (2026-09-29):** broadcast admina pomija wypisanych
+  (`notificationPrefs.announcementEmails`, przełącznik w Profil, Powiadomienia) i ma
+  one-click unsubscribe; mail do trenera ma Reply-To = zweryfikowany adres właściciela
+  konta (poza Apple Private Relay), inaczej contact@. Treść stricte marketingowa w
+  broadcaście wymagałaby dodatkowo `consents.marketingGranted`.
 - Zgłoszenie błędu: Reply-To mógłby wskazywać `reporterEmail` (odpowiedź prosto do usera).
 - Nazwy ćwiczeń w EN: słownik `exercise-name-en.ts` nie zna m.in. „Martwy ciąg” (w EN zostaje PL).
 - Maile wewnętrzne (alert client_errors) mają teksty bez polskich znaków („Powod”, „Przyklad”).
