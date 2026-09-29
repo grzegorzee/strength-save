@@ -279,6 +279,53 @@ export const buildPhotoWeightMeasurement = (dateISO: string, weightKg: number): 
   photoPath: `body-photos/${CANONICAL_UID}/${dateISO}.jpg`,
 });
 
+/** F6 (2026-09-29): historia legacy ćwiczeń z masą ciała w kształcie produkcji
+ *  (konto właściciela, odczyt read-only): podciąganie zapisywane jako weight_reps
+ *  z masą ciała 74/72 kg, Reverse Crunch z realnym dociążeniem 12,5 kg, pomiar
+ *  z 2026-08-21 BEZ wagi. Serie przez clampSet (ta sama logika co zapis). */
+export const buildLegacyBodyweightHistory = (): { workouts: WorkoutSession[]; measurements: BodyMeasurement[] } => {
+  const session = (
+    dateISO: string,
+    exercises: Array<{ id: string; name: string; sets: Array<[number, number]> }>,
+  ): WorkoutSession => {
+    const startedAt = parseLocalDate(dateISO).getTime() + 17 * 3_600_000;
+    return {
+      id: `${CANONICAL_UID}_day-pull_${dateISO}`,
+      userId: CANONICAL_UID,
+      dayId: 'day-pull',
+      date: dateISO,
+      completed: true,
+      exercises: exercises.map((exercise) => ({
+        exerciseId: exercise.id,
+        name: exercise.name,
+        sets: exercise.sets.map(([reps, weight]) => clampSet({ reps, weight, completed: true })),
+      })),
+      dayName: 'Pull',
+      dayFocus: 'Plecy',
+      durationSec: 3600,
+      startedAt,
+      completedAt: startedAt + 3600 * 1000,
+    };
+  };
+  const pull = (sets: Array<[number, number]>) => ({ id: 'day-pull-ex-1', name: 'Podciąganie na drążku', sets });
+  const row = (sets: Array<[number, number]>) => ({ id: 'day-pull-ex-2', name: 'Wiosłowanie sztangą', sets });
+  return {
+    workouts: [
+      session('2026-03-09', [{ id: 'day-pull-ex-3', name: 'Reverse Crunch na ławce', sets: [[8, 12.5], [8, 12.5], [8, 15]] }]),
+      session('2026-06-04', [pull([[6, 74], [4, 74]]), row([[8, 60], [8, 60]])]),
+      session('2026-06-25', [pull([[7, 74], [6, 74], [5, 74], [4, 74]]), row([[8, 62.5], [8, 62.5]])]),
+      session('2026-08-13', [pull([[8, 74], [6, 74], [6, 74], [5, 74]]), row([[8, 65], [8, 65]])]),
+      session('2026-09-28', [pull([[8, 72], [5, 72], [5, 72]]), row([[8, 65], [8, 65]])]),
+    ],
+    measurements: [
+      { id: 'measurement-2026-09-20', userId: CANONICAL_UID, date: '2026-09-20', weight: 72.5 },
+      { id: 'measurement-2026-08-21', userId: CANONICAL_UID, date: '2026-08-21' },
+      { id: 'measurement-2026-06-10', userId: CANONICAL_UID, date: '2026-06-10', weight: 74 },
+      { id: 'measurement-2026-04-08', userId: CANONICAL_UID, date: '2026-04-08', weight: 74.6 },
+    ],
+  };
+};
+
 /** Otwarty draft sesji: ksztalt workout-draft-db.ActiveWorkoutDraft. */
 const buildDraft = (todayISO: string, day: TrainingDay, cycleId: string | null): ActiveWorkoutDraft => {
   const startedAt = parseLocalDate(todayISO).getTime() + 17 * 3_600_000;
