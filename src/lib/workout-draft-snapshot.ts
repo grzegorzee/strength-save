@@ -3,6 +3,7 @@ import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 import type { ActiveHealthGrant } from '@/lib/legal-versions';
 import type { ExerciseMetricGrants } from '@/lib/workout-health-fence';
+import { orderDraftExerciseIds } from '@/lib/workout-day-view';
 
 // Czysta funkcja budująca snapshot draftu (ekstrakcja z WorkoutDay, wzorzec Z17/Z26).
 // Kontrakt R2-01: pendingWriteId/pendingWriteVersion PRZEŻYWAJĄ flush (kasuje je dopiero
@@ -32,6 +33,10 @@ export interface DraftSnapshotContext {
   dayName?: string;
   dayFocus?: string;
   cloudMeta: { sessionId: string; updatedAt?: number; revision?: number } | null;
+  // F4: id ćwiczeń dnia z planu. Klucze exerciseSets zapisujemy w kolejności kart
+  // dnia, bo payload historii idzie po kolejności kluczy (zamiana nie może
+  // lądować na końcu historii). Brak (szybki trening) = kolejność draftu.
+  planExerciseIds?: string[];
   now?: number;
 }
 
@@ -148,8 +153,17 @@ export const buildWorkoutDraftSnapshot = (
       ? context.pendingHealthGrant
       : previousDraft?.pendingHealthGrant;
 
+  const nextSessionSwaps = overrides.sessionSwaps ?? previousDraft?.sessionSwaps;
+  const rawExerciseSets = overrides.exerciseSets ?? context.exerciseSets;
+  const orderedExerciseSets = context.planExerciseIds && context.planExerciseIds.length > 0
+    ? Object.fromEntries(
+      orderDraftExerciseIds(context.planExerciseIds, Object.keys(rawExerciseSets), nextSessionSwaps)
+        .map((exerciseId) => [exerciseId, rawExerciseSets[exerciseId]]),
+    )
+    : rawExerciseSets;
+
   const content = {
-    exerciseSets: overrides.exerciseSets ?? context.exerciseSets,
+    exerciseSets: orderedExerciseSets,
     exerciseNotes: overrides.exerciseNotes ?? context.exerciseNotes,
     exerciseMetrics: overrides.exerciseMetrics ?? context.exerciseMetrics,
     ...(nextExerciseMetricGrants !== undefined && { exerciseMetricGrants: nextExerciseMetricGrants }),
@@ -181,11 +195,7 @@ export const buildWorkoutDraftSnapshot = (
         : {}),
     // Z185: swapy "tylko dziś" przeżywają każdy snapshot (techniczny też) — bez tego
     // pierwszy autozapis po swapie gubił mapę i restart renderował dwie karty.
-    ...(overrides.sessionSwaps !== undefined
-      ? { sessionSwaps: overrides.sessionSwaps }
-      : previousDraft?.sessionSwaps !== undefined
-        ? { sessionSwaps: previousDraft.sessionSwaps }
-        : {}),
+    ...(nextSessionSwaps !== undefined && { sessionSwaps: nextSessionSwaps }),
     exerciseNames: overrides.exerciseNames ?? previousDraft?.exerciseNames ?? context.dayNames,
     dayName: overrides.dayName ?? previousDraft?.dayName ?? context.dayName,
     dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? context.dayFocus,

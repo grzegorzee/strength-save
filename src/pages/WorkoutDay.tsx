@@ -75,7 +75,7 @@ import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilesto
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise, supportsZeroWeight } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats, workoutScrollStorageKey } from '@/lib/workout-day-view';
-import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
+import { applySessionExerciseSwap, buildSwappedExerciseId, swapExerciseIdentity } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
@@ -311,6 +311,8 @@ const WorkoutDay = () => {
   // Zawsze aktualna lista ćwiczeń dnia dla decyzji o przerwie (Z144) — bez
   // wiązania tożsamości handlera z obiektem day (memo kart, R2-07).
   const dayExercisesRef = useRef<ReadonlyArray<{ id: string }>>([]);
+  // F4: id ćwiczeń dnia Z PLANU (baza kolejności kluczy draftu = kolejność historii).
+  const planExerciseIdsRef = useRef<string[]>([]);
 
   // Z144: ostatnia seria treningu nie startuje przerwy. Koniec treningu = koniec
   // odliczania czegokolwiek: gasimy też biegnącą przerwę i jej notyfikację.
@@ -543,6 +545,10 @@ const WorkoutDay = () => {
     dayExercisesRef.current = day?.exercises ?? [];
   }, [day]);
 
+  useEffect(() => {
+    planExerciseIdsRef.current = baseDay?.exercises.map((exercise) => exercise.id) ?? [];
+  }, [baseDay]);
+
   // Z104: dodanie ćwiczenia w locie do treningu ad-hoc. Serie pre-fillowane z historii
   // po nazwie (previousSetsByName), snapshot nazwy trafia do draftu (historia odporna na plan).
   const handleAddAdhocExercise = (pick: LibraryExercise) => {
@@ -579,50 +585,56 @@ const WorkoutDay = () => {
   };
 
   // Apply an exercise swap chosen from the library — either for this session only or permanently.
+  // F4 (2026-09-29): OBA zakresy najpierw migrują bieżącą sesję (ta sama pozycja,
+  // stare z odhaczonymi seriami zostaje), "Na stałe" dopiero potem zmienia plan.
+  // Wcześniej "Na stałe" zmieniało tylko plan: draft zostawał ze starym kluczem
+  // i nowe ćwiczenie lądowało na końcu listy oraz historii (sesja 28.09).
   const handleApplySwap = async (pick: LibraryExercise, exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
     if (!day) return;
     const currentExercise = day.exercises.find(ex => ex.id === exerciseId);
     if (!currentExercise) return;
 
-    if (scope === 'plan') {
-      await swapExercise(day.id, exerciseId, pick.name, currentSets, pick.videoUrl);
-    } else {
-      const swappedId = buildSwappedExerciseId(exerciseId, pick.name, day.exercises.map(ex => ex.id));
-      const nextExerciseSets = { ...exerciseSetsRef.current };
-      nextExerciseSets[swappedId] = resetSetsForExerciseSwap(
-        nextExerciseSets[exerciseId] ?? createEmptySets(parseSetCount(currentSets)),
-        currentExercise.name,
-        pick.name,
-      );
-      delete nextExerciseSets[exerciseId];
-      exerciseSetsRef.current = nextExerciseSets;
-      setExerciseSets(nextExerciseSets);
+    const planExercise = scope === 'plan'
+      ? baseDay?.exercises.find(ex => ex.id === exerciseId)
+      : undefined;
+    // "Na stałe": id z tej samej funkcji co zapis planu (swapExercise), żeby klucz
+    // draftu od razu był id karty planu po dojściu snapshotu planu.
+    const swappedId = planExercise && baseDay
+      ? swapExerciseIdentity(
+        planExercise,
+        { name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
+        baseDay.exercises.map(ex => ex.id),
+      ).id
+      : buildSwappedExerciseId(exerciseId, pick.name, day.exercises.map(ex => ex.id));
 
-      const nextExerciseNotes = { ...exerciseNotesRef.current };
-      if (nextExerciseNotes[exerciseId]) nextExerciseNotes[swappedId] = nextExerciseNotes[exerciseId];
-      delete nextExerciseNotes[exerciseId];
-      exerciseNotesRef.current = nextExerciseNotes;
-      setExerciseNotes(nextExerciseNotes);
+    const next = applySessionExerciseSwap({
+      exerciseSets: exerciseSetsRef.current,
+      exerciseNotes: exerciseNotesRef.current,
+      exerciseMetrics: exerciseMetricsRef.current,
+      exerciseMetricGrants: exerciseMetricGrantsRef.current,
+      skippedExercises: skippedExercisesRef.current,
+      sessionSwaps,
+    }, {
+      fromId: exerciseId,
+      toId: swappedId,
+      fromName: currentExercise.name,
+      toName: pick.name,
+      sets: currentSets,
+      videoUrl: pick.videoUrl,
+      createSets: () => createEmptySets(parseSetCount(currentSets)),
+    });
 
-      const nextExerciseMetrics = { ...exerciseMetricsRef.current };
-      if (nextExerciseMetrics[exerciseId]) nextExerciseMetrics[swappedId] = nextExerciseMetrics[exerciseId];
-      delete nextExerciseMetrics[exerciseId];
-      exerciseMetricsRef.current = nextExerciseMetrics;
-      setExerciseMetrics(nextExerciseMetrics);
-
-      const nextExerciseMetricGrants = { ...exerciseMetricGrantsRef.current };
-      if (nextExerciseMetricGrants[exerciseId]) {
-        nextExerciseMetricGrants[swappedId] = nextExerciseMetricGrants[exerciseId];
-      }
-      delete nextExerciseMetricGrants[exerciseId];
-      exerciseMetricGrantsRef.current = nextExerciseMetricGrants;
-
-      setSkippedExercises(prev => prev.filter(id => id !== exerciseId));
-      const nextSessionSwaps = {
-        ...sessionSwaps,
-        [exerciseId]: { id: swappedId, name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
-      };
-      setSessionSwaps(nextSessionSwaps);
+    if (swappedId !== exerciseId) {
+      exerciseSetsRef.current = next.exerciseSets;
+      setExerciseSets(next.exerciseSets);
+      exerciseNotesRef.current = next.exerciseNotes;
+      setExerciseNotes(next.exerciseNotes);
+      exerciseMetricsRef.current = next.exerciseMetrics;
+      setExerciseMetrics(next.exerciseMetrics);
+      exerciseMetricGrantsRef.current = next.exerciseMetricGrants;
+      skippedExercisesRef.current = next.skippedExercises;
+      setSkippedExercises(next.skippedExercises);
+      setSessionSwaps(next.sessionSwaps);
 
       // Utrwal swap w drafcie od razu (istniejąca ścieżka autozapisu, wzorzec handleSkipExercise).
       // Bez tego draft z prefilled exerciseSets pokazywał stare ćwiczenie do następnego odhaczenia,
@@ -634,9 +646,13 @@ const WorkoutDay = () => {
           [swappedId]: pick.name,
         },
         lastTouchedExerciseId: swappedId,
-        sessionSwaps: nextSessionSwaps,
-        exerciseMetricGrants: nextExerciseMetricGrants,
+        sessionSwaps: next.sessionSwaps,
+        exerciseMetricGrants: next.exerciseMetricGrants,
       });
+    }
+
+    if (scope === 'plan') {
+      await swapExercise(day.id, exerciseId, pick.name, currentSets, pick.videoUrl);
     }
     setSwapExerciseId(null);
   };
@@ -796,6 +812,7 @@ const WorkoutDay = () => {
       dayName: daySnapshotRef.current.dayName,
       dayFocus: daySnapshotRef.current.focus,
       cloudMeta: cloudMetaRef.current,
+      planExerciseIds: planExerciseIdsRef.current,
     }, overrides)
   ), [uid, sessionId, dayId, targetDate]);
 

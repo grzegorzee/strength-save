@@ -85,6 +85,83 @@ typów, wykluczenie sprzed pierwszego treningu, nieukończony trening nie przesu
 cardio, bez treningów siłowych, pusto), e2e `all-time-stats.spec.ts` Chromium i
 WebKit.
 
+### 2026-09-29: F1, chip „Rozgrzewka” łamał się w środku słowa przy Dynamic Type
+
+Zgłoszenie: na iPhonie przy Dynamic Type 112% chip pokazywał „Rozgrzewk / a”.
+
+Root cause: siatka chipów karty ćwiczenia (`ExerciseCard.tsx`,
+`data-testid="exercise-card-chips"`) miała minimum kolumny
+`minmax(min(100%,6rem),1fr)`. iOS skaluje tekst od body (`src/styles/ios.css`),
+więc rem stoi w miejscu, a tekst rośnie; przy 393 px i 112% trzy chipy
+(Rozgrzewka, Talerze, Metryki przy zgodzie zdrowotnej) dostawały po ok. 76 px
+na słowo, a `[overflow-wrap:anywhere]` w `chipClass` łamał je w środku.
+
+Fix: `minmax(min(100%,6em),1fr)`. Odstępstwo od planu (`8em`) po pomiarze:
+kontener siatki ma computed font 16 px, nie 12 px, więc `8em` = 128 px zmieniłoby
+układ już przy 100% (2 kolumny na 393 px). `6em` = 96 px przy 100% (bez zmian)
+i rośnie razem z tekstem (em śledzi skalę, jak progi w ios.css).
+`overflow-wrap:anywhere` zostaje jako bezpiecznik przed poziomym scrollem.
+
+Weryfikacja: nowy `e2e/exercise-card-chips-text-scale.spec.ts` (Chromium + WebKit),
+320/375/393/430 px × 100/112/135%, proxy mnoży computed font-size całego drzewa
+body (model `text-size-adjust` na body), Range.getClientRects węzła tekstu = 1 linia.
+Na starym kodzie czerwony (393/112 w Chromium i WebKit, 135% na każdej szerokości),
+po fixie zielony. `label-overflow-audit.spec.ts` dostał warunek „brak łamania
+w środku słowa” (każde słowo etykiety interaktywnej w jednej linii). Warunek
+od razu znalazł istniejący dług poza F1, zapisany w audycie jako zamknięta lista:
+„Subskrypcja/Subscription” w wierszu Profilu przy 320 px (realne, widoczne na
+zrzucie) i etykiety dolnej nawigacji web („Progress”, „Historia”) zwężone
+desktopowym paskiem przewijania. Do osobnej poprawki.
+
+Nie dowodzi: realnego renderu WKWebView z systemowym Dynamic Type (proxy),
+skal powyżej 135% ani innych ekranów niż karta ćwiczenia. Do potwierdzenia na
+iPhonie przy 112% i 135%.
+
+### 2026-09-29: F4, zamiana ćwiczenia w trakcie treningu zostaje na swojej pozycji
+
+Dane z produkcji (sesja właściciela 28.09, d1): zamiana „Na stałe” na pozycji 3
+dała w sesji nowe ćwiczenie na końcu, a stare (`tpl-ex-13`) w `skippedExercises`.
+Plan był poprawny, dane całe.
+
+Root cause: gałąź „Na stałe” w `WorkoutDay.handleApplySwap` zmieniała wyłącznie
+plan (`swapExercise`), draft zostawał ze starym kluczem. `buildDayFromDraft`
+rozpoznawał zamianę tylko po kluczu draftu `${planId}__swap-*`, więc stary klucz
+szedł do extras (koniec listy, stara nazwa). Payload historii
+(`buildDraftExercisesPayload`, `buildDraftFinalExpectation`) idzie po kolejności
+kluczy `draft.exerciseSets`, więc także „tylko dziś” (delete + dopisanie klucza)
+zapisywało nowe ćwiczenie na końcu historii. Przy okazji: „tylko dziś” przenosiło
+ODHACZONE serie starego ćwiczenia pod nową nazwę (a przy zmianie na masę ciała
+zerowało je).
+
+Niezmiennik (zasada 5): lista dnia z planu kompletna, sesja tylko mapuje i dokłada;
+zrobiona praca nie zmienia nazwy i nie znika (zasada 6).
+
+Fix: jedna czysta funkcja `applySessionExerciseSwap` (`exercise-swap.ts`) dla obu
+zakresów: bez odhaczonych serii klucz podmieniany na tej samej pozycji (serie,
+notatki, metryki, granty idą za zamianą), z odhaczonymi seriami stare zostaje
+jako osobna karta, nowe dostaje świeże serie tuż za nim; `sessionSwaps` to jawny
+rekord zamiany. „Na stałe” najpierw migruje sesję (id z `swapExerciseIdentity`,
+tej samej funkcji co zapis planu), potem zmienia plan. `resolveDaySlots`
+(`workout-day-view.ts`) jest jednym źródłem kolejności: zamiana na pozycji planu,
+łańcuch `sessionSwaps` (także podwójny swap), odwrotne dopasowanie dla sesji
+w toku ze starego buildu (klucz X nieobecny w planie, plan ma `X__swap-*`, X stoi
+przy swojej zamianie, nie na końcu), extras na końcu. Snapshot draftu dostaje
+`planExerciseIds` i zapisuje klucze `exerciseSets` w kolejności dnia, więc payload
+historii i oczekiwanie walidacji finalnej mają kolejność dnia.
+
+Weryfikacja: testy czerwone na starym kodzie (14 unit, 2 e2e w obu silnikach,
+e2e odtwarza dokładnie produkcyjny objaw), zielone po fixie. Unit: niezmiennik
+6 ćwiczeń z nowym na pozycji 3 (oba zakresy), stare z odhaczonymi seriami,
+podwójny swap, sesja ze starego buildu, payload w kolejności planu, sekwencja
+start → zamiana (oba zakresy) → wyjście → hydracja z IDB (fake-indexeddb) →
+odhaczenie → zakończenie → final sync (payload). E2E `workout-swap-position.spec.ts`
+(Chromium + WebKit): zamiana w trakcie, wyjście, powrót, reload, odhaczenie,
+kolejność kluczy draftu. Pełny vitest 4233 PASS / 16 SKIP.
+
+Znane ograniczenie (poza zakresem): „Na stałe” na karcie, która jest już zamianą
+„tylko dziś”, nie zmienia planu (`swapExercise` szuka id zamiany w planie; stan
+sprzed F4). Sesja migruje poprawnie.
+
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 
 Apple odrzuciło wersję 1.0 (148) za 5.1.2(i) i 2.3.2. Pierwszy powód: w ankiecie

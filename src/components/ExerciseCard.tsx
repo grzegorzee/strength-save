@@ -1474,8 +1474,12 @@ const ExerciseCardInner = ({
         <div className="px-5 pb-5 pt-3">
           {/* Z129.2: trzy chipy tej samej wielkości, każdy z etykietą. Dotąd rząd
               mieszał nagie ikony (%, dysk) z etykietowanymi, bez flex-wrap — po
-              ikonie nie było widać, że dysk to kalkulator talerzy. */}
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] items-stretch gap-1.5" data-testid="exercise-card-chips">
+              ikonie nie było widać, że dysk to kalkulator talerzy.
+              F1 (2026-09-29): minimum kolumny w em, nie rem. iOS skaluje tekst
+              od body (ios.css), rem stoi w miejscu, więc przy Dynamic Type 112%
+              „Rozgrzewka" łamała się w środku słowa. Kontener dziedziczy 16 px:
+              6em = 96 px przy 100% (jak dotąd) i rośnie razem z tekstem. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6em),1fr))] items-stretch gap-1.5" data-testid="exercise-card-chips">
             {(() => {
               // Z108 / X38 WP-A: chip „Rozgrzewka" pierwszy od lewej, dla weight_reps
               // gdy w karcie NIE MA żadnej serii W. Zawsze dodaje jeden pusty

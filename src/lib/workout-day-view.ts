@@ -12,16 +12,116 @@ import { hasCompleteSetData, type TrackingType } from '@/lib/set-tracking';
 // Kontrakt: plan jest BAZĄ (nic z niego nie znika), draft może tylko DOKŁADAĆ
 // (ćwiczenia dodane w locie) i nadpisywać nazwę (swap "tylko dziś").
 
+export type SessionSwapMap = Record<string, { id: string; name: string; sets: string; videoUrl?: string }>;
+
 export interface DraftDaySnapshot {
   dayId: string;
   dayName?: string;
   dayFocus?: string;
   exerciseSets: Record<string, SetData[]>;
   exerciseNames?: Record<string, string>;
+  /** Z185/F4: jawny rekord zamian w sesji (stary id -> nowy id). */
+  sessionSwaps?: SessionSwapMap;
 }
 
 const workingSetsLabel = (sets: SetData[]): string =>
   `${sets.filter((set) => !set.isWarmup).length} serii`;
+
+type DaySlot =
+  | { kind: 'plan'; planIndex: number }
+  | { kind: 'swap'; planIndex: number; key: string }
+  | { kind: 'draft'; key: string };
+
+/**
+ * Jedno źródło kolejności dnia (widok ORAZ kolejność kluczy draftu, z której
+ * powstaje payload historii). Plan jest bazą; sesja tylko mapuje i dokłada.
+ *
+ * - Z185: klucz draftu `${planId}__swap-...` (albo jawny `sessionSwaps[planId]`)
+ *   ZASTĘPUJE kartę planu, gdy draft nie ma klucza planu.
+ * - F4: stare ćwiczenie zostawione w sesji (miało odhaczone serie) stoi tuż przed
+ *   swoją zamianą; zamiana zostawionej karty planu stoi tuż za nią (łańcuch
+ *   `sessionSwaps`, także podwójny swap).
+ * - F4 odwrotne dopasowanie (sesja w toku ze starego buildu): klucz X nieobecny
+ *   w planie, plan ma `X__swap-*` (zamiana na stałe) => X na pozycji zamiany.
+ * - Reszta (szybki trening, dodane w locie) na końcu, w kolejności draftu.
+ */
+const resolveDaySlots = (
+  planIdsList: string[],
+  draftKeys: string[],
+  sessionSwaps: SessionSwapMap = {},
+): DaySlot[] => {
+  const inDraft = new Set(draftKeys);
+  const planIds = new Set(planIdsList);
+  const placed = new Set<string>();
+  const slots: DaySlot[] = [];
+
+  const unplacedDraftKey = (key: string | undefined): key is string => (
+    !!key && inDraft.has(key) && !planIds.has(key) && !placed.has(key)
+  );
+  const placeDraft = (key: string, kind: 'draft' | 'swap', planIndex = -1) => {
+    placed.add(key);
+    slots.push(kind === 'swap' ? { kind, key, planIndex } : { kind, key });
+  };
+  // Łańcuch zamian w sesji za kartą `fromId` (X -> a -> b), tylko jawny rekord.
+  const placeFollowers = (fromId: string) => {
+    let next = sessionSwaps[fromId]?.id;
+    while (unplacedDraftKey(next)) {
+      placeDraft(next, 'draft');
+      next = sessionSwaps[next]?.id;
+    }
+  };
+
+  // Zamiana, która zastępuje kartę planu (draft nie ma klucza planu).
+  const replacementFor = (planId: string): string | undefined => {
+    if (inDraft.has(planId)) return undefined;
+    const recorded = sessionSwaps[planId]?.id;
+    if (unplacedDraftKey(recorded)) return recorded;
+    return draftKeys.find((key) => unplacedDraftKey(key) && key.startsWith(`${planId}__swap-`));
+  };
+  const replacements = new Map<string, string>();
+  planIdsList.forEach((planId) => {
+    const key = replacementFor(planId);
+    if (key && ![...replacements.values()].includes(key)) replacements.set(planId, key);
+  });
+  const claimed = new Set(replacements.values());
+
+  // Poprzednicy karty planu: stare klucze, które ta pozycja zastąpiła.
+  const isPredecessorOf = (key: string, planId: string): boolean => (
+    !claimed.has(key)
+    && (sessionSwaps[key]?.id === planId || planId.startsWith(`${key}__swap-`))
+  );
+
+  planIdsList.forEach((planId, planIndex) => {
+    draftKeys
+      .filter((key) => unplacedDraftKey(key) && isPredecessorOf(key, planId))
+      .forEach((key) => placeDraft(key, 'draft'));
+
+    const swapKey = replacements.get(planId);
+    if (swapKey) {
+      placeDraft(swapKey, 'swap', planIndex);
+      placeFollowers(swapKey);
+    } else {
+      placed.add(planId);
+      slots.push({ kind: 'plan', planIndex });
+      placeFollowers(planId);
+    }
+  });
+
+  draftKeys.filter((key) => unplacedDraftKey(key)).forEach((key) => placeDraft(key, 'draft'));
+  return slots;
+};
+
+/** F4: klucze draftu w kolejności kart dnia (payload historii = kolejność dnia). */
+export const orderDraftExerciseIds = (
+  planExerciseIds: string[],
+  draftKeys: string[],
+  sessionSwaps?: SessionSwapMap,
+): string[] => {
+  const inDraft = new Set(draftKeys);
+  return resolveDaySlots(planExerciseIds, draftKeys, sessionSwaps)
+    .map((slot) => (slot.kind === 'plan' ? planExerciseIds[slot.planIndex] : slot.key))
+    .filter((key) => inDraft.has(key));
+};
 
 export const buildDayFromDraft = (
   baseDay: TrainingDay | undefined,
@@ -29,59 +129,42 @@ export const buildDayFromDraft = (
 ): TrainingDay => {
   const names = draft.exerciseNames ?? {};
   const planExercises = baseDay?.exercises ?? [];
-  const planIds = new Set(planExercises.map((exercise) => exercise.id));
+  const slots = resolveDaySlots(
+    planExercises.map((exercise) => exercise.id),
+    Object.keys(draft.exerciseSets),
+    draft.sessionSwaps,
+  );
+  // Nazwa zamiany z jawnego rekordu (klucz rekordu = STARY id, wartość = nowy).
+  const swapTargetNames = new Map(
+    Object.values(draft.sessionSwaps ?? {}).map((swap) => [swap.id, swap.name]),
+  );
 
-  // Z185 (samonaprawa): klucz draftu `${planId}__swap-...` to swap "tylko dziś" —
-  // ZASTĘPUJE kartę planu planId zamiast dokładać drugą (po restarcie mapa
-  // sessionSwaps w stanie Reacta nie istnieje i draft renderował DWIE karty).
-  // Wyjątek: gdy draft anormalnie ma też klucz planu, karta planu zostaje,
-  // a swap idzie do extras (reprezentacja bez utraty możliwości edycji).
-  const swapKeyByPlanId = new Map<string, string>();
-  for (const key of Object.keys(draft.exerciseSets)) {
-    if (planIds.has(key)) continue;
-    const planId = planExercises.find((exercise) => key.startsWith(`${exercise.id}__swap-`))?.id;
-    if (planId && !draft.exerciseSets[planId] && !swapKeyByPlanId.has(planId)) {
-      swapKeyByPlanId.set(planId, key);
-    }
-  }
-  const claimedSwapKeys = new Set(swapKeyByPlanId.values());
-
-  // 1. Ćwiczenia planu — ZAWSZE wszystkie, w kolejności planu.
-  const fromPlan: Exercise[] = planExercises.map((exercise) => {
-    const swapKey = swapKeyByPlanId.get(exercise.id);
-    if (swapKey) {
+  const exercises: Exercise[] = slots.map((slot) => {
+    if (slot.kind === 'plan') {
+      const exercise = planExercises[slot.planIndex];
       return {
-        id: swapKey,
-        name: names[swapKey] || exercise.name,
-        sets: workingSetsLabel(draft.exerciseSets[swapKey]),
-        instructions: [],
+        ...exercise,
+        name: names[exercise.id] || exercise.name,
+        // Keep the prescription used by progression/timers ("3 x 8-10", "3 x 45s").
+        // ExerciseCard already counts actual working sets from savedSets; replacing
+        // the prescription with "3 serii" changes a live target into a MAX target.
       };
     }
+    const fallbackName = slot.kind === 'swap' ? planExercises[slot.planIndex].name : slot.key;
     return {
-      ...exercise,
-      name: names[exercise.id] || exercise.name,
-      // Keep the prescription used by progression/timers ("3 x 8-10", "3 x 45s").
-      // ExerciseCard already counts actual working sets from savedSets; replacing
-      // the prescription with "3 serii" changes a live target into a MAX target.
+      id: slot.key,
+      name: names[slot.key] || swapTargetNames.get(slot.key) || fallbackName,
+      sets: workingSetsLabel(draft.exerciseSets[slot.key]),
+      instructions: [],
     };
   });
-
-  // 2. Ćwiczenia spoza planu (szybki trening, dodane w locie) — na końcu, w kolejności draftu.
-  const extras: Exercise[] = Object.entries(draft.exerciseSets)
-    .filter(([exerciseId]) => !planIds.has(exerciseId) && !claimedSwapKeys.has(exerciseId))
-    .map(([exerciseId, sets]) => ({
-      id: exerciseId,
-      name: names[exerciseId] || exerciseId,
-      sets: workingSetsLabel(sets),
-      instructions: [],
-    }));
 
   return {
     id: draft.dayId,
     dayName: draft.dayName || baseDay?.dayName || draft.dayId,
     weekday: baseDay?.weekday ?? 'monday',
     focus: draft.dayFocus || baseDay?.focus || '',
-    exercises: [...fromPlan, ...extras],
+    exercises,
   };
 };
 
