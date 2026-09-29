@@ -102,7 +102,7 @@ const texts = (lang: Lang) => lang === "en"
   };
 
 const tile = (label: string, value: string): string => `
-<td width="33%" style="padding:6px;">
+<td width="33%" valign="top" style="padding:6px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:10px;">
     <tr><td style="padding:14px 8px;text-align:center;">
       <div style="${EMAIL_FONT}font-size:22px;font-weight:700;color:#0f172a;">${value}</div>
