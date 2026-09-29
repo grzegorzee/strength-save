@@ -23,7 +23,7 @@ import { hasCurrentRequiredConsents } from '@/lib/legal-versions';
 import { recordConsents } from '@/lib/consents-api';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { restDefaultsDeps } from '@/lib/rest-preferences';
-import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
+import { buildOnboardingAnswers, buildTrainingProfile } from '@/lib/onboarding-answers';
 import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
@@ -170,7 +170,7 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
           'onboarding.state': 'completed',
           'onboarding.version': 2,
           'onboarding.termsAcceptedAt': new Date().toISOString(),
-          trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
+          trainingProfile: buildTrainingProfile(confirmed),
           'preferences.accentColor': accentColor,
           // WP-O (X30): trwały snapshot odpowiedzi (v2), pisany RAZ; replan go nie rusza.
           onboardingAnswers: buildOnboardingAnswers(confirmed, { accentColor, startDate: planStartDate }),

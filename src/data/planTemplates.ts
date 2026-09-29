@@ -1,10 +1,13 @@
 import { exerciseLibrary } from './exerciseLibrary';
 import type { TrainingDay, Exercise } from './trainingPlan';
 import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
+import type { PlanEquipment } from '@/lib/plan-equipment';
 
 // Gotowe (nie-AI) plany treningowe do wyboru jednym klikiem.
 // Każde ćwiczenie z source:'library' jest zakotwiczone w bibliotece (exerciseLibrary),
 // dzięki czemu dziedziczy wskazówki techniczne i lokalizację, a podmiana działa tak samo.
+
+export type { PlanEquipment } from '@/lib/plan-equipment';
 
 /** Cel treningowy (mapuje się na kroki onboardingu i rekomendację planu). */
 export type PlanObjective = 'build_muscle' | 'peak_strength' | 'fat_loss' | 'athletic';
@@ -17,6 +20,8 @@ export interface PlanTemplate {
   /** Główny cel pod onboarding (Build Muscle / Peak Strength / Fat Loss / Athletic). */
   objective: PlanObjective;
   level: 'beginner' | 'intermediate' | 'advanced';
+  /** T6: sprzęt potrzebny do planu; twardy filtr kreatora "Gdzie trenujesz?". */
+  equipment: PlanEquipment;
   daysPerWeek: number;
   durationWeeks: number;
   // 'library' = ćwiczenia w 100% z biblioteki; 'imported' = zaimportowany plan z własnymi ćwiczeniami.
@@ -114,6 +119,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'health',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 2,
     durationWeeks: 8,
     days: [
@@ -140,6 +146,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 10,
     days: [
@@ -181,6 +188,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -214,6 +222,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -250,6 +259,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
@@ -293,6 +303,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 5,
     durationWeeks: 12,
     days: [
@@ -342,6 +353,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 6,
     durationWeeks: 12,
     days: [
@@ -396,6 +408,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     source: 'imported',
@@ -449,6 +462,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -479,6 +493,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
@@ -517,6 +532,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 8,
     days: [
@@ -557,6 +573,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'athletic',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 10,
     days: [
@@ -593,6 +610,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 12,
     source: 'imported',
@@ -638,6 +656,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 2,
     durationWeeks: 8,
     days: [
@@ -668,6 +687,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 8,
     days: [
@@ -707,6 +727,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -737,6 +758,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'health',
     objective: 'athletic',
     level: 'intermediate',
+    equipment: 'bodyweight',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -782,6 +804,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -821,6 +844,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
@@ -866,6 +890,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
@@ -902,6 +927,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 10,
     days: [
@@ -948,6 +974,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 5,
     durationWeeks: 12,
     days: [
@@ -1007,6 +1034,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 5,
     durationWeeks: 12,
     days: [
@@ -1062,6 +1090,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 5,
     durationWeeks: 8,
     days: [
@@ -1104,6 +1133,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 6,
     durationWeeks: 12,
     days: [
@@ -1175,6 +1205,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 8,
     days: [
@@ -1214,6 +1245,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'dumbbells_home',
     daysPerWeek: 3,
     durationWeeks: 8,
     days: [
@@ -1250,6 +1282,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
@@ -1292,6 +1325,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 2,
     durationWeeks: 12,
     days: [
@@ -1317,6 +1351,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 10,
     days: [
@@ -1357,6 +1392,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'athletic',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 10,
     days: [
@@ -1390,6 +1426,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'intermediate',
+    equipment: 'dumbbells_home',
     daysPerWeek: 4,
     durationWeeks: 10,
     days: [
@@ -1434,6 +1471,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 2,
     durationWeeks: 8,
     days: [
@@ -1464,6 +1502,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 5,
     durationWeeks: 10,
     days: [
@@ -1516,6 +1555,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
@@ -1556,6 +1596,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'strength',
     objective: 'peak_strength',
     level: 'advanced',
+    equipment: 'gym',
     daysPerWeek: 6,
     durationWeeks: 12,
     days: [
@@ -1609,6 +1650,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 2,
     durationWeeks: 8,
     days: [
@@ -1639,6 +1681,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'health',
     objective: 'athletic',
     level: 'beginner',
+    equipment: 'gym',
     daysPerWeek: 2,
     durationWeeks: 8,
     days: [
@@ -1668,6 +1711,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'health',
     objective: 'athletic',
     level: 'beginner',
+    equipment: 'dumbbells_home',
     daysPerWeek: 3,
     durationWeeks: 8,
     days: [
@@ -1704,6 +1748,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'intermediate',
+    equipment: 'gym',
     daysPerWeek: 3,
     durationWeeks: 8,
     days: [
@@ -1743,6 +1788,7 @@ export const planTemplates: PlanTemplate[] = [
     goal: 'fat_loss',
     objective: 'fat_loss',
     level: 'intermediate',
+    equipment: 'bodyweight',
     daysPerWeek: 2,
     durationWeeks: 6,
     days: [
@@ -1781,8 +1827,10 @@ export const getRecommendedPlan = (
   objective: PlanObjective,
   level: PlanTemplate['level'],
   daysPerWeek: number,
+  // T6: brak = siłownia (cały katalog), jak stare profile bez pola.
+  equipment: PlanEquipment = 'gym',
 ): PlanTemplate => scoreTemplates(
-  { objective, level, daysPerWeek },
+  { objective, level, daysPerWeek, equipment },
   // T6: ta sama pula co krok 5 kreatora (twarde filtry profilu, potem dni).
-  selectTemplatesForDays(daysPerWeek, planTemplates, { level }).templates,
+  selectTemplatesForDays(daysPerWeek, planTemplates, { level, equipment }).templates,
 )[0].template;

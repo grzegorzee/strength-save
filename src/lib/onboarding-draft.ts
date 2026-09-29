@@ -1,6 +1,7 @@
 import { Preferences } from '@capacitor/preferences';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
+import { PLAN_EQUIPMENT_VALUES, type PlanEquipment } from '@/lib/plan-equipment';
 
 export const ONBOARDING_DRAFT_VERSION = 1 as const;
 export const ONBOARDING_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -23,6 +24,8 @@ export interface OnboardingDraftV1 {
   accentId?: string;
   level?: OnboardingDraftLevel;
   objective?: OnboardingDraftObjective;
+  /** T6: "Gdzie trenujesz?"; brak w starych szkicach = 'gym' po stronie kreatora. */
+  equipment?: PlanEquipment;
   daysPerWeek?: number;
   trainingDays?: Weekday[];
   templateId?: string;
@@ -123,6 +126,9 @@ const sanitizeInput = (value: unknown): OnboardingDraftInput | null => {
   const objective = typeof candidate.objective === 'string' && OBJECTIVES.has(candidate.objective as OnboardingDraftObjective)
     ? candidate.objective as OnboardingDraftObjective
     : undefined;
+  const equipment = PLAN_EQUIPMENT_VALUES.includes(candidate.equipment as PlanEquipment)
+    ? candidate.equipment as PlanEquipment
+    : undefined;
   const daysPerWeek = finiteIntegerInRange(candidate.daysPerWeek, 2, 6);
   const trainingDays = sanitizeTrainingDays(candidate.trainingDays);
   const templateId = identifier(candidate.templateId, 120);
@@ -143,6 +149,7 @@ const sanitizeInput = (value: unknown): OnboardingDraftInput | null => {
     ...(accentId ? { accentId } : {}),
     ...(level ? { level } : {}),
     ...(objective ? { objective } : {}),
+    ...(equipment ? { equipment } : {}),
     ...(daysPerWeek !== undefined ? { daysPerWeek } : {}),
     ...(trainingDays ? { trainingDays } : {}),
     ...(templateId ? { templateId } : {}),

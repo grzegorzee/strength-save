@@ -1,5 +1,6 @@
 import type { PlanObjective, PlanTemplate } from '@/data/planTemplates';
 import { findLibraryExercise } from '@/data/exerciseLibrary';
+import { isEquipmentAccessible, resolvePlanEquipment, type PlanEquipment } from '@/lib/plan-equipment';
 
 // WP-O (X30): scoring rekomendacji planu wydzielony z planTemplates.ts.
 // Moduł jest czysty (tylko typy z data/) — katalog szablonów podaje caller,
@@ -9,6 +10,8 @@ export interface PlanRecommendationCriteria {
   objective: PlanObjective;
   level: PlanTemplate['level'];
   daysPerWeek: number;
+  /** T6: miejsce treningu z kreatora; brak = 'gym' (cały katalog). */
+  equipment?: PlanEquipment;
 }
 
 export type RecommendationReason = 'exact-days' | 'close-days' | 'objective-match' | 'level-match';
@@ -51,11 +54,15 @@ export const templateRequiresBodyweightSupport = (template: PlanTemplate): boole
 
 export interface TemplateEligibilityCriteria {
   level?: PlanTemplate['level'];
+  /** T6: brak = 'gym' (stare profile i szkice bez pola). */
+  equipment?: PlanEquipment;
 }
 
-/** T6: czy szablon wolno pokazać/rekomendować profilowi (twarde filtry przed scoringiem). */
+/** T6: czy szablon wolno pokazać/rekomendować profilowi (twarde filtry przed
+ *  scoringiem): sprzęt szablonu dostępny w miejscu treningu i F7 dla beginnera. */
 export const isTemplateAllowed = (template: PlanTemplate, criteria: TemplateEligibilityCriteria): boolean =>
-  !(criteria.level === 'beginner' && templateRequiresBodyweightSupport(template));
+  isEquipmentAccessible(resolvePlanEquipment(template.equipment), resolvePlanEquipment(criteria.equipment))
+  && !(criteria.level === 'beginner' && templateRequiresBodyweightSupport(template));
 
 /**
  * Punktuje i sortuje szablony pod odpowiedzi usera (cel × poziom × dni/tydz).
@@ -105,6 +112,9 @@ export const selectTemplatesForDays = (
   criteria: TemplateEligibilityCriteria = {},
 ): TemplatesForDays => {
   const templates = catalog.filter((t) => isTemplateAllowed(t, criteria));
+  // Profil bez żadnego dozwolonego szablonu (np. początkujący + masa ciała):
+  // pusta pula, kreator pokazuje stan z wyjściem (inne miejsce / własny plan).
+  if (!templates.length) return { templates: [], exactDays: false };
   const exact = templates.filter((t) => t.daysPerWeek === daysPerWeek);
   if (exact.length) return { templates: exact, exactDays: true };
   const near = templates.filter((t) => Math.abs(t.daysPerWeek - daysPerWeek) === 1);

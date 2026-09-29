@@ -166,7 +166,7 @@ describe('T6: F7 i kara za różnicę poziomów', () => {
 
   it('różnica poziomów o 2 przeważa nad zgodnością celu; o 1 nie', () => {
     const tpl = (id: string, level: PlanTemplate['level'], objective: PlanObjective): PlanTemplate => ({
-      id, name: id, description: '', goal: 'muscle', objective, level, daysPerWeek: 3, durationWeeks: 8, days: [],
+      id, name: id, description: '', goal: 'muscle', objective, level, equipment: 'gym', daysPerWeek: 3, durationWeeks: 8, days: [],
     });
     const catalog = [tpl('beg-strength', 'beginner', 'peak_strength'), tpl('adv-muscle', 'advanced', 'build_muscle')];
     expect(scoreTemplates({ objective: 'peak_strength', level: 'advanced', daysPerWeek: 3 }, catalog)[0].template.id).toBe('adv-muscle');

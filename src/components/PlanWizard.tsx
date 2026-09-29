@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, User } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, User, Building2, House, PersonStanding } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
 import { localizeDayName, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
@@ -9,6 +9,7 @@ import { PlanStartStep } from '@/components/PlanStartStep';
 import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
+import { resolvePlanEquipment, type PlanEquipment } from '@/lib/plan-equipment';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { buildFirstWorkoutSchedule, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
@@ -41,6 +42,8 @@ export interface PlanWizardChoice {
   level: WizardLevel;
   objective: PlanObjective;
   daysPerWeek: number;
+  /** T6: odpowiedź "Gdzie trenujesz?" (krok 3). Brak w starych szkicach = 'gym'. */
+  equipment?: PlanEquipment;
   templateId?: string;      // undefined = plan własny (PlanBuilder)
   name?: string;            // imię z kroku Welcome (tylko onboarding, askName)
   /** Jeden kolor przewodni aplikacji wybrany w onboardingu. */
@@ -74,6 +77,13 @@ const OBJECTIVES: { value: PlanObjective; labelKey: TranslationKey; descKey: Tra
   { value: 'peak_strength', labelKey: 'ob.obj.strength', descKey: 'ob.obj.strength.desc', icon: Weight },
   { value: 'fat_loss', labelKey: 'ob.obj.fatloss', descKey: 'ob.obj.fatloss.desc', icon: Flame },
   { value: 'athletic', labelKey: 'ob.obj.athletic', descKey: 'ob.obj.athletic.desc', icon: Zap },
+];
+
+// T6: "Gdzie trenujesz?" (krok 3, pod celem). Twardy filtr szablonów.
+const EQUIPMENT_OPTIONS: { value: PlanEquipment; labelKey: TranslationKey; icon: typeof Dumbbell }[] = [
+  { value: 'gym', labelKey: 'ob.equipment.gym', icon: Building2 },
+  { value: 'dumbbells_home', labelKey: 'ob.equipment.dumbbells_home', icon: House },
+  { value: 'bodyweight', labelKey: 'ob.equipment.bodyweight', icon: PersonStanding },
 ];
 
 // X31 H2: etykiety odpowiedzi z kroków 2-3 do podsumowania w kroku 5.
@@ -190,7 +200,7 @@ interface PlanWizardProps {
   avatarPhotoURL?: string;
   /** X33 WP-8: e-mail konta — litera w kółku avatara, gdy nie ma ani zdjęcia, ani imienia. */
   accountEmail?: string;
-  initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
+  initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number; equipment?: PlanEquipment };
   /** Zweryfikowany, nieprzeterminowany szkic UX. Nie jest dowodem zgód. */
   initialDraft?: OnboardingDraftV1 | null;
   /** Prawda wyłącznie z aktualnego serwerowego mirrora zgód. */
@@ -236,6 +246,9 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
   const [step, setStep] = useState(requiresInitialLegal ? 1 : resumeStep ?? (resumedCustomDraft ? 5 : initialDraft?.wizardStep) ?? (showWelcome ? 1 : 2));
   const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initialDraft?.level ?? initial?.level) ?? 'beginner');
   const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initialDraft?.objective ?? initial?.objective ?? 'build_muscle');
+  // T6: miejsce treningu; stare szkice / profile bez pola = siłownia (cały katalog).
+  const [equipment, setEquipment] = useState<PlanEquipment>(() =>
+    resolvePlanEquipment(resume?.equipment ?? initialDraft?.equipment ?? initial?.equipment));
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
   const [trainingDays, setTrainingDays] = useState<Weekday[]>(() => {
     const fromResume = resume?.days.map((d) => d.weekday).filter(Boolean);
@@ -356,11 +369,16 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
   // X32: krok 5 i Browse plans widzą WYŁĄCZNIE szablony o liczbie dni z kroku 4
   // (zgłoszenie właściciela: "wybrałem 3 dni, a dostałem 4 dni w tygodniu").
   // Pusta pula = szablony o +-1 dnia z jawną etykietą (exactDays=false).
-  const dayPool = useMemo(() => selectTemplatesForDays(daysPerWeek, planTemplates, { level }), [daysPerWeek, level]);
+  const dayPool = useMemo(() => selectTemplatesForDays(daysPerWeek, planTemplates, { level, equipment }), [daysPerWeek, level, equipment]);
   // WP-O (X30): jeden scoring dla rekomendacji (element [0]) i sortowania Browse
   // plans (ta sama lista, malejąco po dopasowaniu do odpowiedzi usera).
-  const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, dayPool.templates), [objective, level, daysPerWeek, dayPool]);
-  const recommended = scoredTemplates[0].template;
+  const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek, equipment }, dayPool.templates), [objective, level, daysPerWeek, equipment, dayPool]);
+  // T6: profil bez żadnego dozwolonego szablonu (np. początkujący + masa ciała:
+  // każdy plan bez sprzętu ma pompki/podciąganie/plank). Krok 5 pokazuje wtedy
+  // stan z wyjściem (inne miejsce treningu / własny plan); pierwszy szablon
+  // katalogu to wyłącznie wewnętrzny placeholder (nie jest renderowany ani zapisywany).
+  const noTemplateForProfile = scoredTemplates.length === 0;
+  const recommended = scoredTemplates[0]?.template ?? planTemplates[0];
   const chosen = picked ?? recommended;
   const reviewedDays = reviewedTemplate?.templateId === chosen.id ? reviewedTemplate.days : undefined;
   const chosenDays = reviewedDays ?? chosen.days;
@@ -468,17 +486,18 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
       accentId,
       level,
       objective,
+      equipment,
       daysPerWeek,
       trainingDays,
-      ...(mode !== 'own' && !customPlan ? { templateId: chosen.id } : {}),
-      recommendedTemplateId: recommended.id,
+      ...(mode !== 'own' && !customPlan && !noTemplateForProfile ? { templateId: chosen.id } : {}),
+      ...(noTemplateForProfile ? {} : { recommendedTemplateId: recommended.id }),
       planSource: customPlan || mode === 'own' ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
       durationWeeks: effectiveWeeks,
       firstWorkoutDate,
       planName: planNameInput ?? undefined,
       ...(customPlan ? { reviewDays: customPlan.days } : reviewedDays ? { reviewDays: reviewedDays } : {}),
     });
-  }, [accentId, chosen.id, customPlan, daysPerWeek, effectiveWeeks, firstWorkoutDate, level, mode, objective, onDraftChange, pickedViaBrowse, planNameInput, recommended.id, reviewedDays, step, trainingDays, userName]);
+  }, [accentId, chosen.id, customPlan, daysPerWeek, effectiveWeeks, equipment, firstWorkoutDate, level, mode, noTemplateForProfile, objective, onDraftChange, pickedViaBrowse, planNameInput, recommended.id, reviewedDays, step, trainingDays, userName]);
 
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
@@ -491,11 +510,11 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
     const schedule = buildFirstWorkoutSchedule(firstWorkoutDate, days.map((d) => d.weekday), todayISO);
     onConfirm({
       days, durationWeeks, startDate: schedule.startDate, firstWorkoutDate, skippedDates: schedule.skippedDates,
-      level, objective, daysPerWeek: days.length, templateId,
+      level, objective, equipment, daysPerWeek: days.length, templateId,
       name: userName.trim() || undefined, accentId, planName,
       // WP-O (X30): jawne odpowiedzi do snapshotu onboardingAnswers.
       trainingDays,
-      recommendedTemplateId: recommended.id,
+      ...(noTemplateForProfile ? {} : { recommendedTemplateId: recommended.id }),
       planSource: templateId === undefined ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
     }, opts);
   };
@@ -737,6 +756,27 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
                   <OptionCard key={o.value} icon={o.icon} title={t(o.labelKey)} desc={t(o.descKey)} selected={objective === o.value} onClick={() => setObjective(o.value)} />
                 ))}
               </div>
+              {/* T6: "Gdzie trenujesz?" — twardy filtr szablonów przed doborem (krok 5). */}
+              <div className="mt-5 rounded-2xl bg-surface-low p-4" data-testid="ob-equipment">
+                <p id="ob-equipment-label" className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.equipment.title')}</p>
+                <div role="group" aria-labelledby="ob-equipment-label" className="grid grid-cols-3 gap-2">
+                  {EQUIPMENT_OPTIONS.map(({ value, labelKey, icon: Icon }) => (
+                    <button
+                      type="button"
+                      key={value}
+                      data-testid={`ob-equipment-${value}`}
+                      aria-pressed={equipment === value}
+                      onClick={() => setEquipment(value)}
+                      className={cn('flex min-h-[72px] min-w-0 touch-manipulation select-none flex-col items-center justify-center gap-1.5 rounded-xl px-1.5 py-2 text-center text-[12px] font-bold leading-tight transition-colors',
+                        toggleButtonClasses(equipment === value),
+                        equipment === value ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                      <span className="break-words">{t(labelKey)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="shrink-0 bg-background pt-3"><PrimaryButton onClick={() => setStep(4)}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
@@ -805,6 +845,17 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
                 <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
                 <h1 tabIndex={-1} className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.match.title', { days: daysPerWeek })}</h1>
               </div>
+              {noTemplateForProfile ? (
+                // T6: pusta pula profilu = stan z wyjściem (zasada 6), bez kart i CTA.
+                <div data-testid="ob-no-template" className="space-y-3">
+                  <div className="rounded-2xl border border-fitness-warning/30 bg-fitness-warning/10 p-4 text-[13px] text-fitness-warning">
+                    <p className="font-bold">{t('ob.match.noTemplateTitle')}</p>
+                    <p className="mt-1">{t('ob.match.noTemplateDesc')}</p>
+                  </div>
+                  <button type="button" data-testid="ob-no-template-equipment" onClick={() => setStep(3)} className="w-full min-h-12 touch-manipulation rounded-2xl bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><House className="h-4 w-4 text-primary" />{t('ob.match.changeEquipment')}</button>
+                  <button type="button" data-testid="ob-no-template-own" onClick={() => setMode('own')} className="w-full min-h-12 touch-manipulation rounded-2xl bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
+                </div>
+              ) : (<>
               {/* X33 WP-2: dwie karty (Polecany / Alternatywa albo Wybrany z biblioteki);
                   tap = zaznaczenie, domyślnie karta 1. */}
               <div className="space-y-3" data-testid="ob-plan-choices">
@@ -838,13 +889,16 @@ export const PlanWizard = ({ showWelcome, trialNotice, legalConsent, showMarketi
                   </p>
                 ) : null;
               })()}
+              </>)}
             </div>
             {/* X34: jedno CTA prowadzi do ekranu 6/6 "Start planu". */}
+            {!noTemplateForProfile && (
             <div className="shrink-0 bg-background pt-3">
               <PrimaryButton testId="ob-match-next" onClick={goToStartStep}>
                 {t('ob.match.next')} <ArrowRight className="h-4 w-4" />
               </PrimaryButton>
             </div>
+            )}
           </>
         )}
 

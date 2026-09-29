@@ -130,7 +130,8 @@ describe('NewPlan: replan przez "Zaczynam ten plan" (X33 WP-4)', () => {
     });
     expect(snap.deps.startDateISO).toBe(snap.deps.startDate);
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    expect(snap.profile).toEqual({ trainingProfile: { level: 'intermediate', objective: 'fat_loss', daysPerWeek: 3 } });
+    // T6: profil sprzed T6 (bez equipment) = siłownia; replan zapisuje jawne pole.
+    expect(snap.profile).toEqual({ trainingProfile: { level: 'intermediate', objective: 'fat_loss', daysPerWeek: 3, equipment: 'gym' } });
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/'));
   });
 
