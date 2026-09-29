@@ -50,6 +50,8 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   // T6: focus nowych szablonów (Moc Góra/Dół/Tył, Objętość A/B/C).
   'Moc': 'Power',
   'Objętość': 'Volume',
+  // T6b: "Dzień A/B/C" (RZA) w nazwie dnia.
+  'Dzień': 'Day',
 };
 
 const WEEKDAY_SHORT_EN: Record<string, string> = {
@@ -67,12 +69,26 @@ const FOCUS_PHRASE_EN: Record<string, string> = {
   'Tył Uda': 'Hamstrings',
   'Klatka Płasko': 'Flat Chest',
   'Środek Pleców': 'Mid Back',
+  // T6b: focus starszych szablonów (RZA, 531-bbb, nsuns) z małymi literami i nazwami bojów.
+  'Nogi + plecy + barki': 'Legs + Back + Shoulders',
+  'Push + tył uda + barki': 'Push + Hamstrings + Shoulders',
+  'OHP + objętość': 'OHP + Volume',
+  'Martwy ciąg + objętość': 'Deadlift + Volume',
+  'Wyciskanie + objętość': 'Bench + Volume',
+  'Przysiad + objętość': 'Squat + Volume',
+  'Wyciskanie + OHP': 'Bench + OHP',
+  'Martwy ciąg + Front Squat': 'Deadlift + Front Squat',
+  'Wyciskanie + wąsko': 'Bench + Close-Grip',
 };
 
 /** Nazwa dnia w języku UI (mapuje kanoniczne polskie nazwy dni; inne zostawia). */
 export const localizeDayName = (name: string, lang: LanguageCode): string => {
   if (!name) return name;
-  return WEEKDAY_OVERLAYS[lang]?.[name] ?? name;
+  const weekday = WEEKDAY_OVERLAYS[lang]?.[name];
+  if (weekday) return weekday;
+  // T6b: nazwy dni szablonów "Dzień A/B/C" (RZA); własne nazwy usera bez zmian.
+  const dayLetter = /^Dzień(\s+\S+)$/.exec(name);
+  return dayLetter ? `${FOCUS_TOKEN_OVERLAYS[lang]?.['Dzień'] ?? 'Dzień'}${dayLetter[1]}` : name;
 };
 
 /**
@@ -194,6 +210,7 @@ const PLAN_NAME: Record<string, PlanText> = {
   'tpl-kettlebell-3': { pl: 'Kettlebell Podstawy', en: 'Kettlebell Basics' },
   'tpl-express-3': { pl: 'Ekspres 35 Minut', en: 'Express 35' },
   'tpl-travel-2': { pl: 'Trening w Podróży', en: 'Travel Workout' },
+  'tpl-bodyweight-home-3': { pl: 'Start bez Sprzętu', en: 'No-Equipment Starter' },
 };
 
 const PLAN_DESC: Record<string, PlanText> = {
@@ -361,6 +378,10 @@ const PLAN_DESC: Record<string, PlanText> = {
   'tpl-travel-2': {
     pl: 'Dwa obwody bez siłowni: masa ciała i guma oporowa, do hotelowego pokoju. Stół do wiosłowania odwrotnego, krzesło do wykroków, krótkie interwały na koniec.',
     en: 'Two circuits without a gym: bodyweight and a resistance band, made for a hotel room. A sturdy table for inverted rows, a chair for split squats, short intervals to finish.',
+  },
+  'tpl-bodyweight-home-3': {
+    pl: 'Trzy treningi całego ciała w domu, bez sprzętu i bez podporu na rękach: przysiady, mostki, wykroki, praca grzbietu w leżeniu i brzuch w leżeniu na plecach. Na koniec krótkie interwały. Progres przez dokładanie powtórzeń.',
+    en: 'Three full-body home sessions with no equipment and no weight on your hands: squats, bridges, lunges, back work lying face down and core work on your back. Short intervals to finish. Progress by adding reps.',
   },
 };
 

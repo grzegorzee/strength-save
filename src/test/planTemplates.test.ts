@@ -77,8 +77,24 @@ describe('planTemplates', () => {
   });
 
   // T6 (2026-09-29): 16 nowych szablonów, sanie/spacery na dystans.
-  it('T6: katalog ma 41 szablonów, w tym 16 nowych', () => {
-    expect(planTemplates).toHaveLength(41);
+  it('T6b: plan bez sprzętu dla początkujących: 3 dni, masa ciała, bez F7, serie czasowe 30 s', () => {
+    const tpl = getPlanTemplateById('tpl-bodyweight-home-3')!;
+    expect(tpl).toBeTruthy();
+    expect(tpl).toMatchObject({ level: 'beginner', equipment: 'bodyweight', daysPerWeek: 3 });
+    const names = tpl.days.flatMap((d) => d.exercises.map((e) => e.name));
+    for (const name of names) {
+      const lib = findLibraryExercise(name);
+      expect(lib, name).toBeTruthy();
+      expect(lib!.requiresBodyweightSupport, name).not.toBe(true);
+      expect(lib!.isBodyweight || name === 'Przysiady wykroczne', `${name}: bez sprzętu`).toBe(true);
+    }
+    for (const forbidden of ['Plank', 'Pompki', 'Podciąganie na drążku', 'Dips (pompki na poręczach)']) {
+      expect(names).not.toContain(forbidden);
+    }
+  });
+
+  it('T6: katalog ma 42 szablony, w tym 16 nowych T6 i plan bez sprzętu T6b', () => {
+    expect(planTemplates).toHaveLength(42);
     for (const id of ['tpl-fatloss-3', 'tpl-home-db-3', 'tpl-glutes-4', 'tpl-strength-2', 'tpl-beginner-ul-4', 'tpl-athletic-3', 'tpl-home-db-4', 'tpl-fatloss-2', 'tpl-fatloss-5', 'tpl-strength-ul-4', 'tpl-strength-6', 'tpl-glutes-2', 'tpl-health-50-2', 'tpl-kettlebell-3', 'tpl-express-3', 'tpl-travel-2']) {
       expect(getPlanTemplateById(id), id).toBeTruthy();
     }

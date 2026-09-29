@@ -81,12 +81,15 @@ describe('rekomendacja z twardym filtrem sprzętu', () => {
     }
   });
 
-  it('pusta pula tylko tam, gdzie katalog nie ma żadnego dozwolonego planu (początkujący + masa ciała)', () => {
+  it('T6b: każdy profil (sprzęt × poziom × dni) ma niepustą pulę; początkujący + masa ciała dostaje plan bez sprzętu', () => {
     const empty: string[] = [];
-    for (const equipment of EQUIPMENT) for (const level of LEVELS) {
-      if (!selectTemplatesForDays(3, planTemplates, { level, equipment }).templates.length) empty.push(`${equipment}/${level}`);
+    for (const equipment of EQUIPMENT) for (const level of LEVELS) for (const daysPerWeek of DAYS) {
+      if (!selectTemplatesForDays(daysPerWeek, planTemplates, { level, equipment }).templates.length) empty.push(`${equipment}/${level}/${daysPerWeek}`);
     }
-    expect(empty).toEqual(['bodyweight/beginner']);
+    expect(empty).toEqual([]);
+    for (const daysPerWeek of DAYS) {
+      expect(getRecommendedPlan('build_muscle', 'beginner', daysPerWeek, 'bodyweight').id).toBe('tpl-bodyweight-home-3');
+    }
   });
 
   it('siłownia (i brak pola) = rekomendacje identyczne jak bez filtra sprzętu (niezmiennik starego przepływu)', () => {
@@ -165,28 +168,17 @@ describe('kreator: krok "Gdzie trenujesz?"', () => {
     expect(isEquipmentAccessible(tpl.equipment, equipment)).toBe(true);
   });
 
-  it('początkujący + masa ciała: brak planu = stan z wyjściem (zmień miejsce -> krok 3, własny plan -> builder)', () => {
-    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
+  it('T6b: początkujący + masa ciała: polecany plan bez sprzętu, bez komunikatu "brak planu"', () => {
+    const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep3();
     fireEvent.click(screen.getByTestId('ob-equipment-bodyweight'));
     fromStep3ToStep5(3);
-    expect(screen.getByTestId('ob-no-template')).toBeInTheDocument();
-    expect(screen.queryByTestId('plan-choice-recommended')).toBeNull();
-    expect(screen.queryByTestId('ob-match-next')).toBeNull();
-
-    fireEvent.click(screen.getByTestId('ob-no-template-equipment'));
-    expect(screen.getByTestId('ob-equipment')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('ob-equipment-dumbbells_home'));
-    fromStep3ToStep5(3);
     expect(screen.queryByTestId('ob-no-template')).toBeNull();
-    expect(cards().length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
-    fireEvent.click(screen.getByTestId('ob-equipment-bodyweight'));
-    fromStep3ToStep5(3);
-    fireEvent.click(screen.getByTestId('ob-no-template-own'));
-    expect(screen.getByTestId('plan-builder-stub')).toBeInTheDocument();
+    expect(cardName(cards()[0])).toBe('Start bez Sprzętu');
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    fireEvent.click(screen.getByTestId('ob-start-cta'));
+    expect(onConfirm.mock.calls[0][0]).toMatchObject({ templateId: 'tpl-bodyweight-home-3', equipment: 'bodyweight' });
   });
 });
 

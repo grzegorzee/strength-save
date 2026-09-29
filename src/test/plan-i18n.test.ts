@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { localizePlanName, localizePlanDescription, localizeFocus } from '@/lib/plan-i18n';
+import { localizePlanName, localizePlanDescription, localizeFocus, localizeDayName, FOCUS_TOKEN_EN } from '@/lib/plan-i18n';
 import { planTemplates } from '@/data/planTemplates';
 
 // Z164: każdy gotowy plan ma opis EN — inaczej user EN dostaje polski akapit.
@@ -10,7 +10,7 @@ describe('opisy i nazwy gotowych planów po EN (Z164)', () => {
     // Kontrakt dla szablonów T6. Znany dług sprzed T6 (poza zakresem, zgłoszony):
     // RZA "tył uda + barki", 531-bbb "... + objętość", nsuns "Martwy ciąg", "wąsko".
     const T6_IDS = new Set(planTemplates.slice(planTemplates.findIndex((t) => t.id === 'tpl-fatloss-3')).map((t) => t.id));
-    expect(T6_IDS.size).toBe(16);
+    expect(T6_IDS.size).toBe(17); // 16 planów T6 + plan bez sprzętu T6b
     for (const tpl of planTemplates.filter((t) => T6_IDS.has(t.id))) {
       for (const d of tpl.days) expect(localizeFocus(d.focus ?? '', 'en'), `${tpl.id} ${d.id}: ${d.focus}`).not.toMatch(polish);
     }
@@ -64,6 +64,8 @@ describe('nazwy i opisy planów bez cudzych marek (2026-09-29)', () => {
       'tpl-fatloss-3', 'tpl-home-db-3', 'tpl-glutes-4', 'tpl-strength-2', 'tpl-beginner-ul-4', 'tpl-athletic-3',
       'tpl-home-db-4', 'tpl-fatloss-2', 'tpl-fatloss-5', 'tpl-strength-ul-4', 'tpl-strength-6', 'tpl-glutes-2',
       'tpl-health-50-2', 'tpl-kettlebell-3', 'tpl-express-3', 'tpl-travel-2',
+      // T6b: plan bez sprzętu dla początkujących (beginner + masa ciała).
+      'tpl-bodyweight-home-3',
     ]);
   });
 
@@ -73,3 +75,41 @@ describe('nazwy i opisy planów bez cudzych marek (2026-09-29)', () => {
     }
   });
 });
+
+// T6b (2026-09-29): KAŻDY tekst EN szablonu (nazwa, opis, nazwa dnia, focus)
+// bez polskich znaków i bez polskich słów focusu. Wcześniej RZA ("tył uda +
+// barki"), 531-bbb ("+ objętość"), nsuns ("Martwy ciąg", "wąsko") przeciekały.
+describe('kontrakt EN wszystkich szablonów (T6b)', () => {
+  const polishChars = /[ąćęłńóśźż]/i;
+  const polishWords = new Set([
+    ...Object.keys(FOCUS_TOKEN_EN).map((w) => w.toLowerCase()),
+    'martwy', 'ciąg', 'wyciskanie', 'wąsko', 'objętość', 'tył', 'uda', 'barki', 'dzień', 'przysiad', 'i', 'oraz',
+  ]);
+  const leaks = (text: string) => text.toLowerCase().split(/[^a-ząćęłńóśźż]+/i).filter((w) => polishWords.has(w));
+
+  it('focus, nazwa dnia, nazwa i opis po EN: zero polskich znaków i słów', () => {
+    const problems: string[] = [];
+    for (const tpl of planTemplates) {
+      const texts = [
+        ['name', localizePlanName(tpl.id, tpl.name, 'en')],
+        ['desc', localizePlanDescription(tpl.id, tpl.description, 'en')],
+        ...tpl.days.flatMap((d) => [
+          [`${d.id} dayName`, localizeDayName(d.dayName, 'en')],
+          [`${d.id} focus`, localizeFocus(d.focus ?? '', 'en')],
+        ]),
+      ];
+      for (const [where, text] of texts) {
+        if (polishChars.test(text) || leaks(text).length) problems.push(`${tpl.id} ${where}: ${text}`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('"Dzień A" -> "Day A"; własne nazwy dni usera i PL bez zmian', () => {
+    expect(localizeDayName('Dzień A', 'en')).toBe('Day A');
+    expect(localizeDayName('Dzień A', 'pl')).toBe('Dzień A');
+    expect(localizeDayName('Klatka i plecy', 'en')).toBe('Klatka i plecy');
+    expect(localizeDayName('Poniedziałek', 'en')).toBe('Monday');
+  });
+});
+

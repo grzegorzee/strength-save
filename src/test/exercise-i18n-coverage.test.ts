@@ -39,5 +39,10 @@ describe('exercise i18n coverage (Z156)', () => {
     for (const focus of ['Góra A', 'Dół B', 'Push', 'Całe ciało', 'Nogi + Barki', '']) {
       expect(localizeFocusEn(focus)).toBe(localizeFocus(focus, 'en'));
     }
+    // T6b: parytet na KAŻDYM focusie i nazwie dnia z szablonów (mail/push = apka).
+    for (const tpl of planTemplates) for (const d of tpl.days) {
+      expect(localizeFocusEn(d.focus ?? ''), `${tpl.id} ${d.id}`).toBe(localizeFocus(d.focus ?? '', 'en'));
+    }
+    expect(localizeFocusEn('Dzień A')).toBe('Day A');
   });
 });

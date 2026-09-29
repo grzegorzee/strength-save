@@ -58,6 +58,29 @@ błąd produktu, do sprawdzenia na symulatorze iOS), paywall twardy (tylko natyw
 iOS), realny push FCM, realna wysyłka SES, StoreKit/Billing, zgaszony ekran,
 fizyczne urządzenie.
 
+### 2026-09-29: T6b, plan bez sprzętu dla początkujących, EN starszych planów, reguły
+
+1. **`tpl-bodyweight-home-3` „Start bez Sprzętu” / „No-Equipment Starter”** (beginner,
+   masa ciała, 3 dni, F7). Profil początkujący + masa ciała ma teraz plan; stan „brak planu”
+   zostaje w kodzie i jest testowany na sztucznym katalogu. Decyzja: żadnych pompek.
+   Biblioteka nie ma pompek przy ścianie ani na wysokim podwyższeniu (jest tylko „Pompki na
+   kolanach” z flagą F7), a pchanie bez podporu na rękach wymaga gumy. Góra ciała przez
+   grzbiet i łopatki (Superman, Wall Angel, Aniołki i demony). Wpisu ad hoc do biblioteki
+   nie dodawałem. Hero: istniejący `tpl-minimalist-2`.
+2. **EN starszych planów**: focus RZA / 531-bbb / nsuns i „Dzień A/B/C” tłumaczone przy
+   wyświetlaniu (frazy + token `Dzień`, klient i port functions). Test kontraktu: żaden tekst
+   EN żadnego szablonu nie zawiera polskich znaków ani słów focusu PL.
+3. **Reguły Firestore** na emulatorze (JDK 21, porty zastępcze, bo 8081/9299 zajmowała inna
+   sesja): 327 asercji firestore PASS (w tym `conditioning` ALLOWED, `cardio` DENIED),
+   storage 44/44.
+4. **Webkit `no console errors on dashboard load`**: potwierdzone, że jedyną przyczyną były
+   403 na fontach z symlinkowanego `node_modules`; z `server.fs.allow` (niecommitowany
+   `vite.t6.config.ts`) przechodzi 3/3 w obu silnikach.
+
+Weryfikacja: 514 plików / 4624 passed (16 skipped), functions 807 passed + build, typecheck,
+lint 0 błędów, build; e2e 294 passed (chromium + webkit, t6 + critical + onboarding + replan
++ plan + full-app + bodyweight-loaded).
+
 ### 2026-09-29: T6, baza ćwiczeń 379, kategoria Kondycja, 16 planów, F7 dla początkujących, „Gdzie trenujesz?”
 
 Źródło: zwalidowane dane T6 (`exercises-new.json`, `plans-new.json`, `beginner-fixes.json`,
