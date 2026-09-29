@@ -42,10 +42,10 @@
   },
   "ios": {
     "version": "1.0.0",
-    "build": 151,
+    "build": 152,
     "state": "source-version-requires-current-delivery-verification",
     "priorDeliveryEvidence": "release/ios/testflight-150.json",
-    "verifiedDelivery": "pending: 151 candidate (fixes F1-F7, onboarding guide, exercise base, emails)"
+    "verifiedDelivery": "pending: 152 = same source as 151; 151 upload stuck in Apple PROCESSING >50 min with no errors"
   },
   "android": {
     "version": "1.0.0",
