@@ -122,7 +122,7 @@ export const planTemplates: PlanTemplate[] = [
         ex('Wyciskanie hantli na ławce płaskiej', '3 x 8-10'),
         ex('Wiosłowanie sztangą', '3 x 8-10'),
         ex('Wyciskanie hantli nad głowę (Siedząc)', '3 x 10-12'),
-        ex('Plank', '3 x 30s'),
+        ex('Dead Bug (Robak - Brzuch)', '3 x 8/strona'),
       ]),
       day('day-2', 'Czwartek', 'thursday', 'Całe ciało B', [
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 8-10'),
@@ -456,13 +456,13 @@ export const planTemplates: PlanTemplate[] = [
         ex('Przysiad ze sztangą (High Bar)', '5 x 5'),
         ex('Wyciskanie sztangi na ławce płaskiej', '5 x 5'),
         ex('Wiosłowanie sztangą', '5 x 5'),
-        ex('Plank', '3 x 30s'),
+        ex('Modlitewnik (Cable Crunch)', '3 x 12-15'),
       ]),
       day('day-2', 'Środa', 'wednesday', 'Siła B', [
         ex('Przysiad ze sztangą (High Bar)', '5 x 5'),
         ex('Wyciskanie sztangi nad głowę (OHP)', '5 x 5'),
         ex('Martwy ciąg klasyczny', '1 x 5'),
-        ex('Unoszenie nóg w zwisie', '3 x MAX'),
+        ex('Reverse Crunch na ławce', '3 x 10-12'),
       ]),
       day('day-3', 'Piątek', 'friday', 'Siła A', [
         ex('Przysiad ze sztangą (High Bar)', '5 x 5'),
@@ -674,7 +674,7 @@ export const planTemplates: PlanTemplate[] = [
       day('day-1', 'Poniedziałek', 'monday', 'Całe ciało A', [
         ex('Wyciskanie hantli (Lekki skos)', '3 x 10-15'),
         ex('Przysiad goblet', '3 x 10-15'),
-        ex('Podciąganie na drążku', '3 x 5-8'),
+        ex('Ściąganie drążka neutralnym chwytem', '3 x 8-12'),
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 10-15'),
         ex('Wiosłowanie na lince siedząc', '3 x 10-15'),
         ex('Wznosy bokiem (Lateral Raise)', '3 x 10-20'),
@@ -683,7 +683,7 @@ export const planTemplates: PlanTemplate[] = [
       day('day-2', 'Środa', 'wednesday', 'Całe ciało B', [
         ex('Wyciskanie hantli (Lekki skos)', '3 x 10-15'),
         ex('Przysiad goblet', '3 x 10-15'),
-        ex('Podciąganie na drążku', '3 x 5-8'),
+        ex('Ściąganie drążka neutralnym chwytem', '3 x 8-12'),
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 10-15'),
         ex('Wiosłowanie na lince siedząc', '3 x 10-15'),
         ex('Wznosy bokiem (Lateral Raise)', '3 x 10-20'),
@@ -692,7 +692,7 @@ export const planTemplates: PlanTemplate[] = [
       day('day-3', 'Piątek', 'friday', 'Całe ciało C', [
         ex('Wyciskanie hantli (Lekki skos)', '3 x 10-15'),
         ex('Przysiad goblet', '3 x 10-15'),
-        ex('Podciąganie na drążku', '3 x 5-8'),
+        ex('Ściąganie drążka neutralnym chwytem', '3 x 8-12'),
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 10-15'),
         ex('Wiosłowanie na lince siedząc', '3 x 10-15'),
         ex('Wznosy bokiem (Lateral Raise)', '3 x 10-20'),
@@ -736,7 +736,7 @@ export const planTemplates: PlanTemplate[] = [
     description: 'Kalistenika: pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
     goal: 'health',
     objective: 'athletic',
-    level: 'beginner',
+    level: 'intermediate',
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
@@ -747,8 +747,8 @@ export const planTemplates: PlanTemplate[] = [
         ex('Nordic Hamstring Curl', '3 x 5-8', { superset: 'B' }),
         ex('Australijskie podciąganie (Inverted Row)', '3 x 5-8', { superset: 'C' }),
         ex('Pompki', '3 x 5-8', { superset: 'C' }),
-        ex('Plank', '3 x 30s'),
-        ex('Hollow Hold', '3 x 30s'),
+        ex('Plank', '3 x 45s'),
+        ex('Hollow Hold', '3 x 45s'),
         ex('Superman (Unoszenie tułowia leżąc na brzuchu)', '3 x 8-12'),
       ]),
       day('day-2', 'Środa', 'wednesday', 'Kalistenika B', [
@@ -758,8 +758,8 @@ export const planTemplates: PlanTemplate[] = [
         ex('Nordic Hamstring Curl', '3 x 5-8', { superset: 'B' }),
         ex('Australijskie podciąganie (Inverted Row)', '3 x 5-8', { superset: 'C' }),
         ex('Pompki', '3 x 5-8', { superset: 'C' }),
-        ex('Plank', '3 x 30s'),
-        ex('Hollow Hold', '3 x 30s'),
+        ex('Plank', '3 x 45s'),
+        ex('Hollow Hold', '3 x 45s'),
         ex('Superman (Unoszenie tułowia leżąc na brzuchu)', '3 x 8-12'),
       ]),
       day('day-3', 'Piątek', 'friday', 'Kalistenika C', [
@@ -769,8 +769,8 @@ export const planTemplates: PlanTemplate[] = [
         ex('Nordic Hamstring Curl', '3 x 5-8', { superset: 'B' }),
         ex('Australijskie podciąganie (Inverted Row)', '3 x 5-8', { superset: 'C' }),
         ex('Pompki', '3 x 5-8', { superset: 'C' }),
-        ex('Plank', '3 x 30s'),
-        ex('Hollow Hold', '3 x 30s'),
+        ex('Plank', '3 x 45s'),
+        ex('Hollow Hold', '3 x 45s'),
         ex('Superman (Unoszenie tułowia leżąc na brzuchu)', '3 x 8-12'),
       ]),
     ],
@@ -792,7 +792,7 @@ export const planTemplates: PlanTemplate[] = [
         ex('Wyciskanie hantli na ławce płaskiej', '3 x 8-12', { superset: 'B' }),
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 10-15'),
         ex('Odwodziciele na maszynie', '1 x 15-30'),
-        ex('Plank', '1 x 30s'),
+        ex('Dead Bug (Robak - Brzuch)', '1 x 8/strona'),
       ]),
       day('day-2', 'Środa', 'wednesday', 'Pośladki B', [
         ex('Hip Thrust (Wypychanie bioder)', '3 x 10-15', { superset: 'A' }),

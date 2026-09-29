@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { planTemplates, getPlanTemplateById, getRecommendedPlan } from '@/data/planTemplates';
-import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { exerciseLibrary, findLibraryExercise } from '@/data/exerciseLibrary';
 
 const libraryNames = new Set(exerciseLibrary.map((e) => e.name));
 const validWeekdays = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
@@ -107,5 +107,38 @@ describe('planTemplates', () => {
     // Wśród planów 4-dniowych: peak_strength → plan o objective peak_strength.
     expect(getRecommendedPlan('peak_strength', 'advanced', 4).objective).toBe('peak_strength');
     expect(getRecommendedPlan('fat_loss', 'intermediate', 4).objective).toBe('fat_loss');
+  });
+
+  // T6 (F7, 2026-09-29): początkujący nie dostaje ćwiczeń z ciałem podpartym
+  // na rękach/przedramionach ani podnoszonym masą ciała (plank, pompki z podłogi,
+  // podciąganie bez asysty, dipy, zwisy...). Kontrakt obejmuje KAŻDY szablon
+  // beginner, także przyszłe (flaga requiresBodyweightSupport w bibliotece).
+  it('F7: żaden szablon beginner nie zawiera ćwiczenia z requiresBodyweightSupport', () => {
+    const violations = planTemplates
+      .filter((tpl) => tpl.level === 'beginner')
+      .flatMap((tpl) => tpl.days.flatMap((d) => d.exercises
+        .filter((e) => findLibraryExercise(e.name)?.requiresBodyweightSupport)
+        .map((e) => `${tpl.id} ${d.id}: ${e.name}`)));
+    expect(violations).toEqual([]);
+  });
+
+  it('F7: poprawki beginner zachowują id szablonów, liczbę dni i ćwiczeń', () => {
+    const shape = (id: string) => {
+      const tpl = getPlanTemplateById(id)!;
+      return { days: tpl.days.length, exercises: tpl.days.map((d) => d.exercises.length) };
+    };
+    expect(shape('tpl-fullbody-2')).toEqual({ days: 2, exercises: [5, 5] });
+    expect(getPlanTemplateById('tpl-fullbody-2')!.days[0].exercises.map((e) => e.name)).toContain('Dead Bug (Robak - Brzuch)');
+    expect(getPlanTemplateById('tpl-strength-5x5')!.days.flatMap((d) => d.exercises.map((e) => e.name)))
+      .toEqual(expect.arrayContaining(['Modlitewnik (Cable Crunch)', 'Reverse Crunch na ławce']));
+    expect(getPlanTemplateById('tpl-six-lifts-3')!.days.every((d) => d.exercises.some((e) => e.name === 'Ściąganie drążka neutralnym chwytem'))).toBe(true);
+  });
+
+  it('F7: kalistenika (drążek, poręcze, pompki) przechodzi na intermediate, serie czasowe 45 s', () => {
+    const cal = getPlanTemplateById('tpl-calisthenics-3')!;
+    expect(cal.level).toBe('intermediate');
+    const timed = cal.days.flatMap((d) => d.exercises).filter((e) => /s$/.test(e.sets));
+    expect(timed.length).toBeGreaterThan(0);
+    for (const e of timed) expect(e.sets).toBe('3 x 45s');
   });
 });
