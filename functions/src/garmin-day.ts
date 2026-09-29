@@ -5,6 +5,7 @@
 // deload zostają na telefonie — v2 po wydzieleniu silnika do wspólnego pakietu).
 
 import type { GarminTrackingType } from "./garmin-ingest";
+import { isBodyweightLoadedName } from "./bodyweight-loaded";
 import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
 
 export interface GarminPlanExercise {
@@ -197,17 +198,25 @@ const formatKg = (kg: number): string =>
   Number.isInteger(kg) ? String(kg) : String(Math.round(kg * 10) / 10);
 
 /** Ostatnie wykonanie ćwiczenia: max ciężar i najlepsze powtórzenia z ostatniego dnia. */
-const lastExecution = (workouts: GarminWorkout[], exerciseId: string): { weight: number; reps: number } | null => {
+const lastExecution = (
+  workouts: GarminWorkout[],
+  exerciseId: string,
+  // F6: bodyweight_loaded — weight to dociążenie; seria na samej MC (0 kg) też się liczy,
+  // a powtórzenia bierzemy przy największym dociążeniu.
+  bodyweightLoaded = false,
+): { weight: number; reps: number } | null => {
   let bestDate = "";
   let result: { weight: number; reps: number } | null = null;
   for (const w of workouts) {
     if (!w.completed || w.date < bestDate) continue;
     for (const ex of w.exercises) {
       if (ex.exerciseId !== exerciseId) continue;
-      const working = ex.sets.filter((s) => s.completed && !s.isWarmup && s.weight > 0);
+      const working = ex.sets.filter((s) => s.completed && !s.isWarmup && (bodyweightLoaded ? s.reps > 0 : s.weight > 0));
       if (working.length === 0) continue;
-      const weight = Math.max(...working.map((s) => s.weight));
-      const reps = Math.max(...working.map((s) => s.reps));
+      const weight = Math.max(...working.map((s) => Math.max(0, s.weight)));
+      const reps = bodyweightLoaded
+        ? Math.max(...working.filter((s) => Math.max(0, s.weight) === weight).map((s) => s.reps))
+        : Math.max(...working.map((s) => s.reps));
       if (w.date > bestDate || result === null) {
         bestDate = w.date;
         result = { weight, reps };
@@ -282,6 +291,11 @@ const compactSet = (
     : [reps, 0, 0, 0, previous?.assistWeight ?? 0];
 };
 
+/** F6: cel bez języka UI zegarka: „+2.5 kg × 6” (dociążenie) albo „× 8” (sama masa ciała). */
+const loadedTargetLabel = (target: { reps: number; weight: number }): string => (
+  target.weight > 0 ? `+${formatKg(target.weight)} kg × ${target.reps}` : `× ${target.reps}`
+);
+
 export function buildGarminDayContext(
   planDays: GarminPlanDay[],
   workouts: GarminWorkout[],
@@ -303,7 +317,10 @@ export function buildGarminDayContext(
     e: day.exercises.map((exercise) => {
       const count = parseSetCount(exercise.sets);
       const range = parseRepRange(exercise.sets);
-      const last = lastExecution(workouts, exercise.id);
+      // F6: bodyweight_loaded idzie do zegarka jako weight_reps (starsze buildy Garmina
+      // znają tylko ten typ); weight = dociążenie, historia znormalizowana w endpointcie.
+      const bodyweightLoaded = !exercise.tracking && isBodyweightLoadedName(exercise.name);
+      const last = lastExecution(workouts, exercise.id, bodyweightLoaded);
       const previous = latestCompletedSet(workouts, exercise.id);
       const tracking = resolveTracking(exercise, workouts, trackingByName);
 
@@ -326,7 +343,7 @@ export function buildGarminDayContext(
         i: exercise.id,
         n: exercise.name,
         k: tracking,
-        ...(target ? { t: `${formatKg(target.weight)} kg × ${target.reps}` } : {}),
+        ...(target ? { t: bodyweightLoaded ? loadedTargetLabel(target) : `${formatKg(target.weight)} kg × ${target.reps}` } : {}),
         ...(note ? { p: note.slice(0, NOTE_MAX) } : {}),
         s: sets,
       };

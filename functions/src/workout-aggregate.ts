@@ -3,6 +3,14 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { FieldPath, FieldValue } from "firebase-admin/firestore";
+import {
+  buildBodyWeightTimeline,
+  bodyWeightForDate,
+  hasBodyweightLoadedWeight,
+  isBodyweightLoadedName,
+  normalizeBodyweightLoad,
+  type BodyWeightPoint,
+} from "./bodyweight-loaded";
 
 // Z217: agregat all-time treningów dla kafli Dashboardu (tonaż, licznik) i
 // przyszłej redukcji listenera 500 (Z216). Źródłem prawdy jest MAPA WKŁADÓW per
@@ -32,7 +40,7 @@ export interface WorkoutDocLike {
   durationSec?: unknown;
   startedAt?: unknown;
   completedAt?: unknown;
-  exercises?: Array<{ exerciseId?: string; sets?: WorkoutSetLike[] } | null>;
+  exercises?: Array<{ exerciseId?: string; name?: unknown; sets?: WorkoutSetLike[] } | null>;
 }
 
 /** Kompaktowy wkład jednego UKOŃCZONEGO treningu do agregatu. */
@@ -61,14 +69,20 @@ export interface WorkoutAggregateTotals {
 
 export interface WorkoutAggregate {
   schemaVersion: number;
+  /** F6: wersja normalizacji bodyweight_loaded (legacy masa ciała ≠ tonaż).
+   *  Osobne pole zamiast bumpu schemaVersion: klient sprawdza schemaVersion === 2,
+   *  więc bump odciąłby starsze buildy od agregatu. */
+  bodyweightNormalization: number;
   contributions: Record<string, WorkoutContribution>;
   totals: WorkoutAggregateTotals;
 }
 
 export const WORKOUT_AGGREGATE_SCHEMA_VERSION = 2;
+export const BODYWEIGHT_NORMALIZATION_VERSION = 1;
 
 export const emptyWorkoutAggregate = (): WorkoutAggregate => ({
   schemaVersion: WORKOUT_AGGREGATE_SCHEMA_VERSION,
+  bodyweightNormalization: BODYWEIGHT_NORMALIZATION_VERSION,
   contributions: {},
   totals: {
     workoutCount: 0,
@@ -104,8 +118,13 @@ const asFiniteNumber = (value: unknown): number | null => {
   return null;
 };
 
-/** Wkład treningu albo null (nieukończony / bez daty — nie liczy się do agregatu). */
-export const buildWorkoutContribution = (workout: WorkoutDocLike): WorkoutContribution | null => {
+/** Wkład treningu albo null (nieukończony / bez daty — nie liczy się do agregatu).
+ *  F6: z osią masy ciała ciężar serii bodyweight_loaded to dociążenie (legacy MC = 0);
+ *  bez osi (brak pomiarów) wkład jak przed F6. */
+export const buildWorkoutContribution = (
+  workout: WorkoutDocLike,
+  bodyWeightTimeline: ReadonlyArray<BodyWeightPoint> = [],
+): WorkoutContribution | null => {
   if (!workout.completed) return null;
   // Ten sam dokument bazowy co sanitizeWorkoutDoc po stronie klienta. Agregat
   // nie może policzyć rekordu, którego Historia odrzuci jako niewidoczny.
@@ -117,14 +136,17 @@ export const buildWorkoutContribution = (workout: WorkoutDocLike): WorkoutContri
   let tonnage = 0;
   let sets = 0;
   let reps = 0;
+  const bodyWeightKg = bodyWeightTimeline.length > 0 ? bodyWeightForDate(bodyWeightTimeline, workout.date) : null;
   for (const exercise of workout.exercises) {
     if (!exercise || typeof exercise.exerciseId !== "string" || !Array.isArray(exercise.sets)) continue;
     const exerciseSets = exercise.sets;
+    const loaded = bodyWeightKg !== null && isBodyweightLoadedName(exercise.name);
     for (const set of exerciseSets) {
       if (!set || !set.completed || set.isWarmup === true) continue;
       const setReps = asFiniteNumber(set.reps);
-      const setWeight = asFiniteNumber(set.weight);
-      if (setReps === null || setWeight === null) continue;
+      const rawWeight = asFiniteNumber(set.weight);
+      if (setReps === null || rawWeight === null) continue;
+      const setWeight = loaded ? normalizeBodyweightLoad(rawWeight, bodyWeightKg) : rawWeight;
       sets += 1;
       reps += setReps;
       tonnage += setReps * setWeight;
@@ -178,11 +200,13 @@ const totalsFromContributions = (
 };
 
 /** Brak dokumentu albo schemat sprzed v2 (inna definicja ukończonego treningu):
- * delta na starej mapie wkładów mieszałaby semantyki, więc pełny rebuild. */
-export const needsAggregateRebuild = (existing: unknown): boolean => (
-  (existing as { schemaVersion?: unknown } | null | undefined)?.schemaVersion
-    !== WORKOUT_AGGREGATE_SCHEMA_VERSION
-);
+ * delta na starej mapie wkładów mieszałaby semantyki, więc pełny rebuild.
+ * F6: brak znacznika normalizacji bodyweight_loaded = jednorazowy rebuild. */
+export const needsAggregateRebuild = (existing: unknown): boolean => {
+  const doc = existing as { schemaVersion?: unknown; bodyweightNormalization?: unknown } | null | undefined;
+  return doc?.schemaVersion !== WORKOUT_AGGREGATE_SCHEMA_VERSION
+    || doc?.bodyweightNormalization !== BODYWEIGHT_NORMALIZATION_VERSION;
+};
 
 /** Idempotentna zmiana: set/delete wkładu po workoutId + przeliczenie totals z mapy. */
 export const applyWorkoutChange = (
@@ -198,22 +222,27 @@ export const applyWorkoutChange = (
   }
   return {
     schemaVersion: WORKOUT_AGGREGATE_SCHEMA_VERSION,
+    bodyweightNormalization: BODYWEIGHT_NORMALIZATION_VERSION,
     contributions,
     totals: totalsFromContributions(contributions),
   };
 };
 
 /** Pełny rebuild (backfill) — idempotentny, można odpalać wielokrotnie. */
-export const rebuildAggregateFromWorkouts = (workouts: WorkoutDocLike[]): WorkoutAggregate => {
+export const rebuildAggregateFromWorkouts = (
+  workouts: WorkoutDocLike[],
+  bodyWeightTimeline: ReadonlyArray<BodyWeightPoint> = [],
+): WorkoutAggregate => {
   const contributions: Record<string, WorkoutContribution> = {};
   for (const workout of workouts) {
-    const contribution = buildWorkoutContribution(workout);
+    const contribution = buildWorkoutContribution(workout, bodyWeightTimeline);
     if (contribution !== null && typeof workout.id === "string" && workout.id.length > 0) {
       contributions[workout.id] = contribution;
     }
   }
   return {
     schemaVersion: WORKOUT_AGGREGATE_SCHEMA_VERSION,
+    bodyweightNormalization: BODYWEIGHT_NORMALIZATION_VERSION,
     contributions,
     totals: totalsFromContributions(contributions),
   };
@@ -234,6 +263,8 @@ const snapshotRevision = (snapshot: admin.firestore.DocumentSnapshot): Aggregate
 interface AggregateRebuildCasDeps {
   readRevision: () => Promise<AggregateRevision>;
   loadWorkouts: () => Promise<WorkoutDocLike[]>;
+  /** F6: oś masy ciała do normalizacji bodyweight_loaded (brak = bez normalizacji). */
+  loadBodyWeightTimeline?: () => Promise<BodyWeightPoint[]>;
   storeIfRevision: (revision: AggregateRevision, aggregate: WorkoutAggregate) => Promise<boolean>;
 }
 
@@ -246,7 +277,8 @@ export const rebuildAggregateWithCas = async (
 ): Promise<WorkoutAggregate> => {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const revision = await deps.readRevision();
-    const aggregate = rebuildAggregateFromWorkouts(await deps.loadWorkouts());
+    const timeline = deps.loadBodyWeightTimeline ? await deps.loadBodyWeightTimeline() : [];
+    const aggregate = rebuildAggregateFromWorkouts(await deps.loadWorkouts(), timeline);
     if (await deps.storeIfRevision(revision, aggregate)) return aggregate;
   }
   throw new Error("WORKOUT_AGGREGATE_REBUILD_CONFLICT");
@@ -274,6 +306,15 @@ const loadAllWorkouts = async (
   return workouts;
 };
 
+/** F6: masa ciała usera (pomiary z wagą) — tylko do normalizacji bodyweight_loaded. */
+const loadBodyWeightTimeline = async (
+  db: admin.firestore.Firestore,
+  uid: string,
+): Promise<BodyWeightPoint[]> => {
+  const snapshot = await db.collection("measurements").where("userId", "==", uid).get();
+  return buildBodyWeightTimeline(snapshot.docs.map((doc) => doc.data() as { date?: unknown; weight?: unknown }));
+};
+
 /** Pełny rebuild z historii usera (paginacja po id) + zapis dokumentu. */
 const rebuildAndStore = async (
   db: admin.firestore.Firestore,
@@ -283,6 +324,7 @@ const rebuildAndStore = async (
   return rebuildAggregateWithCas({
     readRevision: async () => snapshotRevision(await ref.get()),
     loadWorkouts: () => loadAllWorkouts(db, uid),
+    loadBodyWeightTimeline: () => loadBodyWeightTimeline(db, uid),
     storeIfRevision: (revision, aggregate) => db.runTransaction(async (transaction) => {
       const current = await transaction.get(ref);
       if (snapshotRevision(current) !== revision) return false;
@@ -305,6 +347,7 @@ const readAggregate = (
   }
   return {
     schemaVersion: WORKOUT_AGGREGATE_SCHEMA_VERSION,
+    bodyweightNormalization: BODYWEIGHT_NORMALIZATION_VERSION,
     contributions: data.contributions as Record<string, WorkoutContribution>,
     totals: totalsFromContributions(data.contributions as Record<string, WorkoutContribution>),
   };
@@ -322,11 +365,16 @@ export const onWorkoutWrittenAggregate = onDocumentWritten(
     const uid = afterData?.userId ?? beforeData?.userId;
     if (!uid) return;
 
-    const contribution = afterData
-      ? buildWorkoutContribution({ ...afterData, id: workoutId })
-      : null;
-
     const db = admin.firestore();
+
+    // F6: masę ciała czytamy tylko, gdy trening ma serię bodyweight_loaded z kg > 0
+    // (legacy MC albo dociążenie) — zwykłe zapisy checkpointów nie płacą za odczyt.
+    const timeline = afterData?.completed && hasBodyweightLoadedWeight(afterData)
+      ? await loadBodyWeightTimeline(db, uid)
+      : [];
+    const contribution = afterData
+      ? buildWorkoutContribution({ ...afterData, id: workoutId }, timeline)
+      : null;
 
     // Istniejący user bez dokumentu (albo stary schemat): przyrostowy apply
     // zbudowałby agregat od JEDNEGO treningu i kafle pokazałyby bzdury.

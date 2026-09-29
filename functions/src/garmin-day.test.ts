@@ -7,6 +7,7 @@ import {
   type GarminPlanDay,
   type GarminWorkout,
 } from "./garmin-day";
+import { buildBodyWeightTimeline, normalizeBodyweightLoadedWorkouts } from "./bodyweight-loaded";
 
 const day: GarminPlanDay = {
   id: "day-1",
@@ -197,5 +198,45 @@ describe("buildGarminDayContext + scheduleOverrides", () => {
   it("wartość spoza kontraktu (nie string/null) ignorowana jak osierocona", () => {
     const dirty = { [monday]: 7 } as unknown as Record<string, string | null>;
     expect(buildGarminDayContext([day], [], monday, {}, {}, dirty)!.y).toBe("day-1");
+  });
+});
+
+// F6: bodyweight_loaded na Garminie — bezpieczna degradacja do weight_reps
+// (starsze buildy zegarka znają tylko ten typ), weight = DOCIĄŻENIE.
+describe("buildGarminDayContext — bodyweight_loaded (F6)", () => {
+  const pullDay: GarminPlanDay = {
+    id: "day-1", dayName: "Poniedziałek", weekday: "monday",
+    exercises: [{ id: "ex-pull", name: "Podciąganie na drążku", sets: "3 x 6-8" }],
+  };
+  const pull = (sets: Array<[number, number]>, date = "2026-07-13"): GarminWorkout => ({
+    date, completed: true,
+    exercises: [{ exerciseId: "ex-pull", name: "Podciąganie na drążku", sets: sets.map(([reps, weight]) => ({ reps, weight, completed: true })) }],
+  });
+
+  it("MC 8 powt. (weight 0) → cel +2,5 kg dociążenia × 6, typ weight_reps", () => {
+    const ex = buildGarminDayContext([pullDay], [pull([[8, 0], [8, 0]])], "2026-07-20", {})!.e[0];
+    expect(ex.k).toBe("weight_reps");
+    expect(ex.t).toBe("+2.5 kg × 6");
+    expect(ex.s).toEqual([[6, 2.5], [6, 2.5], [6, 2.5]]);
+  });
+
+  it("MC w zakresie → cel samych powtórzeń, 0 kg dociążenia (nie masa ciała)", () => {
+    const ex = buildGarminDayContext([pullDay], [pull([[7, 0]])], "2026-07-20", {})!.e[0];
+    expect(ex.t).toBe("× 8");
+    expect(ex.s).toEqual([[8, 0], [8, 0], [8, 0]]);
+  });
+
+  it("legacy 74 kg przy MC 74,6 po normalizacji nie daje celu 76,5 kg", () => {
+    const timeline = buildBodyWeightTimeline([{ date: "2026-04-08", weight: 74.6 }]);
+    const workouts = normalizeBodyweightLoadedWorkouts([pull([[8, 74], [8, 74]])], timeline);
+    const ex = buildGarminDayContext([pullDay], workouts, "2026-07-20", {})!.e[0];
+    expect(ex.t).toBe("+2.5 kg × 6");
+    expect(ex.s[0]).toEqual([6, 2.5]);
+  });
+
+  it("szybki trening z zegarka: ostatnie dociążenie po normalizacji (0, nie 74)", () => {
+    const timeline = buildBodyWeightTimeline([{ date: "2026-04-08", weight: 74.6 }]);
+    const recents = buildRecentExercises(normalizeBodyweightLoadedWorkouts([pull([[8, 74], [6, 74]])], timeline));
+    expect(recents[0]).toMatchObject({ n: "Podciąganie na drążku", w: 0, p: 8 });
   });
 });
