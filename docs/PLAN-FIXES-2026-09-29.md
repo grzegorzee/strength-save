@@ -100,3 +100,19 @@ Google Play produkcja = 54 (`completed`), internal = 55.
    pierwszy trening po urlopie (prefill 85%), zamiana w trakcie + powrót, Dynamic Type 112/135%.
 5. Wydanie: functions → web → iOS 151 (TestFlight, App Review jako aktualizacja)
    → Android 56 produkcja.
+
+## F7. Plank (i pompki z podłogi) w planach dla początkujących
+
+- Zgłoszenie właściciela: początkujący z dużą masą ciała (np. 150 kg) nie zrobi planka;
+  nie ma sensu proponować go na start. Przykład z produkcji: użytkowniczka dostała
+  plank w FBW (`tpl-fullbody-2` „Iron Foundation”, level beginner, dzień A).
+- Stan: plank w szablonach beginner w `src/data/planTemplates.ts` (linie ~125, 459,
+  750, 761, 772, 795), pompki z podłogi w beginner (~749, 760, 771).
+- Reguła: szablony `level: 'beginner'` nie zawierają ćwiczeń, w których ciało jest
+  podparte na rękach/przedramionach albo podnoszone masą ciała (plank i warianty,
+  pompki z podłogi, podciąganie bez asysty, dipy). Core dla początkujących: w leżeniu
+  na plecach lub na maszynie (np. Dead Bug, Reverse Crunch, Modlitewnik na wyciągu);
+  klatka: maszyna / hantle na ławce.
+- Test: kontrakt na szablonach (żaden beginner nie zawiera ćwiczeń z listy zakazanej).
+- Istniejących planów użytkowników NIE zmieniamy (dane usera); nowe plany i ponowny
+  wybór szablonu już bez planka. Realizacja w fali planów (po T4/T5).
