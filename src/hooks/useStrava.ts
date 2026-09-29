@@ -16,6 +16,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { computeNextSyncAvailableAt, formatNextSyncTime } from '@/lib/strava-utils';
 import { useActiveHealthGrant } from '@/hooks/useHealthConsent';
 import { buildMaxHRWrite } from '@/lib/strava-health-write';
+import { sanitizeStravaSyncError, stravaCallableErrorKey } from '@/lib/strava-sync-status';
 
 const STRAVA_ACTIVITIES_COLLECTION = 'strava_activities';
 const STRAVA_ACTIVITY_LISTENER_LIMIT = 500;
@@ -91,6 +92,7 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
           athleteId: data.stravaAthleteId,
           athleteName: data.stravaAthleteName,
           lastSync: data.stravaLastSync,
+          syncError: sanitizeStravaSyncError(data.stravaSyncError),
           estimatedMaxHR: data.estimatedMaxHR || undefined,
           maxHRManualOverride: data.maxHRManualOverride || false,
         };
@@ -161,7 +163,9 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
             })}`
           : t('strava.err.rateLimited');
       } else {
-        message = err instanceof Error ? err.message : t('strava.err.sync');
+        // F5b: stabilne kody backendu zamiast surowej odpowiedzi Stravy.
+        const key = stravaCallableErrorKey(err);
+        message = key ? t(key) : err instanceof Error ? err.message : t('strava.err.sync');
       }
       console.error('[Strava] Sync failed:', message);
       setError(message);

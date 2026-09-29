@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { getPaywallHeroUrl } from '@/lib/exercise-media';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
+import { DeleteAccountLink } from '@/components/DeleteAccountDialog';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
 // informacja o automatycznym odnowieniu, restore purchases, linki do Terms i Privacy.
@@ -31,13 +32,24 @@ import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 //
 // Tryb hard (onboarding, wariant B): świeży user bez PRO i bez treningów trafia tu
 // zaraz po wizardzie — najpierw teaser "Twój plan jest gotowy" (zamglone ćwiczenia),
-// potem cennik BEZ strzałki wstecz; jedyna ucieczka to "Wyloguj". Po zakupie/trialu
-// dashboard z confetti (/?welcome=1).
+// potem cennik BEZ strzałki wstecz; wyjścia to "Wyloguj" i "Usuń konto" (B1, Apple
+// 5.1.1(v): Profil jest za paywallem). Po zakupie/trialu dashboard z confetti (/?welcome=1).
 
 
 type PlanKey = 'yearly' | 'monthly';
 
-export default function Paywall({ onLogout }: { onLogout: () => Promise<void> }) {
+// B10 (2026-09-29): runPurchasesForUser odrzuca operację, gdy tożsamość
+// RevenueCat jeszcze się wiąże z kontem (albo właśnie się zmieniła). To stan
+// przejściowy, nie awaria sklepu: user dostaje "spróbuj za chwilę".
+const isPurchasesIdentityPending = (error: unknown): boolean =>
+  error instanceof Error
+  && (error.message === 'PURCHASES_IDENTITY_NOT_READY' || error.message === 'PURCHASES_IDENTITY_CHANGED');
+
+export default function Paywall({ onLogout, onAccountDeleted }: {
+  onLogout: () => Promise<void>;
+  /** Domknięcie sesji po usunięciu konta (bez cleanupu urządzeń); brak = onLogout. */
+  onAccountDeleted?: () => Promise<void>;
+}) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -132,6 +144,8 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
         // grant PRO; pending is an instruction to complete payment, not a failure.
         await refresh();
         toast({ title: t('paywall.paymentPending') });
+      } else if (isPurchasesIdentityPending(error)) {
+        toast({ title: t('paywall.identityNotReady') });
       } else if (!cancelled) {
         if (uid) trackTelemetryEvent(uid, 'purchase_failed'); // Z222: funnel
         toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
@@ -155,11 +169,25 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
         // brak zakupu na tym Apple ID nie oznacza braku PRO — podpowiadamy logowanie.
         toast({ title: t('paywall.restoreNone'), description: t('paywall.restoreNoneHint') });
       }
-    } catch {
-      toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
+    } catch (error) {
+      if (isPurchasesIdentityPending(error)) {
+        toast({ title: t('paywall.identityNotReady') });
+      } else {
+        toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
+      }
     } finally {
       setBusy(false);
     }
+  };
+
+  // B4 (2026-09-29): tryb miękki po onboardingu (fail-open useHardPaywall na
+  // słabej sieci) wchodzi tu przez replace, więc historia ma idx 0 i
+  // navigate(-1) nic nie robi. Wzorzec Layout.handleBack: bez historii w apce
+  // wyjście na dashboard (replace, żeby wstecz nie wracało na paywall).
+  const handleBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate('/', { replace: true });
   };
 
   const features = useMemo(() => ([
@@ -301,6 +329,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           <button onClick={() => void onLogout()} className="mt-4 text-center text-xs text-muted-foreground underline underline-offset-2">
             {t('paywall.logout')}
           </button>
+          <DeleteAccountLink onDeleted={onAccountDeleted ?? onLogout} className="mt-1" />
         </div>
       </div>
     );
@@ -311,7 +340,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
       <div className="mx-auto max-w-md px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
         {/* Hard mode (onboarding): bez strzałki wstecz — nie ma "obejrzę sobie apkę bez trialu". */}
         {!hard && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
+          <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
@@ -409,12 +438,13 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           </a>
         </div>
 
-        {/* Hard mode: jedyna ucieczka z paywalla to wylogowanie. */}
+        {/* Hard mode: wyjścia z paywalla to wylogowanie i usunięcie konta (B1). */}
         {hard && (
-          <div className="mt-5 text-center">
+          <div className="mt-5 flex flex-col items-center">
             <button onClick={() => void onLogout()} className="text-xs text-muted-foreground underline underline-offset-2">
               {t('paywall.logout')}
             </button>
+            <DeleteAccountLink onDeleted={onAccountDeleted ?? onLogout} className="mt-1" />
           </div>
         )}
       </div>

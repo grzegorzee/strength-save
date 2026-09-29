@@ -1,11 +1,11 @@
 import type { WorkoutSession } from '@/types';
 import { getExerciseHistory, detectPlateau } from '@/lib/exercise-progression';
 import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercise-utils';
-import { decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@/lib/progression-engine';
+import { COMEBACK_BREAK_DAYS, decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@/lib/progression-engine';
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { reducedModeAdviceFactor, type ReducedMode } from '@/lib/reduced-mode';
+import { reducedModeAdviceFactor, reducedModeBodyweightTarget, reducedModeTargetWeight, type ReducedMode } from '@/lib/reduced-mode';
 import { formatBodyweightLoadLabel } from '@/lib/bodyweight-load';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
@@ -27,7 +27,8 @@ export interface NextSetAdvice {
 // Ile dni zastoju traktujemy jako plateau (próg deload).
 const PLATEAU_MIN_SESSIONS = 4;
 // Spec C2 (Runna p.1): przerwa od ćwiczenia >= tylu dni = lżejsze wejście -10%.
-export const COMEBACK_BREAK_DAYS = 14;
+// F3: stała żyje w progression-engine (cele tygodnia też realizują comeback).
+export { COMEBACK_BREAK_DAYS };
 
 const reasonText = (
   decision: NextSetDecision,
@@ -146,11 +147,25 @@ export const getNextSetAdvice = (
     exerciseId,
     exerciseName: options?.exerciseName,
   });
-  // F6: na samej MC (bez dociążenia) nie ma kg do obniżenia — tryb nie tworzy celu „0 kg”.
-  if (modeAdjustment && !isBodyweight && !(bodyweightLoaded && lastWeight <= 0)) {
-    const baseline = [...history].reverse().find((point) => point.date < (options!.reducedMode!.startDate))?.maxWeight
-      ?? lastWeight;
-    const targetWeight = Math.max(0, Math.round(baseline * modeAdjustment.factor * 2) / 2);
+  // F6×F3: dla bodyweight_loaded ta sama funkcja co cel sesji (prefill): dociążenie
+  // × mnożnik albo, na samej MC, powtórzenia × mnożnik (bez celu „0 kg”).
+  if (modeAdjustment && bodyweightLoaded) {
+    const ramp = reducedModeBodyweightTarget(history, options!.reducedMode!, modeAdjustment.factor, repRange);
+    const phaseKey = modeAdjustment.phase === 'active' ? 'active' : 'ramp';
+    return {
+      kind: 'deload',
+      targetWeight: ramp.targetWeight ?? 0,
+      targetReps: ramp.targetReps ?? repRange.max,
+      reason: ramp.targetWeight === null
+        ? translate(lang, phaseKey === 'active' ? 'nsadvice.mode.activeReps' : 'nsadvice.mode.rampReps', { reps: ramp.targetReps ?? repRange.max })
+        : translate(lang, phaseKey === 'active' ? 'nsadvice.mode.active' : 'nsadvice.mode.ramp',
+          { weight: formatWeight(ramp.targetWeight, unit, { withUnit: false }), unit }),
+      isBodyweight,
+      isBodyweightLoaded: true,
+    };
+  }
+  if (modeAdjustment && !isBodyweight) {
+    const targetWeight = reducedModeTargetWeight(history, options!.reducedMode!, modeAdjustment.factor);
     return {
       kind: 'deload',
       targetWeight,

@@ -168,10 +168,10 @@ const PLAN_NAME: Record<string, PlanText> = {
   'tpl-gzclp-3': { pl: 'Trójstopniowa Siła', en: 'Three Tier Strength' },
   'tpl-calisthenics-3': { pl: 'Własny Ciężar', en: 'Bodyweight Foundation' },
   'tpl-glutes-3': { pl: 'Moc Pośladków', en: 'Glute Foundations' },
-  'tpl-phul-4': { pl: 'Moc i Objętość', en: 'Power Hypertrophy Upper Lower' },
-  'tpl-531-bbb-4': { pl: 'Żelazny Cykl 5/3/1', en: 'Iron Cycle 5/3/1' },
+  'tpl-phul-4': { pl: 'Moc i Objętość', en: 'Strength & Size Upper/Lower' },
+  'tpl-531-bbb-4': { pl: 'Żelazny Cykl Siłowy', en: 'Iron Strength Cycle' },
   'tpl-meso-4': { pl: 'Mezocykl Naukowy', en: 'Science Mesocycle' },
-  'tpl-phat-5': { pl: 'Powerbuilding PHAT', en: 'PHAT Powerbuilding' },
+  'tpl-phat-5': { pl: 'Siła i Masa 5 Dni', en: 'Five-Day Powerbuilding' },
   'tpl-hybrid-5': { pl: 'Hybryda Pięciu Dni', en: 'Hybrid Five' },
   'tpl-nsuns-5': { pl: 'Objętość Maksymalna', en: 'Volume Max LP' },
   'tpl-arnold-6': { pl: 'Złota Era', en: 'Golden Era Split' },
@@ -232,52 +232,52 @@ const PLAN_DESC: Record<string, PlanText> = {
   },
   // X26/Z246
   'tpl-minimalist-2': {
-    pl: 'Plan o małej objętości (styl Jeffa Nipparda): 2 krótkie treningi całego ciała, serie blisko upadku i drop sety na izolacjach. Pod 45 minut.',
-    en: 'A low-volume plan (Jeff Nippard style): 2 short full-body sessions, sets close to failure and drop sets on isolations. Under 45 minutes.',
+    pl: 'Plan o małej objętości: 2 krótkie treningi całego ciała, serie blisko upadku i drop sety na izolacjach. Do 45 minut.',
+    en: 'A low-volume plan: 2 short full-body sessions, sets close to failure and drop sets on isolations. Under 45 minutes.',
   },
   'tpl-six-lifts-3': {
-    pl: 'Sześć tych samych ruchów na każdym treningu (styl Built With Science): pełne ciało 3× w tygodniu, prosty start i szybka nauka techniki. Progres przez dokładanie powtórzeń.',
-    en: 'The same six lifts every session (Built With Science style): full body 3× a week, a simple start and fast technique learning. Progress by adding reps.',
+    pl: 'Sześć tych samych ruchów na każdym treningu: pełne ciało 3× w tygodniu, prosty start i szybka nauka techniki. Progres przez dokładanie powtórzeń.',
+    en: 'The same six lifts every session: full body 3× a week, a simple start and fast technique learning. Progress by adding reps.',
   },
   'tpl-gzclp-3': {
-    pl: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Kontynuacja po programie 5×5.',
-    en: 'GZCLP: three tiers of work. A heavy main lift (T1: 5×3, last set MAX), a medium secondary lift (T2: 3×10) and light isolation (T3: 3×15). A continuation after a 5×5 program.',
+    pl: 'Trzy poziomy pracy: ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Naturalny krok po planie 5×5.',
+    en: 'Three tiers of work: a heavy main lift (T1: 5×3, last set MAX), a medium secondary lift (T2: 3×10) and light isolation (T3: 3×15). A natural next step after a 5×5 plan.',
   },
   'tpl-calisthenics-3': {
-    pl: 'Kalistenika w duchu Recommended Routine (r/bodyweightfitness): pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
-    en: 'Calisthenics in the spirit of the Recommended Routine (r/bodyweightfitness): bodyweight exercise pairs + core. All you need is a bar and dip station (or a table and two chairs). Progress through harder variations.',
+    pl: 'Kalistenika: pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
+    en: 'Calisthenics: bodyweight exercise pairs + core. All you need is a bar and dip station (or a table and two chairs). Progress through harder variations.',
   },
   'tpl-glutes-3': {
-    pl: 'Program w duchu Strong Curves (Bret Contreras): priorytet pośladków i dołu ciała z pracą całej sylwetki. Superserie pośladki+góra, zakresy 8-20 powtórzeń.',
-    en: 'A Strong Curves inspired program (Bret Contreras): glute and lower-body priority with full-body work. Glute+upper supersets, 8-20 rep ranges.',
+    pl: 'Program z priorytetem pośladków i dołu ciała, z pracą całej sylwetki. Superserie pośladki+góra, zakresy 8-20 powtórzeń.',
+    en: 'A glute and lower-body priority program with full-body work. Glute+upper supersets, 8-20 rep ranges.',
   },
   'tpl-phul-4': {
-    pl: 'PHUL: dwa dni siłowe (3-5 powtórzeń na bojach) i dwa objętościowe (8-12). Każda partia trenowana 2× w tygodniu. Siła i sylwetka jednocześnie.',
-    en: 'PHUL: two power days (3-5 reps on the big lifts) and two hypertrophy days (8-12). Every muscle trained 2× a week. Strength and physique at once.',
+    pl: 'Dwa dni siłowe (3-5 powtórzeń na bojach) i dwa objętościowe (8-12) w układzie góra/dół. Każda partia trenowana 2× w tygodniu. Siła i sylwetka jednocześnie.',
+    en: 'Two power days (3-5 reps on the big lifts) and two hypertrophy days (8-12) in an upper/lower split. Every muscle trained 2× a week. Strength and physique at once.',
   },
   'tpl-531-bbb-4': {
-    pl: '5/3/1 Boring But Big (Jim Wendler): jeden ciężki bój dziennie wg procentów Training Max (90% 1RM), potem 5×10 boju pomocniczego. Tydzień 1: 5/5/5+, tydzień 2: 3/3/3+, tydzień 3: 5/3/1+, tydzień 4: deload. Po cyklu +2,5 kg góra / +5 kg dół.',
-    en: '5/3/1 Boring But Big (Jim Wendler): one heavy lift a day using Training Max percentages (90% of 1RM), then 5×10 of a supplemental lift. Week 1: 5/5/5+, week 2: 3/3/3+, week 3: 5/3/1+, week 4: deload. After each cycle +2.5 kg upper / +5 kg lower.',
+    pl: 'Cykl 4-tygodniowy oparty na Training Max (90% 1RM): jeden ciężki bój dziennie według procentów TM, potem 5×10 boju pomocniczego. Tydzień 1: serie po 5 powtórzeń, tydzień 2: po 3, tydzień 3: 5, 3 i 1 (ostatnia seria zawsze na maksimum powtórzeń), tydzień 4: deload. Po cyklu +2,5 kg góra / +5 kg dół.',
+    en: 'A 4-week cycle built on a Training Max (90% of 1RM): one heavy lift a day using TM percentages, then 5×10 of a supplemental lift. Week 1: sets of 5, week 2: sets of 3, week 3: 5, 3 and 1 (last set always for max reps), week 4: deload. After each cycle +2.5 kg upper / +5 kg lower.',
   },
   'tpl-meso-4': {
-    pl: 'Hipertrofia sterowana objętością (inspiracja Renaissance Periodization): start na minimalnej skutecznej objętości, co tydzień +1 seria do części ćwiczeń i mniejszy zapas (RIR 3→0), tydzień 5 to deload. Dwa mezocykle.',
-    en: 'Volume-driven hypertrophy (Renaissance Periodization inspired): start at minimum effective volume, add a set to some exercises each week with less reps in reserve (RIR 3→0), week 5 is a deload. Two mesocycles.',
+    pl: 'Hipertrofia sterowana objętością: start na minimalnej skutecznej objętości, co tydzień +1 seria do części ćwiczeń i mniejszy zapas (RIR 3→0), tydzień 5 to deload. Dwa mezocykle.',
+    en: 'Volume-driven hypertrophy: start at minimum effective volume, add a set to some exercises each week with less reps in reserve (RIR 3→0), week 5 is a deload. Two mesocycles.',
   },
   'tpl-phat-5': {
-    pl: 'PHAT (Layne Norton): 2 dni siłowe (3-5 powtórzeń) + 3 dni objętościowe (~85% ciężaru z dni siłowych, 8-20 powtórzeń). Bardzo wysoka objętość dla zaawansowanych z dobrą regeneracją.',
-    en: 'PHAT (Layne Norton): 2 power days (3-5 reps) + 3 hypertrophy days (~85% of power-day loads, 8-20 reps). Very high volume for advanced lifters who recover well.',
+    pl: 'Pięć dni siły i masy: 2 dni siłowe (3-5 powtórzeń) + 3 dni objętościowe (~85% ciężaru z dni siłowych, 8-20 powtórzeń). Bardzo wysoka objętość dla zaawansowanych z dobrą regeneracją.',
+    en: 'Five days of strength and size: 2 power days (3-5 reps) + 3 hypertrophy days (~85% of power-day loads, 8-20 reps). Very high volume for advanced lifters who recover well.',
   },
   'tpl-hybrid-5': {
     pl: 'Hybryda Upper/Lower + Push/Pull/Legs: dwa cięższe dni siłowe (4-8 powtórzeń) i trzy objętościowe (8-20). Każdy mięsień 2× w tygodniu, dużo izolacji tam, gdzie robi różnicę.',
     en: 'An Upper/Lower + Push/Pull/Legs hybrid: two heavier strength days (4-8 reps) and three volume days (8-20). Every muscle 2× a week, with isolation where it matters.',
   },
   'tpl-nsuns-5': {
-    pl: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Plan o bardzo wysokiej objętości dla zaawansowanych.',
-    en: 'nSuns 531LP: 9 sets of the main lift with waving Training Max percentages (65-95%, MAX sets drive progression) + 8 sets of a related lift. A very high-volume plan for advanced lifters.',
+    pl: 'Progresja liniowa na Training Max: 9 serii boju głównego z falującymi procentami TM (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Plan o bardzo wysokiej objętości dla zaawansowanych.',
+    en: 'Linear progression on a Training Max: 9 sets of the main lift with waving TM percentages (65-95%, MAX sets drive progression) + 8 sets of a related lift. A very high-volume plan for advanced lifters.',
   },
   'tpl-arnold-6': {
-    pl: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
-    en: 'The Arnold Split at modern volume: Chest+Back, Shoulders+Arms, Legs. Each session 2× a week, antagonist supersets (chest with back, biceps with triceps). For advanced lifters.',
+    pl: 'Klasyczny split złotej ery kulturystyki w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
+    en: 'The classic golden-era bodybuilding split at modern volume: Chest+Back, Shoulders+Arms, Legs. Each session 2× a week, antagonist supersets (chest with back, biceps with triceps). For advanced lifters.',
   },
 };
 

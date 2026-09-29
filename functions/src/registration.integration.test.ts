@@ -168,6 +168,28 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
     expect((await tokenRef.get()).exists).toBe(false);
   });
 
+  it("B3: verification errors carry a stable details.reason for client-side i18n", async () => {
+    const uid = "reason-user";
+    const email = "reason@example.com";
+    const requestBase = { uid, email, appId: STRENGTH_SAVE_IOS_APP_CHECK_ID };
+    await syncUserProfile.run(callableRequest({ ...requestBase, data: { language: "en", inviteCode: null } }));
+
+    await expect(verifyEmailCode.run(callableRequest({ ...requestBase, data: { code: "" } })))
+      .rejects.toMatchObject({ code: "invalid-argument", details: { reason: "code-missing" } });
+    await expect(verifyEmailCode.run(callableRequest({ ...requestBase, data: { code: "000000" } })))
+      .rejects.toMatchObject({ code: "not-found", details: { reason: "code-not-found" } });
+
+    await requestEmailVerificationCode.run(callableRequest({ ...requestBase, data: { language: "en" } }));
+    await expect(requestEmailVerificationCode.run(callableRequest({ ...requestBase, data: { language: "en" } })))
+      .rejects.toMatchObject({ code: "resource-exhausted", details: { reason: "resend-cooldown" } });
+
+    const subject = String(sesEmailMock.send.mock.calls[0]?.[0]?.subject || "");
+    const realCode = subject.match(/(\d{6})$/)?.[1];
+    const wrongCode = realCode === "111111" ? "222222" : "111111";
+    await expect(verifyEmailCode.run(callableRequest({ ...requestBase, data: { code: wrongCode } })))
+      .rejects.toMatchObject({ code: "invalid-argument", details: { reason: "code-invalid" } });
+  });
+
   it.each([
     ["iOS", "ios", STRENGTH_SAVE_IOS_APP_CHECK_ID],
     ["Android", "android", STRENGTH_SAVE_ANDROID_APP_CHECK_ID],

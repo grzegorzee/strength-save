@@ -1,4 +1,5 @@
 import type { TranslationKey } from '@/i18n';
+import type { StravaSyncError } from '@/lib/strava-sync-status';
 
 export interface StravaActivity {
   id: string;
@@ -40,6 +41,8 @@ export interface StravaConnection {
   athleteId?: number;
   athleteName?: string;
   lastSync?: string;
+  /** F5b: ostatni błąd synchronizacji (backend czyści go po udanym syncu). */
+  syncError?: StravaSyncError;
   estimatedMaxHR?: number;
   maxHRManualOverride?: boolean;
 }

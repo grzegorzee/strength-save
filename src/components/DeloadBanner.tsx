@@ -5,12 +5,12 @@ import { BatteryLow, Check, X } from 'lucide-react';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import {
-  isDeloadWeek,
   suggestEarlyDeload,
   type DeloadDecision,
   type ProgressionConfig,
 } from '@/lib/progression-engine';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { resolveDeloadWeek, type VacationMode } from '@/lib/vacation-mode';
 
 // Z121: banner decyzji deload na Dashboardzie. Pokazuje się w programowanym tygodniu
 // deload (co N tygodni) albo przy propozycji wcześniejszego (plateau / powtarzalny ból).
@@ -21,9 +21,12 @@ interface DeloadBannerProps {
   currentWeek: number;
   progression: ProgressionConfig | null;
   onDecision: (weekIndex: number, decision: DeloadDecision) => Promise<{ success: boolean }>;
+  /** F3: urlop przejmuje rolę deloadu — ta sama decyzja co chip "Deload" w WeekCard. */
+  vacation?: VacationMode | null;
+  planStartDate?: string | null;
 }
 
-export const DeloadBanner = ({ planDays, workouts, currentWeek, progression, onDecision }: DeloadBannerProps) => {
+export const DeloadBanner = ({ planDays, workouts, currentWeek, progression, onDecision, vacation, planStartDate }: DeloadBannerProps) => {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +47,7 @@ export const DeloadBanner = ({ planDays, workouts, currentWeek, progression, onD
     );
   }
 
-  const scheduled = isDeloadWeek(currentWeek, progression);
+  const scheduled = resolveDeloadWeek(currentWeek, progression, vacation, planStartDate);
   const early = scheduled
     ? { suggest: false, reason: null, exercises: [] }
     : suggestEarlyDeload(planDays, workouts, currentWeek, progression);

@@ -19,6 +19,8 @@ import {
 } from '@/lib/exercise-utils';
 import { getTrackingType, type TrackingType } from '@/lib/set-tracking';
 import { findLibraryExercise, isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
+import { reducedModeAdviceFactor, reducedModeBodyweightTarget, reducedModeTargetWeight, type ReducedMode } from '@/lib/reduced-mode';
+import { calendarDayDiff } from '@/lib/utils';
 
 export type DeloadDecision = 'applied' | 'skipped';
 
@@ -214,7 +216,107 @@ export interface WeeklyTargetsOptions {
   deloadApplied?: boolean;
   /** Typ śledzenia per nazwa ćwiczenia (custom + biblioteka); brak = heurystyka nazwy. */
   trackingByName?: Record<string, TrackingType>;
+  /** F3: okno trybu "nie na 100%" albo urlopu (vacationToAdviceWindow). Wymaga sessionDateISO. */
+  reducedMode?: ReducedMode | null;
+  /** F3: data sesji (YYYY-MM-DD) — faza trybu/rampy i comeback po przerwie liczone względem niej.
+   *  Brak = zachowanie sprzed F3 (np. raport tygodnia). */
+  sessionDateISO?: string;
 }
+
+/** F3: przerwa od ćwiczenia >= tylu dni = comeback -10% (spec C2, wspólne z next-set-advice). */
+export const COMEBACK_BREAK_DAYS = 14;
+
+const MODE_REASON_KEYS = new Set([
+  'progression.reason.modeActive', 'progression.reason.modeRamp',
+  // F6×F3: rampa na powtórzeniach (MC bez dociążenia, asysta).
+  'progression.reason.modeActiveReps', 'progression.reason.modeRampReps',
+]);
+
+/** F3: cel pochodzi z trybu/rampy po przerwie (wygrywa z RZA na karcie — to wpisał prefill). */
+export const isModeWeeklyTarget = (target: Pick<WeeklyTarget, 'reasonKey'>): boolean =>
+  MODE_REASON_KEYS.has(target.reasonKey);
+
+/**
+ * F3: cel ćwiczenia w oknie trybu / na rampie po nim (urlop = ten sam mechanizm).
+ * TA SAMA decyzja co porada (reducedModeAdviceFactor + reducedModeTargetWeight),
+ * więc push "~85%, potem ~92%", porada i prefill mówią jedną liczbą.
+ * Tylko ćwiczenia z ciężarem (weight_reps) — jak porada (bodyweight bez zmian).
+ */
+const modeTargetForExercise = (
+  exercise: { id: string; name: string; sets: string },
+  workouts: WorkoutSession[],
+  tracking: TrackingType,
+  reducedMode: ReducedMode | null | undefined,
+  sessionDateISO: string | undefined,
+): WeeklyTarget | null => {
+  // F6×F3: ćwiczenia z masą ciała też dostają rampę (reducedModeBodyweightTarget):
+  // dociążenie × mnożnik albo, na samej MC / przy asyście, powtórzenia × mnożnik.
+  const bodyweightRamp = tracking === 'bodyweight_loaded' || tracking === 'assisted_bodyweight';
+  if (!reducedMode || !sessionDateISO || (tracking !== 'weight_reps' && !bodyweightRamp)) return null;
+  const history = getExerciseHistory(
+    workouts, exercise.id, tracking === 'assisted_bodyweight', exercise.name,
+    { bodyweightLoaded: tracking === 'bodyweight_loaded' },
+  );
+  if (history.length === 0) return null;
+  const adjustment = reducedModeAdviceFactor({
+    mode: reducedMode,
+    todayISO: sessionDateISO,
+    workouts,
+    exerciseId: exercise.id,
+    exerciseName: exercise.name,
+  });
+  if (!adjustment) return null;
+  const repRange = parseRepRange(exercise.sets);
+  if (bodyweightRamp) {
+    const ramp = reducedModeBodyweightTarget(history, reducedMode, adjustment.factor, repRange);
+    const onReps = ramp.targetWeight === null;
+    return {
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      kind: 'deload',
+      targetWeight: ramp.targetWeight,
+      targetReps: ramp.targetReps,
+      targetSets: null,
+      targetDurationSec: null,
+      reasonKey: adjustment.phase === 'active'
+        ? (onReps ? 'progression.reason.modeActiveReps' : 'progression.reason.modeActive')
+        : (onReps ? 'progression.reason.modeRampReps' : 'progression.reason.modeRamp'),
+    };
+  }
+  return {
+    exerciseId: exercise.id,
+    exerciseName: exercise.name,
+    kind: 'deload',
+    targetWeight: reducedModeTargetWeight(history, reducedMode, adjustment.factor),
+    targetReps: repRange.isMax ? null : repRange.max,
+    targetSets: null,
+    targetDurationSec: null,
+    reasonKey: adjustment.phase === 'active' ? 'progression.reason.modeActive' : 'progression.reason.modeRamp',
+  };
+};
+
+/**
+ * F3: same cele trybu/rampy (bez silnika progresji albo w treningu ad-hoc).
+ * Zwraca tylko ćwiczenia objęte trybem; reszta bez celu (prefill = poprzednia sesja).
+ */
+export const computeModeTargets = (
+  planDays: TrainingDay[],
+  workouts: WorkoutSession[],
+  options: Pick<WeeklyTargetsOptions, 'reducedMode' | 'sessionDateISO' | 'trackingByName'>,
+): Record<string, Record<string, WeeklyTarget>> => {
+  const result: Record<string, Record<string, WeeklyTarget>> = {};
+  for (const day of planDays) {
+    const dayTargets: Record<string, WeeklyTarget> = {};
+    for (const exercise of day.exercises) {
+      const tracking = options.trackingByName?.[exercise.name]
+        ?? getTrackingType(findLibraryExercise(exercise.name) ?? { isBodyweight: isBodyweightExercise(exercise.name) });
+      const target = modeTargetForExercise(exercise, workouts, tracking, options.reducedMode, options.sessionDateISO);
+      if (target) dayTargets[exercise.id] = target;
+    }
+    result[day.id] = dayTargets;
+  }
+  return result;
+};
 
 const PLATEAU_MIN_SESSIONS = 4;
 const PAIN_THRESHOLD = 4;
@@ -477,6 +579,14 @@ export const computeWeeklyTargets = (
       const last = history[history.length - 1];
       const repRange = parseRepRange(exercise.sets);
 
+      // F3: tryb / urlop i rampa po nich WYGRYWAJĄ z każdą inną korektą (jak
+      // porada): bez podwójnego deloadu z tygodniem deload ani z bólem.
+      const modeTarget = modeTargetForExercise(exercise, workouts, tracking, options?.reducedMode, options?.sessionDateISO);
+      if (modeTarget) {
+        dayTargets[exercise.id] = modeTarget;
+        continue;
+      }
+
       if (deloadWeekActive) {
         base.kind = 'deload-week';
         base.targetWeight = isBodyweight ? null
@@ -523,12 +633,17 @@ export const computeWeeklyTargets = (
         // Spec A2: cele tygodniowe pokazują tę samą propozycję co karta ćwiczenia.
         lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exercise.id, exercise.name),
         bodyweightLoaded,
+        // F3: comeback po długiej przerwie jak w poradzie (tylko gdy znamy datę sesji).
+        longBreak: !!options?.sessionDateISO
+          && calendarDayDiff(last.date, options.sessionDateISO) >= COMEBACK_BREAK_DAYS,
       });
 
       base.kind = decision.kind;
       base.targetWeight = isBodyweight ? null : bodyweightLoaded ? loadTarget(decision.targetWeight) : decision.targetWeight;
       base.targetReps = decision.targetReps;
-      base.reasonKey = `progression.reason.${decision.kind}`;
+      base.reasonKey = decision.reasonKey === 'deload.break' || decision.reasonKey === 'loaded.deload.break'
+        ? 'progression.reason.comeback'
+        : `progression.reason.${decision.kind}`;
       dayTargets[exercise.id] = base;
     }
     result[day.id] = dayTargets;

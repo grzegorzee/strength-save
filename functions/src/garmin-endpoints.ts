@@ -3,6 +3,7 @@
 // HTTP (zegarek, token urządzenia w Authorization: Bearer): garminPair, garminDay, garminIngest.
 // Bezpieczeństwo: w Firestore tylko hashe (pepper = sekret API_KEY_PEPPER), kody TTL 10 min
 // jednorazowe, rate limit per token, CORS domyślnie zamknięty (zegarek nie wysyła Origin).
+import { blockContextFromPlanDoc } from "./plan-date-block";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { buildBodyWeightTimeline, hasBodyweightLoadedWeight, normalizeBodyweightLoadedWorkouts } from "./bodyweight-loaded";
 import { defineSecret } from "firebase-functions/params";
@@ -452,7 +453,9 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
     }
   }
 
-  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName, scheduleOverrides, planStartDate);
+  // F2: urlop / pauza / pominięty dzień = rest na zegarku (ten sam resolver co push i Dashboard).
+  const blockContext = planSnap.exists ? blockContextFromPlanDoc(planSnap.data() ?? {}) : null;
+  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName, scheduleOverrides, planStartDate, blockContext);
   if (!context) {
     sendGarminDayPayload(res, { v: 1, d: date, rest: true, z: auth.entitlement, ...recentsField });
     return;

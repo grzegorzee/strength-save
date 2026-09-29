@@ -364,6 +364,8 @@ export const setE2EPlanMeta = async (page: Page, meta: {
   days?: unknown[];
   durationWeeks?: number;
   scheduleOverrides?: Record<string, string | null>;
+  /** F2/F3: urlop (kształt VacationMode). */
+  vacation?: { startDate: string; endDate: string; activity: 'none' | 'mains_only'; extendedWeeks: number };
 }) => {
   await page.addInitScript(({ key, data }) => {
     window.localStorage.setItem(key, JSON.stringify(data));

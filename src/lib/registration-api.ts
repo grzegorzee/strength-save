@@ -84,6 +84,10 @@ export interface AppUserProfile {
   /** Bug 7 (X30): stan sklepowy zachowany obok aktywnego grantu comp (webhook RC pisze tu, póki grant trwa). */
   storeSubscription?: AppSubscriptionDoc;
   stravaConnected?: boolean;
+  /** ISO ostatniego udanego syncu (pisze backend); null po (re)połączeniu. */
+  stravaLastSync?: string | null;
+  /** F5b: `{ kind, status, at }` z functions `stravaSyncErrorDoc`; czytane przez sanitizer. */
+  stravaSyncError?: unknown;
   /** Bug 11 (X30): strefa IANA urządzenia (Intl), pisze klient; backend liczy z niej
    *  porę i dzień pusha/digestu. Brak = Europe/Warsaw. */
   timeZone?: string;
@@ -183,7 +187,11 @@ export async function requestEmailVerificationCode() {
 export async function verifyEmailCode(code: string) {
   if (isE2EMode) {
     if (code !== '123456') {
-      throw new Error('Nieprawidłowy kod.');
+      // Kształt błędu callable jak z backendu (B3): klient tłumaczy po kodzie/reason.
+      throw Object.assign(new Error('Nieprawidłowy kod.'), {
+        code: 'functions/invalid-argument',
+        details: { reason: 'code-invalid' },
+      });
     }
     return { verified: true };
   }

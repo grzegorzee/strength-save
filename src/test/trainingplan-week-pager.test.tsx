@@ -165,6 +165,16 @@ describe('WP-C (X28) — pager tygodni zakładki Plan', () => {
     expect(screen.queryAllByText(NEXT_BADGE)).toHaveLength(0);
   });
 
+  it('F2: urlop w bieżącym tygodniu — NASTĘPNY nie wpada na dzień urlopu, tylko na pierwszy dzień po nim', () => {
+    // vacation-active na środę 2026-08-19: urlop 17-22.08, dni planu śr 19 i pt 21 w urlopie.
+    renderPlan('vacation-active');
+
+    expect(screen.queryAllByText(NEXT_BADGE)).toHaveLength(0);
+
+    goNextWeek();
+    expect(screen.getAllByText(NEXT_BADGE)).toHaveLength(1);
+  });
+
   it('Edge 4: nagłówek dzisiejszego dnia wyróżniony (Dziś + text-primary), pozostałe dni bez wyróżnienia', () => {
     renderPlan('active-plan');
 

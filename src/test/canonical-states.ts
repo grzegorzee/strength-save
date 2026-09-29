@@ -20,6 +20,8 @@ import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { mapAppUserProfile, type UserProfile } from '@/lib/user-profile';
 import type { AppUserProfile } from '@/lib/registration-api';
 import type { TrainingPlanStatus } from '@/lib/firestore-doc-guards';
+import { buildVacationMode, type VacationMode } from '@/lib/vacation-mode';
+import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-engine';
 
 export type CanonicalStateId =
   | 'fresh-user'
@@ -34,7 +36,9 @@ export type CanonicalStateId =
   | 'plan-active-done-today-wpb'
   | 'photos-before-after'
   | 'active-plan-rpe'
-  | 'history-multi-cycle';
+  | 'history-multi-cycle'
+  | 'vacation-active'
+  | 'vacation-just-ended';
 
 export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'fresh-user',
@@ -50,6 +54,8 @@ export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'photos-before-after',
   'active-plan-rpe',
   'history-multi-cycle',
+  'vacation-active',
+  'vacation-just-ended',
 ];
 
 /** Dokument training_plans/{uid} w polach, ktore konsumuje useTrainingPlan
@@ -60,6 +66,10 @@ export interface CanonicalPlanDoc {
   startDate: string;
   status: TrainingPlanStatus;
   name: string | null;
+  /** F2/F3: pole vacation (setVacation: buildVacationMode + durationWeeks += extendedWeeks). */
+  vacation?: VacationMode;
+  /** F3: pole progression (silnik progresji włączony). */
+  progression?: ProgressionConfig;
 }
 
 export interface CanonicalState {
@@ -584,6 +594,68 @@ export const buildCanonicalState = (
       };
     }
 
+    case 'vacation-active': {
+      // F2 (2026-09-29): urlop w toku, kształt zapisu setVacation (useTrainingPlan):
+      // buildVacationMode(start, dni, 'none') + durationWeeks += extendedWeeks.
+      // Urlop od przedwczoraj na 6 dni: dziś (day-a) i pojutrze (day-b) to
+      // dni planu W urlopie; pierwszy trening po urlopie = day-a za tydzień.
+      const days = buildPlanDays(todayISO);
+      const vacation = buildVacationMode(addCalendarDays(todayISO, -2), 6, 'none');
+      const cycle = buildActiveCycle(days, durationWeeks, activeStart);
+      return {
+        ...base,
+        plan: {
+          days,
+          durationWeeks: durationWeeks + vacation.extendedWeeks,
+          startDate: activeStart,
+          status: 'active',
+          name: 'Mój plan siłowy',
+          vacation,
+        },
+        cycles: [cycle],
+        workouts: [
+          buildWorkout('a', addCalendarDays(todayISO, -7), days[0], { cycleId: cycle.id }),
+          buildWorkout('b', addCalendarDays(todayISO, -5), days[1], { cycleId: cycle.id }),
+        ],
+      };
+    }
+
+    case 'vacation-just-ended': {
+      // F3 (2026-09-29): urlop skończył się wczoraj, dziś pierwszy dzień planu
+      // po przerwie. Ostatnia sesja przed urlopem 40 kg x 8 (dane właściciela:
+      // wyciskanie hantli skos 40x8). Silnik progresji włączony (DEFAULT).
+      const days = buildPlanDays(todayISO);
+      const vacation = buildVacationMode(addCalendarDays(todayISO, -6), 6, 'none');
+      const cycle = buildActiveCycle(days, durationWeeks, activeStart);
+      const fortyByEight = (workout: WorkoutSession): WorkoutSession => ({
+        ...workout,
+        exercises: workout.exercises.map((exercise) => ({
+          ...exercise,
+          sets: [
+            { reps: 8, weight: 40, completed: true },
+            { reps: 8, weight: 40, completed: true },
+            { reps: 8, weight: 40, completed: true },
+          ],
+        })),
+      });
+      return {
+        ...base,
+        plan: {
+          days,
+          durationWeeks: durationWeeks + vacation.extendedWeeks,
+          startDate: activeStart,
+          status: 'active',
+          name: 'Mój plan siłowy',
+          vacation,
+          progression: DEFAULT_PROGRESSION,
+        },
+        cycles: [cycle],
+        workouts: [
+          fortyByEight(buildWorkout('pre', addCalendarDays(todayISO, -7), days[0], { cycleId: cycle.id })),
+        ],
+      };
+    }
+
     case 'active-plan-rpe': {
       // WP-D (X28): wariant active-plan z autoregulacja (rpe/pain/quality per
       // cwiczenie — optionalFinite w sanitizeWorkoutDoc) i progresem ciezaru
@@ -665,11 +737,11 @@ export const buildUseTrainingPlanResult = (state: CanonicalState) => {
     skipPastDates: ok,
     reducedMode: null,
     setReducedMode: ok,
-    vacation: null,
+    vacation: state.plan?.vacation ?? null,
     setVacation: ok,
     planDurationWeeks: durationWeeks,
     planStartDate: startDate,
-    progression: null,
+    progression: state.plan?.progression ?? null,
     currentWeek,
     isPlanExpired,
     weeksRemaining: Math.max(0, durationWeeks - currentWeek),

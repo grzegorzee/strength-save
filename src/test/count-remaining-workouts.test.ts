@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { parseLocalDate } from '@/lib/utils';
 import { countRemainingWorkouts } from '@/lib/plan-schedule';
+import { isPlannedDateBlocked } from '@/lib/plan-date-block';
 
 const day = (id: string, weekday: TrainingDay['weekday']): TrainingDay => ({
   id,
@@ -70,6 +71,18 @@ describe('countRemainingWorkouts (E-T4)', () => {
       completedDates: new Set(['2026-08-17', '2026-08-18', '2026-08-20']),
       isDateBlocked: (key) => key === '2026-08-21',
     })).toBe(0);
+  });
+
+  it("F2: przez resolver Planu urlop 'none' odejmuje dni, 'mains_only' NIE (user trenuje)", () => {
+    const vacation = (activity: 'none' | 'mains_only') => ({ startDate: '2026-08-20', endDate: '2026-08-23', activity });
+    const remaining = (activity: 'none' | 'mains_only') => countRemainingWorkouts({
+      ...base,
+      today: parseLocalDate('2026-08-20'),
+      completedDates: new Set(['2026-08-17', '2026-08-18']),
+      isDateBlocked: (key) => isPlannedDateBlocked(key, { vacation: vacation(activity) }),
+    });
+    expect(remaining('none')).toBe(0);
+    expect(remaining('mains_only')).toBe(2);
   });
 
   it('środek planu: liczy wszystkie zaplanowane dni do końca', () => {

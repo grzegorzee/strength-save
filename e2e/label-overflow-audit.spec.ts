@@ -75,6 +75,38 @@ const inspectInteractiveLabels = async (page: Page, route: string, language: str
       if (/[\p{L}]…$/u.test(text) || /[\p{L}]\.\.\.$/u.test(text)) {
         issues.push({ route: currentRoute, language: currentLanguage, text, reason: 'abbreviated-label', tag: candidate.tagName });
       }
+
+      // F1 (2026-09-29): słowo etykiety nie może łamać się w środku
+      // („Rozgrzewk / a" przy `overflow-wrap:anywhere`). Każde słowo (rozdzielone
+      // spacją lub łącznikiem) musi leżeć w jednej linii: Range.getClientRects.
+      const walker = document.createTreeWalker(candidate, NodeFilter.SHOW_TEXT);
+      let brokenWord: string | null = null;
+      for (let node = walker.nextNode(); node && !brokenWord; node = walker.nextNode()) {
+        const parent = node.parentElement;
+        if (!parent || parent.offsetParent === null || parent.closest('.sr-only')) continue;
+        const data = node.textContent ?? '';
+        for (const match of data.matchAll(/[^\s\-‐]+/gu)) {
+          const range = document.createRange();
+          range.setStart(node, match.index ?? 0);
+          range.setEnd(node, (match.index ?? 0) + match[0].length);
+          const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+          if (tops.size > 1) {
+            brokenWord = match[0];
+            break;
+          }
+        }
+      }
+      // Znany dług wykryty tym warunkiem 2026-09-29 (poza zakresem F1, zgłoszony
+      // osobno, patrz DECYZJE.md): przy 320 px „Subskrypcja/Subscription" w wierszu
+      // Profilu oraz etykiety dolnej nawigacji web („Progress", „Historia"): desktopowy
+      // pasek przewijania / blokada scrolla dialogu zwęża 5 zakładek do ~61 px
+      // (na iOS etykiety są nowrap w ios.css, mobilne scrollbary są overlay).
+      // Lista jest zamknięta: każde INNE słowo łamane w środku failuje audyt.
+      const knownDebt = (currentRoute.startsWith('/profile') && /^(Subskrypcja|Subscription)$/.test(brokenWord ?? ''))
+        || candidate.closest('nav') !== null;
+      if (brokenWord && !knownDebt) {
+        issues.push({ route: currentRoute, language: currentLanguage, text: `${text} [${brokenWord}]`, reason: 'word-broken-mid-word', tag: candidate.tagName });
+      }
     }
 
     if (document.documentElement.scrollWidth > window.innerWidth + 1) {

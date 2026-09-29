@@ -8,6 +8,7 @@ import {
   type GarminWorkout,
 } from "./garmin-day";
 import { buildBodyWeightTimeline, normalizeBodyweightLoadedWorkouts } from "./bodyweight-loaded";
+import { blockContextFromPlanDoc } from "./plan-date-block";
 
 const day: GarminPlanDay = {
   id: "day-1",
@@ -238,5 +239,61 @@ describe("buildGarminDayContext — bodyweight_loaded (F6)", () => {
     const timeline = buildBodyWeightTimeline([{ date: "2026-04-08", weight: 74.6 }]);
     const recents = buildRecentExercises(normalizeBodyweightLoadedWorkouts([pull([[8, 74], [6, 74]])], timeline));
     expect(recents[0]).toMatchObject({ n: "Podciąganie na drążku", w: 0, p: 8 });
+  });
+});
+
+// F2 (2026-09-29): zegarek zna urlop przez wspólny resolver (plan-date-block):
+// dzień zablokowany = dzień wolny (null -> endpoint odsyła rest).
+describe("buildGarminDayContext + urlop / pauza (F2)", () => {
+  const monday = "2026-09-28";
+  const planDoc = (activity: string) => ({
+    vacation: { startDate: "2026-09-22", endDate: "2026-09-28", activity, extendedWeeks: 1 },
+  });
+
+  it("urlop 'none' obejmujący dzień planu: dzień wolny na zegarku", () => {
+    const ctx = buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc(planDoc("none")));
+    expect(ctx).toBeNull();
+  });
+
+  it("urlop 'mains_only': user trenuje, zegarek dostaje dzień planu", () => {
+    const ctx = buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc(planDoc("mains_only")));
+    expect(ctx?.y).toBe("day-1");
+  });
+
+  it("pauza i pominięty dzień też dają dzień wolny; dzień po urlopie = dzień planu", () => {
+    expect(buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc({
+      reducedMode: { startDate: monday, endDate: "2026-09-30", level: "pause" },
+    }))).toBeNull();
+    expect(buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc({ skippedDates: [monday] }))).toBeNull();
+    expect(buildGarminDayContext([day], [], "2026-10-05", {}, {}, null, null, blockContextFromPlanDoc(planDoc("none")))?.y).toBe("day-1");
+  });
+});
+
+// F2 × F6: urlop blokuje dzień także z podciąganiem; pierwszy dzień po urlopie
+// dostaje cel z ZNORMALIZOWANEJ historii (legacy 74 kg przy MC 74 = sama MC).
+describe("buildGarminDayContext — urlop + bodyweight_loaded (F2 × F6)", () => {
+  const pullDay: GarminPlanDay = {
+    id: "day-1", dayName: "Poniedziałek", weekday: "monday",
+    exercises: [{ id: "ex-pull", name: "Podciąganie na drążku", sets: "3 x 6-8" }],
+  };
+  const vacation = blockContextFromPlanDoc({
+    vacation: { startDate: "2026-09-22", endDate: "2026-09-28", activity: "none", extendedWeeks: 1 },
+  });
+  const legacy: GarminWorkout[] = normalizeBodyweightLoadedWorkouts([{
+    date: "2026-09-21", completed: true,
+    exercises: [{ exerciseId: "ex-pull", name: "Podciąganie na drążku", sets: [
+      { reps: 7, weight: 74, completed: true }, { reps: 7, weight: 74, completed: true },
+    ] }],
+  }], buildBodyWeightTimeline([{ date: "2026-06-10", weight: 74 }]));
+
+  it("poniedziałek w urlopie: dzień wolny mimo historii podciągania", () => {
+    expect(buildGarminDayContext([pullDay], legacy, "2026-09-28", {}, {}, null, null, vacation)).toBeNull();
+  });
+
+  it("poniedziałek po urlopie: weight_reps, cel × 8 bez kg (nie 74/76.5 kg)", () => {
+    const ex = buildGarminDayContext([pullDay], legacy, "2026-10-05", {}, {}, null, null, vacation)!.e[0];
+    expect(ex.k).toBe("weight_reps");
+    expect(ex.t).toBe("× 8");
+    expect(ex.s).toEqual([[8, 0], [8, 0], [8, 0]]);
   });
 });

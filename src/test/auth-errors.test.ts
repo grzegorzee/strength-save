@@ -54,3 +54,20 @@ describe('mapAuthErrorMessage', () => {
     expect(mapAuthErrorMessage(undefined, t)).toBe('t:auth.err.login');
   });
 });
+
+describe('mapAuthErrorMessage: logowanie i rejestracja emailem (B2, 2026-09-29)', () => {
+  it('kody email/hasło mają dedykowane klucze i18n', () => {
+    expect(mapAuthErrorMessage(firebaseError('auth/email-already-in-use'), t)).toBe('t:auth.err.emailInUse');
+    expect(mapAuthErrorMessage(firebaseError('auth/weak-password'), t)).toBe('t:auth.err.weakPassword');
+    expect(mapAuthErrorMessage(firebaseError('auth/invalid-email'), t)).toBe('t:auth.err.invalidEmail');
+    expect(mapAuthErrorMessage(firebaseError('auth/too-many-requests'), t)).toBe('t:auth.err.tooManyRequests');
+    expect(mapAuthErrorMessage(firebaseError('auth/user-disabled'), t)).toBe('t:auth.err.userDisabled');
+    for (const code of ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-login-credentials']) {
+      expect(mapAuthErrorMessage(firebaseError(code), t), code).toBe('t:auth.err.invalidCredentials');
+    }
+  });
+
+  it('fallback jest konfigurowalny (rejestracja = auth.err.register)', () => {
+    expect(mapAuthErrorMessage(firebaseError('auth/internal-error'), t, 'auth.err.register')).toBe('t:auth.err.register');
+  });
+});

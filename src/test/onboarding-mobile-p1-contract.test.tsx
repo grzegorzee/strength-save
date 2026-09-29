@@ -81,8 +81,11 @@ describe('mobilny kontrakt pod-ekranów onboardingu', () => {
     const routes = readFileSync('src/components/AuthenticatedApp.tsx', 'utf8');
     const onboarding = readFileSync('src/pages/Onboarding.tsx', 'utf8');
 
-    expect(routes).toContain('<Onboarding onExitBack={onLogout} />');
-    expect(onboarding).toContain('onExitBack={onExitBack}');
+    expect(routes).toContain('<Onboarding onExitBack={onLogout} onAccountDeleted={onAccountDeleted} />');
+    // B7 (2026-09-29): wyjście nadal jest, ale przez dialog potwierdzenia
+    // (zachowanie pokrywa onboarding-exit-confirm.test.tsx).
+    expect(onboarding).toContain('onExitBack={onExitBack ? () => setExitConfirmOpen(true) : undefined}');
+    expect(onboarding).toContain('void onExitBack();');
   });
 
   it('PlanPreview ma widoczny viewport nad klawiaturą, osobny scroll i bezpieczną strefę akcji', () => {

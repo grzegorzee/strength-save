@@ -543,6 +543,8 @@ export const syncUserProfile = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async
   return { profile: refreshed.data() };
 });
 
+// B3 (2026-09-29): details.reason = stabilny kontrakt dla klienta (tłumaczenie
+// PL/EN po stronie apki); message zostaje dla logów i starszych buildów.
 export const requestEmailVerificationCode = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepper] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
@@ -553,7 +555,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [...SES_EMAIL_SECR
   const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
   const userSnap = await userRef.get();
   if (!userSnap.exists) {
-    throw new HttpsError("failed-precondition", "User profile missing");
+    throw new HttpsError("failed-precondition", "User profile missing", { reason: "profile-missing" });
   }
 
   const userData = userSnap.data() as UserProfileDoc;
@@ -569,7 +571,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [...SES_EMAIL_SECR
     const existing = existingCodeSnap.data() as VerificationCodeDoc;
     const sentAt = existing.status === "pending" && existing.sentAt ? new Date(existing.sentAt) : null;
     if (sentAt && currentTime.getTime() - sentAt.getTime() < 60_000) {
-      throw new HttpsError("resource-exhausted", "Odczekaj chwilę przed ponownym wysłaniem kodu.");
+      throw new HttpsError("resource-exhausted", "Odczekaj chwilę przed ponownym wysłaniem kodu.", { reason: "resend-cooldown" });
     }
   }
 
@@ -631,28 +633,28 @@ export const verifyEmailCode = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepp
   const email = normalizeEmail(request.auth.token.email);
   const code = normalizeOptionalString(request.data?.code, 12);
   if (!code) {
-    throw new HttpsError("invalid-argument", "Kod jest wymagany.");
+    throw new HttpsError("invalid-argument", "Kod jest wymagany.", { reason: "code-missing" });
   }
 
   const codeRef = getDb().collection(VERIFICATION_CODES_COLLECTION).doc(codeDocId(email));
   const codeSnap = await codeRef.get();
   if (!codeSnap.exists) {
-    throw new HttpsError("not-found", "Brak aktywnego kodu weryfikacyjnego.");
+    throw new HttpsError("not-found", "Brak aktywnego kodu weryfikacyjnego.", { reason: "code-not-found" });
   }
 
   const codeDoc = codeSnap.data() as VerificationCodeDoc;
   if (codeDoc.uid !== uid) {
-    throw new HttpsError("permission-denied", "Kod nie należy do tego użytkownika.");
+    throw new HttpsError("permission-denied", "Kod nie należy do tego użytkownika.", { reason: "code-wrong-owner" });
   }
   if (codeDoc.status !== "pending") {
-    throw new HttpsError("failed-precondition", "Kod nie jest już aktywny.");
+    throw new HttpsError("failed-precondition", "Kod nie jest już aktywny.", { reason: "code-inactive" });
   }
   if (new Date(codeDoc.expiresAt).getTime() < Date.now()) {
     await codeRef.set({ status: "expired" }, { merge: true });
-    throw new HttpsError("deadline-exceeded", "Kod wygasł.");
+    throw new HttpsError("deadline-exceeded", "Kod wygasł.", { reason: "code-expired" });
   }
   if (codeDoc.attempts >= 5) {
-    throw new HttpsError("resource-exhausted", "Przekroczono liczbę prób. Wyślij nowy kod.");
+    throw new HttpsError("resource-exhausted", "Przekroczono liczbę prób. Wyślij nowy kod.", { reason: "too-many-attempts" });
   }
 
   const providedHash = hashCode(email, code, authPepper.value());
@@ -666,13 +668,13 @@ export const verifyEmailCode = onCall({ secrets: [...SES_EMAIL_SECRETS, authPepp
       createdAt: nowIso(),
       metadata: { attempts: codeDoc.attempts + 1 },
     });
-    throw new HttpsError("invalid-argument", "Nieprawidłowy kod.");
+    throw new HttpsError("invalid-argument", "Nieprawidłowy kod.", { reason: "code-invalid" });
   }
 
   const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
   const userSnap = await userRef.get();
   if (!userSnap.exists) {
-    throw new HttpsError("failed-precondition", "User profile missing");
+    throw new HttpsError("failed-precondition", "User profile missing", { reason: "profile-missing" });
   }
 
   const current = userSnap.data() as UserProfileDoc;

@@ -74,9 +74,10 @@ import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/Worko
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise, supportsZeroWeight } from '@/lib/exercise-utils';
-import { computeWeeklyTargets } from '@/lib/progression-engine';
+import { buildPrefillForExercise, resolveSessionTargets } from '@/lib/session-targets';
+import { computeModeTargets } from '@/lib/progression-engine';
 import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats, workoutScrollStorageKey } from '@/lib/workout-day-view';
-import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
+import { applySessionExerciseSwap, buildSwappedExerciseId, swapExerciseIdentity } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
@@ -320,6 +321,8 @@ const WorkoutDay = () => {
   // Zawsze aktualna lista ćwiczeń dnia dla decyzji o przerwie (Z144) — bez
   // wiązania tożsamości handlera z obiektem day (memo kart, R2-07).
   const dayExercisesRef = useRef<ReadonlyArray<{ id: string }>>([]);
+  // F4: id ćwiczeń dnia Z PLANU (baza kolejności kluczy draftu = kolejność historii).
+  const planExerciseIdsRef = useRef<string[]>([]);
 
   // Z144: ostatnia seria treningu nie startuje przerwy. Koniec treningu = koniec
   // odliczania czegokolwiek: gasimy też biegnącą przerwę i jej notyfikację.
@@ -552,6 +555,10 @@ const WorkoutDay = () => {
     dayExercisesRef.current = day?.exercises ?? [];
   }, [day]);
 
+  useEffect(() => {
+    planExerciseIdsRef.current = baseDay?.exercises.map((exercise) => exercise.id) ?? [];
+  }, [baseDay]);
+
   // Z104: dodanie ćwiczenia w locie do treningu ad-hoc. Serie pre-fillowane z historii
   // po nazwie (previousSetsByName), snapshot nazwy trafia do draftu (historia odporna na plan).
   const handleAddAdhocExercise = (pick: LibraryExercise) => {
@@ -559,7 +566,17 @@ const WorkoutDay = () => {
     const existingIds = [...Object.keys(exerciseSetsRef.current), ...day.exercises.map((ex) => ex.id)];
     const newId = buildAdhocExerciseId(pick.name, existingIds);
     const prevSets = getPreviousSets(newId, pick.name);
-    const sets = createPrefilledSets(3, prevSets, resolveHidesWeight(pick.name));
+    // F3: w oknie trybu / na rampie po urlopie ciężar z tej samej decyzji co porada.
+    const modeTarget = computeModeTargets([{ ...day, exercises: [{ id: newId, name: pick.name, sets: '3 x 8', instructions: [] }] }], workouts, {
+      reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
+      sessionDateISO: targetDate,
+      trackingByName: { [pick.name]: resolveTracking(pick.name) },
+    })[day.id]?.[newId];
+    // F6: kg zeruje tylko czysty bodyweight. Rampa na powtórzeniach (MC bez dociążenia)
+    // niesie reps; przy ciężarze reps zostają z historii (syntetyczne '3 x 8').
+    const sets = createPrefilledSets(3, prevSets, resolveHidesWeight(pick.name), modeTarget
+      ? { weight: modeTarget.targetWeight, ...(modeTarget.targetWeight === null ? { reps: modeTarget.targetReps } : {}) }
+      : null);
 
     // WP-C (X38): pierwsze ćwiczenie w szybkim treningu = checkpoint OD RAZU.
     // Incydent 2026-08-26: skorupa sesji w chmurze (revision 0, zero ćwiczeń)
@@ -588,50 +605,56 @@ const WorkoutDay = () => {
   };
 
   // Apply an exercise swap chosen from the library — either for this session only or permanently.
+  // F4 (2026-09-29): OBA zakresy najpierw migrują bieżącą sesję (ta sama pozycja,
+  // stare z odhaczonymi seriami zostaje), "Na stałe" dopiero potem zmienia plan.
+  // Wcześniej "Na stałe" zmieniało tylko plan: draft zostawał ze starym kluczem
+  // i nowe ćwiczenie lądowało na końcu listy oraz historii (sesja 28.09).
   const handleApplySwap = async (pick: LibraryExercise, exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
     if (!day) return;
     const currentExercise = day.exercises.find(ex => ex.id === exerciseId);
     if (!currentExercise) return;
 
-    if (scope === 'plan') {
-      await swapExercise(day.id, exerciseId, pick.name, currentSets, pick.videoUrl);
-    } else {
-      const swappedId = buildSwappedExerciseId(exerciseId, pick.name, day.exercises.map(ex => ex.id));
-      const nextExerciseSets = { ...exerciseSetsRef.current };
-      nextExerciseSets[swappedId] = resetSetsForExerciseSwap(
-        nextExerciseSets[exerciseId] ?? createEmptySets(parseSetCount(currentSets)),
-        currentExercise.name,
-        pick.name,
-      );
-      delete nextExerciseSets[exerciseId];
-      exerciseSetsRef.current = nextExerciseSets;
-      setExerciseSets(nextExerciseSets);
+    const planExercise = scope === 'plan'
+      ? baseDay?.exercises.find(ex => ex.id === exerciseId)
+      : undefined;
+    // "Na stałe": id z tej samej funkcji co zapis planu (swapExercise), żeby klucz
+    // draftu od razu był id karty planu po dojściu snapshotu planu.
+    const swappedId = planExercise && baseDay
+      ? swapExerciseIdentity(
+        planExercise,
+        { name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
+        baseDay.exercises.map(ex => ex.id),
+      ).id
+      : buildSwappedExerciseId(exerciseId, pick.name, day.exercises.map(ex => ex.id));
 
-      const nextExerciseNotes = { ...exerciseNotesRef.current };
-      if (nextExerciseNotes[exerciseId]) nextExerciseNotes[swappedId] = nextExerciseNotes[exerciseId];
-      delete nextExerciseNotes[exerciseId];
-      exerciseNotesRef.current = nextExerciseNotes;
-      setExerciseNotes(nextExerciseNotes);
+    const next = applySessionExerciseSwap({
+      exerciseSets: exerciseSetsRef.current,
+      exerciseNotes: exerciseNotesRef.current,
+      exerciseMetrics: exerciseMetricsRef.current,
+      exerciseMetricGrants: exerciseMetricGrantsRef.current,
+      skippedExercises: skippedExercisesRef.current,
+      sessionSwaps,
+    }, {
+      fromId: exerciseId,
+      toId: swappedId,
+      fromName: currentExercise.name,
+      toName: pick.name,
+      sets: currentSets,
+      videoUrl: pick.videoUrl,
+      createSets: () => createEmptySets(parseSetCount(currentSets)),
+    });
 
-      const nextExerciseMetrics = { ...exerciseMetricsRef.current };
-      if (nextExerciseMetrics[exerciseId]) nextExerciseMetrics[swappedId] = nextExerciseMetrics[exerciseId];
-      delete nextExerciseMetrics[exerciseId];
-      exerciseMetricsRef.current = nextExerciseMetrics;
-      setExerciseMetrics(nextExerciseMetrics);
-
-      const nextExerciseMetricGrants = { ...exerciseMetricGrantsRef.current };
-      if (nextExerciseMetricGrants[exerciseId]) {
-        nextExerciseMetricGrants[swappedId] = nextExerciseMetricGrants[exerciseId];
-      }
-      delete nextExerciseMetricGrants[exerciseId];
-      exerciseMetricGrantsRef.current = nextExerciseMetricGrants;
-
-      setSkippedExercises(prev => prev.filter(id => id !== exerciseId));
-      const nextSessionSwaps = {
-        ...sessionSwaps,
-        [exerciseId]: { id: swappedId, name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
-      };
-      setSessionSwaps(nextSessionSwaps);
+    if (swappedId !== exerciseId) {
+      exerciseSetsRef.current = next.exerciseSets;
+      setExerciseSets(next.exerciseSets);
+      exerciseNotesRef.current = next.exerciseNotes;
+      setExerciseNotes(next.exerciseNotes);
+      exerciseMetricsRef.current = next.exerciseMetrics;
+      setExerciseMetrics(next.exerciseMetrics);
+      exerciseMetricGrantsRef.current = next.exerciseMetricGrants;
+      skippedExercisesRef.current = next.skippedExercises;
+      setSkippedExercises(next.skippedExercises);
+      setSessionSwaps(next.sessionSwaps);
 
       // Utrwal swap w drafcie od razu (istniejąca ścieżka autozapisu, wzorzec handleSkipExercise).
       // Bez tego draft z prefilled exerciseSets pokazywał stare ćwiczenie do następnego odhaczenia,
@@ -643,9 +666,13 @@ const WorkoutDay = () => {
           [swappedId]: pick.name,
         },
         lastTouchedExerciseId: swappedId,
-        sessionSwaps: nextSessionSwaps,
-        exerciseMetricGrants: nextExerciseMetricGrants,
+        sessionSwaps: next.sessionSwaps,
+        exerciseMetricGrants: next.exerciseMetricGrants,
       });
+    }
+
+    if (scope === 'plan') {
+      await swapExercise(day.id, exerciseId, pick.name, currentSets, pick.videoUrl);
     }
     setSwapExerciseId(null);
   };
@@ -741,6 +768,8 @@ const WorkoutDay = () => {
             reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
             // Spec C5: snapshot nazwy — propozycje widzą też sesje ad-hoc.
             exerciseName: exercise.name,
+            // F3: faza rampy liczona dla daty SESJI (ta sama co cel/prefill).
+            todayISO: targetDate,
           }, lang, unit),
         historicalBest: getExerciseBest1RM(workouts, exercise.id, exercise.name),
         rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
@@ -749,17 +778,27 @@ const WorkoutDay = () => {
       });
     });
     return map;
-  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking, reducedMode, vacation]);
+  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking, reducedMode, vacation, targetDate]);
 
-  // Z120: cele tygodnia z silnika progresji — tylko dla planu z włączoną progresją
-  // (ad-hoc nie ma tygodnia planu). Czysta kalkulacja, zero zapisów.
+  // Z120: cele tygodnia z silnika progresji (plan z włączoną progresją). Czysta
+  // kalkulacja, zero zapisów. F3 (2026-09-29): tryb / urlop i rampa po nich
+  // trafiają do celu (a więc do prefillu) także bez silnika i w treningu ad-hoc
+  // — push końca urlopu obiecał ~85%, porada pokazuje ~85%, prefill wpisuje ~85%.
   const weeklyTargets = useMemo(() => {
-    if (!progression?.enabled || !day || isAdhocDay) return null;
+    if (!day) return null;
     const week = Math.max(1, currentWeek);
-    const trackingByName = Object.fromEntries(day.exercises.map((e) => [e.name, resolveTracking(e.name)]));
-    const deloadApplied = progression.deloadDecisions?.[String(week)] === 'applied';
-    return computeWeeklyTargets([day], workouts, week, progression, { deloadApplied, trackingByName })[day.id] ?? null;
-  }, [progression, day, isAdhocDay, workouts, currentWeek, resolveTracking]);
+    return resolveSessionTargets({
+      day,
+      workouts,
+      progression,
+      week,
+      deloadApplied: progression?.deloadDecisions?.[String(week)] === 'applied',
+      isAdhocDay,
+      reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
+      sessionDateISO: targetDate,
+      trackingByName: Object.fromEntries(day.exercises.map((e) => [e.name, resolveTracking(e.name)])),
+    });
+  }, [progression, day, isAdhocDay, workouts, currentWeek, resolveTracking, reducedMode, vacation, targetDate]);
 
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
@@ -807,6 +846,7 @@ const WorkoutDay = () => {
       dayName: daySnapshotRef.current.dayName,
       dayFocus: daySnapshotRef.current.focus,
       cloudMeta: cloudMetaRef.current,
+      planExerciseIds: planExerciseIdsRef.current,
     }, overrides)
   ), [uid, sessionId, dayId, targetDate]);
 
@@ -1771,15 +1811,13 @@ const WorkoutDay = () => {
         return;
       }
 
-      const buildStartPrefill = (exercise: StartExerciseLike) => {
-        const target = weeklyTargets?.[exercise.id];
-        return createPrefilledSets(
-          target?.targetSets ?? parseSetCount(exercise.sets),
-          getPreviousSets(exercise.id, exercise.name),
-          resolveHidesWeight(exercise.name),
-          target ? { weight: target.targetWeight, reps: target.targetReps } : null,
-        );
-      };
+      const buildStartPrefill = (exercise: StartExerciseLike) => buildPrefillForExercise(
+        exercise,
+        weeklyTargets?.[exercise.id],
+        getPreviousSets(exercise.id, exercise.name),
+        // F6: bodyweight_loaded niesie dociążenie (nie zerujemy kg).
+        resolveHidesWeight(exercise.name),
+      );
 
       if (result.existing) {
         cloudMetaRef.current = {

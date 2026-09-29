@@ -7,6 +7,7 @@
 import type { GarminTrackingType } from "./garmin-ingest";
 import { isBodyweightLoadedName } from "./bodyweight-loaded";
 import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
+import { isPlannedDateBlocked, type PlannedDateBlockContext } from "./plan-date-block";
 
 export interface GarminPlanExercise {
   id: string;
@@ -304,7 +305,10 @@ export function buildGarminDayContext(
   trackingByName: Record<string, GarminTrackingType> = {},
   scheduleOverrides?: GarminScheduleOverrides | null,
   planStartDate?: string | null,
+  /** F2: urlop 'none' / pauza / pominięty dzień = dzień wolny na zegarku (wspólny resolver). */
+  blockContext?: PlannedDateBlockContext | null,
 ): GarminDayContext | null {
+  if (blockContext && isPlannedDateBlocked(date, blockContext)) return null;
   const day = resolvePlannedGarminDay(date, planDays, scheduleOverrides, planStartDate);
   if (!day) return null;
 

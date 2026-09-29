@@ -2,7 +2,7 @@
 // (kolejność per platforma) + wyraźny przycisk emaila niżej. Bez zakładek
 // i bez osobnej strony rejestracji jako punktu wejścia.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import Login from '@/pages/Login';
 
@@ -28,8 +28,9 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 // Pułapka z redesignu Profilu: transitive import lib/firebase wywraca suitę.
+const waitlistMock = vi.hoisted(() => vi.fn(async (): Promise<unknown> => ({})));
 vi.mock('@/lib/registration-api', () => ({
-  createWaitlistEntry: vi.fn(async () => ({})),
+  createWaitlistEntry: waitlistMock,
 }));
 
 const renderLogin = (mode: 'login' | 'register' = 'login') => {
@@ -133,5 +134,42 @@ describe('Login: niezmienniki web (waitlista)', () => {
     platform = 'ios';
     renderLogin();
     expect(screen.queryByText('Dołącz do listy')).toBeNull();
+  });
+});
+
+// B12 (2026-09-29): błąd zapisu na waitlistę pokazywał surowy, polski tekst
+// backendu (także w EN) albo komunikat transportu. Kod callable → i18n.
+describe('Login: błędy waitlisty tłumaczone (B12)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    platform = 'web';
+    waitlistMock.mockReset();
+  });
+
+  const submitWaitlist = (email = 'a@b.pl') => {
+    fireEvent.change(screen.getAllByLabelText('Email').at(-1) as HTMLElement, { target: { value: email } });
+    fireEvent.click(screen.getByText('Dołącz do listy'));
+  };
+
+  it('cooldown z backendu = komunikat o odczekaniu, nie surowy tekst', async () => {
+    waitlistMock.mockRejectedValueOnce(Object.assign(new Error('Odczekaj chwilę przed ponownym zgłoszeniem.'), { code: 'functions/resource-exhausted' }));
+    renderLogin();
+    submitWaitlist();
+    await waitFor(() => expect(screen.getByText('Za dużo prób. Odczekaj chwilę i spróbuj ponownie.')).toBeTruthy());
+  });
+
+  it('nieprawidłowy email z backendu = przetłumaczony komunikat', async () => {
+    waitlistMock.mockRejectedValueOnce(Object.assign(new Error('Nieprawidłowy adres email.'), { code: 'functions/invalid-argument' }));
+    renderLogin();
+    submitWaitlist('zly');
+    await waitFor(() => expect(screen.getByText('Nieprawidłowy adres email.')).toBeTruthy());
+  });
+
+  it('inny błąd = ogólny komunikat, nigdy surowy tekst transportu', async () => {
+    waitlistMock.mockRejectedValueOnce(new Error('internal raw failure'));
+    renderLogin();
+    submitWaitlist();
+    await waitFor(() => expect(screen.getByText('Nie udało się zapisać na listę.')).toBeTruthy());
+    expect(screen.queryByText('internal raw failure')).toBeNull();
   });
 });

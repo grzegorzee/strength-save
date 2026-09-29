@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-12 (stabilność treningu, osobne układy iOS/Android)
+**Ostatnia aktualizacja:** 2026-09-29 (onboarding: wyjścia, usunięcie konta, komunikaty EN; nazwy planów)
 
 ---
 
@@ -55,6 +55,270 @@ mutacja (wyłączona normalizacja) wykrywana przez e2e.
 Wymaga: deploy functions PRZED klientem (backend-first), build Apple Watch
 (opcjonalny, starszy działa w trybie degradacji). Nie udowodnione: fizyczny
 zegarek (Apple Watch, Garmin epix), zgaszony ekran, konto QA.
+
+### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
+
+Objaw: u właściciela `stravaLastSync` = 2026-08-22T08:00:08Z, ostatnia aktywność
+z 2026-08-16, a Profil pokazywał „Połączono”.
+
+Dowody z produkcji (tylko odczyt, konto g.jasionowicz@gmail.com; konto
+grzegorzee@gmail.com dostaje PERMISSION_DENIED na log views):
+- `gcloud logging read` dla `stravascheduledsync`: jedyny bieg w oknie retencji
+  logów (30 dni) to 2026-08-31 08:00 UTC. Oba połączone konta: refresh tokenu
+  OK („Token refreshed”), potem `GET /athlete/activities` = 403
+  `{"resource":"Application","field":"Status","code":"Inactive"}`.
+- Cloud Scheduler: `firebase-schedule-stravaScheduledSync-us-central1` ma stan
+  PAUSED; audit log: `PauseJob` 2026-08-31 15:53:35 UTC z gcloud (skrypt, konto
+  właściciela), zgodnie z notatką w `docs/RELEASE-READINESS-2026-08-27.md`
+  („wstrzymany po potwierdzonym 403 dostawcy”).
+- `strava_connections/{uid}`: token odświeżony 2026-08-31, więc to NIE jest
+  odwołana autoryzacja usera ani zły refresh token. Paginacja i limit 20 stron nie
+  mają znaczenia (pada pierwsza strona).
+
+Root cause: aplikacja API Strength Save w Stravie ma status Inactive (poziom
+aplikacji, dotyczy wszystkich userów), a job syncu jest świadomie wstrzymany.
+Kod tego nie naprawi. Wymagane akcje właściciela: przywrócenie statusu aplikacji
+w panelu Strava API, potem `gcloud scheduler jobs resume
+firebase-schedule-stravaScheduledSync-us-central1 --location us-central1`.
+
+Błąd w kodzie (naprawiony, zasada 6): błąd syncu istniał tylko w logach; callable
+zwracał surowe `Strava API error 403: {...}`, a przy wstrzymanym jobie UI nie
+miało żadnego sygnału. Fix:
+- functions: `strava-sync-failure.ts` klasyfikuje błąd (app_inactive,
+  reauth_required, rate_limited, provider_error) na podstawie dosłownej
+  odpowiedzi z produkcji; refresh i API rzucają `StravaSyncFailure`; sync ręczny,
+  codzienny i callback zapisują `users/{uid}.stravaSyncError {kind,status,at}`
+  i zwracają stabilny kod (`STRAVA_APP_INACTIVE`, `STRAVA_REAUTH_REQUIRED`,
+  `STRAVA_UNAVAILABLE`); udany sync, ponowne połączenie i rozłączenie czyszczą pole.
+- klient: `strava-sync-status.ts` liczy stan (błąd albo zastój ponad 48 h od
+  ostatniego udanego syncu, więc działa także przy wstrzymanym jobie, bez deployu
+  functions). `StravaSyncNotice` w Profilu (wyjście: „Połącz ponownie Stravę” przy
+  cofniętym dostępie, „Sprawdź teraz” w pozostałych) i w zakładce Strava (bez
+  ręcznego syncu, T7: przycisk połączenia albo wskazanie Profilu); „Twoje liczby”
+  pokazują ostrzeżenie przy dacie ostatniej synchronizacji. Rozłączenie NIE jest
+  proponowane jako wyjście, bo kasuje zaimportowane aktywności.
+
+Kolejność wydania (zasada 19): functions przed klientem. Stary klient z nowym
+backendem dostaje kody zamiast surowego tekstu (pokaże kod), nowy klient ze starym
+backendem pokazuje zastój z daty.
+
+### 2026-09-29: F5 „Twoje liczby” liczone od pierwszego treningu w apce (wariant A)
+
+Zgłoszenie: „Ukończone aktywności 270” u właściciela. Liczby były poprawne
+(siłowe 94 od 2026-01-26 + cardio 176 = Strava 169 od 2025-04-04 + ręczne 7),
+ale mieszały okresy: import Stravy sięga 365 dni wstecz od pierwszego połączenia
+(`functions/src/index.ts` `syncUserActivities`), więc 116 aktywności było sprzed
+pierwszego treningu w apce, a ekran niczego nie wyjaśniał.
+
+Decyzja właściciela (wariant A): licznik od pierwszego ukończonego treningu
+siłowego (u niego 94 + 53 + 7 = 154) z jawną datą „od 26 sty 2026”. Bez treningów
+siłowych okno zaczyna się od najstarszej aktywności (nic nie jest wykluczone, a
+przypis mówi, od czego liczymy). Arkusz pokazuje rozbicie cardio na źródła (Strava,
+dodane ręcznie) i rodzaje (etykiety `cardio.type.*`, nieznany typ = surowa nazwa),
+przypisy: od czego liczymy, ile starszych aktywności nie weszło, import Stravy do
+12 miesięcy wstecz (starsze są w Postępy → Wykresy → Strava), pomijanie
+WeightTraining/Crossfit ze Stravy, data ostatniej synchronizacji Stravy. Badge
+w nagłówku bez zmian (liczba treningów siłowych).
+
+Implementacja: `buildAllTimeActivityStats` zwraca `since`, `sinceSource`,
+`cardioBySource`, `cardioByType`, `beforeSince`; `activity-read-store` przenosi
+`date` (zły kształt odpada); mapper profilu przenosi `stravaLastSync`.
+Niezmienniki w testach: aktywności = siłowe + cardio, cardio = suma źródeł = suma
+typów, wykluczenie sprzed pierwszego treningu, nieukończony trening nie przesuwa
+„od”, aktywność bez daty nie ginie. Etykiety dat przez wariant bezpieczny
+(zasada 11). Weryfikacja: vitest (logika, render PL/EN, stany: bez Stravy, bez
+cardio, bez treningów siłowych, pusto), e2e `all-time-stats.spec.ts` Chromium i
+WebKit.
+
+### 2026-09-29: F1, chip „Rozgrzewka” łamał się w środku słowa przy Dynamic Type
+
+Zgłoszenie: na iPhonie przy Dynamic Type 112% chip pokazywał „Rozgrzewk / a”.
+
+Root cause: siatka chipów karty ćwiczenia (`ExerciseCard.tsx`,
+`data-testid="exercise-card-chips"`) miała minimum kolumny
+`minmax(min(100%,6rem),1fr)`. iOS skaluje tekst od body (`src/styles/ios.css`),
+więc rem stoi w miejscu, a tekst rośnie; przy 393 px i 112% trzy chipy
+(Rozgrzewka, Talerze, Metryki przy zgodzie zdrowotnej) dostawały po ok. 76 px
+na słowo, a `[overflow-wrap:anywhere]` w `chipClass` łamał je w środku.
+
+Fix: `minmax(min(100%,6em),1fr)`. Odstępstwo od planu (`8em`) po pomiarze:
+kontener siatki ma computed font 16 px, nie 12 px, więc `8em` = 128 px zmieniłoby
+układ już przy 100% (2 kolumny na 393 px). `6em` = 96 px przy 100% (bez zmian)
+i rośnie razem z tekstem (em śledzi skalę, jak progi w ios.css).
+`overflow-wrap:anywhere` zostaje jako bezpiecznik przed poziomym scrollem.
+
+Weryfikacja: nowy `e2e/exercise-card-chips-text-scale.spec.ts` (Chromium + WebKit),
+320/375/393/430 px × 100/112/135%, proxy mnoży computed font-size całego drzewa
+body (model `text-size-adjust` na body), Range.getClientRects węzła tekstu = 1 linia.
+Na starym kodzie czerwony (393/112 w Chromium i WebKit, 135% na każdej szerokości),
+po fixie zielony. `label-overflow-audit.spec.ts` dostał warunek „brak łamania
+w środku słowa” (każde słowo etykiety interaktywnej w jednej linii). Warunek
+od razu znalazł istniejący dług poza F1, zapisany w audycie jako zamknięta lista:
+„Subskrypcja/Subscription” w wierszu Profilu przy 320 px (realne, widoczne na
+zrzucie) i etykiety dolnej nawigacji web („Progress”, „Historia”) zwężone
+desktopowym paskiem przewijania. Do osobnej poprawki.
+
+Nie dowodzi: realnego renderu WKWebView z systemowym Dynamic Type (proxy),
+skal powyżej 135% ani innych ekranów niż karta ćwiczenia. Do potwierdzenia na
+iPhonie przy 112% i 135%.
+
+### 2026-09-29: F4, zamiana ćwiczenia w trakcie treningu zostaje na swojej pozycji
+
+Dane z produkcji (sesja właściciela 28.09, d1): zamiana „Na stałe” na pozycji 3
+dała w sesji nowe ćwiczenie na końcu, a stare (`tpl-ex-13`) w `skippedExercises`.
+Plan był poprawny, dane całe.
+
+Root cause: gałąź „Na stałe” w `WorkoutDay.handleApplySwap` zmieniała wyłącznie
+plan (`swapExercise`), draft zostawał ze starym kluczem. `buildDayFromDraft`
+rozpoznawał zamianę tylko po kluczu draftu `${planId}__swap-*`, więc stary klucz
+szedł do extras (koniec listy, stara nazwa). Payload historii
+(`buildDraftExercisesPayload`, `buildDraftFinalExpectation`) idzie po kolejności
+kluczy `draft.exerciseSets`, więc także „tylko dziś” (delete + dopisanie klucza)
+zapisywało nowe ćwiczenie na końcu historii. Przy okazji: „tylko dziś” przenosiło
+ODHACZONE serie starego ćwiczenia pod nową nazwę (a przy zmianie na masę ciała
+zerowało je).
+
+Niezmiennik (zasada 5): lista dnia z planu kompletna, sesja tylko mapuje i dokłada;
+zrobiona praca nie zmienia nazwy i nie znika (zasada 6).
+
+Fix: jedna czysta funkcja `applySessionExerciseSwap` (`exercise-swap.ts`) dla obu
+zakresów: bez odhaczonych serii klucz podmieniany na tej samej pozycji (serie,
+notatki, metryki, granty idą za zamianą), z odhaczonymi seriami stare zostaje
+jako osobna karta, nowe dostaje świeże serie tuż za nim; `sessionSwaps` to jawny
+rekord zamiany. „Na stałe” najpierw migruje sesję (id z `swapExerciseIdentity`,
+tej samej funkcji co zapis planu), potem zmienia plan. `resolveDaySlots`
+(`workout-day-view.ts`) jest jednym źródłem kolejności: zamiana na pozycji planu,
+łańcuch `sessionSwaps` (także podwójny swap), odwrotne dopasowanie dla sesji
+w toku ze starego buildu (klucz X nieobecny w planie, plan ma `X__swap-*`, X stoi
+przy swojej zamianie, nie na końcu), extras na końcu. Snapshot draftu dostaje
+`planExerciseIds` i zapisuje klucze `exerciseSets` w kolejności dnia, więc payload
+historii i oczekiwanie walidacji finalnej mają kolejność dnia.
+
+Weryfikacja: testy czerwone na starym kodzie (14 unit, 2 e2e w obu silnikach,
+e2e odtwarza dokładnie produkcyjny objaw), zielone po fixie. Unit: niezmiennik
+6 ćwiczeń z nowym na pozycji 3 (oba zakresy), stare z odhaczonymi seriami,
+podwójny swap, sesja ze starego buildu, payload w kolejności planu, sekwencja
+start → zamiana (oba zakresy) → wyjście → hydracja z IDB (fake-indexeddb) →
+odhaczenie → zakończenie → final sync (payload). E2E `workout-swap-position.spec.ts`
+(Chromium + WebKit): zamiana w trakcie, wyjście, powrót, reload, odhaczenie,
+kolejność kluczy draftu. Pełny vitest 4233 PASS / 16 SKIP.
+
+Znane ograniczenie (poza zakresem): „Na stałe” na karcie, która jest już zamianą
+„tylko dziś”, nie zmienia planu (`swapExercise` szuka id zamiany w planie; stan
+sprzed F4). Sesja migruje poprawnie.
+
+### 2026-09-29: F2 urlop jest przerwą wszędzie, F3 rampa po urlopie trafia do prefillu
+
+Zgłoszenie właściciela po urlopie 22-27.09 (dane prod, odczyt bez zapisów):
+`dailyTrainingReminder` wysłał „Czas na trening” 22, 23 i 25.09, a Dashboard
+pokazywał „Rozpocznij trening”. Push `vacationEndingPush` 27.09 obiecał „~85%,
+potem ~92%”, a 28.09 prefill wpisał 40 kg (skos hantle, poprzednio 40x8)
+zamiast ~34.
+
+Root cause F2: guard w `functions/src/daily-reminder.ts` znał tylko `status`
+i `skippedDates`, loader planu nie przepisywał `vacation`; po stronie klienta
+`todayTraining`, `getNextScheduledTraining`, `buildWeekCardModel` i
+„NASTĘPNY” w Planie liczyły dni bez urlopu (urlop był tylko badge'em, który
+przykrywał lapse).
+
+Root cause F3: rampa (`reducedModeAdviceFactor`) trafiała wyłącznie do
+`nextAdvice`; prefill brał `weeklyTargets`, które deload znały tylko z
+`deloadDecisions[week] === 'applied'`, a karta ćwiczenia stawiała RZA i cel
+tygodnia nad poradą. `DeloadBanner` liczył `isDeloadWeek` bez urlopu, chip
+w WeekCard `resolveDeloadWeek` z urlopem.
+
+Decyzje:
+- Niezmiennik F2: dzień w `[vacation.startDate, vacation.endDate]` przy
+  `vacation.activity === 'none'` oraz w oknie `reducedMode` z `level: 'pause'`
+  nie jest dniem treningowym: brak pusha, karta „Przerwa do …” zamiast hero
+  treningu, dzień „wolne” w WeekCard (poza licznikiem sesji), dzień wolny na
+  zegarku Garmin, „następny” = pierwszy niezablokowany dzień po końcu przerwy.
+  Korekta koordynatora (ten sam dzień): urlop „Tylko główne boje”
+  (`mains_only`) NIE blokuje dni, bo user deklaruje, że trenuje; push,
+  Dashboard i zegarek działają normalnie, rampa/porada bez zmian. Kafel
+  „Pozostało” w Planie liczy przez ten sam resolver (wcześniej odejmował każdy
+  urlop, także mains_only, i nie znał pauzy). Wykrywanie zaległości
+  (`lapse-detection`) świadomie zostaje bez zmian: nie oznacza dni jako wolnych,
+  tylko nie wypomina zaległości w każdym zadeklarowanym okresie obniżonej
+  dyspozycji (tak samo jak w trybie lżejszym, który też nie blokuje dni). Jeden resolver
+  `plannedDateBlockReason` w `src/lib/plan-date-block.ts` i lustrzany
+  `functions/src/plan-date-block.ts`, parity przez
+  `fixtures/cross-platform/plan-date-block-v1.json`. Pominięty dziś dzień
+  (`skippedDates`) na Dashboardzie = dzień wolny (spójnie z pushem).
+- Niezmiennik F3: to, co obiecuje komunikat, wpisuje prefill i pokazuje karta.
+  `reducedModeTargetWeight` (baza sprzed startu × mnożnik, krok 0,5 kg, jak
+  dotychczasowa porada: 40 -> 34 -> 37) jest wspólny dla porady i celu.
+  `computeWeeklyTargets` dostaje okno trybu/urlopu i datę sesji; faza
+  active/ramp ma pierwszeństwo przed tygodniem deload, bólem i progresją (bez
+  podwójnego deloadu w tygodniu 5). Comeback po >= 14 dniach też trafia do
+  celu. Cele trybu działają także bez silnika progresji, w treningu ad-hoc
+  i dla ćwiczenia dodanego w locie (`src/lib/session-targets.ts`). Na karcie
+  cel trybu wygrywa z RZA. `DeloadBanner` używa `resolveDeloadWeek`.
+- Wdrożenie backend-first: najpierw `functions` (`dailyTrainingReminder`),
+  potem web i buildy mobilne.
+
+Weryfikacja: testy functions (fixture z override w urlopie: 0 pushy 22/23/25.09,
+push 28.09), parity web/functions, Dashboard na kanonicznym stanie
+`vacation-active`, route sweep z nowymi stanami, rampa 34/37/progresja, test
+sekwencji urlop -> push końca -> push dnia po -> prefill 85% -> 92% -> normalnie,
+e2e `e2e/vacation-ramp.spec.ts` (chromium + webkit), przypadki mains_only
+(push wysłany, Dashboard z treningiem, zegarek z dniem planu, „Pozostało”).
+Czego testy nie dowodzą: realnego FCM na urządzeniu, zegarków na fizycznym
+sprzęcie (Garmin tylko test funkcji, Apple Watch tylko mapowanie przerwy na
+rest), raportu tygodnia (WeekReportCard liczy cele bez daty sesji).
+
+### 2026-09-29: onboarding, paywall i bramki: wyjścia, usunięcie konta, komunikaty EN; nazwy planów bez cudzych marek
+
+Źródło: audyt R1 (onboarding B1-B12, plany sekcja 3A), zweryfikowany w kodzie
+przed naprawą (zasada 12). Każdy fix: test czerwony, potem poprawka, osobny commit.
+
+- **B1 (P1, Apple 5.1.1(v))**: usunięcie konta było tylko w Profilu, a hard
+  paywall przekierowuje `/profile` na `/paywall`. Dialog z Profilu wydzielony do
+  `DeleteAccountDialog` (ten sam callable, word gate USUŃ/DELETE) i dodany na
+  hard paywallu (teaser i cennik), w `EmailVerificationGate`, `ConsentGate` oraz
+  w dialogu wyjścia z onboardingu. `logoutAfterAccountDeletion` przekazany z
+  `App` jako `onAccountDeleted`.
+- **B2 (P1)**: logowanie/rejestracja emailem pokazywały surowe
+  „Firebase: Error (auth/...)”. `mapAuthErrorMessage` obsługuje kody email/hasło (PL+EN).
+- **B3 (P1)**: błędy kodu weryfikacji szły z backendu po polsku także w EN.
+  Kontrakt = kod callable + `details.reason` (nowe w `registration.ts`), tekst
+  tłumaczy klient (`email-verification-errors.ts`). Klient działa też ze starym
+  backendem (mapowanie po kodzie). `unavailable` = błąd dostawcy maila, więc
+  ogólny komunikat wysyłki, nie „brak sieci”.
+- **B4 (P1)**: miękki paywall po fail-open `useHardPaywall` (słaba sieć) wchodzi
+  przez `replace`, strzałka wstecz `navigate(-1)` nic nie robiła. Teraz jak
+  `Layout.handleBack`: bez historii wyjście na dashboard.
+- **B5**: surowe „Missing or insufficient permissions” przy domknięciu
+  onboardingu zastąpione komunikatem i18n. Znane ograniczenie: błąd zwracany
+  (nie rzucany) przez `useTrainingPlan.savePlan` nadal przechodzi swoim tekstem.
+- **B7**: wstecz / Android back na kroku 1 onboardingu pyta przed wylogowaniem
+  (szkic zostaje 7 dni); z tego dialogu jest też usunięcie konta.
+- **B8**: bramka nowych zgód nie blokuje treningu w toku: przy dzisiejszym
+  nieukończonym szkicu jest „Wróć do trwającego treningu”; odroczenie trwa tylko
+  na `/workout/*`, wyjście z treningu przywraca bramkę. Decyzja do potwierdzenia
+  przez właściciela: przez czas treningu user działa na poprzedniej wersji zgód.
+- **B10**: `PURCHASES_IDENTITY_NOT_READY/CHANGED` przy zakupie/restore to stan
+  przejściowy: komunikat „spróbuj za chwilę” zamiast błędu zakupu i bez telemetrii `purchase_failed`.
+- **B12**: błędy waitlisty (web) tłumaczone po kodzie callable.
+- **Pominięte**: B6 (źródło stanu hipotetyczne, wyjście istnieje: wyloguj/mail;
+  naprawa wymaga zmian w `usePlanCycles`), B9 (klucz toura per uid wymaga zmiany
+  API używanego w `WorkoutDay`, który równolegle edytuje inna sesja; skutek
+  kosmetyczny), B11 (po self-delete konto Auth znika od razu, okno
+  `ACCOUNT_DELETION_PENDING` praktycznie nieosiągalne; wymaga zmian backend + UserContext).
+- **Plany (ryzyko prawne)**: nazwy „Żelazny Cykl 5/3/1” → „Żelazny Cykl Siłowy”
+  / „Iron Strength Cycle”, „Powerbuilding PHAT” → „Siła i Masa 5 Dni” /
+  „Five-Day Powerbuilding”, EN „Power Hypertrophy Upper Lower” → „Strength &
+  Size Upper/Lower”; opisy bez Wendler, Boring But Big, nSuns, GZCLP, PHUL,
+  Layne Norton, Built With Science, Jeff Nippard, Strong Curves/Bret Contreras,
+  Renaissance Periodization, Arnold Split, r/bodyweightfitness. ID planów i dane
+  dni bez zmian. Kreator kopiuje nazwę planu do `trainingPlans.name` i
+  `choice.planName` cyklu, więc istniejące plany userów zachowują starą nazwę
+  (bez migracji, świadomie). Do weryfikacji przez właściciela: `tpl-rza-3`
+  „RZA V-Taper” (nie wiem, czy „RZA” to cudza marka/osoba).
+
+Weryfikacja: `npm run test`, typecheck, lint, functions test + build, e2e mock
+(oba silniki), e2e emulator. Deploy: functions opcjonalny (tylko `details.reason`,
+klient ma fallback); przy deployu backend-first (zasada 19).
 
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 

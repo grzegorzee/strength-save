@@ -11,6 +11,7 @@ import { formatNextSyncTime } from '@/lib/strava-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { PoweredByStrava, StravaConnectButton } from '@/components/strava/StravaBranding';
+import { StravaSyncNotice } from '@/components/strava/StravaSyncNotice';
 
 /**
  * X35b (WP-B): pełny panel Strava (połącz / sync / rozłącz / max HR) wyjęty 1:1
@@ -95,6 +96,13 @@ export const StravaConnectionCard = () => {
                 )}
               </div>
             </div>
+            <StravaSyncNotice
+              connection={connection}
+              onReconnect={connectStrava}
+              onRetry={handleSync}
+              retrying={isSyncing}
+              retryDisabled={nextSyncAvailableAt !== null}
+            />
             <div className="flex gap-2">
               {/* X27/WP-C: ręczny sync maks. raz na dobę — disabled do końca cooldownu,
                   z podpisem KIEDY będzie dostępny (serwer i tak egzekwuje limit). */}
