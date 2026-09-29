@@ -31,8 +31,12 @@ export const getExerciseHistory = (
   isBodyweight?: boolean,
   // Snapshot nazwy ćwiczenia — z nim historia widzi też sesje ad-hoc (spec C5).
   exerciseName?: string,
+  // F6: bodyweight_loaded — weight to dociążenie (0 = sama MC); serie bez kg
+  // zostają, dzień = max dociążenie + powtórzenia przy nim, bez Epleya.
+  options?: { bodyweightLoaded?: boolean },
 ): ExerciseHistoryPoint[] => {
   const dayMap = new Map<string, ExerciseHistoryPoint>();
+  const loaded = options?.bodyweightLoaded === true;
 
   workouts
     .filter(w => w.completed)
@@ -40,10 +44,27 @@ export const getExerciseHistory = (
       w.exercises.forEach(ex => {
         if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
 
-        const workingSets = isBodyweight
-          ? ex.sets.filter(s => s.completed && !s.isWarmup)
-          : ex.sets.filter(s => s.completed && !s.isWarmup && s.weight > 0);
+        const workingSets = loaded
+          ? ex.sets.filter(s => s.completed && !s.isWarmup && s.reps > 0)
+          : isBodyweight
+            ? ex.sets.filter(s => s.completed && !s.isWarmup)
+            : ex.sets.filter(s => s.completed && !s.isWarmup && s.weight > 0);
         if (workingSets.length === 0) return;
+
+        if (loaded) {
+          const maxLoad = Math.max(...workingSets.map(s => Math.max(0, s.weight || 0)));
+          const repsAtMax = Math.max(...workingSets.filter(s => Math.max(0, s.weight || 0) === maxLoad).map(s => s.reps));
+          const point: ExerciseHistoryPoint = {
+            date: w.date,
+            maxWeight: maxLoad,
+            bestReps: repsAtMax,
+            estimated1RM: 0,
+            totalVolume: workingSets.reduce((sum, s) => sum + Math.max(0, s.weight || 0) * s.reps, 0),
+          };
+          const existing = dayMap.get(w.date);
+          if (!existing || loadedProgressValue(point) > loadedProgressValue(existing)) dayMap.set(w.date, point);
+          return;
+        }
 
         const maxWeight = Math.max(...workingSets.map(s => s.weight));
         const bestReps = Math.max(...workingSets.map(s => s.reps));
@@ -63,6 +84,10 @@ export const getExerciseHistory = (
 
   return Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 };
+
+/** F6: porządek postępu bodyweight_loaded — najpierw dociążenie, potem powtórzenia. */
+const loadedProgressValue = (h: Pick<ExerciseHistoryPoint, 'maxWeight' | 'bestReps'>): number =>
+  h.maxWeight * 10_000 + h.bestReps;
 
 export interface TrackedHistoryPoint {
   date: string;
@@ -119,12 +144,15 @@ export const detectPlateau = (
   history: ExerciseHistoryPoint[],
   minSessions: number = 4,
   isBodyweight?: boolean,
+  bodyweightLoaded?: boolean,
 ): PlateauResult => {
   if (history.length < minSessions) {
     return { isPlateau: false, sessionsSinceProgress: 0, lastProgressDate: null };
   }
 
-  const getValue = (h: ExerciseHistoryPoint) => isBodyweight ? h.bestReps : h.maxWeight;
+  const getValue = (h: ExerciseHistoryPoint) => bodyweightLoaded
+    ? loadedProgressValue(h)
+    : isBodyweight ? h.bestReps : h.maxWeight;
   const currentMax = getValue(history[history.length - 1]);
   let sessionsSinceProgress = 0;
   let lastProgressDate: string | null = null;

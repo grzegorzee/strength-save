@@ -89,6 +89,20 @@ describe('ExerciseCard — bodyweight_loaded (F6)', () => {
   });
 });
 
+describe('ExerciseCard — cel progresji bodyweight_loaded', () => {
+  it('cel tygodnia z dociążeniem: „MC +2.5 kg”, nie „2.5 kg” jako ciężar', () => {
+    const { card } = renderCard({
+      savedSets: [{ reps: 0, weight: 0, completed: false }],
+      weeklyTarget: {
+        exerciseId: 'ex-pull', exerciseName: pullUp.name, kind: 'progress',
+        targetWeight: 2.5, targetReps: 6, targetSets: null, targetDurationSec: null,
+        reasonKey: 'progression.reason.progress',
+      },
+    });
+    expect(card.textContent).toContain('MC +2.5 kg');
+  });
+});
+
 describe('ExerciseCard — niezmienniki innych typów', () => {
   it('bodyweight_reps (Dead Bug) nadal bez kolumny kg', () => {
     const { card } = renderCard({

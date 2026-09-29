@@ -733,6 +733,8 @@ const WorkoutDay = () => {
           ? null
           : getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
             isBodyweight: exTracking === 'assisted_bodyweight' ? true : resolveIsBodyweight(exercise.name),
+            // F6: weight = dociążenie; progresja najpierw powtórzeniami, potem +2,5 kg.
+            bodyweightLoaded: exTracking === 'bodyweight_loaded',
             isSuperset: exercise.isSuperset,
             // Spec C3/C4 (Runna p.1): tryb "nie na 100%" albo urlop obniżają
             // propozycje (jeden naraz — kolizję blokują dialogi).

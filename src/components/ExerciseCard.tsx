@@ -56,6 +56,7 @@ import {
   resolveCompletionTracking,
   type TrackingType,
 } from '@/lib/set-tracking';
+import { formatBodyweightLoadLabel } from '@/lib/bodyweight-load';
 import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 import { SetCountdown } from '@/components/SetCountdown';
@@ -663,6 +664,10 @@ const ExerciseCardInner = ({
   type TargetTone = 'primary' | 'warning' | 'destructive';
   const targetBox = ((): { label: string; tone: TargetTone; value: string; reason?: string } | null => {
     const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
+    // F6: cel ćwiczenia z masą ciała = „MC” / „MC +2,5 kg” (weight to dociążenie).
+    const dispLoad = (kg: number) => (isBodyweightLoaded
+      ? formatBodyweightLoadLabel(kg, disp, t('bodyweightLoaded.label'))
+      : disp(kg));
     if (rzaAdvice) {
       const labels: Record<RzaAdvice['decision'], string> = {
         progress: t('card.rzaProgress'), deload: t('card.rzaDeload'), repeat: t('card.rzaRepeat'),
@@ -687,7 +692,7 @@ const ExerciseCardInner = ({
         : weeklyTarget.targetReps != null ? `×${weeklyTarget.targetReps}` : '';
       const value = [
         head,
-        weeklyTarget.targetWeight != null && weeklyTarget.targetWeight > 0 ? disp(weeklyTarget.targetWeight) : null,
+        weeklyTarget.targetWeight != null && weeklyTarget.targetWeight > 0 ? dispLoad(weeklyTarget.targetWeight) : null,
         weeklyTarget.targetDurationSec != null ? formatDurationSec(weeklyTarget.targetDurationSec) : null,
       ].filter(Boolean).join(' · ');
       // Jak dawny WeeklyTargetBadge: pusta wartość = brak elementu (bez fallbacku niżej).
@@ -705,7 +710,7 @@ const ExerciseCardInner = ({
         tone: nextAdvice.kind === 'deload' ? 'warning' : 'primary',
         value: nextAdvice.isBodyweight
           ? t('card.repsValue', { n: nextAdvice.targetReps })
-          : `${disp(nextAdvice.targetWeight)} × ${nextAdvice.targetReps}`,
+          : `${dispLoad(nextAdvice.targetWeight)} × ${nextAdvice.targetReps}`,
         reason: nextAdvice.reason,
       };
     }

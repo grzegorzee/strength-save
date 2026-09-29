@@ -18,6 +18,7 @@ import {
   type RepRange,
 } from '@/lib/exercise-utils';
 import { getTrackingType, type TrackingType } from '@/lib/set-tracking';
+import { findLibraryExercise, isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
 
 export type DeloadDecision = 'applied' | 'skipped';
 
@@ -71,7 +72,10 @@ export type NextSetReasonKey =
   | 'deload.bw' | 'deload.weight' | 'deload.break'
   | 'bw.progress' | 'bw.hold'
   | 'progress' | 'hold.below' | 'hold.inrange'
-  | 'hold.rated';
+  | 'hold.rated'
+  // F6: bodyweight_loaded (weight = dociążenie).
+  | 'loaded.progress' | 'loaded.hold.below' | 'loaded.hold.inrange'
+  | 'loaded.deload.weight' | 'loaded.deload.reps' | 'loaded.deload.break';
 
 export interface NextSetDecision {
   kind: 'progress' | 'hold' | 'deload';
@@ -97,8 +101,12 @@ export const decideNextSet = (input: {
   /** Spec C2 (Runna p.1): długa przerwa od ćwiczenia = lżejsze wejście -10%
    *  ("Kontynuuj od dziś" — propozycja, nic nie nadpisuje planu). */
   longBreak?: boolean;
+  /** F6: bodyweight_loaded — lastWeight/targetWeight to DOCIĄŻENIE (0 = sama MC). */
+  bodyweightLoaded?: boolean;
 }): NextSetDecision => {
   const { lastWeight, lastReps, repRange, isBodyweight, increment, isPlateau, lastRatedTooHeavy, longBreak } = input;
+
+  if (input.bodyweightLoaded) return decideBodyweightLoaded(input);
 
   // Deload ma priorytet: jeśli wynik stoi od kilku sesji, odpuść i wróć z impetem.
   if (isPlateau) {
@@ -142,6 +150,44 @@ export const decideNextSet = (input: {
 
   // W zakresie → dobij powtórzenia przy tym samym ciężarze.
   return { kind: 'hold', targetWeight: lastWeight, targetReps: Math.min(lastReps + 1, repRange.max), reasonKey: 'hold.inrange' };
+};
+
+/** Deload dociążenia: -10% zaokrąglone W DÓŁ do 0,5 kg (2,5 kg → 2 kg, nie z powrotem 2,5). */
+const loadedDeloadWeight = (load: number): number => Math.max(0, Math.floor(load * 0.9 * 2) / 2);
+
+/**
+ * F6: masa ciała + opcjonalne dociążenie. Najpierw powtórzenia do górnej granicy,
+ * potem +increment dociążenia i powrót na dół zakresu. Deload: z dociążeniem
+ * obniża kg, na samej MC obniża powtórzenia (-20%, min. 1).
+ */
+const decideBodyweightLoaded = (input: {
+  lastWeight: number;
+  lastReps: number;
+  repRange: RepRange;
+  increment: number;
+  isPlateau: boolean;
+  lastRatedTooHeavy?: boolean;
+  longBreak?: boolean;
+}): NextSetDecision => {
+  const { lastWeight, lastReps, repRange, increment, isPlateau, lastRatedTooHeavy, longBreak } = input;
+  const load = Math.max(0, lastWeight);
+  if (isPlateau) {
+    return load > 0
+      ? { kind: 'deload', targetWeight: loadedDeloadWeight(load), targetReps: repRange.max, reasonKey: 'loaded.deload.weight' }
+      : { kind: 'deload', targetWeight: 0, targetReps: Math.max(1, Math.round(lastReps * 0.8)), reasonKey: 'loaded.deload.reps' };
+  }
+  // Powrót po przerwie odciąża tylko dociążenie; sama MC idzie zwykłą ścieżką powtórzeń.
+  if (longBreak && load > 0) {
+    return { kind: 'deload', targetWeight: loadedDeloadWeight(load), targetReps: repRange.max, reasonKey: 'loaded.deload.break' };
+  }
+  if (lastReps >= repRange.max) {
+    if (lastRatedTooHeavy) return { kind: 'hold', targetWeight: load, targetReps: lastReps, reasonKey: 'hold.rated' };
+    return { kind: 'progress', targetWeight: load + increment, targetReps: repRange.min, reasonKey: 'loaded.progress' };
+  }
+  if (lastReps < repRange.min) {
+    return { kind: 'hold', targetWeight: load, targetReps: repRange.min, reasonKey: 'loaded.hold.below' };
+  }
+  return { kind: 'hold', targetWeight: load, targetReps: Math.min(lastReps + 1, repRange.max), reasonKey: 'loaded.hold.inrange' };
 };
 
 // ===== Z120: cele tygodniowe per dzień / per ćwiczenie =====
@@ -262,9 +308,11 @@ export const suggestEarlyDeload = (
         painExercises.push(exercise.name);
       }
 
-      const isBodyweight = isBodyweightExercise(exercise.name);
-      const history = getExerciseHistory(workouts, exercise.id, isBodyweight, exercise.name);
-      if (detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight).isPlateau) {
+      // F6: bodyweight_loaded — postęp to dociążenie ALBO powtórzenia.
+      const bodyweightLoaded = isBodyweightLoadedExercise(exercise.name);
+      const isBodyweight = isBodyweightExercise(exercise.name) && !bodyweightLoaded;
+      const history = getExerciseHistory(workouts, exercise.id, isBodyweight, exercise.name, { bodyweightLoaded });
+      if (detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight, bodyweightLoaded).isPlateau) {
         plateauExercises.push(exercise.name);
       }
     }
@@ -398,8 +446,10 @@ export const computeWeeklyTargets = (
         reasonKey: 'progression.reason.start',
       };
 
+      // Regresja :402 (F6): bez trackingByName typ ZAWSZE z biblioteki (asysta,
+      // bodyweight_loaded), heurystyka bodyweight tylko dla nazw spoza biblioteki.
       const tracking = options?.trackingByName?.[exercise.name]
-        ?? getTrackingType({ isBodyweight: isBodyweightExercise(exercise.name) });
+        ?? getTrackingType(findLibraryExercise(exercise.name) ?? { isBodyweight: isBodyweightExercise(exercise.name) });
 
       if (tracking === 'duration') {
         const history = getTrackedExerciseHistory(workouts, exercise.id, 'duration', null, exercise.name);
@@ -413,8 +463,12 @@ export const computeWeeklyTargets = (
         continue;
       }
 
-      const isBodyweight = tracking === 'bodyweight_reps';
-      const history = getExerciseHistory(workouts, exercise.id, isBodyweight, exercise.name);
+      // Asysta: seria ma weight 0 — filtr weight>0 gubił całą historię; cel powtórzeniowy jak bodyweight.
+      const isBodyweight = tracking === 'bodyweight_reps' || tracking === 'assisted_bodyweight';
+      const bodyweightLoaded = tracking === 'bodyweight_loaded';
+      // Cel dociążenia: 0 = sama masa ciała (null = bez kg w celu).
+      const loadTarget = (kg: number): number | null => (kg > 0 ? kg : null);
+      const history = getExerciseHistory(workouts, exercise.id, isBodyweight, exercise.name, { bodyweightLoaded });
       if (history.length === 0) {
         dayTargets[exercise.id] = base;
         continue;
@@ -425,7 +479,9 @@ export const computeWeeklyTargets = (
 
       if (deloadWeekActive) {
         base.kind = 'deload-week';
-        base.targetWeight = isBodyweight ? null : Math.max(0, roundTo(last.maxWeight * 0.9, 2.5)); // -10%, do 2.5 kg
+        base.targetWeight = isBodyweight ? null
+          : bodyweightLoaded ? loadTarget(loadedDeloadWeight(last.maxWeight))
+            : Math.max(0, roundTo(last.maxWeight * 0.9, 2.5)); // -10%, do 2.5 kg
         base.targetReps = repRange.isMax ? null : repRange.max;
         base.targetSets = Math.max(1, Math.ceil(parseSetCount(exercise.sets) * 0.6)); // -40% serii
         base.reasonKey = 'progression.reason.deloadWeek';
@@ -436,7 +492,9 @@ export const computeWeeklyTargets = (
       const pain = lastSessionPain(workouts, exercise.id, exercise.name);
       if (pain !== null && pain >= PAIN_THRESHOLD) {
         base.kind = 'pain';
-        base.targetWeight = isBodyweight ? null : Math.max(0, roundTo(last.maxWeight * 0.9, 2.5));
+        base.targetWeight = isBodyweight ? null
+          : bodyweightLoaded ? loadTarget(loadedDeloadWeight(last.maxWeight))
+            : Math.max(0, roundTo(last.maxWeight * 0.9, 2.5));
         base.targetReps = repRange.isMax ? null : repRange.min;
         base.reasonKey = 'progression.reason.pain';
         dayTargets[exercise.id] = base;
@@ -446,14 +504,15 @@ export const computeWeeklyTargets = (
       if (repRange.isMax) {
         // "Do upadku" — brak sensownego celu liczbowego, ale utrzymanie to też informacja.
         base.kind = 'hold';
-        base.targetWeight = isBodyweight ? null : last.maxWeight;
+        base.targetWeight = isBodyweight ? null : bodyweightLoaded ? loadTarget(last.maxWeight) : last.maxWeight;
         base.reasonKey = 'progression.reason.hold';
         dayTargets[exercise.id] = base;
         continue;
       }
 
-      const plateau = detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight);
-      const increment = lookupExerciseType(exercise.name) === 'isolation' ? 1 : 2.5;
+      const plateau = detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight, bodyweightLoaded);
+      // F6: dociążenie rośnie o 2,5 kg niezależnie od typu ćwiczenia (decyzja właściciela).
+      const increment = bodyweightLoaded ? 2.5 : lookupExerciseType(exercise.name) === 'isolation' ? 1 : 2.5;
       const decision = decideNextSet({
         lastWeight: last.maxWeight,
         lastReps: last.bestReps,
@@ -463,10 +522,11 @@ export const computeWeeklyTargets = (
         isPlateau: plateau.isPlateau,
         // Spec A2: cele tygodniowe pokazują tę samą propozycję co karta ćwiczenia.
         lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exercise.id, exercise.name),
+        bodyweightLoaded,
       });
 
       base.kind = decision.kind;
-      base.targetWeight = isBodyweight ? null : decision.targetWeight;
+      base.targetWeight = isBodyweight ? null : bodyweightLoaded ? loadTarget(decision.targetWeight) : decision.targetWeight;
       base.targetReps = decision.targetReps;
       base.reasonKey = `progression.reason.${decision.kind}`;
       dayTargets[exercise.id] = base;
