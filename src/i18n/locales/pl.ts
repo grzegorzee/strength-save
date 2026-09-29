@@ -1681,6 +1681,7 @@ export const pl = {
   'paywall.terms': 'Regulamin',
   'paywall.privacy': 'Prywatność',
   'paywall.purchaseError': 'Nie udało się przetworzyć zakupu. Spróbuj ponownie.',
+  'paywall.identityNotReady': 'Łączymy Twoje konto ze sklepem. Spróbuj ponownie za chwilę.',
   'paywall.purchasePending': 'Zakup przyjęty. PRO aktywuje się za chwilę.',
   'paywall.paymentPending': 'Płatność oczekuje na potwierdzenie. Dokończ ją zgodnie z instrukcjami sklepu.',
   'paywall.loadError': 'Nie udało się pobrać planów. Sprawdź połączenie.',

@@ -1659,6 +1659,7 @@ export const en: Record<keyof typeof pl, string> = {
   'paywall.terms': 'Terms',
   'paywall.privacy': 'Privacy',
   'paywall.purchaseError': 'Could not process the purchase. Please try again.',
+  'paywall.identityNotReady': 'Linking your account with the store. Try again in a moment.',
   'paywall.purchasePending': 'Purchase received. PRO will activate in a moment.',
   'paywall.paymentPending': 'Your payment is pending. Follow the store’s instructions to complete it.',
   'paywall.loadError': 'Could not load plans. Check your connection.',

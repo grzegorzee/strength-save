@@ -38,6 +38,13 @@ import { DeleteAccountLink } from '@/components/DeleteAccountDialog';
 
 type PlanKey = 'yearly' | 'monthly';
 
+// B10 (2026-09-29): runPurchasesForUser odrzuca operację, gdy tożsamość
+// RevenueCat jeszcze się wiąże z kontem (albo właśnie się zmieniła). To stan
+// przejściowy, nie awaria sklepu: user dostaje "spróbuj za chwilę".
+const isPurchasesIdentityPending = (error: unknown): boolean =>
+  error instanceof Error
+  && (error.message === 'PURCHASES_IDENTITY_NOT_READY' || error.message === 'PURCHASES_IDENTITY_CHANGED');
+
 export default function Paywall({ onLogout, onAccountDeleted }: {
   onLogout: () => Promise<void>;
   /** Domknięcie sesji po usunięciu konta (bez cleanupu urządzeń); brak = onLogout. */
@@ -137,6 +144,8 @@ export default function Paywall({ onLogout, onAccountDeleted }: {
         // grant PRO; pending is an instruction to complete payment, not a failure.
         await refresh();
         toast({ title: t('paywall.paymentPending') });
+      } else if (isPurchasesIdentityPending(error)) {
+        toast({ title: t('paywall.identityNotReady') });
       } else if (!cancelled) {
         if (uid) trackTelemetryEvent(uid, 'purchase_failed'); // Z222: funnel
         toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
@@ -160,8 +169,12 @@ export default function Paywall({ onLogout, onAccountDeleted }: {
         // brak zakupu na tym Apple ID nie oznacza braku PRO — podpowiadamy logowanie.
         toast({ title: t('paywall.restoreNone'), description: t('paywall.restoreNoneHint') });
       }
-    } catch {
-      toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
+    } catch (error) {
+      if (isPurchasesIdentityPending(error)) {
+        toast({ title: t('paywall.identityNotReady') });
+      } else {
+        toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
+      }
     } finally {
       setBusy(false);
     }
