@@ -69,7 +69,7 @@ import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
 import { isWarmupPromptEnabled, setWarmupPromptEnabled } from '@/lib/warmup-prompt';
 
 import { SOUND_KEY } from '@/lib/workout-preferences';
-import { POST_PLAN_GUIDE_REPLAY_PATH } from '@/lib/post-plan-guide';
+import { startAppTourReplay } from '@/hooks/useAppTour';
 
 // Profil = tożsamość i lista ZWIJANYCH sekcji (ProfileAccordionSection), każda
 // z kotwicą id="profile-<sekcja>" dla deep linków ?section=. Stare kotwice
@@ -941,7 +941,8 @@ const Profile = () => {
           icon={Dumbbell}
           label={t('profile.support.appGuide')}
           description={t('profile.support.appGuideDesc')}
-          onClick={() => navigate(POST_PLAN_GUIDE_REPLAY_PATH)}
+          // Przewodnik nowego konta od początku (Dashboard -> pierwsza seria).
+          onClick={() => { startAppTourReplay(uid); navigate('/'); }}
         />
         <SettingRow compact icon={Bug} label={t('profile.support.reportBug')} onClick={() => setBugReportOpen(true)} />
         <SettingRow compact icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:contact@strengthsave.app'; }} />

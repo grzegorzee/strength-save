@@ -104,6 +104,8 @@ export interface AppUserProfile {
     timerSound?: boolean;
     accentColor?: string;
     paletteTheme?: PaletteThemeV2;
+    /** Przewodnik nowego konta: surowa wartość z dokumentu (walidacja w mapperze). */
+    appTour?: unknown;
   };
 }
 

@@ -178,6 +178,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
         // szerokości md chował pasek POD navem na telefonie w landscape.
         className="fixed inset-x-3 bottom-[var(--mobile-nav-clearance,calc(6rem+env(safe-area-inset-bottom)+8px))] z-50 rounded-2xl bg-surface-low px-4 pt-3 pb-3 desktop-shell:inset-x-0 desktop-shell:bottom-0 desktop-shell:rounded-b-none desktop-shell:rounded-t-2xl desktop-shell:pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         data-testid="rest-bar"
+        data-tour="rest-bar"
       >
         <div className="flex flex-wrap items-center gap-2">
           {/* Korpus paska = tap-obszar ustawień timera (wymóg właściciela). */}

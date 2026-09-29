@@ -24,6 +24,12 @@ export interface ExclusiveOverlayOptions {
    * overlay zamknie także potwierdzenie.
    */
   announce?: boolean;
+  /**
+   * false = warstwa nie zamyka się, gdy otwiera się inna (przewodnik nowego
+   * konta chowa się sam i wraca po zamknięciu obcej warstwy). Android Back
+   * nadal trafia w onRequestClose przez stos otwartych warstw.
+   */
+  closeOnOtherOpen?: boolean;
 }
 
 /**
@@ -40,6 +46,7 @@ export const useExclusiveOverlay = (
   const closeRef = React.useRef(onRequestClose);
   closeRef.current = onRequestClose;
   const announce = options?.announce ?? true;
+  const closeOnOtherOpen = options?.closeOnOtherOpen ?? true;
 
   React.useEffect(() => {
     if (!open) return;
@@ -47,7 +54,7 @@ export const useExclusiveOverlay = (
     openOverlayStack.set(id, () => closeRef.current());
 
     const closeWhenAnotherOpens = (event: Event) => {
-      if ((event as CustomEvent<string>).detail !== id) closeRef.current();
+      if (closeOnOtherOpen && (event as CustomEvent<string>).detail !== id) closeRef.current();
     };
     window.addEventListener(EXCLUSIVE_OVERLAY_EVENT, closeWhenAnotherOpens);
     if (announce) {
@@ -59,7 +66,7 @@ export const useExclusiveOverlay = (
       window.removeEventListener(EXCLUSIVE_OVERLAY_EVENT, closeWhenAnotherOpens);
       releaseBodyLocksAfterOverlayUnmount();
     };
-  }, [announce, id, open]);
+  }, [announce, closeOnOtherOpen, id, open]);
 };
 
 export const useExclusiveOverlayState = (

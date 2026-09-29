@@ -94,8 +94,10 @@ import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from
 import { computeEffectiveDurationSec, computeLegacyTimestampDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { RestBar } from '@/components/RestBar';
-import { FirstWorkoutTour } from '@/components/FirstWorkoutTour';
-import { isDesktopViewport, isFirstWorkoutTourSeen, shouldShowFirstWorkoutTour } from '@/lib/first-workout-tour';
+import { AppTour } from '@/components/AppTour';
+import { FirstWorkoutNextSteps } from '@/components/FirstWorkoutNextSteps';
+import { useAppTour } from '@/hooks/useAppTour';
+import { WORKOUT_START_STEPS, WORKOUT_TOUR_STEPS, countCheckedSets, resumeWorkoutStep } from '@/lib/first-workout-tour';
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
@@ -521,11 +523,6 @@ const WorkoutDay = () => {
   // poziom z onboardingu (początkujący = 4 min).
   const [preStartOpen, setPreStartOpen] = useState(false);
   const trainingLevel = profile?.trainingProfile?.level;
-  // WP-E (X37): tour pierwszego treningu uzbrajany WYŁĄCZNIE w kliku "Rozpocznij
-  // trening" (resume/autostart go nie dostają); montowany po starcie sesji, gdy
-  // arkusz i dialog rozgrzewki są zamknięte. Liczba ukończonych: agregat all-time,
-  // fallback okno recent (mock E2E i brak dokumentu agregatu).
-  const [firstWorkoutTourArmed, setFirstWorkoutTourArmed] = useState(false);
   // X37 QA: "Tak, rozgrzewka" otwiera dialog dopiero PO asynchronicznym starcie
   // sesji. W tej luce tour montował się na ułamek sekundy, a dialog rozgrzewki
   // (ekskluzywny overlay) natychmiast go kończył jako "widziany". Flaga trzyma
@@ -1969,6 +1966,32 @@ const WorkoutDay = () => {
   const livePRSourceRef = useRef(livePRSourceWorkouts);
   livePRSourceRef.current = livePRSourceWorkouts;
 
+  // Przewodnik nowego konta, etap treningu (przebudowa WP-E X37). Liczba
+  // ukończonych: agregat all-time, fallback okno recent bez bieżącej sesji;
+  // null do załadowania (nie startujemy "na ślepo" u usera z historią).
+  const appTour = useAppTour(
+    workoutAggregate?.totals.workoutCount ?? (workoutsLoaded ? livePRSourceWorkouts.length : null),
+  );
+  const tourCheckedSets = useMemo(() => countCheckedSets(exerciseSets), [exerciseSets]);
+  // Start z zegarka / Garmina, przegląd przeszłości i desktop: bez przewodnika.
+  const workoutTourEligible = (appTour.stage === 'dashboard' || appTour.stage === 'workout')
+    && !isViewingPastWorkout && !isCompleted && !watchStartEventId && !watchQuickExercise;
+  // Sesja ruszyła z pominięciem Dashboardu (np. z Planu): etap treningu jawnie.
+  useEffect(() => {
+    if (workoutTourEligible && sessionId !== null && appTour.stage === 'dashboard') appTour.advance('workout');
+  }, [workoutTourEligible, sessionId, appTour]);
+  // Etap "co dalej": karta w podsumowaniu PIERWSZEGO treningu; przewodnik
+  // oznaczony jako ukończony w momencie pokazania (nie wisi po zabiciu apki).
+  const [tourWhatsNextOpen, setTourWhatsNextOpen] = useState(false);
+  const tourWhatsNextHandled = useRef(false);
+  useEffect(() => {
+    if (!justCompleted || tourWhatsNextHandled.current) return;
+    if (appTour.stage !== 'workout' && appTour.stage !== 'after-finish') return;
+    tourWhatsNextHandled.current = true;
+    setTourWhatsNextOpen(true);
+    appTour.finish('done');
+  }, [justCompleted, appTour]);
+
   // Spec A5: backfill rekordów sprzed instalacji — baseline detekcji PR
   // (max z historią w apce), zmapowany na id ćwiczeń bieżącego dnia.
   const backfillByExerciseId = useMemo(() => {
@@ -2950,6 +2973,13 @@ const WorkoutDay = () => {
 
         <DraftStatusNotice />
 
+        {tourWhatsNextOpen && (
+          <FirstWorkoutNextSteps
+            onNavigate={(path) => { setTourWhatsNextOpen(false); navigate(path); }}
+            onDismiss={() => setTourWhatsNextOpen(false)}
+          />
+        )}
+
         <WorkoutCompletionSequence
           justCompleted={justCompleted}
           summary={completionSummary}
@@ -3602,15 +3632,6 @@ const WorkoutDay = () => {
                 window.location.reload();
                 return;
               }
-              // WP-E (X37): decyzja o tourze pierwszego treningu zapada w momencie
-              // jawnego startu (resume = draft z treścią, autostart = bez przycisku).
-              setFirstWorkoutTourArmed(shouldShowFirstWorkoutTour({
-                completedCount: workoutAggregate?.totals.workoutCount ?? livePRSourceWorkouts.length,
-                seen: isFirstWorkoutTourSeen(),
-                isResume: currentPageDraft ? draftHasLiveContent(currentPageDraft) : false,
-                isAutostart: autostart,
-                isDesktop: isDesktopViewport(),
-              }));
               // C-T2: sheet rozgrzewki PRZED utworzeniem sesji — tylko świeży,
               // jawny start; resume/autostart (Watch/Garmin) idą prosto do startu.
               // X37: wyłączone proponowanie (Profil > Trening) = prosto do startu.
@@ -3627,6 +3648,7 @@ const WorkoutDay = () => {
               void handleStartWorkout();
             }}
             disabled={isExplicitSaving || (!startSourcesReady && !startSourcesTimedOut)}
+            data-tour="workout-start"
           >
             {!startSourcesReady && startSourcesTimedOut ? (
               <>{t('workout.reload')}</>
@@ -3675,10 +3697,31 @@ const WorkoutDay = () => {
       {/* FIX-B T2: zawsze zamontowany overlay celebracji live PR (dane sterują). */}
       <LivePRCelebration data={livePRCelebration} onDone={() => setLivePRCelebration(null)} />
 
-      {/* WP-E (X37): tour pierwszego treningu (3 spotlighty) po starcie sesji,
-          dopiero gdy arkusz pre-start i dialog rozgrzewki są zamknięte. */}
-      {firstWorkoutTourArmed && isWorkoutStarted && !isCompleted && !preStartOpen && !showWarmup && !warmupQueued && (
-        <FirstWorkoutTour onClose={() => setFirstWorkoutTourArmed(false)} />
+      {/* Przewodnik nowego konta: przed startem jeden krok-akcja na pasku
+          startu; po starcie (arkusz i dialog rozgrzewki zamknięte) wpis serii,
+          REALNE odhaczenie, celebracja + przerwa, menu ćwiczenia, Zakończ.
+          Wyjście z treningu = unmount (portal bez scroll-locka); powrót
+          wznawia zapamiętany krok. */}
+      {workoutTourEligible && !isWorkoutStarted && startSourcesReady && !preStartOpen && (
+        <AppTour
+          key="tour-workout-start"
+          steps={WORKOUT_START_STEPS}
+          onAction={() => appTour.advance('workout', 'set-inputs')}
+          onComplete={() => undefined}
+          onSkip={() => appTour.finish('skipped')}
+        />
+      )}
+      {workoutTourEligible && isWorkoutStarted && !preStartOpen && !showWarmup && !warmupQueued && (
+        <AppTour
+          key="tour-workout-session"
+          steps={WORKOUT_TOUR_STEPS}
+          initialStepId={resumeWorkoutStep(appTour.step)}
+          checkedSets={tourCheckedSets}
+          onStepChange={appTour.rememberStep}
+          onFirstSet={() => { void hapticSuccess(); }}
+          onComplete={() => appTour.advance('after-finish')}
+          onSkip={() => appTour.finish('skipped')}
+        />
       )}
 
     </div>
