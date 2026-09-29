@@ -132,7 +132,7 @@ export const htmlToPlainText = (html: string): string => html
   .replace(/<[^>]+>/g, " ")
   .replace(/&nbsp;/gi, " ")
   .split("\n")
-  .map((line) => decodeEntities(line).replace(/[\u200B-\u200D\uFEFF\u034F\u2007]/g, "").replace(/[ \t]+/g, " ").trim())
+  .map((line) => decodeEntities(line).replace(/\u200B|\u200C|\u200D|\uFEFF|\u034F|\u2007/g, "").replace(/[ \t]+/g, " ").trim())
   .join("\n")
   .replace(/\n{3,}/g, "\n\n")
   .trim();
