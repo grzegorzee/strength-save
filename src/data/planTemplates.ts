@@ -1811,6 +1811,48 @@ export const planTemplates: PlanTemplate[] = [
       ]),
     ],
   },
+  // T6b (2026-09-29): jedyny plan dla profilu początkujący + masa ciała. Zasada F7:
+  // bez planka, pompek (także przy ścianie: brak w bibliotece, nie dodajemy wpisu ad hoc),
+  // podciągania i dipów. Góra ciała przez grzbiet i łopatki w leżeniu / przy ścianie
+  // (Superman, Wall Angel, Aniołki i demony), bo pchanie bez podporu na rękach
+  // wymaga sprzętu (guma), a tego ten profil nie ma.
+  {
+    id: 'tpl-bodyweight-home-3',
+    name: 'No-Equipment Starter',
+    description: 'Trzy treningi całego ciała w domu, bez sprzętu i bez podporu na rękach: przysiady, mostki, wykroki, praca grzbietu w leżeniu i brzuch w leżeniu na plecach. Na koniec krótkie interwały. Progres przez dokładanie powtórzeń.',
+    goal: 'health',
+    objective: 'athletic',
+    level: 'beginner',
+    equipment: 'bodyweight',
+    daysPerWeek: 3,
+    durationWeeks: 8,
+    days: [
+      day('day-1', 'Poniedziałek', 'monday', 'Całe ciało A', [
+        ex('Przysiad z masą ciała (Air Squat)', '3 x 10-15'),
+        ex('Glute Bridge', '3 x 12-15'),
+        ex('Superman (Unoszenie tułowia leżąc na brzuchu)', '3 x 10-12'),
+        ex('Wall Angel', '3 x 10'),
+        ex('Dead Bug (Robak - Brzuch)', '3 x 8/strona'),
+        ex('Pajacyki (Jumping Jacks)', '4 x 30s'),
+      ]),
+      day('day-2', 'Środa', 'wednesday', 'Całe ciało B', [
+        ex('Przysiady wykroczne', '3 x 8/noga'),
+        ex('Przysiad przy ścianie (Wall Sit)', '3 x 30s'),
+        ex('Odwodzenie nogi w leżeniu bokiem', '2 x 12/strona'),
+        ex('Aniołki i demony', '3 x 10'),
+        ex('Unoszenie nóg leżąc', '3 x 10'),
+        ex('Bieg w miejscu z wysokim unoszeniem kolan (High Knees)', '4 x 30s'),
+      ]),
+      day('day-3', 'Piątek', 'friday', 'Całe ciało C', [
+        ex('Przysiad z masą ciała (Air Squat)', '3 x 12-15'),
+        ex('Frog Pump (mostek z rozłożonymi kolanami)', '3 x 15'),
+        ex('Superman (Unoszenie tułowia leżąc na brzuchu)', '3 x 10-12'),
+        ex('Wspięcia na palce jednonóż na podwyższeniu (masa ciała)', '2 x 10/noga'),
+        ex('Dotykanie pięt leżąc (Heel Touches)', '3 x 10/strona'),
+        ex('Pajacyki (Jumping Jacks)', '4 x 30s'),
+      ]),
+    ],
+  },
 ];
 
 export const getPlanTemplateById = (id: string): PlanTemplate | undefined =>

@@ -194,6 +194,7 @@ const PLAN_NAME: Record<string, PlanText> = {
   'tpl-kettlebell-3': { pl: 'Kettlebell Podstawy', en: 'Kettlebell Basics' },
   'tpl-express-3': { pl: 'Ekspres 35 Minut', en: 'Express 35' },
   'tpl-travel-2': { pl: 'Trening w Podróży', en: 'Travel Workout' },
+  'tpl-bodyweight-home-3': { pl: 'Start bez Sprzętu', en: 'No-Equipment Starter' },
 };
 
 const PLAN_DESC: Record<string, PlanText> = {
@@ -361,6 +362,10 @@ const PLAN_DESC: Record<string, PlanText> = {
   'tpl-travel-2': {
     pl: 'Dwa obwody bez siłowni: masa ciała i guma oporowa, do hotelowego pokoju. Stół do wiosłowania odwrotnego, krzesło do wykroków, krótkie interwały na koniec.',
     en: 'Two circuits without a gym: bodyweight and a resistance band, made for a hotel room. A sturdy table for inverted rows, a chair for split squats, short intervals to finish.',
+  },
+  'tpl-bodyweight-home-3': {
+    pl: 'Trzy treningi całego ciała w domu, bez sprzętu i bez podporu na rękach: przysiady, mostki, wykroki, praca grzbietu w leżeniu i brzuch w leżeniu na plecach. Na koniec krótkie interwały. Progres przez dokładanie powtórzeń.',
+    en: 'Three full-body home sessions with no equipment and no weight on your hands: squats, bridges, lunges, back work lying face down and core work on your back. Short intervals to finish. Progress by adding reps.',
   },
 };
 

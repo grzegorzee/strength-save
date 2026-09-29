@@ -10,7 +10,7 @@ describe('opisy i nazwy gotowych planów po EN (Z164)', () => {
     // Kontrakt dla szablonów T6. Znany dług sprzed T6 (poza zakresem, zgłoszony):
     // RZA "tył uda + barki", 531-bbb "... + objętość", nsuns "Martwy ciąg", "wąsko".
     const T6_IDS = new Set(planTemplates.slice(planTemplates.findIndex((t) => t.id === 'tpl-fatloss-3')).map((t) => t.id));
-    expect(T6_IDS.size).toBe(16);
+    expect(T6_IDS.size).toBe(17); // 16 planów T6 + plan bez sprzętu T6b
     for (const tpl of planTemplates.filter((t) => T6_IDS.has(t.id))) {
       for (const d of tpl.days) expect(localizeFocus(d.focus ?? '', 'en'), `${tpl.id} ${d.id}: ${d.focus}`).not.toMatch(polish);
     }
@@ -64,6 +64,8 @@ describe('nazwy i opisy planów bez cudzych marek (2026-09-29)', () => {
       'tpl-fatloss-3', 'tpl-home-db-3', 'tpl-glutes-4', 'tpl-strength-2', 'tpl-beginner-ul-4', 'tpl-athletic-3',
       'tpl-home-db-4', 'tpl-fatloss-2', 'tpl-fatloss-5', 'tpl-strength-ul-4', 'tpl-strength-6', 'tpl-glutes-2',
       'tpl-health-50-2', 'tpl-kettlebell-3', 'tpl-express-3', 'tpl-travel-2',
+      // T6b: plan bez sprzętu dla początkujących (beginner + masa ciała).
+      'tpl-bodyweight-home-3',
     ]);
   });
 

@@ -193,6 +193,7 @@ const PLAN_TEMPLATE_HERO_ALIAS: Record<string, string> = {
   'tpl-kettlebell-3': 'tpl-push-pull-4',
   'tpl-express-3': 'tpl-hybrid-5',
   'tpl-travel-2': 'tpl-calisthenics-3',
+  'tpl-bodyweight-home-3': 'tpl-minimalist-2',
 };
 
 /** X28 WP-F: ilustracje pustych stanów (pro-look dark-gym-v1) w public/empty-states/. */

@@ -48,8 +48,9 @@ test.describe('T6: kreator "Gdzie trenujesz?"', () => {
   test('Hantle w domu (początkujący, 3 dni): tylko plany domowe; zapis planu z hantlami', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
     await advanceWizardToStep5(page, { levelLabel: 'Początkujący', equipment: 'dumbbells_home', days: 3 });
-    const allowed = ['Hantle w Domu', 'Kettlebell Podstawy'];
-    expect(allowed).toContain(await cardName(page, 'plan-choice-recommended'));
+    // Dom z hantlami widzi plany z hantlami i bez sprzętu (T6b: Start bez Sprzętu).
+    const allowed = ['Hantle w Domu', 'Kettlebell Podstawy', 'Start bez Sprzętu'];
+    expect(await cardName(page, 'plan-choice-recommended')).toBe('Hantle w Domu');
     expect(allowed).toContain(await cardName(page, 'plan-choice-alternative'));
     expect((await libraryNames(page)).sort()).toEqual([...allowed].sort());
 
@@ -66,25 +67,21 @@ test.describe('T6: kreator "Gdzie trenujesz?"', () => {
     await navigateAndWait(page, '/new-plan');
     await advanceWizardToStep5(page, { levelLabel: 'Średnio zaawansowany', equipment: 'bodyweight', days: 3 });
     expect(await cardName(page, 'plan-choice-recommended')).toBe('Własny Ciężar');
-    await expect(page.getByTestId('plan-choice-alternative')).toHaveCount(0);
-    expect(await libraryNames(page)).toEqual(['Własny Ciężar']);
+    expect(await cardName(page, 'plan-choice-alternative')).toBe('Start bez Sprzętu');
+    expect((await libraryNames(page)).sort()).toEqual(['Start bez Sprzętu', 'Własny Ciężar']);
   });
 
-  test('Masa ciała + początkujący: brak planu = komunikat z wyjściem, zmiana miejsca prowadzi do planów', async ({ page }) => {
+  test('Masa ciała + początkujący (T6b): plan bez sprzętu i bez podporu na rękach, bez komunikatu "brak planu"', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByText('Początkujący', { exact: true }).click();
-    await page.getByRole('button', { name: 'Następny krok' }).click();
-    await page.getByTestId('ob-equipment-bodyweight').click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await expect(page.getByTestId('ob-no-template')).toBeVisible();
-    await expect(page.getByTestId('ob-match-next')).toHaveCount(0);
-    await expect(page.getByTestId('ob-no-template-own')).toBeVisible();
-    await page.getByTestId('ob-no-template-equipment').click();
-    await page.getByTestId('ob-equipment-gym').click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
+    await advanceWizardToStep5(page, { levelLabel: 'Początkujący', equipment: 'bodyweight', days: 3 });
+    await expect(page.getByTestId('ob-no-template')).toHaveCount(0);
+    expect(await cardName(page, 'plan-choice-recommended')).toBe('Start bez Sprzętu');
+    await page.getByTestId('ob-match-next').click();
+    await page.getByTestId('ob-start-cta').click();
+    await expect.poll(async () => (await readMirrorPlan(page))?.name ?? null).toBe('Start bez Sprzętu');
+    const names = (await readMirrorPlan(page))!.days!.flatMap((d) => d.exercises.map((e) => e.name));
+    for (const f7 of F7_NAMES) expect(names).not.toContain(f7);
+    expect(names).toContain('Przysiad z masą ciała (Air Squat)');
   });
 
   test('Siłownia (domyślnie): pełny katalog dla początkującego, w tym plany siłowniane', async ({ page }) => {
