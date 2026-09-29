@@ -20,12 +20,24 @@ export interface SesEmailConfig {
   from: string;
 }
 
+/** Skrzynka supportu z odbiorem (MX seohost od 2026-09-16). */
+export const SUPPORT_REPLY_TO = "contact@strengthsave.app";
+
+export interface SesEmailHeader {
+  name: string;
+  value: string;
+}
+
 export interface SesEmailMessage {
   from: string;
   to: string;
   subject: string;
   html: string;
   text: string;
+  /** Domyślnie skrzynka supportu: odpowiedź na noreply@ nie ginie. */
+  replyTo?: string[];
+  /** Dodatkowe nagłówki (np. List-Unsubscribe dla digestu). */
+  headers?: SesEmailHeader[];
 }
 
 export interface SesEmailResult {
@@ -67,6 +79,7 @@ export const normalizeSesEmailConfig = (config: SesEmailConfig): SesEmailConfig 
 
 export const buildSesEmailCommandInput = (message: SesEmailMessage): SendEmailCommandInput => ({
   FromEmailAddress: message.from,
+  ReplyToAddresses: message.replyTo ?? [SUPPORT_REPLY_TO],
   // Jawny kontrakt transportu: telemetryka nie zależy wyłącznie od ustawienia
   // default na identity, które może zostać zmienione poza repozytorium.
   ConfigurationSetName: SES_CONFIGURATION_SET,
@@ -78,6 +91,9 @@ export const buildSesEmailCommandInput = (message: SesEmailMessage): SendEmailCo
         Html: { Data: message.html, Charset: "UTF-8" },
         Text: { Data: message.text, Charset: "UTF-8" },
       },
+      ...(message.headers && message.headers.length > 0
+        ? { Headers: message.headers.map((header) => ({ Name: header.name, Value: header.value })) }
+        : {}),
     },
   },
 });
