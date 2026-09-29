@@ -31,13 +31,13 @@
     "url": "https://app.strengthsave.app/",
     "state": "deployed-verified",
     "deliveryEvidence": "audit/bug-reports-2026-09-16/web-delivery.json",
-    "verifiedDelivery": "live HTML, service worker and entry assets match source9babfab0 production build"
+    "verifiedDelivery": "live index-CVfOfaKu.js from source d82a2bb9 build (2026-09-29)"
   },
   "functions": {
     "project": "fittracker-workouts",
     "state": "deployed-verified",
     "deliveryEvidence": "audit/bug-reports-2026-09-16/backend-delivery.json",
-    "verifiedDelivery": "create/finalize/cleanup bug reports revision00006 ACTIVE; abandoned report recovered; SES Delivery confirmed",
+    "verifiedDelivery": "firestore:rules + 71 functions updated 2026-09-29 from 8d4a77bc, 0 deletions",
     "priorDeliveryEvidence": "audit/release-2026-09-09/backend-phase2.receipt.json"
   },
   "ios": {
@@ -51,9 +51,9 @@
     "version": "1.0.0",
     "versionCode": 56,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
-    "state": "source-version-requires-current-delivery-verification",
-    "verifiedDelivery": "pending: 56 candidate",
-    "playDeliveryEvidence": "release/android/internal-2026-09-16-55/play-delivery.json",
+    "state": "internal-delivered-verified",
+    "verifiedDelivery": "56 COMPLETED on internal; uploaded AAB hash and fresh track readback confirmed; production track unchanged (54)",
+    "playDeliveryEvidence": "release/android/internal-2026-09-29-56/play-delivery.json",
     "internalTestUrl": "https://play.google.com/apps/internaltest/4699979891077312306",
     "storeListingDefaultLanguage": "en-US",
     "apiAccess": {
@@ -61,11 +61,12 @@
       "serviceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
       "authentication": "ADC with short-lived service-account impersonation",
       "scope": "https://www.googleapis.com/auth/androidpublisher",
-      "evidence": "release/android/internal-2026-09-16-55/play-api-check.json",
+      "evidence": "release/android/internal-2026-09-29-56/play-api-check.json",
       "checkCommand": "uv run scripts/google_play_check.py --expect-version 56"
     },
     "billingReadiness": "RevenueCat connected; Play products blocked by missing merchant payments profile",
-    "priorDeliveryEvidence": "release/android/internal-2026-09-16-55/artifact.json"
+    "priorDeliveryEvidence": "release/android/internal-2026-09-16-55/artifact.json",
+    "deliveryEvidence": "release/android/internal-2026-09-29-56/artifact.json"
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",

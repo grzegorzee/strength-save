@@ -1,0 +1,98 @@
+{
+  "checked_at": "2026-09-29T14:30:09.657553+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production",
+        "releases": [
+          {
+            "name": "1.0.0 (54)",
+            "versionCodes": [
+              "54"
+            ],
+            "releaseNotes": [
+              {
+                "language": "en-US",
+                "text": "Strength Save helps you plan workouts, log sets and follow your progress."
+              },
+              {
+                "language": "pl-PL",
+                "text": "Planuj treningi, zapisuj serie i sprawdzaj postępy w Strength Save."
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "1.0.0 (56)",
+            "versionCodes": [
+              "56"
+            ],
+            "releaseNotes": [
+              {
+                "language": "pl-PL",
+                "text": "Przewodnik dla nowych kont. Urlop wstrzymuje przypomnienia, a po powrocie ciężar jest obniżony. Zamiana ćwiczenia zostaje na tej samej pozycji. Nowy typ ćwiczeń z masą ciała z opcjonalnym dociążeniem. 136 nowych ćwiczeń, 17 nowych planów i pytanie o sprzęt w kreatorze. Seria wpisana tylko przez aplikację nie jest zaliczana przy zakończeniu. Poprawiony licznik aktywności.\n"
+              },
+              {
+                "language": "en-US",
+                "text": "Guide for new accounts. Vacation pauses reminders and the first workout back uses lighter weights. Swapped exercises keep their position. New bodyweight exercise type with optional added load. 136 new exercises, 17 new plans and an equipment question in the plan wizard. Sets filled only by the app are no longer counted when finishing. Clearer activity counter.\n"
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 52,
+        "sha1": "e86415a46b828adc5b163ab8d166b63a382fcd86",
+        "sha256": "7d07f2bb0fb42f5c0eb696c9487496abce658830f21ccd24124401eb74dc4070"
+      },
+      {
+        "versionCode": 53,
+        "sha1": "9b49bd7e5742030c9add5f9266c44ba0f78276f3",
+        "sha256": "7899341fc6cbc6a352aa7b4c8b4a3f08ba6ece7ebad2fb7b18f259ddfe8f1634"
+      },
+      {
+        "versionCode": 54,
+        "sha1": "8e34c9d9d3efd39f734c4105ffa573bef7d37347",
+        "sha256": "b58d1f034b115f1207ef6aa411549bde14776ca02e0280924049df120125d407"
+      },
+      {
+        "versionCode": 55,
+        "sha1": "91a8e237c44f121cd5f7f33211e84917d1535773",
+        "sha256": "e1d36b3b2b854268bd8093f36d53dd14fd1c59bbe4cfe98f4868f96e3e1108f3"
+      },
+      {
+        "versionCode": 56,
+        "sha1": "a21ec37e4041452a93b05ec7e46b28aa241ac991",
+        "sha256": "b718ff97c642a7913c19975df90fb1c57fa5ce00f3f9a411a978fd7807ce1996"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}
