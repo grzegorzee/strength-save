@@ -664,7 +664,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-six-lifts-3',
     name: 'Six Lift Blueprint',
-    description: 'Sześć tych samych ruchów na każdym treningu (styl Built With Science): pełne ciało 3× w tygodniu, prosty start i szybka nauka techniki. Progres przez dokładanie powtórzeń.',
+    description: 'Sześć tych samych ruchów na każdym treningu: pełne ciało 3× w tygodniu, prosty start i szybka nauka techniki. Progres przez dokładanie powtórzeń.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
@@ -703,7 +703,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-gzclp-3',
     name: 'Three Tier Strength',
-    description: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Kontynuacja po programie 5×5.',
+    description: 'Trzy poziomy pracy: ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Naturalny krok po planie 5×5.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'beginner',
@@ -733,7 +733,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-calisthenics-3',
     name: 'Bodyweight Foundation',
-    description: 'Kalistenika w duchu Recommended Routine (r/bodyweightfitness): pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
+    description: 'Kalistenika: pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
     goal: 'health',
     objective: 'athletic',
     level: 'beginner',
@@ -778,7 +778,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-glutes-3',
     name: 'Glute Foundations',
-    description: 'Program w duchu Strong Curves (Bret Contreras): priorytet pośladków i dołu ciała z pracą całej sylwetki. Superserie pośladki+góra, zakresy 8-20 powtórzeń.',
+    description: 'Program z priorytetem pośladków i dołu ciała, z pracą całej sylwetki. Superserie pośladki+góra, zakresy 8-20 powtórzeń.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'beginner',
@@ -816,8 +816,8 @@ export const planTemplates: PlanTemplate[] = [
   },
   {
     id: 'tpl-phul-4',
-    name: 'Power Hypertrophy Upper Lower',
-    description: 'PHUL: dwa dni siłowe (3-5 powtórzeń na bojach) i dwa objętościowe (8-12). Każda partia trenowana 2× w tygodniu. Siła i sylwetka jednocześnie.',
+    name: 'Strength & Size Upper/Lower',
+    description: 'Dwa dni siłowe (3-5 powtórzeń na bojach) i dwa objętościowe (8-12) w układzie góra/dół. Każda partia trenowana 2× w tygodniu. Siła i sylwetka jednocześnie.',
     goal: 'strength',
     objective: 'build_muscle',
     level: 'intermediate',
@@ -861,8 +861,8 @@ export const planTemplates: PlanTemplate[] = [
   },
   {
     id: 'tpl-531-bbb-4',
-    name: 'Iron Cycle 5/3/1',
-    description: '5/3/1 Boring But Big (Jim Wendler): jeden ciężki bój dziennie wg procentów Training Max (90% 1RM), potem 5×10 boju pomocniczego. Tydzień 1: 5/5/5+, tydzień 2: 3/3/3+, tydzień 3: 5/3/1+, tydzień 4: deload. Po cyklu +2,5 kg góra / +5 kg dół.',
+    name: 'Iron Strength Cycle',
+    description: 'Cykl 4-tygodniowy oparty na Training Max (90% 1RM): jeden ciężki bój dziennie według procentów TM, potem 5×10 boju pomocniczego. Tydzień 1: serie po 5 powtórzeń, tydzień 2: po 3, tydzień 3: 5, 3 i 1 (ostatnia seria zawsze na maksimum powtórzeń), tydzień 4: deload. Po cyklu +2,5 kg góra / +5 kg dół.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'intermediate',
@@ -898,7 +898,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-meso-4',
     name: 'Science Mesocycle',
-    description: 'Hipertrofia sterowana objętością (inspiracja Renaissance Periodization): start na minimalnej skutecznej objętości, co tydzień +1 seria do części ćwiczeń i mniejszy zapas (RIR 3→0), tydzień 5 to deload. Dwa mezocykle.',
+    description: 'Hipertrofia sterowana objętością: start na minimalnej skutecznej objętości, co tydzień +1 seria do części ćwiczeń i mniejszy zapas (RIR 3→0), tydzień 5 to deload. Dwa mezocykle.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
@@ -943,8 +943,8 @@ export const planTemplates: PlanTemplate[] = [
   },
   {
     id: 'tpl-phat-5',
-    name: 'PHAT Powerbuilding',
-    description: 'PHAT (Layne Norton): 2 dni siłowe (3-5 powtórzeń) + 3 dni objętościowe (~85% ciężaru z dni siłowych, 8-20 powtórzeń). Bardzo wysoka objętość dla zaawansowanych z dobrą regeneracją.',
+    name: 'Five-Day Powerbuilding',
+    description: 'Pięć dni siły i masy: 2 dni siłowe (3-5 powtórzeń) + 3 dni objętościowe (~85% ciężaru z dni siłowych, 8-20 powtórzeń). Bardzo wysoka objętość dla zaawansowanych z dobrą regeneracją.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
@@ -1058,7 +1058,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-nsuns-5',
     name: 'Volume Max LP',
-    description: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Plan o bardzo wysokiej objętości dla zaawansowanych.',
+    description: 'Progresja liniowa na Training Max: 9 serii boju głównego z falującymi procentami TM (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Plan o bardzo wysokiej objętości dla zaawansowanych.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'advanced',
@@ -1100,7 +1100,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-arnold-6',
     name: 'Golden Era Split',
-    description: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
+    description: 'Klasyczny split złotej ery kulturystyki w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',
