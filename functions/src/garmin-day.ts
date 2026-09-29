@@ -6,6 +6,7 @@
 
 import type { GarminTrackingType } from "./garmin-ingest";
 import { isBodyweightLoadedName } from "./bodyweight-loaded";
+import { rampWindowFromContext, sessionRampTarget } from "./session-ramp";
 import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
 import { isPlannedDateBlocked, type PlannedDateBlockContext } from "./plan-date-block";
 
@@ -328,8 +329,16 @@ export function buildGarminDayContext(
       const previous = latestCompletedSet(workouts, exercise.id);
       const tracking = resolveTracking(exercise, workouts, trackingByName);
 
-      let target: { reps: number; weight: number } | null = null;
-      if (last) {
+      // F3 x F6: tryb / urlop / rampa / comeback dają ten sam cel co telefon
+      // (session-ramp.ts, parytet fixtures/cross-platform/session-ramp-v1.json).
+      const ramp = tracking === "weight_reps"
+        ? sessionRampTarget({
+          workouts, exerciseId: exercise.id, exerciseName: exercise.name, dateISO: date,
+          range, bodyweightLoaded, window: rampWindowFromContext(blockContext),
+        })
+        : null;
+      let target: { reps: number; weight: number } | null = ramp;
+      if (!target && last) {
         if (last.reps >= range.max) {
           // Parytet z decideNextSet: góra zakresu => +2.5 kg, reps do dołu.
           target = { reps: range.min, weight: last.weight + 2.5 };

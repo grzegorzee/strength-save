@@ -23,7 +23,7 @@ const LOADED_EN_NAMES = (() => {
     .filter((en): en is string => !!en && !ambiguous.has(en)));
 })();
 
-const isLoadedExerciseName = (name: string | undefined): boolean =>
+export const isLoadedExerciseName = (name: string | undefined): boolean =>
   isBodyweightLoadedName(name) || (!!name && LOADED_EN_NAMES.has(name));
 
 /** Epley: 1RM = weight × (1 + reps / 30); zaokrąglenie do 0.1 jak klient. */

@@ -43,6 +43,8 @@ interface HistorySessionRowProps {
   /** WP-C (X38): sesja zakończona lokalnie, czeka na zapis w chmurze (finalSyncPending). */
   pendingCloud?: boolean;
   resolveExerciseName: (workout: WorkoutSession, exerciseId: string) => string;
+  /** F6: czy ćwiczenie (po snapshocie nazwy) to bodyweight_loaded; domyślnie biblioteka. */
+  isBodyweightLoaded?: (name: string) => boolean;
   onOpen: () => void;
   onToggleCompare: () => void;
   onToggleExpanded: () => void;
@@ -60,6 +62,7 @@ const setWordKey = (n: number) =>
 export const HistorySessionRow = ({
   workout, title, focusLabel, meta, tonnage, totalSets, isSelected, isExpanded, compareMode,
   surface, highlight, pendingCloud, resolveExerciseName, onOpen, onToggleCompare, onToggleExpanded, onEmail, onDelete,
+  isBodyweightLoaded = isBodyweightLoadedExercise,
 }: HistorySessionRowProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
@@ -201,7 +204,7 @@ export const HistorySessionRow = ({
                         s,
                         (kg) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`,
                         t('history.bodyweightSet'),
-                        isBodyweightLoadedExercise(e.name ?? '') ? t('bodyweightLoaded.label') : undefined,
+                        isBodyweightLoaded(e.name ?? '') ? t('bodyweightLoaded.label') : undefined,
                       )}
                     </span>
                   ))}

@@ -25,6 +25,7 @@ import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { buildBodyWeightTimeline, normalizeBodyweightLoadedWorkouts } from '@/lib/bodyweight-load';
 import { isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
+import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
@@ -108,6 +109,13 @@ const WorkoutHistory = () => {
   // F6: sonda pomiarów (masa ciała z dnia treningu) do normalizacji legacy.
   const { measurements } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
   const bodyWeightTimeline = useMemo(() => buildBodyWeightTimeline(measurements ?? []), [measurements]);
+  // F6: bodyweight_loaded także dla własnych ćwiczeń (etykiety MC i PR dociążenia).
+  // Normalizacja legacy zostaje po bibliotece: własne ćwiczenia nie mają danych sprzed F6.
+  const { customExercises } = useCustomExercises(uid);
+  const isLoadedName = useMemo(() => {
+    const custom = new Map((customExercises ?? []).map((ex) => [ex.name, ex.tracking === 'bodyweight_loaded']));
+    return (name: string): boolean => custom.get(name) ?? isBodyweightLoadedExercise(name);
+  }, [customExercises]);
 
   // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
@@ -130,7 +138,7 @@ const WorkoutHistory = () => {
   }, [workouts, cycleSessionEntries, bodyWeightTimeline]);
 
   // Czas trwania + PR per sesja liczone RAZ dla listy (Z80), nie per wiersz w renderze.
-  const rowMeta = useMemo(() => buildHistoryRowMeta(allSessions), [allSessions]);
+  const rowMeta = useMemo(() => buildHistoryRowMeta(allSessions, isLoadedName), [allSessions, isLoadedName]);
 
   // Jedno źródło filtra deletedIds — obejmuje też sesje dociągnięte lazy.
   const liveSessions = useMemo(
@@ -365,6 +373,7 @@ const WorkoutHistory = () => {
     const title = `${localizeDayName(dayLabel.dayName, lang)} · ${focusLabel || t('history.noFocus')}`;
     return (
       <HistorySessionRow
+        isBodyweightLoaded={isLoadedName}
         key={workout.id}
         workout={workout}
         title={title}

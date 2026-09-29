@@ -1,5 +1,6 @@
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { buildBodyWeightTimeline } from "./bodyweight-loaded";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
@@ -1333,6 +1334,11 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
   // T21a/T21b: treść HTML w podkolekcji content/body przez wspólny helper —
   // lista 100 wpisów w panelu zostaje lekka (web SDK nie ma projekcji pól).
   logEmail: (entry, html) => writeEmailLog(db, entry, html),
+  // F6: masa ciała (pomiary z wagą) do przeliczenia legacy bodyweight_loaded w mailach.
+  loadBodyWeightTimeline: async (uid) => {
+    const snap = await db.collection("measurements").where("userId", "==", uid).get();
+    return buildBodyWeightTimeline(snap.docs.map((doc) => doc.data() as { date?: unknown; weight?: unknown }));
+  },
 });
 
 const emailErrorToHttps = (code: string): never => {

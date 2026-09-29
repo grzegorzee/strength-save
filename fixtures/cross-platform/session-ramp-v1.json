@@ -1,0 +1,87 @@
+{
+  "contract": "strength-save-session-ramp",
+  "contractVersion": 1,
+  "description": "F3 x F6 (2026-09-29): cel pierwszej serii dnia po trybie/urlopie i po długiej przerwie. Ta sama tabela przechodzi przez telefon (computeWeeklyTargets z oknem reducedMode ?? urlop) i Garmin (buildGarminDayContext). Reguła: weight_reps = baza sprzed okna x czynnik (0.8 w oknie, 0.85 / 0.92 w kolejnych sesjach po nim), krok 0.5 kg; bodyweight_loaded z dociążeniem obniża kg, na samej MC obniża powtórzenia; comeback >= 14 dni: -10% (dociążenie w dół do 0.5), sama MC bez zmian. expected.weight 0 = sama masa ciała.",
+  "cases": [
+    {
+      "name": "weight_reps: pierwsza sesja po urlopie 40x8 -> 34 kg",
+      "exercise": { "name": "Wyciskanie hantli (Lekki skos)", "sets": "3 x 8" },
+      "planDoc": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } },
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-21", "sets": [[8, 40], [8, 40]] }],
+      "expected": { "weight": 34, "reps": 8 }
+    },
+    {
+      "name": "weight_reps: druga sesja po urlopie 0.92 x 40 = 37 kg (baza sprzed urlopu)",
+      "exercise": { "name": "Wyciskanie hantli (Lekki skos)", "sets": "3 x 8" },
+      "planDoc": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } },
+      "date": "2026-10-01",
+      "history": [{ "date": "2026-09-21", "sets": [[8, 40]] }, { "date": "2026-09-28", "sets": [[8, 34]] }],
+      "expected": { "weight": 37, "reps": 8 }
+    },
+    {
+      "name": "weight_reps: rampa domknięta -> zwykła progresja +2.5 kg",
+      "exercise": { "name": "Wyciskanie hantli (Lekki skos)", "sets": "3 x 8" },
+      "planDoc": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } },
+      "date": "2026-10-05",
+      "history": [{ "date": "2026-09-21", "sets": [[8, 40]] }, { "date": "2026-09-28", "sets": [[8, 34]] }, { "date": "2026-10-01", "sets": [[8, 37]] }],
+      "expected": { "weight": 39.5, "reps": 8 }
+    },
+    {
+      "name": "weight_reps: w oknie trybu lżejszego 0.8 x 40 = 32 kg",
+      "exercise": { "name": "Wyciskanie hantli (Lekki skos)", "sets": "3 x 8" },
+      "planDoc": { "reducedMode": { "startDate": "2026-09-28", "endDate": "2026-10-02", "level": "lighter" } },
+      "date": "2026-09-29",
+      "history": [{ "date": "2026-09-25", "sets": [[8, 40]] }],
+      "expected": { "weight": 32, "reps": 8 }
+    },
+    {
+      "name": "bodyweight_loaded z dociążeniem: rampa obniża dociążenie (10 -> 8.5 kg)",
+      "exercise": { "name": "Podciąganie na drążku", "sets": "3 x 6-8" },
+      "planDoc": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } },
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-21", "sets": [[6, 10], [6, 10]] }],
+      "expected": { "weight": 8.5, "reps": 8 }
+    },
+    {
+      "name": "bodyweight_loaded na MC: rampa obniża powtórzenia (8 -> 7), bez kg",
+      "exercise": { "name": "Podciąganie na drążku", "sets": "3 x 6-8" },
+      "planDoc": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } },
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-21", "sets": [[8, 0], [8, 0]] }],
+      "expected": { "weight": 0, "reps": 7 }
+    },
+    {
+      "name": "comeback weight_reps po 27 dniach: -10% (40 -> 36), powtórzenia z góry zakresu",
+      "exercise": { "name": "Wyciskanie hantli (Lekki skos)", "sets": "3 x 6-8" },
+      "planDoc": {},
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-01", "sets": [[7, 40]] }],
+      "expected": { "weight": 36, "reps": 8 }
+    },
+    {
+      "name": "comeback bodyweight_loaded z dociążeniem: 10 -> 9 kg",
+      "exercise": { "name": "Podciąganie na drążku", "sets": "3 x 6-8" },
+      "planDoc": {},
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-01", "sets": [[7, 10]] }],
+      "expected": { "weight": 9, "reps": 8 }
+    },
+    {
+      "name": "comeback bodyweight_loaded na MC: zwykła progresja powtórzeń (7 -> 8)",
+      "exercise": { "name": "Podciąganie na drążku", "sets": "3 x 6-8" },
+      "planDoc": {},
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-01", "sets": [[7, 0]] }],
+      "expected": { "weight": 0, "reps": 8 }
+    },
+    {
+      "name": "bez okna i bez przerwy: MC 8 powt. -> +2.5 kg x 6",
+      "exercise": { "name": "Podciąganie na drążku", "sets": "3 x 6-8" },
+      "planDoc": {},
+      "date": "2026-09-28",
+      "history": [{ "date": "2026-09-24", "sets": [[8, 0]] }],
+      "expected": { "weight": 2.5, "reps": 6 }
+    }
+  ]
+}
