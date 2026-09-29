@@ -43,9 +43,10 @@
   "ios": {
     "version": "1.0.0",
     "build": 152,
-    "state": "source-version-requires-current-delivery-verification",
+    "state": "testflight-delivered-verified",
     "priorDeliveryEvidence": "release/ios/testflight-150.json",
-    "verifiedDelivery": "pending: 152 = same source as 151; 151 upload stuck in Apple PROCESSING >50 min with no errors"
+    "verifiedDelivery": "152 VALID / Beta App Review APPROVED / IN_BETA_TESTING in both groups; autoNotify enabled; whatsNew set",
+    "deliveryEvidence": "release/ios/testflight-152.json"
   },
   "android": {
     "version": "1.0.0",

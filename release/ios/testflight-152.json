@@ -1,0 +1,29 @@
+{
+  "verified_at": "2026-09-29T15:15:12.866838+00:00",
+  "source_commit": "064640d9",
+  "artifact": {
+    "path": "build/ios/export/App.ipa",
+    "bytes": 24309490,
+    "sha256": "6b163345b5d4edb2ce584d100ecba8d4e3d73181216642d880248bfb4f308c81",
+    "version": "1.0.0",
+    "build": 152
+  },
+  "store_verification": {
+    "processingState": "VALID",
+    "betaReviewState": "APPROVED",
+    "internalBuildState": "IN_BETA_TESTING",
+    "externalBuildState": "IN_BETA_TESTING",
+    "autoNotifyEnabled": true,
+    "whatsNew": "en-US set (HTTP 200)",
+    "groups": "internal HTTP 204, external HTTP 204"
+  },
+  "signature": {
+    "authority": "Apple Distribution: Grzegorz Jasionowicz (J4CRD2SA6D)",
+    "entitlements": "aps-environment=production, appattest=production, get-task-allow=false"
+  },
+  "upload": {
+    "delivery_uuid": "6c3c025e-7daf-4585-aaf9-663e1a4928f1",
+    "result": "UPLOAD SUCCEEDED"
+  },
+  "note": "Build 151 (same source except build number, delivery 445a313b) stayed in Apple buildUploads PROCESSING with no errors; superseded by 152."
+}
