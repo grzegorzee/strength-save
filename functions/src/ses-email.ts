@@ -198,6 +198,8 @@ export const sendSesEmail = async (message: Omit<SesEmailMessage, "from" | "text
       to: message.to,
       subject: message.subject,
       html: message.html,
+      headers: message.headers ?? [],
+      replyTo: message.replyTo ?? null,
       createdAt: new Date().toISOString(),
     });
     return { transport: "ses", sesMessageId: `emulator-${ref.id}` };

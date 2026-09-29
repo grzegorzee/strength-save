@@ -196,9 +196,9 @@ export function adminClient(): Promise<CallableClient> {
   return adminPromise;
 }
 
-export async function createInviteCode(): Promise<string> {
+export async function createInviteCode(cohorts: string[] = []): Promise<string> {
   const admin = await adminClient();
-  const result = await admin.call<{ invite: { code: string } }>('createInvite', { note: 'release-e2e' });
+  const result = await admin.call<{ invite: { code: string } }>('createInvite', { note: 'release-e2e', cohorts });
   return result.invite.code;
 }
 
@@ -211,12 +211,16 @@ export async function grantProComp(uid: string): Promise<void> {
 
 // ---------- skrzynka maili emulatora (functions/src/ses-email.ts) ----------
 
-export async function waitForEmail(to: string, subjectPattern: RegExp, afterIso = ''): Promise<{ subject: string; html: string }> {
-  let found: { subject: string; html: string } | null = null;
+export interface OutboxMail { subject: string; html: string; createdAt: string; headers?: Array<{ name: string; value: string }> }
+
+export async function outboxFor(to: string): Promise<OutboxMail[]> {
+  return (await queryDocs('emulator_email_outbox', 'to', to.toLowerCase())).map((m) => m.data as unknown as OutboxMail);
+}
+
+export async function waitForEmail(to: string, subjectPattern: RegExp, afterIso = ''): Promise<OutboxMail> {
+  let found: OutboxMail | null = null;
   await expect.poll(async () => {
-    const mails = await queryDocs('emulator_email_outbox', 'to', to.toLowerCase());
-    const hit = mails
-      .map((m) => m.data as { subject: string; html: string; createdAt: string })
+    const hit = (await outboxFor(to))
       .filter((m) => m.createdAt > afterIso && subjectPattern.test(m.subject))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     found = hit ?? null;
@@ -233,15 +237,18 @@ export const verificationCodeFrom = (mail: { subject: string }): string => {
 
 // ---------- konto PRO gotowe do onboardingu (produkcyjne callable) ----------
 
-export interface ProvisionedUser { uid: string; email: string; displayName: string }
+export interface ProvisionedUser { uid: string; email: string }
 
 /** Rejestracja przez produkcyjne callable (zaproszenie admina → syncUserProfile →
  *  kod z maila → verifyEmailCode) + grant PRO comp przez admina. Onboarding
  *  (zgody, kreator, plan) test przechodzi już w UI. */
-export async function provisionVerifiedProUser(prefix: string, language: 'pl' | 'en' = 'pl'): Promise<ProvisionedUser> {
+export async function provisionVerifiedProUser(
+  prefix: string,
+  language: 'pl' | 'en' = 'pl',
+  cohorts: string[] = [],
+): Promise<ProvisionedUser> {
   const email = `${prefix}-${Date.now()}@e2e.test`;
-  const displayName = `${prefix.replace(/[^a-z]/gi, '').slice(0, 10) || 'Tester'} Release`;
-  const inviteCode = await createInviteCode();
+  const inviteCode = await createInviteCode(cohorts);
   const uid = await createAuthUser(email);
   const client = await connectClient(email);
   try {
@@ -257,7 +264,7 @@ export async function provisionVerifiedProUser(prefix: string, language: 'pl' | 
   const profile = await readDoc(`users/${uid}`);
   expect(profile).toMatchObject({ status: 'active', access: { enabled: true }, onboardingCompleted: false });
   await grantProComp(uid);
-  return { uid, email, displayName: email.split('@')[0] };
+  return { uid, email };
 }
 
 // ---------- UI ----------
