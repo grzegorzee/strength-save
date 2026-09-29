@@ -290,10 +290,10 @@ describe("buildGarminDayContext — urlop + bodyweight_loaded (F2 × F6)", () =>
     expect(buildGarminDayContext([pullDay], legacy, "2026-09-28", {}, {}, null, null, vacation)).toBeNull();
   });
 
-  it("poniedziałek po urlopie: weight_reps, cel × 8 bez kg (nie 74/76.5 kg)", () => {
+  it("poniedziałek po urlopie: weight_reps, rampa na powtórzeniach jak telefon (7 x 0.85 = 6), bez kg (nie 74/76.5 kg)", () => {
     const ex = buildGarminDayContext([pullDay], legacy, "2026-10-05", {}, {}, null, null, vacation)!.e[0];
     expect(ex.k).toBe("weight_reps");
-    expect(ex.t).toBe("× 8");
-    expect(ex.s).toEqual([[8, 0], [8, 0], [8, 0]]);
+    expect(ex.t).toBe("× 6");
+    expect(ex.s).toEqual([[6, 0], [6, 0], [6, 0]]);
   });
 });
