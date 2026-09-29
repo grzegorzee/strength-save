@@ -2,6 +2,22 @@
 
 > Quick reference - wszystko w jednym miejscu
 
+> **App Store Review, 2026-09-13:** właściciel wysłał **1.0.0 (148)**
+> o **17:21 czasu polskiego** razem z grupą Strength Save PRO oraz subskrypcjami
+> PRO Monthly i PRO Yearly. Wszystkie 4 elementy: **WAITING_FOR_REVIEW**,
+> potwierdzone screenshotem i API o 17:23. Publikacja po akceptacji: **MANUAL**.
+> [Daty, identyfikatory zgłoszenia i dowody](docs/APP-REVIEW-2026-09-13.md).
+
+> **Android, przygotowanie premiery 2026-09-13, 18:37 CEST:** produkcyjny
+> szkic **1.0.0 (54)** zapisany. Internal Testing nadal completed.
+> Nowe opisy, 8+8 natywnych screenshotów Androida PL/EN, grafiki, ikony i kontakt
+> zapisane i potwierdzone przez API. Subskrypcje i triale aktywne, RevenueCat
+> zweryfikowany, Data safety przyjęte HTTP204.
+> **NIE jest w review:** Google nadal blokuje pierwszą publikację stanem Draft.
+> Pozostają zadania konsoli, podgląd Data safety, test zakupów i RTDN.
+> [Stan premiery, dowody i kolejne kliknięcia](docs/GOOGLE-PLAY-LAUNCH-2026-09-13.md).
+> [Konto recenzenta: pęk kluczy i skróty kopiowania](docs/STORE-REVIEW-ACCESS.md).
+
 > **Poprawki 2026-09-12:** iOS 148 / Android 54 (1.0.0) dostarczone.
 > Naprawiono asercję Firebase, odtwarzanie rozgrzewki, etykietę przesuniętego
 > treningu i baner po synchronizacji. Układ iOS/Android jest rozdzielony;

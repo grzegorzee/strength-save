@@ -1,5 +1,11 @@
 # Google Play — przygotowanie wydania
 
+**Aktualny status z 13.09.2026, 18:37 CEST:** szkic produkcyjny54, 8+8 nowych
+screenshotów Androida PL/EN, grafiki, opisy i kontakt zapisane. Subskrypcje aktywne,
+Data safety przyjęte. Review nadal blokuje stan Draft aplikacji.
+[Stan premiery, kolejne kroki i dowody](GOOGLE-PLAY-LAUNCH-2026-09-13.md).
+Poniższe dane z 07.09 są historyczne, w tym informacja o braku dostępu API.
+
 Stan dokumentacji: 2026-09-07. Nie jest to odczyt dzisiejszego stanu Play Console.
 Konto projektu jest według wcześniejszych notatek kontem organizacji; notatka
 z 2026-08-21 potwierdzała weryfikację. Przed wydaniem sprawdź bieżący stan konta,

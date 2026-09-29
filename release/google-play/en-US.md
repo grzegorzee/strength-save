@@ -1,24 +1,37 @@
-# Strength Save
+# Strength Save: Gym Tracker
 
 ## Short description
 
-Plan, log and review strength workouts, online or offline.
+Log weights and reps, plan your workouts and see what you lifted last time.
 
 ## Full description
 
-Strength Save keeps your strength training plan, workout log and progress in one account.
+Remember what you lifted last time. Strength Save is a workout log for recording weights, reps and rest periods, planning your sessions and following your progress.
 
-- follow a planned workout or start a quick session;
-- log sets, weight, repetitions, time and distance;
-- use automatic rest timers and continue offline;
-- review history, personal records and training trends;
-- sync completed workouts and weight with Health Connect;
-- use kilograms or pounds and switch between English and Polish.
+During your workout
+• Your previous result beside each set to help you choose a weight.
+• Working sets, warm-up sets, supersets and notes.
+• Rest timer notifications when your screen is locked, with the required permissions enabled.
+• Quick workouts when you want to train without a program.
+• Offline workout logging that syncs when your connection returns.
 
-One Strength Save PRO subscription covers every supported Strength Save client. Monthly and yearly options are available in the app. An introductory offer is shown only when Google Play confirms that the selected product and account are eligible. Subscriptions renew automatically unless cancelled in Google Play subscription settings.
+Plan the weeks ahead
+Choose a ready-made program or build your own. Browse exercises with written instructions. Reschedule sessions, swap exercises and keep the history of your previous training cycles.
 
-Strength Save provides fitness information, not medical advice. Exercise within your abilities and consult a qualified professional when needed.
+See your progress
+Compare weeks and months, check your exercise history and track personal records. Review completed workouts, sets and training volume. Add body measurements and progress photos if you also want to follow changes in your physique.
 
-Privacy Policy: https://strengthsave.app/privacy
+Health Connect
+With your permission, save completed workout sessions to Health Connect. You can also read your latest body weight and confirm it before adding it to your measurements. These features are optional and require Health Connect to be available on your device.
 
-Terms of Use: https://strengthsave.app/terms
+Bring your training history
+Import workout CSV files from Strong or Hevy. Export your data and create PDF reports. Use kilograms or pounds and switch between English and Polish.
+
+PRO subscription
+The app is free to download. Starting workouts requires active PRO access, such as a subscription or trial. Monthly and annual plans are available. The price and any eligible trial appear before you confirm the purchase. Subscriptions renew automatically unless cancelled before renewal. Manage Google Play purchases in Google Play subscription settings. Sign in to the same Strength Save account to use your existing PRO access across supported devices.
+
+Strength Save is a fitness log, not a medical device. It does not diagnose or treat medical conditions. Consult a qualified healthcare professional for medical advice.
+
+Support: https://strengthsave.app/support
+Privacy: https://strengthsave.app/privacy
+Terms: https://strengthsave.app/terms

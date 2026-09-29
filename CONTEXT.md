@@ -138,6 +138,9 @@ Projekt własny — brak klienta zewnętrznego.
 
 - **Imię i nazwisko:** Grzegorz Jasionowicz (owner)
 - **Email:** g.jasionowicz@gmail.com (admin) / grzegorzee@gmail.com
+- **Poczta domeny (od 16.09.2026):** `contact@strengthsave.app` i `greg@strengthsave.app` to prawdziwe skrzynki na seohost (h19, IMAP 993, SMTP 465, SSL), sprawdzone w obie strony. Do tej pory domena nie miała rekordu MX, więc `mailto:contact@strengthsave.app` w `BugReportDialog.tsx:127` prowadził donikąd i każdy mail od użytkownika odbijał się. Teraz dochodzi. Szczegóły konfiguracji: `projekty/strength_save_landing/CONTEXT.md`, sekcja POCZTA DOMENY.
+- **Zgłoszenia z przycisku „Wyślij" idą do Firestore i mailem.** `submitBugReport` zapisuje je w `bug_reports` (dokument `{uid}_{clientRequestId}`), zrzut do Storage, podgląd w `src/pages/admin/AdminBugReportsCard.tsx`. `finalizeBugReport` wysyła powiadomienie przez SES na `contact@strengthsave.app` (`functions/src/bug-reports.ts`: `BUG_REPORT_EMAIL_TO` w linii 12, treść w `buildBugReportEmail`), z wpisem w `email_log` typu `bug_report` i polem `emailDelivery` w dokumencie.
+- **Uwaga historyczna: do 16.09.2026 te powiadomienia odbijały się.** Kod wysyłał je poprawnie, ale `contact@strengthsave.app` nie miał rekordu MX, więc nie istniała skrzynka, która mogłaby je przyjąć. Jeśli szukasz zgłoszeń sprzed tej daty, są w Firestore, nie w poczcie. Sprawdź `emailDelivery` w dokumentach, żeby zobaczyć, które próby zawiodły.
 - **Telefon:** [—]
 - **Komunikator:** [—]
 - **Strefa czasowa:** Europe/Warsaw

@@ -1,5 +1,9 @@
 # Status: naprawa IAP → submisja do App Review
 
+> **Aktualizacja 2026-09-13:** build **148**, grupa PRO oraz obie subskrypcje zostały wysłane do App Review o **17:21 czasu polskiego**. Wszystkie cztery elementy mają status **WAITING_FOR_REVIEW**. [Aktualne daty i dowody](APP-REVIEW-2026-09-13.md).
+
+> Dalsza część to stan historyczny z czerwca. Nie używać starych numerów buildów, danych konta ani twierdzeń o dostępności StoreKit jako aktualnej instrukcji.
+
 > Utworzono 2026-06-24. Praca diagnostyczna + buildy: 2026-06-18.
 > Cel: natywne zakupy iOS (RevenueCat) działają na realnym urządzeniu — paywall pokazuje
 > pakiety roczny + miesięczny z cenami z App Store, zakup w sandbox kończy się PRO.
@@ -54,7 +58,7 @@ Po wejściu w review/approval StoreKit zaczyna serwować produkty (i tak koniecz
 
 **Konto demo dla recenzenta** (Auth utworzone, profil+PRO NIE — czeka na service account):
 - Login: `applereview@strengthsave.app`
-- Hasło: `Demo-Apple-2026-StrengthSave`
+- Hasło: usunięte z dokumentacji. Aktualne dane są wyłącznie w prywatnym App Review Information.
 - uid: `demoAppleReviewStrengthSave01`
 - Profil docelowy (Firestore `users/{uid}`): `access.enabled=true`, `status=active`,
   `onboardingCompleted=true`, `subscription={tier:'comp', status:'active', expiresAt:null}`.
