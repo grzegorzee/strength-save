@@ -114,6 +114,24 @@ describe("buildGarminDayContext (Z125)", () => {
 });
 
 // Szybki trening na zegarku: lista ostatnich ćwiczeń (r) z historii.
+describe("buildGarminDayContext — serie na dystans (T6)", () => {
+  it("\"6 x 20 m\" nie daje celu 20 powtórzeń (metry to dystans)", () => {
+    const sledDay: GarminPlanDay = {
+      ...day,
+      exercises: [{ id: "sled", name: "Pchanie sań (Sled Push)", sets: "6 x 20 m", tracking: "weight_distance_duration" }],
+    };
+    const history: GarminWorkout[] = [{
+      date: "2026-07-13", completed: true,
+      exercises: [{ exerciseId: "sled", sets: [{ reps: 0, weight: 40, distanceM: 20, durationSec: 25, completed: true }] }],
+    }];
+    const ctx = buildGarminDayContext([sledDay], history, "2026-07-20", {});
+    const sled = ctx!.e[0];
+    expect(sled.s).toHaveLength(6);
+    expect(sled.s[0][0]).toBe(0);
+    expect(sled.t).toBeUndefined();
+  });
+});
+
 describe("buildRecentExercises", () => {
   const w = (date: string, exerciseId: string, opts: { name?: string; weight?: number; reps?: number; completed?: boolean; warmupOnly?: boolean } = {}): GarminWorkout => ({
     date,

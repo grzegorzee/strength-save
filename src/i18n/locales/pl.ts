@@ -2837,6 +2837,14 @@ export const pl = {
   'ob.matching.objective': 'Cel',
   // X33 WP-2: krok 5A "Dopasowane do Ciebie" = dwie karty planów (Polecany / Alternatywa / Wybrany).
   'ob.match.title': 'Plany na {days} dni w tygodniu',
+  // T6: miejsce treningu (krok 3) i profil bez pasującego szablonu (krok 5).
+  'ob.equipment.title': 'Gdzie trenujesz?',
+  'ob.equipment.gym': 'Siłownia',
+  'ob.equipment.dumbbells_home': 'Hantle w domu',
+  'ob.equipment.bodyweight': 'Masa ciała',
+  'ob.match.noTemplateTitle': 'Brak gotowego planu dla tych odpowiedzi',
+  'ob.match.noTemplateDesc': 'Plany z masą ciała opierają się na pompkach, podciąganiu i planku, a tych nie proponujemy na starcie. Wybierz inne miejsce treningu albo ułóż własny plan.',
+  'ob.match.changeEquipment': 'Zmień miejsce treningu',
   'ob.match.badgeRecommended': 'Polecany',
   'ob.match.badgeAlternative': 'Alternatywa',
   'ob.match.badgeChosen': 'Wybrany',

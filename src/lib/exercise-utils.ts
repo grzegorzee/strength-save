@@ -48,6 +48,21 @@ export const parseDurationRange = (setsStr: string): DurationRange | null => {
   return { sets: parseInt(match[1], 10), min, max };
 };
 
+// T6 (2026-09-29): zapis serii na dystans z planu: "6 x 20 m", "3 x 20 m/strona".
+// Sufiks "m" musi kończyć słowo ("10 min" to nie metry). Metry to cel dystansu
+// (weight_distance_duration), NIE powtórzenia. Parytet: functions/src/garmin-day.ts.
+export type DistanceRange = DurationRange;
+
+const DISTANCE_RANGE_RE = /(\d+)\s*x\s*(\d+)(?:\s*-\s*(\d+))?\s*m\b/i;
+
+export const parseDistanceRange = (setsStr: string): DistanceRange | null => {
+  const match = setsStr.match(DISTANCE_RANGE_RE);
+  if (!match) return null;
+  const min = parseInt(match[2], 10);
+  const max = match[3] ? parseInt(match[3], 10) : min;
+  return { sets: parseInt(match[1], 10), min, max };
+};
+
 export const parseRepRange = (setsStr: string): RepRange => {
   // "3 x MAX" or "3 x max"
   if (/max/i.test(setsStr)) {
@@ -56,7 +71,7 @@ export const parseRepRange = (setsStr: string): RepRange => {
   // WP-C (X37): sekundy serii czasowej to nie powtorzenia. Zwracamy "bez celu
   // liczbowego" (jak MAX): progresja, cel tygodnia i placeholder POWT. milcza,
   // a cel czasu czyta parseDurationRange.
-  if (parseDurationRange(setsStr)) {
+  if (parseDurationRange(setsStr) || parseDistanceRange(setsStr)) {
     return { min: 0, max: 0, isMax: true };
   }
   // "3 x 6-8"

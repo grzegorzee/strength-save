@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { toggleButtonClasses } from '@/components/ui/chip-button';
-import { Search, Dumbbell, ArrowRightLeft, Play, Plus, ChevronRight } from 'lucide-react';
+import { Search, Dumbbell, ArrowRightLeft, Play, Plus, ChevronRight, HeartPulse } from 'lucide-react';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { getExerciseAnimationUrl, getGroupImageUrl, slugifyExercise } from '@/lib/exercise-media';
 import { cn } from '@/lib/utils';
@@ -16,8 +16,13 @@ import { GroupHeader } from '@/components/exercises/GroupHeader';
 import { ExerciseListRow } from '@/components/exercises/ExerciseListRow';
 
 const categoryOrder: LibraryExercise['category'][] = [
-  'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves',
+  'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves', 'conditioning',
 ];
+// T6: grupy bez zdjęcia w public/exercise-groups/ (nie generujemy nowych grafik):
+// kafel od razu dostaje gradient + ikonę zamiast żądania nieistniejącego pliku.
+const GROUPS_WITHOUT_IMAGE = new Set<string>(['conditioning']);
+const groupImageUrl = (category: string): string | null =>
+  GROUPS_WITHOUT_IMAGE.has(category) ? null : getGroupImageUrl(category);
 const VALID_CATEGORIES = new Set<string>(categoryOrder);
 // Dodatkowa grupa na customy z kategoria spoza taksonomii (edge case 4).
 const CUSTOM_GROUP_ID = 'custom';
@@ -209,7 +214,7 @@ const ExerciseLibrary = () => {
           title={title}
           countLabel={t('exercises.groupCount', { n: groupAll.length })}
           // WP-F (X28): grupa Własne dostała własną grafikę — hero jak inne grupy.
-          imageUrl={getGroupImageUrl(activeGroup)}
+          imageUrl={groupImageUrl(activeGroup)}
           onBack={() => setSearchParams({})}
           backLabel={t('common.back')}
         />
@@ -312,7 +317,8 @@ const ExerciseLibrary = () => {
                 key={cat}
                 label={localizeCategory(cat, lang)}
                 count={groupCounts.get(cat) ?? 0}
-                imageUrl={getGroupImageUrl(cat)}
+                imageUrl={groupImageUrl(cat)}
+                icon={GROUPS_WITHOUT_IMAGE.has(cat) ? HeartPulse : undefined}
                 onClick={() => setSearchParams({ group: cat })}
               />
             ))}

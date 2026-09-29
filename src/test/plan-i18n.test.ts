@@ -1,10 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
+import { localizePlanName, localizePlanDescription, localizeFocus } from '@/lib/plan-i18n';
 import { planTemplates } from '@/data/planTemplates';
 
 // Z164: każdy gotowy plan ma opis EN — inaczej user EN dostaje polski akapit.
 
 describe('opisy i nazwy gotowych planów po EN (Z164)', () => {
+  it('T6: focus każdego dnia nowych szablonów ma EN bez polskich znaków (Moc/Objętość)', () => {
+    const polish = /[ąćęłńóśźż]/i;
+    // Kontrakt dla szablonów T6. Znany dług sprzed T6 (poza zakresem, zgłoszony):
+    // RZA "tył uda + barki", 531-bbb "... + objętość", nsuns "Martwy ciąg", "wąsko".
+    const T6_IDS = new Set(planTemplates.slice(planTemplates.findIndex((t) => t.id === 'tpl-fatloss-3')).map((t) => t.id));
+    expect(T6_IDS.size).toBe(16);
+    for (const tpl of planTemplates.filter((t) => T6_IDS.has(t.id))) {
+      for (const d of tpl.days) expect(localizeFocus(d.focus ?? '', 'en'), `${tpl.id} ${d.id}: ${d.focus}`).not.toMatch(polish);
+    }
+    expect(localizeFocus('Moc Góra', 'en')).toBe('Power Upper');
+    expect(localizeFocus('Objętość B', 'en')).toBe('Volume B');
+  });
+
   it('każdy szablon ma nazwę i opis EN bez polskich znaków', () => {
     const polish = /[ąćęłńóśźż]/i;
     for (const tpl of planTemplates) {
@@ -47,6 +60,10 @@ describe('nazwy i opisy planów bez cudzych marek (2026-09-29)', () => {
       'tpl-athletic-4', 'tpl-rza-3', 'tpl-minimalist-2', 'tpl-six-lifts-3', 'tpl-gzclp-3',
       'tpl-calisthenics-3', 'tpl-glutes-3', 'tpl-phul-4', 'tpl-531-bbb-4', 'tpl-meso-4', 'tpl-phat-5',
       'tpl-hybrid-5', 'tpl-nsuns-5', 'tpl-arnold-6',
+      // T6 (2026-09-29): nowe szablony dopisane na końcu katalogu (istniejące id i kolejność bez zmian).
+      'tpl-fatloss-3', 'tpl-home-db-3', 'tpl-glutes-4', 'tpl-strength-2', 'tpl-beginner-ul-4', 'tpl-athletic-3',
+      'tpl-home-db-4', 'tpl-fatloss-2', 'tpl-fatloss-5', 'tpl-strength-ul-4', 'tpl-strength-6', 'tpl-glutes-2',
+      'tpl-health-50-2', 'tpl-kettlebell-3', 'tpl-express-3', 'tpl-travel-2',
     ]);
   });
 

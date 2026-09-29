@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
-import { planTemplates } from '@/data/planTemplates';
+import { planTemplates, type PlanTemplate } from '@/data/planTemplates';
+import { selectTemplatesForDays } from '@/lib/plan-recommendation';
 
 // WP-O (X30): Browse plans posortowane wg dopasowania do odpowiedzi usera
 // (scoreTemplates), najlepszy szablon dostaje badge "Polecany".
@@ -30,7 +31,9 @@ beforeEach(() => {
 });
 
 // Bez showWelcome wizard startuje na kroku 2 (poziom). Wybieramy fat_loss + N dni.
-const goToStep5AsFatLoss = (days: number) => {
+const goToStep5AsFatLoss = (days: number, levelLabel?: string) => {
+  // T6: domyślny poziom beginner ma twardy filtr F7; testy mechaniki puli dni wybierają średni.
+  if (levelLabel) fireEvent.click(screen.getByText(levelLabel));
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ })); // krok 2 -> 3
   fireEvent.click(screen.getByText('Redukcja'));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ })); // krok 3 -> 4
@@ -54,7 +57,9 @@ const previewFromStep5 = () => {
   fireEvent.click(screen.getByTestId('ob-match-next'));
   fireEvent.click(screen.getByTestId('ob-start-preview'));
 };
-const countFor = (days: number) => planTemplates.filter((t) => t.daysPerWeek === days).length;
+// T6: licznik = pula kroku 5 po twardych filtrach profilu (beginner bez szablonów F7).
+const countFor = (days: number, level: PlanTemplate['level'] = 'beginner') =>
+  selectTemplatesForDays(days, planTemplates, { level }).templates.length;
 
 describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () => {
   it('pierwsza karta to najlepsze dopasowanie i ma badge; reszta bez badge', () => {
@@ -62,7 +67,8 @@ describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () =
     goToBrowseAsFatLoss3Days();
 
     const headings = screen.getAllByRole('heading', { level: 2 });
-    expect(headings[0].textContent).toBe('Siła Fundamentalna'); // tpl-strength-5x5 (PL): 3 dni, beginner
+    // T6: redukcja + początkujący + 3 dni ma własny szablon (wcześniej tpl-strength-5x5).
+    expect(headings[0].textContent).toBe('Redukcja na Start'); // tpl-fatloss-3 (PL): 3 dni, beginner, fat_loss
     expect(screen.getAllByTestId('browse-recommended-badge')).toHaveLength(1);
     expect(screen.getByTestId('browse-recommended-badge').textContent).toBe('Polecany');
   });
@@ -100,16 +106,16 @@ describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', 
     expect(screen.queryByText('Rzeźba i Kondycja')).toBeNull();
   });
 
-  it('WŁASNOŚĆ: dla każdej liczby dni 2..6 każda karta w Browse ma tę liczbę dni, a licznik = liczba takich szablonów', () => {
+  it('WŁASNOŚĆ: dla każdej liczby dni 2..6 każda karta w Browse ma tę liczbę dni, a licznik = liczba takich szablonów (poziom średni)', () => {
     for (const days of [2, 3, 4, 5, 6]) {
       const view = render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-      goToStep5AsFatLoss(days);
+      goToStep5AsFatLoss(days, 'Średnio zaawansowany');
       expect(selectedCardMeta(), `${days} dni`).toContain(`· ${days} dni ·`);
       openBrowse();
       const list = cards();
-      expect(list, `${days} dni`).toHaveLength(countFor(days));
+      expect(list, `${days} dni`).toHaveLength(countFor(days, 'intermediate'));
       for (const card of list) expect(card.textContent, `${days} dni`).toContain(`${days}×`);
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na ${days} dni w tygodniu (${countFor(days)})`);
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na ${days} dni w tygodniu (${countFor(days, 'intermediate')})`);
       view.unmount();
     }
   });

@@ -4,6 +4,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
+import { templateRequiresBodyweightSupport } from '@/lib/plan-recommendation';
+import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 
 // X33 (plan docs/PLAN-X33-2026-08-25.md, sekcja 1): krok 5A "Dopasowane do Ciebie".
 // WP-1 natychmiastowa rekomendacja bez sztucznego oczekiwania,
@@ -26,7 +28,9 @@ const withProviders = (node: React.ReactNode) => (
 const noop = () => {};
 
 // Bez showWelcome wizard startuje na kroku 2 (poziom). Domyslnie beginner / build_muscle.
-const goToStep5 = (days = 4, objectiveLabel?: string) => {
+const goToStep5 = (days = 4, objectiveLabel?: string, levelLabel?: string) => {
+  // T6: beginner ma twardy filtr F7 (inna pula przy 5-6 dniach); testy mechaniki kart wybierają średni.
+  if (levelLabel) fireEvent.click(screen.getByText(levelLabel));
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   if (objectiveLabel) fireEvent.click(screen.getByText(objectiveLabel));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
@@ -86,7 +90,7 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     expect(first.textContent).not.toContain('Pierwszy trening');
     // Hero webp z getPlanTemplateImageUrl; blad pliku = karta bez obrazka, tresc zostaje.
     const img = first.querySelector('img')!;
-    expect(img.getAttribute('src')).toBe(`/plan-templates/${tpl.id}.webp`);
+    expect(img.getAttribute('src')).toBe(getPlanTemplateImageUrl(tpl.id));
     fireEvent.error(img);
     expect(first.querySelector('img')).toBeNull();
     expect(cardName(first)).toBe(localizePlanName(tpl.id, tpl.name, 'pl'));
@@ -95,7 +99,7 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
   it('WLASNOSC: dla kazdej liczby dni 2..6 obie karty maja daysPerWeek == wybrane dni i sa rozne', () => {
     for (const days of [2, 3, 4, 5, 6]) {
       const view = render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-      goToStep5(days, 'Redukcja');
+      goToStep5(days, 'Redukcja', 'Średnio zaawansowany');
       const list = cards();
       expect(list, `${days} dni`).toHaveLength(2);
       const names = list.map(cardName);
@@ -157,13 +161,14 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
 
   it('chipy celu w bibliotece filtruja w obrebie puli dni; "Wszystkie" domyslnie; pusty cel = komunikat z wyjsciem', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5(3);
+    // T6: 3 dni mają już szablony redukcyjne; pusty cel sprawdzamy na 6 dniach (brak redukcji).
+    goToStep5(6, undefined, 'Średnio zaawansowany');
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
 
     const chips = within(screen.getByTestId('browse-objective-chips')).getAllByRole('button');
     expect(chips.map((c) => c.textContent)).toEqual(['Wszystkie', 'Masa', 'Siła', 'Redukcja', 'Atletyka']);
     expect(chips[0].getAttribute('aria-pressed')).toBe('true');
-    const pool = planTemplates.filter((t) => t.daysPerWeek === 3);
+    const pool = planTemplates.filter((t) => t.daysPerWeek === 6);
     expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(pool.length);
 
     fireEvent.click(screen.getByRole('button', { name: 'Siła' }));
@@ -172,9 +177,9 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
       .toEqual(strength.map((t) => localizePlanName(t.id, t.name, 'pl')));
     // Naglowek nadal liczy cala pule dni, nie filtr.
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na 3 dni w tygodniu (${pool.length})`);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Plany na 6 dni w tygodniu (${pool.length})`);
 
-    // 3 dni: brak szablonu redukcyjnego = komunikat, chipy zostaja (wyjscie ze stanu).
+    // 6 dni: brak szablonu redukcyjnego = komunikat, chipy zostaja (wyjscie ze stanu).
     fireEvent.click(screen.getByRole('button', { name: 'Redukcja' }));
     expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
     expect(screen.getByTestId('browse-empty-objective')).toBeInTheDocument();
@@ -184,8 +189,19 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
 
   it('niezmiennik: ostrzezenie daysMismatch nie pojawia sie, gdy karty maja liczbe dni z kroku 4', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5(5);
+    goToStep5(5, undefined, 'Średnio zaawansowany');
     expect(screen.queryByText(/Ten plan ma \d+ dni treningowych/)).toBeNull();
+  });
+
+  it('T6 (F7): beginner + 5 dni: wszystkie 5-dniowe mają podciąganie/dipy/plank, więc karta ma najbliższą liczbę dni z JAWNYM ostrzeżeniem', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToStep5(5);
+    const first = cards()[0];
+    const tpl = templateByName(cardName(first));
+    expect(tpl.level).not.toBe('advanced');
+    expect(tpl.daysPerWeek).not.toBe(5);
+    expect(templateRequiresBodyweightSupport(tpl)).toBe(false);
+    expect(screen.getByText(/Ten plan ma \d+ dni treningowych, wybrałeś 5/)).toBeInTheDocument();
   });
 });
 

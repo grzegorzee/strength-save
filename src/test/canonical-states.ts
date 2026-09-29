@@ -38,7 +38,8 @@ export type CanonicalStateId =
   | 'active-plan-rpe'
   | 'history-multi-cycle'
   | 'vacation-active'
-  | 'vacation-just-ended';
+  | 'vacation-just-ended'
+  | 'active-plan-legacy-profile';
 
 export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'fresh-user',
@@ -56,6 +57,7 @@ export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'history-multi-cycle',
   'vacation-active',
   'vacation-just-ended',
+  'active-plan-legacy-profile',
 ];
 
 /** Dokument training_plans/{uid} w polach, ktore konsumuje useTrainingPlan
@@ -91,8 +93,9 @@ const WEEKDAY_NAMES: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 't
 const weekdayOf = (iso: string): Weekday => WEEKDAY_NAMES[parseLocalDate(iso).getDay()];
 
 /** Profil przez produkcyjny mapper (mapAppUserProfile), nie reczny obiekt. */
-const buildProfile = (todayISO: string): UserProfile => {
+const buildProfile = (todayISO: string, extra: Partial<AppUserProfile> = {}): UserProfile => {
   const raw: AppUserProfile = {
+    ...extra,
     uid: CANONICAL_UID,
     email: 'qa@strengthsave.app',
     displayName: 'QA Kanoniczny',
@@ -617,6 +620,20 @@ export const buildCanonicalState = (
           buildWorkout('a', addCalendarDays(todayISO, -7), days[0], { cycleId: cycle.id }),
           buildWorkout('b', addCalendarDays(todayISO, -5), days[1], { cycleId: cycle.id }),
         ],
+      };
+    }
+
+    case 'active-plan-legacy-profile': {
+      // T6 (2026-09-29): aktywny plan + users/{uid}.trainingProfile w kształcie
+      // zapisywanym PRZED T6 (level/objective/daysPerWeek, BEZ equipment). Każdy
+      // dotychczasowy user ma taki dokument; brak pola = siłownia.
+      const active = buildCanonicalState('active-plan', todayISO);
+      return {
+        ...active,
+        id,
+        profile: buildProfile(todayISO, {
+          trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 2 },
+        } as Partial<AppUserProfile>),
       };
     }
 

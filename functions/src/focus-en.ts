@@ -29,6 +29,8 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   "Szerokie": "Wide",
   "Uda": "Thighs",
   "Przysiad": "Squat",
+  "Moc": "Power",
+  "Objętość": "Volume",
 };
 
 const FOCUS_PHRASE_EN: Record<string, string> = {

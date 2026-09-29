@@ -114,13 +114,16 @@ describe('X34: krok 5A odchudzony (tylko wybor)', () => {
 describe('X34: ekran 6/6 "Start planu"', () => {
   it('"Wybierz start planu" -> 6/6 z domyslnymi: nazwa szablonu, tygodnie szablonu "polecane", najblizszy dzien treningowy, CTA celu', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    // T6: beginner/masa/4 dni dostaje teraz 10-tygodniowy tpl-beginner-ul-4; test kafli
+    // 8/12/16 potrzebuje szablonu 12-tygodniowego, więc poziom średni (tpl-upper-lower-4).
+    fireEvent.click(screen.getByText('Średnio zaawansowany'));
     goToStep6(4);
 
     expect(screen.getByTestId('ob-start-step')).toBeInTheDocument();
     expect(screen.getByText('06 / 06')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Start planu');
 
-    const tpl = getRecommendedPlan('build_muscle', 'beginner', 4);
+    const tpl = getRecommendedPlan('build_muscle', 'intermediate', 4);
     expect(nameInput().value).toBe(localizePlanName(tpl.id, tpl.name, 'pl'));
     expect(nameInput().maxLength).toBe(60);
 
@@ -246,6 +249,8 @@ describe('X34: ekran 6/6 "Start planu"', () => {
   it('glowny CTA = onConfirm(choice, {skipPreview: true}); "Podglad planu" = {skipPreview: false}; identyczny payload', () => {
     const onConfirm = vi.fn<Confirm>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    // T6: szablon 12-tygodniowy (kafle 8/12/16), patrz test wyżej.
+    fireEvent.click(screen.getByText('Średnio zaawansowany'));
     goToStep6(4);
     fireEvent.change(nameInput(), { target: { value: '  Mój blok  ' } });
     fireEvent.click(tiles()[2]); // 16 tyg.

@@ -19,6 +19,8 @@ vi.mock('@/data/exerciseLibrary', async (importOriginal) => {
     'Wyciskanie sztangi na ławce płaskiej',
     'Przysiad ze sztangą (High Bar)',
     'Wiosłowanie hantlami na ławce (przodem)',
+    // T6: reprezentant kategorii Kondycja.
+    'Pchanie sań (Sled Push)',
   ]);
   return {
     ...actual,
@@ -67,16 +69,21 @@ describe('ExercisePicker (Z69)', () => {
   // potrafi przekroczyc domyslne 15 s (lokalnie test schodzi w <1 s).
   it('chip kategorii zawęża listę', () => {
     renderPicker();
-    // X35a WP-A: 9 kafli (Wszystkie + 8 partii) w siatce 3x3, bez przewijania w bok.
+    // X35a WP-A: kafle w siatce 3 kolumn, bez przewijania w bok. T6: Wszystkie
+    // (pełna szerokość) + 9 partii z Kondycją = 10 kafli.
     const grid = screen.getByTestId('picker-category-grid');
     expect(grid.className).toContain('grid-cols-3');
     expect(grid.className).not.toContain('overflow-x');
-    expect(grid.querySelectorAll('button[aria-pressed]')).toHaveLength(9);
+    expect(grid.querySelectorAll('button[aria-pressed]')).toHaveLength(10);
+    expect(screen.getByRole('button', { name: 'Wszystkie' }).className).toContain('col-span-3');
     expect(screen.getByRole('button', { name: 'Wszystkie' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Plecy' }));
     expect(screen.getByRole('button', { name: 'Plecy' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Wiosłowanie hantlami na ławce (przodem)')).toBeTruthy();
     expect(screen.queryByText('Wyciskanie sztangi na ławce płaskiej')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Kondycja' }));
+    expect(screen.getByText('Pchanie sań (Sled Push)')).toBeTruthy();
+    expect(screen.queryByText('Przysiad ze sztangą (High Bar)')).toBeNull();
   }, 30000);
 
   it('excludeNames ukrywa pozycję', () => {

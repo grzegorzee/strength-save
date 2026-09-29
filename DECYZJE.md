@@ -11,6 +11,66 @@
 
 ## DECYZJE
 
+### 2026-09-29: T6, baza ćwiczeń 379, kategoria Kondycja, 16 planów, F7 dla początkujących, „Gdzie trenujesz?”
+
+Źródło: zwalidowane dane T6 (`exercises-new.json`, `plans-new.json`, `beginner-fixes.json`,
+walidator `build.py`, poza repo). Numery linii poprawek F7 zweryfikowane na main przed edycją.
+
+1. **Biblioteka 243 → 379.** 136 wpisów wygenerowanych skryptem z JSON (nazwa PL/EN,
+   wskazówka PL/EN, szczegóły PL/EN po 4 kroki). Port mapy nazw EN w functions identyczny
+   (Z160); 7 nowych `bodyweight_loaded` także w `functions/src/bodyweight-loaded.ts` (łącznie 40).
+2. **Kategoria `conditioning` („Kondycja” / „Conditioning”)**: cardio na maszynach, sanie,
+   piłka lekarska, Wall Ball, boje olimpijskie i thruster (26 ćwiczeń; `categoryProposed`
+   conditioning + full_body). Obsłużona w `categoryLabels`, `CATEGORY_LABEL_EN`,
+   `categoryToPrimaryMuscle` (fullbody), pickerze („Wszystkie” na pełną szerokość + 3x3),
+   zakładce Ćwiczenia (kafel i hero bez pliku grafiki = gradient + ikona, zero żądań o
+   nieistniejący webp), regułach `custom_exercises`. Rozgrzewka przed startem: wariant „full”.
+   Obciążenie nóg w hybrydzie (Z114) liczy tylko legs/glutes/calves, więc kondycja się do
+   niego nie wlicza (świadomie).
+3. **Ćwiczenia bez animacji** (wszystkie 136): brak URL wideo i postera, szczegóły pokazują
+   ikonę + istniejącą ilustrację partii (`public/muscles/<primaryMuscle>.webp`); test
+   sprawdza istnienie pliku dla każdego ćwiczenia bez animacji.
+4. **F7 (`requiresBodyweightSupport`)**: 16 nowych + 27 istniejących oznaczonych w bibliotece
+   (planki, pompki z podłogi, podciąganie bez asysty, dipy, zwisy, burpees, mountain
+   climbers, L-sit, dragon flag, ab rollout...). Szablony beginner poprawione wg
+   `beginner-fixes.json` (id bez zmian), `tpl-calisthenics-3` → intermediate (serie 45 s).
+   Kontrakt: żaden szablon beginner nie zawiera oznaczonego ćwiczenia.
+5. **Rekomendacja**: `LEVEL_WEIGHT` 10 → 60 (różnica 2 poziomów bije cel, 1 poziomu nie;
+   dni nadal dominują). Beginner NIGDY nie dostaje szablonu z F7: filtr przed pulą dni
+   (kreator, Browse, `getRecommendedPlan`) + kara w scoringu. **Zmiana kontraktu X31 H2**:
+   przy 5-6 dniach każdy szablon ma podciąganie/dipy/plank, więc beginner dostaje najbliższą
+   liczbę dni z istniejącym jawnym ostrzeżeniem (bezpieczeństwo > liczba dni). Skutek
+   uboczny wagi: zaawansowany + siła + 3 dni dostaje zaawansowany plan zamiast
+   początkującego 5×5.
+6. **16 nowych szablonów** dopisanych na końcu katalogu (remisy zostają przy starych).
+   Hero: bez nowych grafik, `PLAN_TEMPLATE_HERO_ALIAS` wskazuje istniejący webp dobrany celem.
+   Focus: `Moc` → Power, `Objętość` → Volume (klient + functions).
+7. **Zapis `6 x 20 m`**: `parseRepRange` brał 20 za powtórzenia. Nowy `parseDistanceRange`
+   (klient) + parytet w `functions/garmin-day.ts`: metry = cel dystansu (placeholder pola
+   Dystans), brak celu powtórzeń; interwały cardio zostają w sekundach.
+8. **„Gdzie trenujesz?”** (Siłownia / Hantle w domu / Masa ciała) w kroku 3 pod celem, BEZ
+   nowego kroku (numery kroków, zapisane `wizardStep` i helpery e2e bez zmian). Pole
+   `equipment` we wszystkich 41 szablonach; twardy filtr przed doborem (siłownia widzi
+   wszystko). Zapis: szkic onboardingu, `PlanWizardChoice`, `users/{uid}.trainingProfile.equipment`
+   (otwarta mapa, bez zmiany reguł; `onboardingAnswers` nietknięte). Brak pola = siłownia
+   (stan kanoniczny `active-plan-legacy-profile` w route sweep). Początkujący + masa ciała
+   nie ma żadnego dozwolonego planu: krok 5 pokazuje komunikat z wyjściami (zmień miejsce,
+   ułóż własny plan), bez kart i CTA.
+
+Weryfikacja: baseline 509 plików / 4508 passed (16 skipped) → 513 / 4620 passed (16 skipped);
+functions 629 → 807 passed (po merge main) + build; typecheck, lint 0 błędów, `npm run build`.
+E2E (port 8106, chromium + webkit): nowy `t6-exercise-base.spec.ts` (13 × 2) + critical,
+onboarding, replan, plan, full-app, bodyweight-loaded: zielone po reprodukcji; jedyny stały
+fail `no console errors on dashboard load` w webkit = 403 na fontach `@fs` przez symlink
+`node_modules` poza worktree (środowisko, nie produkt).
+
+**Kolejność wdrożenia:** reguły Firestore (kategoria `conditioning` w `custom_exercises`)
+i functions (port nazw EN, lista `bodyweight_loaded`, focus, Garmin) PRZED webem/iOS.
+
+Czego testy nie dowodzą: poprawności merytorycznej opisów (brak przeglądu trenera),
+wyglądu nowych ekranów na urządzeniu (tylko web e2e 390 px), zachowania zegarka Garmin
+na realnym sprzęcie, dopasowania hero-aliasów wizualnie do planów.
+
 ### 2026-09-29: maile, decyzje właściciela (Reply-To do trenera, wypis z broadcastu)
 
 1. Mail z treningiem i historią do trenera: Reply-To = `users/{uid}.email`, gdy

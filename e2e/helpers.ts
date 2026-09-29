@@ -329,9 +329,25 @@ export const plWeekdayName = (dateISO: string): string => {
 
 // X32: /new-plan z profilem startuje od kroku 2 (poziom); krok 5A "Dopasowane
 // do Ciebie" (X33) jest po trzech przejściach (poziom -> cel -> dni -> 5A).
-export const advanceWizardToStep5 = async (page: Page) => {
+// T6: pytanie "Gdzie trenujesz?" siedzi w kroku 3 (pod celem), bez nowego kroku;
+// domyślnie Siłownia = dotychczasowy katalog, więc stare wywołania bez opcji
+// przechodzą ten sam przepływ. Opcje ustawiają poziom / cel / sprzęt / dni jawnie.
+export type WizardEquipment = 'gym' | 'dumbbells_home' | 'bodyweight';
+export const advanceWizardToStep5 = async (page: Page, options: {
+  levelLabel?: string;
+  objectiveLabel?: string;
+  equipment?: WizardEquipment;
+  days?: number;
+} = {}) => {
+  if (options.levelLabel) await page.getByText(options.levelLabel, { exact: true }).click();
   await page.getByRole('button', { name: 'Następny krok' }).click();
+  if (options.objectiveLabel) await page.getByText(options.objectiveLabel, { exact: true }).click();
+  if (options.equipment) {
+    await page.getByTestId(`ob-equipment-${options.equipment}`).click();
+    await expect(page.getByTestId(`ob-equipment-${options.equipment}`)).toHaveAttribute('aria-pressed', 'true');
+  }
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+  if (options.days) await page.getByRole('button', { name: String(options.days), exact: true }).click();
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
   await expect(page.getByTestId('ob-matching')).toHaveCount(0);
   await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
