@@ -73,7 +73,8 @@ import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/Worko
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { hasCelebrated, markCelebrated, workoutMilestoneFor, type WorkoutMilestone } from '@/lib/workout-milestones';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise, supportsZeroWeight } from '@/lib/exercise-utils';
-import { computeWeeklyTargets } from '@/lib/progression-engine';
+import { buildPrefillForExercise, resolveSessionTargets } from '@/lib/session-targets';
+import { computeModeTargets } from '@/lib/progression-engine';
 import { autoCompleteFilledSets, buildDayFromDraft, hasAnyCompletedSet, plSetsPluralForm, seedSetsFromSession, sessionStats, workoutScrollStorageKey } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
@@ -550,7 +551,13 @@ const WorkoutDay = () => {
     const existingIds = [...Object.keys(exerciseSetsRef.current), ...day.exercises.map((ex) => ex.id)];
     const newId = buildAdhocExerciseId(pick.name, existingIds);
     const prevSets = getPreviousSets(newId, pick.name);
-    const sets = createPrefilledSets(3, prevSets, resolveIsBodyweight(pick.name));
+    // F3: w oknie trybu / na rampie po urlopie ciężar z tej samej decyzji co porada.
+    const modeTarget = computeModeTargets([{ ...day, exercises: [{ id: newId, name: pick.name, sets: '3 x 8', instructions: [] }] }], workouts, {
+      reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
+      sessionDateISO: targetDate,
+      trackingByName: { [pick.name]: resolveTracking(pick.name) },
+    })[day.id]?.[newId];
+    const sets = createPrefilledSets(3, prevSets, resolveIsBodyweight(pick.name), modeTarget ? { weight: modeTarget.targetWeight } : null);
 
     // WP-C (X38): pierwsze ćwiczenie w szybkim treningu = checkpoint OD RAZU.
     // Incydent 2026-08-26: skorupa sesji w chmurze (revision 0, zero ćwiczeń)
@@ -730,6 +737,8 @@ const WorkoutDay = () => {
             reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
             // Spec C5: snapshot nazwy — propozycje widzą też sesje ad-hoc.
             exerciseName: exercise.name,
+            // F3: faza rampy liczona dla daty SESJI (ta sama co cel/prefill).
+            todayISO: targetDate,
           }, lang, unit),
         historicalBest: getExerciseBest1RM(workouts, exercise.id, exercise.name),
         rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
@@ -738,17 +747,27 @@ const WorkoutDay = () => {
       });
     });
     return map;
-  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking, reducedMode, vacation]);
+  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking, reducedMode, vacation, targetDate]);
 
-  // Z120: cele tygodnia z silnika progresji — tylko dla planu z włączoną progresją
-  // (ad-hoc nie ma tygodnia planu). Czysta kalkulacja, zero zapisów.
+  // Z120: cele tygodnia z silnika progresji (plan z włączoną progresją). Czysta
+  // kalkulacja, zero zapisów. F3 (2026-09-29): tryb / urlop i rampa po nich
+  // trafiają do celu (a więc do prefillu) także bez silnika i w treningu ad-hoc
+  // — push końca urlopu obiecał ~85%, porada pokazuje ~85%, prefill wpisuje ~85%.
   const weeklyTargets = useMemo(() => {
-    if (!progression?.enabled || !day || isAdhocDay) return null;
+    if (!day) return null;
     const week = Math.max(1, currentWeek);
-    const trackingByName = Object.fromEntries(day.exercises.map((e) => [e.name, resolveTracking(e.name)]));
-    const deloadApplied = progression.deloadDecisions?.[String(week)] === 'applied';
-    return computeWeeklyTargets([day], workouts, week, progression, { deloadApplied, trackingByName })[day.id] ?? null;
-  }, [progression, day, isAdhocDay, workouts, currentWeek, resolveTracking]);
+    return resolveSessionTargets({
+      day,
+      workouts,
+      progression,
+      week,
+      deloadApplied: progression?.deloadDecisions?.[String(week)] === 'applied',
+      isAdhocDay,
+      reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
+      sessionDateISO: targetDate,
+      trackingByName: Object.fromEntries(day.exercises.map((e) => [e.name, resolveTracking(e.name)])),
+    });
+  }, [progression, day, isAdhocDay, workouts, currentWeek, resolveTracking, reducedMode, vacation, targetDate]);
 
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
@@ -1760,15 +1779,12 @@ const WorkoutDay = () => {
         return;
       }
 
-      const buildStartPrefill = (exercise: StartExerciseLike) => {
-        const target = weeklyTargets?.[exercise.id];
-        return createPrefilledSets(
-          target?.targetSets ?? parseSetCount(exercise.sets),
-          getPreviousSets(exercise.id, exercise.name),
-          resolveIsBodyweight(exercise.name),
-          target ? { weight: target.targetWeight, reps: target.targetReps } : null,
-        );
-      };
+      const buildStartPrefill = (exercise: StartExerciseLike) => buildPrefillForExercise(
+        exercise,
+        weeklyTargets?.[exercise.id],
+        getPreviousSets(exercise.id, exercise.name),
+        resolveIsBodyweight(exercise.name),
+      );
 
       if (result.existing) {
         cloudMetaRef.current = {

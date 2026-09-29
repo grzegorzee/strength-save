@@ -615,6 +615,8 @@ const TrainingPlan = () => {
           currentWeek={hookCurrentWeek}
           progression={progression}
           onDecision={saveDeloadDecision}
+          vacation={vacation}
+          planStartDate={planStartDate}
         />
       )}
 

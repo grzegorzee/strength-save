@@ -1,11 +1,11 @@
 import type { WorkoutSession } from '@/types';
 import { getExerciseHistory, detectPlateau } from '@/lib/exercise-progression';
 import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercise-utils';
-import { decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@/lib/progression-engine';
+import { COMEBACK_BREAK_DAYS, decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@/lib/progression-engine';
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { reducedModeAdviceFactor, type ReducedMode } from '@/lib/reduced-mode';
+import { reducedModeAdviceFactor, reducedModeTargetWeight, type ReducedMode } from '@/lib/reduced-mode';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
@@ -24,7 +24,8 @@ export interface NextSetAdvice {
 // Ile dni zastoju traktujemy jako plateau (próg deload).
 const PLATEAU_MIN_SESSIONS = 4;
 // Spec C2 (Runna p.1): przerwa od ćwiczenia >= tylu dni = lżejsze wejście -10%.
-export const COMEBACK_BREAK_DAYS = 14;
+// F3: stała żyje w progression-engine (cele tygodnia też realizują comeback).
+export { COMEBACK_BREAK_DAYS };
 
 const reasonText = (
   decision: NextSetDecision,
@@ -123,9 +124,7 @@ export const getNextSetAdvice = (
     exerciseName: options?.exerciseName,
   });
   if (modeAdjustment && !isBodyweight) {
-    const baseline = [...history].reverse().find((point) => point.date < (options!.reducedMode!.startDate))?.maxWeight
-      ?? lastWeight;
-    const targetWeight = Math.max(0, Math.round(baseline * modeAdjustment.factor * 2) / 2);
+    const targetWeight = reducedModeTargetWeight(history, options!.reducedMode!, modeAdjustment.factor);
     return {
       kind: 'deload',
       targetWeight,
