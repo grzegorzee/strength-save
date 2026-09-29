@@ -9,6 +9,8 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import {
   applySessionExerciseSwap,
+  planExerciseSwap,
+  resolvePlanExerciseId,
   swapExerciseIdentity,
   type SessionExerciseState,
 } from '@/lib/exercise-swap';
@@ -300,5 +302,134 @@ describe('sekwencja: start z planu, zamiana (oba zakresy), wyjście, powrót z I
     const finalDraft = await workoutDraftDb.loadDraft('u1', 's1');
     expect(buildDraftFinalExpectation(finalDraft!).exercises.map((e) => e.exerciseId))
       .toEqual(exercises.map((e) => e.exerciseId));
+  });
+});
+
+// 2026-09-29 (dług po F4): „Na stałe" na karcie, która jest już zamianą „tylko dziś",
+// nie zmieniało planu: swapExercise szukał w planie id zamiany sesyjnej.
+describe('planExerciseSwap: "Na stałe" na karcie zamiany "tylko dziś" zmienia plan na pozycji oryginału', () => {
+  const planIds = () => planDay.exercises.map((e) => e.id);
+
+  it('resolvePlanExerciseId: id planu, rekord sessionSwaps, łańcuch, sam prefiks', () => {
+    expect(resolvePlanExerciseId(planIds(), 'tpl-ex-13', {})).toBe('tpl-ex-13');
+    expect(resolvePlanExerciseId(planIds(), 'tpl-ex-13__swap-a', {
+      'tpl-ex-13': { id: 'tpl-ex-13__swap-a', name: 'A', sets: '3 x 8' },
+    })).toBe('tpl-ex-13');
+    expect(resolvePlanExerciseId(planIds(), 'tpl-ex-13__swap-a__swap-b', {
+      'tpl-ex-13': { id: 'tpl-ex-13__swap-a', name: 'A', sets: '3 x 8' },
+      'tpl-ex-13__swap-a': { id: 'tpl-ex-13__swap-a__swap-b', name: 'B', sets: '3 x 8' },
+    })).toBe('tpl-ex-13');
+    expect(resolvePlanExerciseId(planIds(), 'tpl-ex-13__swap-a', {})).toBe('tpl-ex-13');
+    expect(resolvePlanExerciseId(planIds(), 'adhoc-ex-plank', {})).toBeUndefined();
+  });
+
+  it('planExerciseSwap: zakres plan na karcie zamiany celuje w oryginał planu i id z swapExerciseIdentity', () => {
+    const result = planExerciseSwap({
+      scope: 'plan',
+      cardId: 'tpl-ex-13__swap-a',
+      pick: { name: 'Face pull' },
+      currentSets: '3 x 12',
+      planExercises: planDay.exercises,
+      dayExerciseIds: ['tpl-ex-11', 'tpl-ex-12', 'tpl-ex-13__swap-a', 'tpl-ex-14', 'tpl-ex-15', 'tpl-ex-16'],
+      sessionSwaps: { 'tpl-ex-13': { id: 'tpl-ex-13__swap-a', name: 'A', sets: '3 x 12' } },
+    });
+    expect(result.planExerciseId).toBe('tpl-ex-13');
+    expect(result.swappedId).toBe(
+      swapExerciseIdentity(planDay.exercises[2], { name: 'Face pull', sets: '3 x 12' }, planIds()).id,
+    );
+  });
+
+  it('planExerciseSwap: "tylko dziś" bez celu w planie; "Na stałe" na karcie planu jak dotąd', () => {
+    const today = planExerciseSwap({
+      scope: 'today', cardId: 'tpl-ex-13', pick: { name: 'A' }, currentSets: '3 x 8',
+      planExercises: planDay.exercises, dayExerciseIds: planIds(), sessionSwaps: {},
+    });
+    expect(today).toEqual({ swappedId: 'tpl-ex-13__swap-a' });
+    const plan = planExerciseSwap({
+      scope: 'plan', cardId: 'tpl-ex-13', pick: { name: 'A' }, currentSets: '3 x 8',
+      planExercises: planDay.exercises, dayExerciseIds: planIds(), sessionSwaps: {},
+    });
+    expect(plan).toEqual({ swappedId: 'tpl-ex-13__swap-a', planExerciseId: 'tpl-ex-13' });
+  });
+
+  it('sekwencja: start, "tylko dziś" na poz. 3, "Na stałe" na tej samej karcie, plan zmieniony, powrót z IDB, odhaczenie, final sync', async () => {
+    localStorage.clear();
+    __resetWorkoutDraftDbConnectionForTests();
+    let plan: TrainingDay = planDay;
+    let state = emptyState(prefilled());
+    let names: Record<string, string> = Object.fromEntries(plan.exercises.map((e) => [e.id, e.name]));
+    let saved: ActiveWorkoutDraft | null = null;
+    const snapshot = async (overrides: Partial<ActiveWorkoutDraft> = {}) => {
+      const draft = buildWorkoutDraftSnapshot({
+        userId: 'u1', sessionId: 's2', dayId: 'd1', date: '2026-09-29', previousDraft: saved,
+        exerciseSets: state.exerciseSets, exerciseNotes: state.exerciseNotes,
+        exerciseMetrics: state.exerciseMetrics, exerciseMetricGrants: state.exerciseMetricGrants,
+        dayNotes: '', skippedExercises: state.skippedExercises, dayNames: names,
+        cloudMeta: null, planExerciseIds: plan.exercises.map((e) => e.id), now: 1000,
+      }, { exerciseNames: names, sessionSwaps: state.sessionSwaps, ...overrides })!;
+      await workoutDraftDb.saveActiveDraft(draft);
+      saved = draft;
+    };
+    const applySwap = (cardId: string, scope: 'today' | 'plan', pickName: string) => {
+      const dayIds = buildDayFromDraft(plan, { dayId: 'd1', exerciseSets: state.exerciseSets, sessionSwaps: state.sessionSwaps })
+        .exercises.map((e) => e.id);
+      const target = planExerciseSwap({
+        scope, cardId, pick: { name: pickName }, currentSets: '3 x 8-10',
+        planExercises: plan.exercises, dayExerciseIds: dayIds, sessionSwaps: state.sessionSwaps,
+      });
+      state = applySessionExerciseSwap(state, {
+        fromId: cardId, toId: target.swappedId, fromName: names[cardId] ?? cardId, toName: pickName,
+        sets: '3 x 8-10', createSets: () => open(3, 0),
+      });
+      names = { ...names, [target.swappedId]: pickName };
+      return target;
+    };
+
+    await snapshot();
+    const todayTarget = applySwap('tpl-ex-13', 'today', 'Wiosłowanie hantlem');
+    await snapshot();
+    const permanent = applySwap(todayTarget.swappedId, 'plan', 'Face pull');
+    expect(permanent.planExerciseId).toBe('tpl-ex-13');
+    await snapshot();
+    // Zapis planu (useTrainingPlan.swapExercise) na id oryginału.
+    plan = {
+      ...plan,
+      exercises: plan.exercises.map((e) => (e.id === permanent.planExerciseId
+        ? swapExerciseIdentity(e, { name: 'Face pull', sets: '3 x 8-10' }, plan.exercises.map((x) => x.id))
+        : e)),
+    };
+    expect(plan.exercises[2].id).toBe(permanent.swappedId);
+    expect(plan.exercises[2].name).toBe('Face pull');
+
+    __resetWorkoutDraftDbConnectionForTests();
+    // loadDraft po sessionId: fake-indexeddb jest współdzielony w pliku (draft s1 wyżej).
+    const hydrated = await workoutDraftDb.loadDraft('u1', 's2');
+    const view = buildDayFromDraft(plan, hydrated!);
+    expect(view.exercises.map((e) => e.id)).toEqual(plan.exercises.map((e) => e.id));
+    expect(view.exercises[2].name).toBe('Face pull');
+    expect(Object.keys(hydrated!.exerciseSets)).not.toContain(todayTarget.swappedId);
+
+    saved = hydrated;
+    state = { ...state, exerciseSets: { ...hydrated!.exerciseSets, [permanent.swappedId]: done(3, 15) } };
+    await snapshot({ completedLocally: true, finalSyncPending: true, finalizedAt: 2000 });
+    const saveWorkout = vi.fn(async () => ({ success: true, updatedAt: 3000, revision: 2 }));
+    await syncWorkoutSession('u1', 's2', 'final', {
+      loadDraft: (userId: string, sessionId: string) => workoutDraftDb.loadDraft(userId, sessionId),
+      saveWorkout,
+      getFromServer: vi.fn(async () => null),
+      createSession: vi.fn(async () => ({ session: null, error: 'NOT_EXPECTED' })),
+      markPromoted: vi.fn(async () => undefined),
+      markSynced: vi.fn(async () => undefined),
+      setCloudBaseline: vi.fn(async () => undefined),
+      setPendingWrite: vi.fn(async () => undefined),
+      markHealthPending: vi.fn(async () => undefined),
+      clearDraftIfVersion: vi.fn(async () => true),
+      queue: { remove: vi.fn(), upsertFromDraft: vi.fn() },
+      isOnline: () => true,
+      now: () => 5000,
+    } as unknown as WorkoutSyncDeps);
+    const exercises = (saveWorkout.mock.calls[0] as unknown[])[1] as Array<{ exerciseId: string; name?: string }>;
+    expect(exercises.map((e) => e.exerciseId)).toEqual(plan.exercises.map((e) => e.id));
+    expect(exercises[2].name).toBe('Face pull');
   });
 });

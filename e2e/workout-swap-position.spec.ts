@@ -97,6 +97,34 @@ test.describe('F4: zamiana ćwiczenia w trakcie treningu zostaje na swojej pozyc
     await clearWorkoutDraftDb(page, E2E_UID);
   });
 
+  // 2026-09-29 (dług po F4): „Na stałe" na karcie, która jest już zamianą „tylko dziś",
+  // ma zmienić PLAN na pozycji oryginalnego ćwiczenia (wcześniej plan zostawał bez zmian).
+  test('tylko dziś → na stałe na tej samej karcie: plan zmieniony na pozycji 3, sesja na pozycji 3', async ({ page }) => {
+    const today = localToday();
+    await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await skipPreStartWarmup(page);
+    await expect(page.locator('.exercise-card').first()).toBeVisible();
+    const before = await cardTitles(page);
+
+    await swapCardAt(page, 2, TODAY_PICK, 'Tylko dziś');
+    await swapCardAt(page, 2, PLAN_PICK, 'Na stałe w planie');
+    const expected = [...before.slice(0, 2), PLAN_PICK, ...before.slice(3)];
+    await expect.poll(() => cardTitles(page)).toEqual(expected);
+
+    const planDayNames = () => page.evaluate(() => {
+      const raw = window.localStorage.getItem('fittracker_e2e_plan');
+      const days = raw ? (JSON.parse(raw) as { days?: Array<{ id: string; exercises: Array<{ name: string }> }> }).days : undefined;
+      return days?.find((d) => d.id === 'day-1')?.exercises.map((e) => e.name) ?? null;
+    });
+    await expect.poll(planDayNames).toEqual(expected);
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect.poll(() => cardTitles(page)).toEqual(expected);
+
+    await clearWorkoutDraftDb(page, E2E_UID);
+  });
+
   test('zamiana ćwiczenia z odhaczoną serią: stare zostaje (z serią) tuż przed nowym, po reloadzie też', async ({ page }) => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);

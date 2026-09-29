@@ -30,6 +30,18 @@
    przed fixem, zielony po. Lista znanego długu w audycie usunięta w całości.
    Uwaga: „panel administracyjny” w WebKit bywa czerwony (`outside-viewport`)
    także na kodzie sprzed zmiany (1/6), zastana niestabilność.
+3. „Na stałe” na karcie, która jest już zamianą „tylko dziś”, nie zmieniało planu.
+   Root cause: `handleApplySwap` przekazywał do `swapExercise` id karty
+   (`X__swap-a`), którego nie ma w planie, więc zapis planu był no-op.
+   Fix: `planExerciseSwap` + `resolvePlanExerciseId` (`exercise-swap.ts`)
+   znajdują ćwiczenie planu stojące za kartą (rekord `sessionSwaps` wstecz po
+   łańcuchu, potem prefiks id) i biorą nowe id z `swapExerciseIdentity` na
+   oryginale; plan zmienia się na pozycji oryginału, sesja migruje kartę jak
+   dotąd (`applySessionExerciseSwap`). Testy: unit (rozwiązywanie celu, łańcuch,
+   sekwencja start → „tylko dziś” → „Na stałe” na tej samej karcie → plan
+   zmieniony → powrót z IDB → odhaczenie → final sync w kolejności planu) i e2e
+   w `workout-swap-position.spec.ts` (plan w mocku ma nowe ćwiczenie na
+   pozycji 3, reload), czerwone przed fixem w obu silnikach, zielone po.
 
 ### 2026-09-29: F5b synchronizacja Stravy stoi od 22.08 (root cause: aplikacja nieaktywna w Stravie)
 
