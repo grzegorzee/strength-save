@@ -11,6 +11,56 @@
 
 ## DECYZJE
 
+### 2026-09-29: F2 urlop jest przerwą wszędzie, F3 rampa po urlopie trafia do prefillu
+
+Zgłoszenie właściciela po urlopie 22-27.09 (dane prod, odczyt bez zapisów):
+`dailyTrainingReminder` wysłał „Czas na trening” 22, 23 i 25.09, a Dashboard
+pokazywał „Rozpocznij trening”. Push `vacationEndingPush` 27.09 obiecał „~85%,
+potem ~92%”, a 28.09 prefill wpisał 40 kg (skos hantle, poprzednio 40x8)
+zamiast ~34.
+
+Root cause F2: guard w `functions/src/daily-reminder.ts` znał tylko `status`
+i `skippedDates`, loader planu nie przepisywał `vacation`; po stronie klienta
+`todayTraining`, `getNextScheduledTraining`, `buildWeekCardModel` i
+„NASTĘPNY” w Planie liczyły dni bez urlopu (urlop był tylko badge'em, który
+przykrywał lapse).
+
+Root cause F3: rampa (`reducedModeAdviceFactor`) trafiała wyłącznie do
+`nextAdvice`; prefill brał `weeklyTargets`, które deload znały tylko z
+`deloadDecisions[week] === 'applied'`, a karta ćwiczenia stawiała RZA i cel
+tygodnia nad poradą. `DeloadBanner` liczył `isDeloadWeek` bez urlopu, chip
+w WeekCard `resolveDeloadWeek` z urlopem.
+
+Decyzje:
+- Niezmiennik F2: dzień w `[vacation.startDate, vacation.endDate]` (dowolna
+  aktywność urlopu, także „tylko główne boje”) oraz w oknie `reducedMode`
+  z `level: 'pause'` nie jest dniem treningowym: brak pusha, karta „Przerwa do
+  …” zamiast hero treningu, dzień „wolne” w WeekCard (poza licznikiem sesji),
+  „następny” = pierwszy niezablokowany dzień po końcu przerwy. Jeden resolver
+  `plannedDateBlockReason` w `src/lib/plan-date-block.ts` i lustrzany
+  `functions/src/plan-date-block.ts`, parity przez
+  `fixtures/cross-platform/plan-date-block-v1.json`. Pominięty dziś dzień
+  (`skippedDates`) na Dashboardzie = dzień wolny (spójnie z pushem).
+- Niezmiennik F3: to, co obiecuje komunikat, wpisuje prefill i pokazuje karta.
+  `reducedModeTargetWeight` (baza sprzed startu × mnożnik, krok 0,5 kg, jak
+  dotychczasowa porada: 40 -> 34 -> 37) jest wspólny dla porady i celu.
+  `computeWeeklyTargets` dostaje okno trybu/urlopu i datę sesji; faza
+  active/ramp ma pierwszeństwo przed tygodniem deload, bólem i progresją (bez
+  podwójnego deloadu w tygodniu 5). Comeback po >= 14 dniach też trafia do
+  celu. Cele trybu działają także bez silnika progresji, w treningu ad-hoc
+  i dla ćwiczenia dodanego w locie (`src/lib/session-targets.ts`). Na karcie
+  cel trybu wygrywa z RZA. `DeloadBanner` używa `resolveDeloadWeek`.
+- Wdrożenie backend-first: najpierw `functions` (`dailyTrainingReminder`),
+  potem web i buildy mobilne.
+
+Weryfikacja: testy functions (fixture z override w urlopie: 0 pushy 22/23/25.09,
+push 28.09), parity web/functions, Dashboard na kanonicznym stanie
+`vacation-active`, route sweep z nowymi stanami, rampa 34/37/progresja, test
+sekwencji urlop -> push końca -> push dnia po -> prefill 85% -> 92% -> normalnie,
+e2e `e2e/vacation-ramp.spec.ts` (chromium + webkit). Czego testy nie dowodzą:
+realnego FCM na urządzeniu, Garmin/Apple Watch w dniu urlopu (garmin-day nie
+zna urlopu), raportu tygodnia (WeekReportCard liczy cele bez daty sesji).
+
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 
 Apple odrzuciło wersję 1.0 (148) za 5.1.2(i) i 2.3.2. Pierwszy powód: w ankiecie
