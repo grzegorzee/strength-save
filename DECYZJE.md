@@ -11,6 +11,17 @@
 
 ## DECYZJE
 
+### 2026-09-29: reguły odrzucały własne ćwiczenie typu „masa ciała + kg”
+
+Znalezione przy przeglądzie diffu reguł przed deployem. F6 dodało typ
+`bodyweight_loaded` do formularza własnego ćwiczenia, ale `validCustomExerciseShape`
+w `firestore.rules` miało zamkniętą listę bez tego typu: zapis kończyłby się
+PERMISSION_DENIED. Żaden test tego nie pokrywał (formularz testowany na mocku).
+Fix: typ dopisany do listy reguły. Test reguł (emulator) czerwony przed zmianą,
+zielony po. Nowy kontrakt `src/test/custom-exercise-rules-contract.test.ts`
+porównuje listy tracking i category w regułach z `TRACKING_TYPES` i
+`categoryLabels` klienta (czerwony na starych regułach). Reguły wdrażane przed klientem.
+
 ### 2026-09-29: przewodnik nowego konta (onboarding w aplikacji) startuje sam i prowadzi do pierwszej serii
 
 Zlecenie właściciela: onboarding dla nowych kont, „pokazanie co i jak działa,

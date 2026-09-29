@@ -779,7 +779,9 @@ service cloud.firestore {
         !('tracking' in request.resource.data)
         || request.resource.data.tracking in [
           'weight_reps', 'bodyweight_reps', 'duration',
-          'weight_distance_duration', 'assisted_bodyweight'
+          'weight_distance_duration', 'assisted_bodyweight',
+          // F6 (2026-09-29): masa ciała + opcjonalne dociążenie w formularzu.
+          'bodyweight_loaded'
         ]
       );
     }

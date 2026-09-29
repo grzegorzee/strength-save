@@ -601,6 +601,7 @@ add('custom_exercises: update cudzego DENIED', false, await ok(() => updateDoc(d
 add('custom_exercises: update ze zmiana userId DENIED', false, await ok(() => updateDoc(doc(db, 'custom_exercises', 'cx-1'), { userId: OTHER_UID })));
 add('custom_exercises: delete wlasnego ALLOWED', true, await ok(() => deleteDoc(doc(db, 'custom_exercises', 'cx-1'))));
 add('custom_exercises: tracking z listy ALLOWED (Z105)', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t1'), { ...validCustomExercise, tracking: 'assisted_bodyweight' })));
+add('custom_exercises: tracking bodyweight_loaded (F6 formularz) ALLOWED', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t3'), { ...validCustomExercise, isBodyweight: true, tracking: 'bodyweight_loaded' })));
 add('custom_exercises: tracking spoza listy DENIED (Z105)', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t2'), { ...validCustomExercise, tracking: 'cardio' })));
 
 // === Import CSV (Z110): tag importBatchId w workouts ===
