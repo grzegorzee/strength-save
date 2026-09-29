@@ -145,3 +145,14 @@ describe("detectEmailPRs — bodyweight_loaded (F6)", () => {
       .toEqual([expect.objectContaining({ type: "weight", newValue: 105 })]);
   });
 });
+
+describe("detectEmailPRs — bodyweight_loaded w mailu EN (nazwy zlokalizowane przed detekcją)", () => {
+  it("Pull-Up: +10 kg po samej MC to PR ciężaru także po angielsku", () => {
+    const en = (id: string, date: string, weight: number): EmailWorkout => ({
+      id, userId: "u1", date, completed: true,
+      exercises: [{ exerciseId: "ex-pull", name: "Pull-Up", sets: [{ reps: 8, weight, completed: true }] }],
+    });
+    expect(detectEmailPRs(en("w-now", "2026-10-08", 10), [en("w-1", "2026-10-01", 0)]).prs)
+      .toEqual([expect.objectContaining({ type: "weight", newValue: 10, oldValue: 0 })]);
+  });
+});

@@ -5,10 +5,26 @@
 // nie PR. Liczy się wyłącznie seria ukończona, nierozgrzewkowa.
 import type { EmailExercise, EmailWorkout } from "./email-workout";
 import {
+  BODYWEIGHT_LOADED_EXERCISE_NAMES,
   isBodyweightLoadedName,
   normalizeBodyweightLoadedWorkouts,
   type BodyWeightPoint,
 } from "./bodyweight-loaded";
+import { EXERCISE_NAME_EN } from "./exercise-name-en";
+
+// F6: maile lokalizują nazwy PRZED detekcją (J-T3), więc dla EN rozpoznajemy też
+// angielskie nazwy ćwiczeń bodyweight_loaded — tylko jednoznaczne (nazwa EN nie
+// należy do żadnego ćwiczenia spoza bodyweight_loaded).
+const LOADED_EN_NAMES = (() => {
+  const loaded = new Set(BODYWEIGHT_LOADED_EXERCISE_NAMES);
+  const ambiguous = new Set(Object.entries(EXERCISE_NAME_EN).filter(([pl]) => !loaded.has(pl)).map(([, en]) => en));
+  return new Set(BODYWEIGHT_LOADED_EXERCISE_NAMES
+    .map((pl) => EXERCISE_NAME_EN[pl])
+    .filter((en): en is string => !!en && !ambiguous.has(en)));
+})();
+
+const isLoadedExerciseName = (name: string | undefined): boolean =>
+  isBodyweightLoadedName(name) || (!!name && LOADED_EN_NAMES.has(name));
 
 /** Epley: 1RM = weight × (1 + reps / 30); zaokrąglenie do 0.1 jak klient. */
 export const calculateE1RM = (weight: number, reps: number): number => {
@@ -120,7 +136,7 @@ export function detectEmailPRs(
       return;
     }
 
-    if (isBodyweightLoadedName(name)) {
+    if (isLoadedExerciseName(name)) {
       const record = loadedRecord(earlier, ex.exerciseId, name);
       if (!record) return;
       let best: EmailPR | null = null;
