@@ -52,6 +52,9 @@ afterEach(() => {
   document.querySelectorAll('[data-foreign]').forEach((el) => el.remove());
 });
 
+/** Przewodnik uzbraja Escape i kliknięcia klatkę po montażu (guard X37 QA). */
+const nextFrame = () => act(() => new Promise<void>((resolve) => { window.requestAnimationFrame(() => resolve()); }));
+
 const baseCtx: AppTourStartContext = {
   cloud: null,
   local: null,
@@ -307,9 +310,13 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
     expect(screen.queryByTestId('first-workout-tour')).toBeNull();
   });
 
-  it('Escape = Pomiń', async () => {
+  it('Escape z dispatchu montażu jest ignorowany (X37: Escape zamykający rozgrzewkę), po klatce = Pomiń', async () => {
     const { onSkip } = renderWorkoutTour();
+    // Ten sam tick co montaż: zdarzenie nie należy do przewodnika.
+    act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(onSkip).not.toHaveBeenCalled();
     await screen.findByTestId('tour-step-set-inputs');
+    await nextFrame();
     act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
     expect(onSkip).toHaveBeenCalledOnce();
   });
@@ -410,6 +417,7 @@ describe('AppTour: Dashboard (legenda zakładek + start jako akcja)', () => {
 
     await screen.findByTestId('tour-step-start');
     expect(screen.queryByTestId('tour-next')).toBeNull();
+    await nextFrame();
     fireEvent.click(screen.getByText('Rozpocznij'));
     expect(onAction).toHaveBeenCalledWith('start');
     expect(onComplete).toHaveBeenCalledOnce();
