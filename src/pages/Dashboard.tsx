@@ -21,7 +21,8 @@ import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { VacationDialog } from '@/components/VacationDialog';
-import { buildVacationMode, isVacationActive, resolveDeloadWeek, type VacationActivity } from '@/lib/vacation-mode';
+import { buildVacationMode, isVacationActive, resolveDeloadWeek, VACATION_MAX_DAYS, type VacationActivity } from '@/lib/vacation-mode';
+import { activeBreakWindow, isPlannedDateBlocked, plannedDateBlockReason, type PlannedDateBlockContext } from '@/lib/plan-date-block';
 import { DashboardStatusSlot, type StatusEntry } from '@/components/DashboardStatusSlot';
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
@@ -33,7 +34,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { isCompletedWorkout, selectCompletedWorkouts } from '@/lib/completed-workouts';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds, streakDetailsFromDates } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
-import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate, type ScheduledTrainingDay } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
@@ -333,6 +334,21 @@ const Dashboard = () => {
     return workout?.dayFocus ?? workout?.dayName ?? null;
   }, [workouts, today]);
 
+  // F2 (2026-09-29): jeden resolver blokad dnia (urlop / pauza / pominięty),
+  // wspólny z pushem dailyTrainingReminder (functions/src/plan-date-block.ts).
+  // Dzień w przerwie nie jest dniem treningowym: hero, "następna sesja", karta tygodnia.
+  const blockContext = useMemo<PlannedDateBlockContext>(
+    () => ({ vacation, reducedMode, skippedDates }),
+    [vacation, reducedMode, skippedDates],
+  );
+  const nextOptions = useMemo(() => ({
+    overrides: scheduleOverrides,
+    startDateISO: planStartDate,
+    isDateBlocked: (dateKey: string) => isPlannedDateBlocked(dateKey, blockContext),
+    // Urlop trwa do 21 dni: "następny" po przerwie musi się zmieścić w oknie szukania.
+    searchDays: 14 + VACATION_MAX_DAYS,
+  }), [scheduleOverrides, planStartDate, blockContext]);
+
   // Karta tygodnia (Runna p.1, spec B1): dzień/tydzień jako domykane jednostki
   // nad istniejącym odhaczaniem serii. Ad-hoc dokłada się do tonażu.
   const weekCardModel = useMemo(() => buildWeekCardModel({
@@ -344,7 +360,11 @@ const Dashboard = () => {
     planDurationWeeks,
     planStarted,
     skippedDates,
-  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted, skippedDates]);
+    isBreakDay: (dateKey) => {
+      const reason = plannedDateBlockReason(dateKey, blockContext);
+      return reason === 'vacation' || reason === 'pause';
+    },
+  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted, skippedDates, blockContext]);
 
   const todayTraining = useMemo(() => {
     // WP-PLANS-1 (X27): plan zakończony — żadnego planowania z martwego planu
@@ -377,14 +397,26 @@ const Dashboard = () => {
         dateStr: todayKey,
         // Naprawa r1 (2026-08-21): pełny wpis (day + dateKey) — hero najbliższej
         // sesji potrzebuje daty do otwarcia podglądu i przełożenia.
-        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate }),
+        next: getNextScheduledTraining(trainingPlan, today, nextOptions),
+      };
+    }
+
+    // F2: dziś w przerwie (urlop / pauza) — karta "Przerwa do …" bez CTA treningu;
+    // następny trening = pierwszy niezablokowany dzień planu PO końcu przerwy.
+    const breakWindow = activeBreakWindow(todayKey, blockContext);
+    if (breakWindow) {
+      return {
+        type: 'break' as const,
+        window: breakWindow,
+        next: getNextScheduledTraining(trainingPlan, parseLocalDateSafe(breakWindow.endDate) ?? today, nextOptions),
       };
     }
 
     const todayEntry = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides, planStartDate);
 
-    if (!todayEntry) {
-      const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate });
+    // F2: pominięty dziś dzień (skippedDates) też nie jest dniem treningowym.
+    if (!todayEntry || isPlannedDateBlocked(todayKey, blockContext)) {
+      const nextEntry = getNextScheduledTraining(trainingPlan, today, nextOptions);
       return { type: 'rest' as const, next: nextEntry };
     }
 
@@ -404,11 +436,11 @@ const Dashboard = () => {
         day,
         workout: todayWorkout,
         dateStr: todayEntry.dateKey,
-        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate }),
+        next: getNextScheduledTraining(trainingPlan, today, nextOptions),
       };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
-  }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides, planEndedByStatus]);
+  }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides, planEndedByStatus, nextOptions, blockContext]);
 
   const postPlanFirstEntry = todayTraining.type === 'training'
     ? { day: todayTraining.day, dateKey: todayTraining.dateStr, date: today }
@@ -668,7 +700,8 @@ const Dashboard = () => {
   // Apple Watch: podgląd dzisiejszego planu na zegarku zanim sesja wystartuje.
   useWatchPlanPreview({
     uid,
-    type: todayTraining.type,
+    // F2: przerwa = dla zegarka dzień bez treningu (noWorkout).
+    type: todayTraining.type === 'break' ? 'rest' : todayTraining.type,
     day: todayTraining.type === 'training' ? todayTraining.day : null,
     dateStr: todayTraining.type === 'training' ? todayTraining.dateStr : undefined,
     workouts,
@@ -1078,6 +1111,39 @@ const Dashboard = () => {
           ctaLabel={t('dash.preStart.viewPlan')}
           onCta={() => navigate('/plan')}
         />
+      )}
+
+      {/* F2 (2026-09-29): przerwa (urlop / pauza) — karta z datą końca, zapowiedzią
+          rampy po powrocie i najbliższym treningiem PO przerwie. Bez CTA treningu;
+          wyjście = dialog urlopu/trybu (zmiana lub anulowanie). */}
+      {todayTraining.type === 'break' && (
+        <div className="flex flex-col gap-2 rounded-xl bg-surface-container p-4" data-testid="break-hero">
+          <span className="eyebrow-mono text-primary">{t('dash.break.eyebrow')}</span>
+          <h2 className="min-w-0 font-heading text-[22px] font-bold leading-tight tracking-tight">
+            {t('dash.break.until', {
+              date: formatLocalDateLabel(todayTraining.window.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }),
+            })}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t('dash.break.ramp')}</p>
+          {todayTraining.next && (
+            <p className="text-sm text-foreground/90" data-testid="break-next">
+              {t('dash.break.next', {
+                date: formatLocalDateLabel(todayTraining.next.dateKey, dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' }),
+                focus: localizeFocus(todayTraining.next.day.focus, lang),
+              })}
+            </p>
+          )}
+          <div className="flex items-center justify-center">
+            <button
+              type="button"
+              data-testid="break-manage"
+              className="-mx-2 inline-flex min-h-11 items-center px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => (todayTraining.window.kind === 'vacation' ? setVacationOpen(true) : setReducedModeOpen(true))}
+            >
+              {todayTraining.window.kind === 'vacation' ? t('dash.break.manageVacation') : t('dash.break.managePause')}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Runna p.1 (spec B2): dzień wolny to karta regeneracji z treścią,

@@ -41,10 +41,12 @@ export const buildWeekCardModel = (args: {
   planDurationWeeks: number;
   planStarted: boolean;
   skippedDates?: string[];
+  /** F2: dzień przerwy (urlop / pauza) nie jest dniem treningowym: 'rest', poza licznikiem sesji. */
+  isBreakDay?: (dateKey: string) => boolean;
 }): WeekCardModel => {
   const {
     planDays, today, scheduleOverrides, workouts,
-    currentWeek, planDurationWeeks, planStarted, skippedDates = [],
+    currentWeek, planDurationWeeks, planStarted, skippedDates = [], isBreakDay,
   } = args;
 
   const weekStart = getStartOfPlanWeek(today);
@@ -70,7 +72,8 @@ export const buildWeekCardModel = (args: {
     date.setDate(weekStart.getDate() + offset);
     const dateKey = formatLocalDate(date);
 
-    const scheduled = getScheduledTrainingForDate(planDays, date, scheduleOverrides) !== null;
+    const scheduled = getScheduledTrainingForDate(planDays, date, scheduleOverrides) !== null
+      && !isBreakDay?.(dateKey);
     const completedHere = completedByDate.get(dateKey) ?? [];
     if (completedHere.length > 0) tonnageKg += calculateTonnage(completedHere);
 

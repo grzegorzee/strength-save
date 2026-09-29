@@ -6,6 +6,7 @@ import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import { localDayParts } from "./local-time";
 import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
+import { blockContextFromPlanDoc, isPlannedDateBlocked, type PlannedDateBlockContext } from "./plan-date-block";
 
 // Codzienne poranne przypomnienie o treningu (push). Spersonalizowane: imię + dzisiejszy focus.
 // Wysyłamy TYLKO gdy: user ma token, nie wyłączył przypomnień, ma dostęp i dziś jest dzień treningowy.
@@ -19,13 +20,31 @@ import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-res
 export const REMINDER_LOCAL_HOUR = 7;
 
 interface PlanDay { id?: string; weekday?: string; focus?: string; dayName?: string }
-export interface ReminderPlan {
+/** F2: vacation / reducedMode / skippedDates = kontekst wspólnego resolvera blokad dnia. */
+export interface ReminderPlan extends PlannedDateBlockContext {
   days: PlanDay[];
   startDate?: string;
   skippedDates?: string[];
   scheduleOverrides?: ScheduleOverrides;
   status?: string;
 }
+
+/** Dokument training_plans/{uid} -> pola, których potrzebuje przypomnienie. */
+export const mapReminderPlanDoc = (data: Record<string, unknown>): ReminderPlan => {
+  const rawOverrides = data.scheduleOverrides;
+  const block = blockContextFromPlanDoc(data);
+  return {
+    days: Array.isArray(data.days) ? data.days as PlanDay[] : [],
+    ...(typeof data.startDate === "string" ? { startDate: data.startDate } : {}),
+    ...(block.skippedDates ? { skippedDates: [...block.skippedDates] } : {}),
+    ...(rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
+      ? { scheduleOverrides: rawOverrides as ScheduleOverrides }
+      : {}),
+    ...(typeof data.status === "string" ? { status: data.status } : {}),
+    ...(block.vacation ? { vacation: block.vacation } : {}),
+    ...(block.reducedMode ? { reducedMode: block.reducedMode } : {}),
+  };
+};
 
 type DeliveryResponse = { success: boolean; error?: { code?: string } };
 
@@ -124,7 +143,8 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     const rawPlan = plans.get(uid);
     const plan: ReminderPlan = Array.isArray(rawPlan) ? { days: rawPlan } : (rawPlan ?? { days: [] });
     const local = localDayParts(deps.now, user.timeZone);
-    if (plan.status === "ended" || plan.skippedDates?.includes(local.dateStr)) return;
+    // F2: urlop / pauza / pominięty dzień = nie dzień treningowy (wspólny resolver).
+    if (plan.status === "ended" || isPlannedDateBlocked(local.dateStr, plan)) return;
     const todayDay = resolvePlannedDayForDate(
       local.dateStr,
       plan.days,
@@ -227,21 +247,7 @@ export const dailyTrainingReminder = onSchedule(
         const snapshots = await chunkedGetAll(userIds.map((uid) => db.collection("training_plans").doc(uid)));
         return new Map(snapshots
           .filter((snap) => snap.exists)
-          .map((snap) => {
-            const data = snap.data() ?? {};
-            const rawOverrides = data.scheduleOverrides;
-            return [snap.id, {
-              days: Array.isArray(data.days) ? data.days as PlanDay[] : [],
-              ...(typeof data.startDate === "string" ? { startDate: data.startDate } : {}),
-              ...(Array.isArray(data.skippedDates)
-                ? { skippedDates: data.skippedDates.filter((date): date is string => typeof date === "string") }
-                : {}),
-              ...(rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
-                ? { scheduleOverrides: rawOverrides as ScheduleOverrides }
-                : {}),
-              ...(typeof data.status === "string" ? { status: data.status } : {}),
-            } satisfies ReminderPlan] as [string, ReminderPlan];
-          }));
+          .map((snap) => [snap.id, mapReminderPlanDoc(snap.data() ?? {})] as [string, ReminderPlan]));
       },
       sendMulticast: (tokens, title, body) => admin.messaging().sendEachForMulticast({
         tokens,

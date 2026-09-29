@@ -38,7 +38,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
-import type { WeeklyTarget } from '@/lib/progression-engine';
+import { isModeWeeklyTarget, type WeeklyTarget } from '@/lib/progression-engine';
 import type { TranslationKey } from '@/i18n';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
@@ -658,7 +658,8 @@ const ExerciseCardInner = ({
   type TargetTone = 'primary' | 'warning' | 'destructive';
   const targetBox = ((): { label: string; tone: TargetTone; value: string; reason?: string } | null => {
     const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
-    if (rzaAdvice) {
+    // F3: cel trybu / rampy po przerwie wygrywa z RZA — to ten ciężar wpisał prefill.
+    if (rzaAdvice && !(weeklyTarget && isModeWeeklyTarget(weeklyTarget))) {
       const labels: Record<RzaAdvice['decision'], string> = {
         progress: t('card.rzaProgress'), deload: t('card.rzaDeload'), repeat: t('card.rzaRepeat'),
       };

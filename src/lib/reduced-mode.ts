@@ -93,3 +93,18 @@ export const reducedModeAdviceFactor = (params: {
   const factor = REDUCED_MODE_RAMP_FACTORS[sessionsAfter];
   return factor !== undefined ? { factor, phase: 'ramp' } : null;
 };
+
+/**
+ * F3: ciężar w oknie trybu / na rampie — BAZA sprzed startu trybu × mnożnik,
+ * krok 0,5 kg. Jedna funkcja dla porady (next-set-advice) i celu sesji
+ * (progression-engine -> prefill), żeby komunikat i prefill się nie rozjechały.
+ */
+export const reducedModeTargetWeight = (
+  history: ReadonlyArray<{ date: string; maxWeight: number }>,
+  mode: ReducedMode,
+  factor: number,
+): number => {
+  const lastWeight = history[history.length - 1]?.maxWeight ?? 0;
+  const baseline = [...history].reverse().find((point) => point.date < mode.startDate)?.maxWeight ?? lastWeight;
+  return Math.max(0, Math.round(baseline * factor * 2) / 2);
+};

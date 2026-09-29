@@ -90,6 +90,17 @@ describe('target box: kaskada celu w jednym boxie (fala 2)', () => {
     expect(within(card).getByText(/Dołóż/)).toBeTruthy();
   });
 
+  it('F3: cel rampy po urlopie wygrywa z RZA — box pokazuje ciężar z prefillu (34), nie RZA', () => {
+    const { card } = renderCard({
+      savedSets: [workingSet()],
+      rzaAdvice: rza,
+      weeklyTarget: weekly({ kind: 'deload', targetWeight: 34, reasonKey: 'progression.reason.modeRamp' }),
+      nextAdvice,
+    });
+    expect(within(card).getByTestId('exercise-card-target').textContent).toContain('34');
+    expect(within(card).queryByText(/92\.5/)).toBeNull();
+  });
+
   it('deload tygodnia: CAŁY box w kolorze warning (tekst pełny, tło /10), etykieta bez własnej klasy (X38)', () => {
     const { card } = renderCard({
       savedSets: [workingSet()],
