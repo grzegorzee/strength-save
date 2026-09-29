@@ -761,7 +761,8 @@ service cloud.firestore {
     }
 
     // Własne ćwiczenia usera (Z71): zamknięty schemat, pełny CRUD tylko właściciel,
-    // odczyt dodatkowo admin. Kategorie = 8 kluczy categoryLabels z biblioteki klienta.
+    // odczyt dodatkowo admin. Kategorie = 9 kluczy categoryLabels z biblioteki klienta
+    // (T6: + conditioning; reguły wdrażać PRZED klientem z kategorią Kondycja).
     function validCustomExerciseShape() {
       return request.resource.data.keys().hasOnly([
         'userId', 'name', 'category', 'isBodyweight', 'type', 'createdAt', 'tracking'
@@ -769,7 +770,7 @@ service cloud.firestore {
       && request.resource.data.name is string
       && request.resource.data.name.size() >= 2
       && request.resource.data.name.size() <= 80
-      && request.resource.data.category in ['chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves']
+      && request.resource.data.category in ['chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves', 'conditioning']
       && request.resource.data.isBodyweight is bool
       && request.resource.data.type in ['compound', 'isolation']
       && request.resource.data.createdAt is int

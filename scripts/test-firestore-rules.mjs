@@ -583,6 +583,7 @@ const validCustomExercise = {
 };
 add('custom_exercises: create wlasnego ALLOWED', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-1'), validCustomExercise)));
 add('custom_exercises: create z cudzym userId DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-2'), { ...validCustomExercise, userId: OTHER_UID })));
+add('custom_exercises: category conditioning (T6) ALLOWED', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t6'), { ...validCustomExercise, category: 'conditioning' })));
 add('custom_exercises: category spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-3'), { ...validCustomExercise, category: 'cardio' })));
 add('custom_exercises: nazwa 200 znakow DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-4'), { ...validCustomExercise, name: 'x'.repeat(200) })));
 add('custom_exercises: nazwa 1 znak DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-5'), { ...validCustomExercise, name: 'x' })));

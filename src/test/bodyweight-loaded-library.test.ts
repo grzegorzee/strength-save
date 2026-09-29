@@ -23,6 +23,10 @@ const LOADED = [
   'Unoszenie nóg w zwisie', 'Unoszenie kolan w zwisie', 'Nogi do drążka (Toes to Bar)',
   'Spięcia brzucha na ławce skośnej (Decline Sit-up)', 'Skręty rosyjskie', 'Brzuszki klasyczne (Crunch)',
   'Pełne spięcie brzucha (Sit-up)',
+  // T6 (2026-09-29): nowe ćwiczenia z bazy (exercises-new.json, tracking bodyweight_loaded).
+  'Podciąganie szerokim chwytem', 'Podciąganie chwytem neutralnym', 'Wykrok boczny (Lateral Lunge)',
+  'Przysiad jednonóż do ławki (Box Pistol)', "Unoszenie kolan na poręczach (Captain's Chair)",
+  'Brzuszki na piłce (Stability Ball Crunch)', 'Hip Thrust jednonóż',
 ];
 
 describe('F6 — biblioteka: typy logowania z tabeli właściciela', () => {
@@ -32,7 +36,7 @@ describe('F6 — biblioteka: typy logowania z tabeli właściciela', () => {
     expect(isBodyweightExercise(name)).toBe(true);
   });
 
-  it('dokładnie 33 ćwiczenia bodyweight_loaded (nic poza tabelą)', () => {
+  it('dokładnie 40 ćwiczeń bodyweight_loaded (33 z tabeli F6 + 7 z T6, nic poza listą)', () => {
     expect(exerciseLibrary.filter((e) => e.tracking === 'bodyweight_loaded').map((e) => e.name).sort())
       .toEqual([...LOADED].sort());
   });
