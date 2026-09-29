@@ -94,6 +94,13 @@ describe('findNextPlannedDate', () => {
     expect(findNextPlannedDate(week, new Set(), [], '2026-08-25')).toBeNull();
   });
 
+  it('F2: dzień w urlopie nie jest następnym treningiem (pierwszy po urlopie jest)', () => {
+    const inVacation = (date: string) => date >= '2026-08-18' && date <= '2026-08-20';
+    expect(findNextPlannedDate(week, new Set(), [], '2026-08-18', inVacation)).toBe('2026-08-21');
+    // Niezmiennik: bez blokady wynik jak dotąd.
+    expect(findNextPlannedDate(week, new Set(), [], '2026-08-18')).toBe('2026-08-18');
+  });
+
   it('kolejność wejścia nie ma znaczenia — zawsze najwcześniejsza data', () => {
     const shuffled = ['2026-08-21', '2026-08-17', '2026-08-20'];
     expect(findNextPlannedDate(shuffled, new Set(), [], '2026-08-16')).toBe('2026-08-17');

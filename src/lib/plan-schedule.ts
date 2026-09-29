@@ -163,16 +163,23 @@ export const getScheduledTrainingWeek = (
 export const getNextScheduledTraining = (
   planDays: TrainingDay[],
   fromDate: Date,
-  options: { includeSameDay?: boolean; searchDays?: number; overrides?: ScheduleOverrides; startDateISO?: string | null } = {}
+  options: {
+    includeSameDay?: boolean;
+    searchDays?: number;
+    overrides?: ScheduleOverrides;
+    startDateISO?: string | null;
+    /** F2: data zablokowana (urlop / pauza / pominięta) nie jest "następnym" treningiem. */
+    isDateBlocked?: (dateKey: string) => boolean;
+  } = {}
 ): ScheduledTrainingDay | null => {
-  const { includeSameDay = false, searchDays = 14, overrides, startDateISO } = options;
+  const { includeSameDay = false, searchDays = 14, overrides, startDateISO, isDateBlocked } = options;
   const start = startOfLocalDay(fromDate);
 
   for (let offset = includeSameDay ? 0 : 1; offset <= searchDays; offset += 1) {
     const date = startOfLocalDay(start);
     date.setDate(start.getDate() + offset);
     const scheduled = getScheduledTrainingForDate(planDays, date, overrides, startDateISO);
-    if (scheduled) {
+    if (scheduled && !isDateBlocked?.(scheduled.dateKey)) {
       return scheduled;
     }
   }

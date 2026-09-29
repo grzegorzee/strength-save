@@ -1,3 +1,5 @@
+import { sanitizeVacationMode } from '@/lib/vacation-mode';
+import { sanitizeProgressionConfig } from '@/lib/progression-engine';
 import { describe, expect, it } from 'vitest';
 import {
   CANONICAL_STATE_IDS,
@@ -44,6 +46,9 @@ describe('WP-G — canonical states: roundtrip przez sanitizery hydracji', () =>
       expect(sanitizeTrainingPlanDays(state.plan.days)).toEqual(state.plan.days);
       expect(sanitizeTrainingPlanStatus(state.plan.status)).toBe(state.plan.status);
       expect(sanitizeTrainingPlanName(state.plan.name)).toBe(state.plan.name);
+      // F2/F3: pola vacation/progression przechodzą sanitizery hydracji bez zmian.
+      if (state.plan.vacation) expect(sanitizeVacationMode(state.plan.vacation)).toEqual(state.plan.vacation);
+      if (state.plan.progression) expect(sanitizeProgressionConfig(state.plan.progression)).toEqual(state.plan.progression);
     }
   });
 

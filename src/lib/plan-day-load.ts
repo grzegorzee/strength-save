@@ -44,11 +44,13 @@ export const findNextPlannedDate = (
   completedDates: ReadonlySet<string>,
   skippedDates: readonly string[],
   todayISO: string,
+  /** F2: urlop / pauza — data w przerwie nie jest "następnym" treningiem. */
+  isDateBlocked?: (dateKey: string) => boolean,
 ): string | null => {
   const skipped = new Set(skippedDates);
   let next: string | null = null;
   for (const date of scheduleDates) {
-    if (date < todayISO || completedDates.has(date) || skipped.has(date)) continue;
+    if (date < todayISO || completedDates.has(date) || skipped.has(date) || isDateBlocked?.(date)) continue;
     if (next === null || date < next) next = date;
   }
   return next;

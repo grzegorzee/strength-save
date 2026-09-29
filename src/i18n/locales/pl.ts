@@ -291,6 +291,12 @@ export const pl = {
   // Naprawa r1 (2026-08-21): hero najbliższej sesji w stanach rest/completed.
   'dash.hero.next': 'Następna sesja',
   'dash.hero.openSession': 'Otwórz sesję',
+  'dash.break.eyebrow': 'Przerwa',
+  'dash.break.until': 'Przerwa do {date}',
+  'dash.break.ramp': 'Po powrocie wracamy stopniowo: ~85%, potem ~92%, potem pełna moc.',
+  'dash.break.next': 'Następny trening: {date} · {focus}',
+  'dash.break.manageVacation': 'Zmień lub anuluj urlop',
+  'dash.break.managePause': 'Zmień tryb',
   'dash.nextStep.decide': 'Zdecyduj',
   'dash.whatNext': 'Co dalej z planem?',
   'dash.dismissHint': 'Ukryj podpowiedź',

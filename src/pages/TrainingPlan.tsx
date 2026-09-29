@@ -23,6 +23,7 @@ import { dateLocale } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { VacationDialog } from '@/components/VacationDialog';
 import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
+import { isPlannedDateBlocked } from '@/lib/plan-date-block';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
@@ -464,8 +465,10 @@ const TrainingPlan = () => {
   // wcześniej każdy przyszły tydzień pokazywał "następny" na pierwszym dniu.
   const nextPlannedDate = useMemo(() => {
     const scheduleDates = schedule.map((s) => formatLocalDate(s.date));
-    return findNextPlannedDate(scheduleDates, completedDateKeys, skippedDates, todayISOForVacation);
-  }, [schedule, completedDateKeys, skippedDates, todayISOForVacation]);
+    // F2: urlop / pauza — dzień w przerwie nie jest "następnym" (wspólny resolver z Dashboardem i pushem).
+    return findNextPlannedDate(scheduleDates, completedDateKeys, skippedDates, todayISOForVacation,
+      (date) => isPlannedDateBlocked(date, { vacation, reducedMode }));
+  }, [schedule, completedDateKeys, skippedDates, todayISOForVacation, vacation, reducedMode]);
 
   // Fala 2: linia statystyk banera decyzji — WYŁĄCZNIE realne dane aktywnego
   // cyklu (mockup "96% attendance · 24 PRs"); brak cyklu = brak linii.

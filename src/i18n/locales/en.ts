@@ -285,6 +285,12 @@ export const en: Record<keyof typeof pl, string> = {
   // Naprawa r1 (2026-08-21): hero najbliższej sesji w stanach rest/completed.
   'dash.hero.next': 'Next session',
   'dash.hero.openSession': 'Open session',
+  'dash.break.eyebrow': 'Break',
+  'dash.break.until': 'Break until {date}',
+  'dash.break.ramp': 'When you are back we ramp up: ~85%, then ~92%, then full power.',
+  'dash.break.next': 'Next workout: {date} · {focus}',
+  'dash.break.manageVacation': 'Change or cancel vacation',
+  'dash.break.managePause': 'Change mode',
   'dash.nextStep.decide': 'Decide',
   'dash.whatNext': "What's next with the plan?",
   'dash.dismissHint': 'Hide hint',
