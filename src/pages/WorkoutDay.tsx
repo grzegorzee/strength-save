@@ -207,6 +207,12 @@ const WorkoutDay = () => {
     if (lib) return getTrackingType(lib);
     return getTrackingType({ isBodyweight: isBodyweightExercise(name) });
   }, [customExercises]);
+  // F6: prefill zeruje kg wyłącznie dla czystego bodyweight; bodyweight_loaded
+  // przenosi DOCIĄŻENIE z (znormalizowanej) historii, nigdy masę ciała.
+  const resolveHidesWeight = useCallback(
+    (name: string): boolean => resolveIsBodyweight(name) && resolveTracking(name) !== 'bodyweight_loaded',
+    [resolveIsBodyweight, resolveTracking],
+  );
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
   // WP-F (X37): licznik ukończonych treningów all-time (kamienie milowe);
   // null = brak agregatu, fallback na okno recent.
@@ -553,7 +559,7 @@ const WorkoutDay = () => {
     const existingIds = [...Object.keys(exerciseSetsRef.current), ...day.exercises.map((ex) => ex.id)];
     const newId = buildAdhocExerciseId(pick.name, existingIds);
     const prevSets = getPreviousSets(newId, pick.name);
-    const sets = createPrefilledSets(3, prevSets, resolveIsBodyweight(pick.name));
+    const sets = createPrefilledSets(3, prevSets, resolveHidesWeight(pick.name));
 
     // WP-C (X38): pierwsze ćwiczenie w szybkim treningu = checkpoint OD RAZU.
     // Incydent 2026-08-26: skorupa sesji w chmurze (revision 0, zero ćwiczeń)
@@ -1768,7 +1774,7 @@ const WorkoutDay = () => {
         return createPrefilledSets(
           target?.targetSets ?? parseSetCount(exercise.sets),
           getPreviousSets(exercise.id, exercise.name),
-          resolveIsBodyweight(exercise.name),
+          resolveHidesWeight(exercise.name),
           target ? { weight: target.targetWeight, reps: target.targetReps } : null,
         );
       };

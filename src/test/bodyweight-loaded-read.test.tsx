@@ -5,6 +5,7 @@ import { calculateTonnage } from '@/lib/summary-utils';
 import { countCompletedWorkouts, selectCompletedWorkouts } from '@/lib/completed-workouts';
 import { buildBodyWeightTimeline, normalizeBodyweightLoadedWorkouts } from '@/lib/bodyweight-load';
 import { isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
+import { createPrefilledSets } from '@/lib/exercise-utils';
 
 // F6: normalizacja legacy przy ODCZYCIE — hook oddaje ekranom dane znormalizowane,
 // akcje i ścieżki sync/eksport/naprawa pracują na surowych (zero przepisań).
@@ -90,5 +91,25 @@ describe('Niezmiennik historii (zasada 5): normalizacja niczego nie zabiera', ()
     const rawTonnage = calculateTonnage(selectCompletedWorkouts(history.workouts));
     const pullReps = 6 + 4 + 7 + 6 + 5 + 4 + 8 + 6 + 6 + 5;
     expect(rawTonnage - calculateTonnage(selectCompletedWorkouts(normalized))).toBe(pullReps * 74 + (8 + 5 + 5) * 72);
+  });
+});
+
+describe('Prefill z historii legacy (F6): masa ciała NIE trafia do pola +kg', () => {
+  const normalized = normalizeBodyweightLoadedWorkouts(
+    history.workouts, buildBodyWeightTimeline(history.measurements), isBodyweightLoadedExercise,
+  );
+
+  it('ostatnia sesja podciągania 72 kg (MC 72,5) → prefill dociążenia 0', () => {
+    const last = [...normalized].sort((a, b) => b.date.localeCompare(a.date))[0];
+    const prevSets = last.exercises.find((e) => e.name === 'Podciąganie na drążku')!.sets;
+    // hidesWeight=false: bodyweight_loaded przenosi dociążenie z historii.
+    const prefill = createPrefilledSets(4, prevSets, false);
+    expect(prefill.map((s) => s.weight)).toEqual([0, 0, 0, 0]);
+    expect(prefill.map((s) => s.reps)).toEqual([8, 5, 5, 5]);
+  });
+
+  it('realne dociążenie przechodzi do prefill (Reverse Crunch 12,5/15 kg)', () => {
+    const prevSets = normalized[0].exercises[0].sets;
+    expect(createPrefilledSets(3, prevSets, false).map((s) => s.weight)).toEqual([12.5, 12.5, 15]);
   });
 });
