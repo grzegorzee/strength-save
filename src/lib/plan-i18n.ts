@@ -50,6 +50,8 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   // T6: focus nowych szablonów (Moc Góra/Dół/Tył, Objętość A/B/C).
   'Moc': 'Power',
   'Objętość': 'Volume',
+  // T6b: "Dzień A/B/C" (RZA) w nazwie dnia.
+  'Dzień': 'Day',
 };
 
 const WEEKDAY_SHORT_EN: Record<string, string> = {
@@ -67,12 +69,26 @@ const FOCUS_PHRASE_EN: Record<string, string> = {
   'Tył Uda': 'Hamstrings',
   'Klatka Płasko': 'Flat Chest',
   'Środek Pleców': 'Mid Back',
+  // T6b: focus starszych szablonów (RZA, 531-bbb, nsuns) z małymi literami i nazwami bojów.
+  'Nogi + plecy + barki': 'Legs + Back + Shoulders',
+  'Push + tył uda + barki': 'Push + Hamstrings + Shoulders',
+  'OHP + objętość': 'OHP + Volume',
+  'Martwy ciąg + objętość': 'Deadlift + Volume',
+  'Wyciskanie + objętość': 'Bench + Volume',
+  'Przysiad + objętość': 'Squat + Volume',
+  'Wyciskanie + OHP': 'Bench + OHP',
+  'Martwy ciąg + Front Squat': 'Deadlift + Front Squat',
+  'Wyciskanie + wąsko': 'Bench + Close-Grip',
 };
 
 /** Nazwa dnia w języku UI (mapuje kanoniczne polskie nazwy dni; inne zostawia). */
 export const localizeDayName = (name: string, lang: LanguageCode): string => {
   if (!name) return name;
-  return WEEKDAY_OVERLAYS[lang]?.[name] ?? name;
+  const weekday = WEEKDAY_OVERLAYS[lang]?.[name];
+  if (weekday) return weekday;
+  // T6b: nazwy dni szablonów "Dzień A/B/C" (RZA); własne nazwy usera bez zmian.
+  const dayLetter = /^Dzień(\s+\S+)$/.exec(name);
+  return dayLetter ? `${FOCUS_TOKEN_OVERLAYS[lang]?.['Dzień'] ?? 'Dzień'}${dayLetter[1]}` : name;
 };
 
 /**

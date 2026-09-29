@@ -31,6 +31,7 @@ export const FOCUS_TOKEN_EN: Record<string, string> = {
   "Przysiad": "Squat",
   "Moc": "Power",
   "Objętość": "Volume",
+  "Dzień": "Day",
 };
 
 const FOCUS_PHRASE_EN: Record<string, string> = {
@@ -38,6 +39,15 @@ const FOCUS_PHRASE_EN: Record<string, string> = {
   "Tył Uda": "Hamstrings",
   "Klatka Płasko": "Flat Chest",
   "Środek Pleców": "Mid Back",
+  "Nogi + plecy + barki": "Legs + Back + Shoulders",
+  "Push + tył uda + barki": "Push + Hamstrings + Shoulders",
+  "OHP + objętość": "OHP + Volume",
+  "Martwy ciąg + objętość": "Deadlift + Volume",
+  "Wyciskanie + objętość": "Bench + Volume",
+  "Przysiad + objętość": "Squat + Volume",
+  "Wyciskanie + OHP": "Bench + OHP",
+  "Martwy ciąg + Front Squat": "Deadlift + Front Squat",
+  "Wyciskanie + wąsko": "Bench + Close-Grip",
 };
 
 /** Focus dnia po angielsku (tłumaczy znane tokeny, resztę zostawia). */
