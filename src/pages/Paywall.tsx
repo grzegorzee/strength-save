@@ -167,6 +167,16 @@ export default function Paywall({ onLogout, onAccountDeleted }: {
     }
   };
 
+  // B4 (2026-09-29): tryb miękki po onboardingu (fail-open useHardPaywall na
+  // słabej sieci) wchodzi tu przez replace, więc historia ma idx 0 i
+  // navigate(-1) nic nie robi. Wzorzec Layout.handleBack: bez historii w apce
+  // wyjście na dashboard (replace, żeby wstecz nie wracało na paywall).
+  const handleBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate('/', { replace: true });
+  };
+
   const features = useMemo(() => ([
     t('paywall.feature1'),
     t('paywall.feature2'),
@@ -317,7 +327,7 @@ export default function Paywall({ onLogout, onAccountDeleted }: {
       <div className="mx-auto max-w-md px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
         {/* Hard mode (onboarding): bez strzałki wstecz — nie ma "obejrzę sobie apkę bez trialu". */}
         {!hard && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
+          <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
