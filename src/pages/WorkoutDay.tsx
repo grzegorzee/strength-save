@@ -1377,9 +1377,13 @@ const WorkoutDay = () => {
       // zapisana pozycja scrolla ma pierwszeństwo (scroll-restore niżej).
       const lastTouched = currentPageDraft.lastTouchedExerciseId;
       const scrollGuardKey = uid && dayId ? workoutScrollStorageKey(uid, dayId, targetDate) : null;
-      if (lastTouched && !currentPageDraft.completedLocally && scrollGuardKey
-        && lastTouchedScrollDone.current !== scrollGuardKey) {
-        lastTouchedScrollDone.current = scrollGuardKey;
+      // 2026-09-29: decyzja zapada przy PIERWSZYM szkicu widzianym przez ten mount.
+      // Świeża sesja startuje szkicem bez lastTouched, więc strażnik zużywa się od
+      // razu; wcześniej uzbrajał się dopiero po pierwszej edycji i przewijał stronę
+      // pod palcem w trakcie treningu (tap ✓ tuż po wpisaniu ciężaru ginął).
+      const firstDraftForKey = scrollGuardKey !== null && lastTouchedScrollDone.current !== scrollGuardKey;
+      if (firstDraftForKey) lastTouchedScrollDone.current = scrollGuardKey;
+      if (firstDraftForKey && lastTouched && !currentPageDraft.completedLocally) {
         const hasSavedScroll = (() => {
           try {
             const raw = localStorage.getItem(scrollGuardKey);
