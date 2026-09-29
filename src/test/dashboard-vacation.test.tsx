@@ -171,6 +171,18 @@ describe('Dashboard w trakcie urlopu (F2)', () => {
     expect(screen.queryByTestId('break-hero')).toBeNull();
   });
 
+  it("urlop 'Tylko główne boje' (mains_only): dzień planu zostaje treningiem, bez karty przerwy", async () => {
+    const state = buildCanonicalState('vacation-active', TODAY);
+    state.plan = { ...state.plan!, vacation: { ...state.plan!.vacation!, activity: 'mains_only' } };
+    fixture.state = state;
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByTestId('dashboard-primary-action').textContent).toContain('Rozpocznij trening'));
+    expect(screen.queryByTestId('break-hero')).toBeNull();
+    const week = screen.getByTestId('week-card');
+    expect(within(week).getByTestId(`week-day-${TODAY}`).getAttribute('aria-label')).toContain('zaplanowane');
+  });
+
   it('aktywny plan bez urlopu: hero treningu bez zmian (niezmiennik)', async () => {
     fixture.state = buildCanonicalState('empty-history', TODAY);
     renderDashboard();

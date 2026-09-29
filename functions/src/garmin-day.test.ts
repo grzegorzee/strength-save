@@ -7,6 +7,7 @@ import {
   type GarminPlanDay,
   type GarminWorkout,
 } from "./garmin-day";
+import { blockContextFromPlanDoc } from "./plan-date-block";
 
 const day: GarminPlanDay = {
   id: "day-1",
@@ -197,5 +198,32 @@ describe("buildGarminDayContext + scheduleOverrides", () => {
   it("wartość spoza kontraktu (nie string/null) ignorowana jak osierocona", () => {
     const dirty = { [monday]: 7 } as unknown as Record<string, string | null>;
     expect(buildGarminDayContext([day], [], monday, {}, {}, dirty)!.y).toBe("day-1");
+  });
+});
+
+// F2 (2026-09-29): zegarek zna urlop przez wspólny resolver (plan-date-block):
+// dzień zablokowany = dzień wolny (null -> endpoint odsyła rest).
+describe("buildGarminDayContext + urlop / pauza (F2)", () => {
+  const monday = "2026-09-28";
+  const planDoc = (activity: string) => ({
+    vacation: { startDate: "2026-09-22", endDate: "2026-09-28", activity, extendedWeeks: 1 },
+  });
+
+  it("urlop 'none' obejmujący dzień planu: dzień wolny na zegarku", () => {
+    const ctx = buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc(planDoc("none")));
+    expect(ctx).toBeNull();
+  });
+
+  it("urlop 'mains_only': user trenuje, zegarek dostaje dzień planu", () => {
+    const ctx = buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc(planDoc("mains_only")));
+    expect(ctx?.y).toBe("day-1");
+  });
+
+  it("pauza i pominięty dzień też dają dzień wolny; dzień po urlopie = dzień planu", () => {
+    expect(buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc({
+      reducedMode: { startDate: monday, endDate: "2026-09-30", level: "pause" },
+    }))).toBeNull();
+    expect(buildGarminDayContext([day], [], monday, {}, {}, null, null, blockContextFromPlanDoc({ skippedDates: [monday] }))).toBeNull();
+    expect(buildGarminDayContext([day], [], "2026-10-05", {}, {}, null, null, blockContextFromPlanDoc(planDoc("none")))?.y).toBe("day-1");
   });
 });

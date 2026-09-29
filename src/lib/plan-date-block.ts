@@ -4,7 +4,8 @@
 // dailyTrainingReminder. Parity: fixtures/cross-platform/plan-date-block-v1.json.
 //
 // Reguły (kolejność = priorytet powodu):
-// 1. urlop: data w [vacation.startDate, vacation.endDate] (dowolna aktywność);
+// 1. urlop z pełną przerwą: data w [vacation.startDate, vacation.endDate]
+//    i vacation.activity === 'none' ("Tylko główne boje" = user trenuje, NIE blokuje);
 // 2. pauza: data w oknie reducedMode z level === 'pause' ("Pauza od treningów");
 // 3. pominięty dzień: data w skippedDates.
 
@@ -14,7 +15,7 @@ export interface DateWindow {
 }
 
 export interface PlannedDateBlockContext {
-  vacation?: DateWindow | null;
+  vacation?: (DateWindow & { activity?: string }) | null;
   reducedMode?: (DateWindow & { level?: string }) | null;
   skippedDates?: readonly string[] | null;
 }
@@ -28,7 +29,7 @@ export const plannedDateBlockReason = (
   dateISO: string,
   context: PlannedDateBlockContext,
 ): PlannedDateBlockReason | null => {
-  if (inWindow(context.vacation, dateISO)) return 'vacation';
+  if (context.vacation?.activity === 'none' && inWindow(context.vacation, dateISO)) return 'vacation';
   if (context.reducedMode?.level === 'pause' && inWindow(context.reducedMode, dateISO)) return 'pause';
   if (context.skippedDates?.includes(dateISO)) return 'skipped';
   return null;

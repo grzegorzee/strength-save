@@ -4,16 +4,19 @@
   "description": "F2 (2026-09-29): kanoniczne przypadki plannedDateBlockReason(dateISO, context). Ta sama tabela przechodzi przez resolver webowy (src/lib/plan-date-block.ts) i funkcyjny (functions/src/plan-date-block.ts); wyniki muszą być identyczne, inaczej push przypomnienia i Dashboard rozjadą się co do dnia treningowego.",
   "cases": [
     { "name": "brak kontekstu: brak blokady", "date": "2026-09-22", "context": {}, "expected": null },
-    { "name": "pierwszy dzień urlopu (włącznie)", "date": "2026-09-22", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" } }, "expected": "vacation" },
-    { "name": "środek urlopu", "date": "2026-09-25", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" } }, "expected": "vacation" },
-    { "name": "ostatni dzień urlopu (włącznie)", "date": "2026-09-27", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" } }, "expected": "vacation" },
-    { "name": "dzień po urlopie nie jest zablokowany", "date": "2026-09-28", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" } }, "expected": null },
-    { "name": "dzień przed urlopem nie jest zablokowany", "date": "2026-09-21", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" } }, "expected": null },
+    { "name": "pierwszy dzień urlopu (włącznie)", "date": "2026-09-22", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } }, "expected": "vacation" },
+    { "name": "środek urlopu", "date": "2026-09-25", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } }, "expected": "vacation" },
+    { "name": "ostatni dzień urlopu (włącznie)", "date": "2026-09-27", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } }, "expected": "vacation" },
+    { "name": "dzień po urlopie nie jest zablokowany", "date": "2026-09-28", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } }, "expected": null },
+    { "name": "dzień przed urlopem nie jest zablokowany", "date": "2026-09-21", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" } }, "expected": null },
+    { "name": "urlop 'Tylko główne boje' NIE blokuje (user trenuje)", "date": "2026-09-23", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "mains_only" } }, "expected": null },
+    { "name": "urlop bez pola activity NIE blokuje (tylko jawne 'none')", "date": "2026-09-23", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" } }, "expected": null },
+    { "name": "urlop mains_only + pominięty dzień = pominięty", "date": "2026-09-23", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "mains_only" }, "skippedDates": ["2026-09-23"] }, "expected": "skipped" },
     { "name": "pauza od treningów blokuje", "date": "2026-09-23", "context": { "reducedMode": { "startDate": "2026-09-22", "endDate": "2026-09-25", "level": "pause" } }, "expected": "pause" },
     { "name": "tryb lżejszy NIE blokuje (trening z lżejszymi propozycjami)", "date": "2026-09-23", "context": { "reducedMode": { "startDate": "2026-09-22", "endDate": "2026-09-25", "level": "lighter" } }, "expected": null },
     { "name": "tylko główne boje NIE blokuje", "date": "2026-09-23", "context": { "reducedMode": { "startDate": "2026-09-22", "endDate": "2026-09-25", "level": "mains_only" } }, "expected": null },
     { "name": "pauza po końcu okna nie blokuje", "date": "2026-09-26", "context": { "reducedMode": { "startDate": "2026-09-22", "endDate": "2026-09-25", "level": "pause" } }, "expected": null },
     { "name": "pominięty dzień", "date": "2026-09-30", "context": { "skippedDates": ["2026-09-30"] }, "expected": "skipped" },
-    { "name": "urlop ma pierwszeństwo przed pominięciem", "date": "2026-09-23", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27" }, "skippedDates": ["2026-09-23"] }, "expected": "vacation" }
+    { "name": "urlop ma pierwszeństwo przed pominięciem", "date": "2026-09-23", "context": { "vacation": { "startDate": "2026-09-22", "endDate": "2026-09-27", "activity": "none" }, "skippedDates": ["2026-09-23"] }, "expected": "vacation" }
   ]
 }

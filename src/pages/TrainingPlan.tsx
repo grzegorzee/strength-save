@@ -362,10 +362,11 @@ const TrainingPlan = () => {
       durationWeeks: planDurationWeeks,
       completedDates: new Set(completedWorkouts.map(w => w.date)),
       skippedDates,
-      isDateBlocked: vacation ? (key) => isVacationActive(vacation, key) : undefined,
+      // F2: ten sam resolver co Dashboard i push (urlop 'none' / pauza; mains_only się liczy).
+      isDateBlocked: (key) => isPlannedDateBlocked(key, { vacation, reducedMode }),
       overrides: scheduleOverrides,
     }) : 0),
-    [trainingPlan, planStartDate, planDurationWeeks, completedWorkouts, skippedDates, vacation, scheduleOverrides],
+    [trainingPlan, planStartDate, planDurationWeeks, completedWorkouts, skippedDates, vacation, reducedMode, scheduleOverrides],
   );
   const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;

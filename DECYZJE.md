@@ -32,11 +32,19 @@ tygodnia nad poradą. `DeloadBanner` liczył `isDeloadWeek` bez urlopu, chip
 w WeekCard `resolveDeloadWeek` z urlopem.
 
 Decyzje:
-- Niezmiennik F2: dzień w `[vacation.startDate, vacation.endDate]` (dowolna
-  aktywność urlopu, także „tylko główne boje”) oraz w oknie `reducedMode`
-  z `level: 'pause'` nie jest dniem treningowym: brak pusha, karta „Przerwa do
-  …” zamiast hero treningu, dzień „wolne” w WeekCard (poza licznikiem sesji),
-  „następny” = pierwszy niezablokowany dzień po końcu przerwy. Jeden resolver
+- Niezmiennik F2: dzień w `[vacation.startDate, vacation.endDate]` przy
+  `vacation.activity === 'none'` oraz w oknie `reducedMode` z `level: 'pause'`
+  nie jest dniem treningowym: brak pusha, karta „Przerwa do …” zamiast hero
+  treningu, dzień „wolne” w WeekCard (poza licznikiem sesji), dzień wolny na
+  zegarku Garmin, „następny” = pierwszy niezablokowany dzień po końcu przerwy.
+  Korekta koordynatora (ten sam dzień): urlop „Tylko główne boje”
+  (`mains_only`) NIE blokuje dni, bo user deklaruje, że trenuje; push,
+  Dashboard i zegarek działają normalnie, rampa/porada bez zmian. Kafel
+  „Pozostało” w Planie liczy przez ten sam resolver (wcześniej odejmował każdy
+  urlop, także mains_only, i nie znał pauzy). Wykrywanie zaległości
+  (`lapse-detection`) świadomie zostaje bez zmian: nie oznacza dni jako wolnych,
+  tylko nie wypomina zaległości w każdym zadeklarowanym okresie obniżonej
+  dyspozycji (tak samo jak w trybie lżejszym, który też nie blokuje dni). Jeden resolver
   `plannedDateBlockReason` w `src/lib/plan-date-block.ts` i lustrzany
   `functions/src/plan-date-block.ts`, parity przez
   `fixtures/cross-platform/plan-date-block-v1.json`. Pominięty dziś dzień
@@ -57,9 +65,11 @@ Weryfikacja: testy functions (fixture z override w urlopie: 0 pushy 22/23/25.09,
 push 28.09), parity web/functions, Dashboard na kanonicznym stanie
 `vacation-active`, route sweep z nowymi stanami, rampa 34/37/progresja, test
 sekwencji urlop -> push końca -> push dnia po -> prefill 85% -> 92% -> normalnie,
-e2e `e2e/vacation-ramp.spec.ts` (chromium + webkit). Czego testy nie dowodzą:
-realnego FCM na urządzeniu, Garmin/Apple Watch w dniu urlopu (garmin-day nie
-zna urlopu), raportu tygodnia (WeekReportCard liczy cele bez daty sesji).
+e2e `e2e/vacation-ramp.spec.ts` (chromium + webkit), przypadki mains_only
+(push wysłany, Dashboard z treningiem, zegarek z dniem planu, „Pozostało”).
+Czego testy nie dowodzą: realnego FCM na urządzeniu, zegarków na fizycznym
+sprzęcie (Garmin tylko test funkcji, Apple Watch tylko mapowanie przerwy na
+rest), raportu tygodnia (WeekReportCard liczy cele bez daty sesji).
 
 ### 2026-09-24: odrzucenie App Review 1.0 (148) i ponowne zgłoszenie z buildem 150
 

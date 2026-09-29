@@ -358,7 +358,7 @@ describe("runDailyReminder: urlop i pauza (F2)", () => {
       ...prodPlanDoc,
       reducedMode: { startDate: "2026-10-01", endDate: "2026-10-05", level: "pause" },
     });
-    expect(mapped.vacation).toEqual({ startDate: "2026-09-22", endDate: "2026-09-27" });
+    expect(mapped.vacation).toEqual({ startDate: "2026-09-22", endDate: "2026-09-27", activity: "none" });
     expect(mapped.reducedMode).toEqual({ startDate: "2026-10-01", endDate: "2026-10-05", level: "pause" });
   });
 
@@ -389,6 +389,16 @@ describe("runDailyReminder: urlop i pauza (F2)", () => {
     const deps = makeDeps(warsaw07("2026-09-23"), withoutVacation);
     await runDailyReminder(deps);
     expect(deps.sendMulticast).toHaveBeenCalledTimes(1);
+  });
+
+  it("urlop 'Tylko główne boje' (mains_only) NIE wycisza pusha: user dalej trenuje", async () => {
+    const deps = makeDeps(warsaw07("2026-09-23"), {
+      ...prodPlanDoc,
+      vacation: { ...prodPlanDoc.vacation, activity: "mains_only" },
+    });
+    const result = await runDailyReminder(deps);
+    expect(result.candidates).toBe(1);
+    expect(deps.sendMulticast).toHaveBeenCalledWith(["t1"], "Cześć Grzegorz! Czas na trening", "Dziś w planie: Pull. Wejdź i odhacz pierwszą serię.");
   });
 
   it("tryb pauzy (reducedMode level pause) wycisza push, tryb lżejszy nie", async () => {
