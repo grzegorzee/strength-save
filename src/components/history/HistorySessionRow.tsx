@@ -4,6 +4,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatHistorySetLabel } from '@/lib/set-tracking';
+import { isBodyweightLoadedExercise } from '@/data/exerciseLibrary';
 import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -200,6 +201,7 @@ export const HistorySessionRow = ({
                         s,
                         (kg) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`,
                         t('history.bodyweightSet'),
+                        isBodyweightLoadedExercise(e.name ?? '') ? t('bodyweightLoaded.label') : undefined,
                       )}
                     </span>
                   ))}

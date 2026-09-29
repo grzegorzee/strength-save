@@ -1,5 +1,5 @@
 import type { SetData } from '@/types';
-import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { exerciseLibrary, findLibraryExercise } from '@/data/exerciseLibrary';
 import { translate, type LanguageCode } from '@/i18n';
 import { toDisplayWeight, type UnitSystem } from '@/lib/units';
 
@@ -160,7 +160,7 @@ export const lookupExerciseType = (name: string): 'compound' | 'isolation' => {
 // KONTRAKT (Z156): `name` = kanoniczna nazwa PL (lookup w exerciseLibrary).
 // Nazwa przetłumaczona zawsze zwróci false — lokalizuj dopiero przy renderze.
 export const isBodyweightExercise = (name: string): boolean => {
-  const found = exerciseLibrary.find(e => e.name === name);
+  const found = findLibraryExercise(name);
   return found?.isBodyweight === true;
 };
 

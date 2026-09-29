@@ -316,6 +316,23 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: "Dipy wspomagane na maszynie", category: "chest", type: "compound", tracking: "assisted_bodyweight", instructions: [{ title: "Technika", content: "Dipy z przeciwwagą maszyny: im mniejsza asysta, tym trudniej. Pochyl tułów lekko do przodu na klatkę." }] },
 ];
 
+// F6: nazwy z planów/szablonów spoza biblioteki, które są tym samym ćwiczeniem.
+// Tylko do rozpoznania typu śledzenia; biblioteka i picker zostają bez duplikatów.
+const LIBRARY_NAME_ALIASES: Record<string, string> = {
+  'Pompki na poręczach': 'Dips (pompki na poręczach)',
+  'Podciaganie nachwytem': 'Podciąganie na drążku',
+};
+
+const libraryByName = new Map(exerciseLibrary.map((exercise) => [exercise.name, exercise]));
+
+/** Wpis biblioteki po nazwie kanonicznej albo aliasie z planu. */
+export const findLibraryExercise = (name: string): LibraryExercise | undefined =>
+  libraryByName.get(name) ?? libraryByName.get(LIBRARY_NAME_ALIASES[name] ?? '');
+
+/** F6: ćwiczenie loguje masę ciała + opcjonalne dociążenie (weight = dociążenie). */
+export const isBodyweightLoadedExercise = (name: string): boolean =>
+  findLibraryExercise(name)?.tracking === 'bodyweight_loaded';
+
 export const categoryLabels: Record<LibraryExercise['category'], string> = {
   chest: 'Klatka piersiowa',
   back: 'Plecy',

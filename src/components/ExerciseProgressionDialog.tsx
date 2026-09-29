@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { AlertTriangle, TrendingUp } from 'lucide-react';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { selectLatestBodyWeightKg } from '@/lib/bodyweight-load';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
@@ -48,7 +49,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const { t, lang } = useTranslation();
   const { unit, fmt, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
-  const { workouts, getLatestMeasurement } = useFirebaseWorkouts(uid, { measurements: 'latest' });
+  const { workouts, measurements } = useFirebaseWorkouts(uid, { measurements: 'latest' });
   const { customExercises } = useCustomExercises(uid);
   // Ciężar wagowy → jednostka usera; bodyweight pokazuje powtórzenia (bez konwersji).
   const dispVal = (v: number): number => (isBodyweight ? v : Math.round(toDisplay(v)));
@@ -62,7 +63,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
     return getTrackingType({ isBodyweight });
   }, [customExercises, exerciseName, isBodyweight]);
   const isTracked = tracking === 'duration' || tracking === 'weight_distance_duration' || tracking === 'assisted_bodyweight';
-  const bodyWeightKg = getLatestMeasurement()?.weight ?? null;
+  const bodyWeightKg = selectLatestBodyWeightKg(measurements);
   const trackedHistory = useMemo(
     () => (isTracked ? getTrackedExerciseHistory(workouts, exerciseId, tracking, bodyWeightKg, exerciseName) : []),
     [isTracked, workouts, exerciseId, tracking, bodyWeightKg, exerciseName],

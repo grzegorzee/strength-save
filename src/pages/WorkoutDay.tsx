@@ -43,7 +43,7 @@ import {
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId, parseWatchQuickExerciseParams } from '@/lib/adhoc-workout';
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { keepScreenAwake, allowScreenSleep } from '@/lib/keep-awake';
-import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
+import { exerciseLibrary, findLibraryExercise, type LibraryExercise } from '@/data/exerciseLibrary';
 import { formatDurationSec, getTrackingType, resolveCompletionTracking, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
@@ -67,6 +67,7 @@ import { getExerciseDetails } from '@/data/exercise-details';
 import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise } from '@/lib/pr-backfill';
 import { computeSessionPRs } from '@/lib/session-prs';
+import { selectLatestBodyWeightKg } from '@/lib/bodyweight-load';
 import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
@@ -183,10 +184,12 @@ const WorkoutDay = () => {
     createOfflineWorkoutSession,
     batchSaveWorkout,
     getWorkoutSessionFromServer,
-    getLatestMeasurement,
+    measurements,
     isLoaded: workoutsLoaded,
     workoutsFromCache,
   } = useFirebaseWorkouts(uid, { measurements: 'latest' });
+  // F6: masa ciała z najnowszego pomiaru, który ją zawiera (pomiar obwodów jej nie zasłania).
+  const latestBodyWeightKg = selectLatestBodyWeightKg(measurements);
   const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek, planDurationWeeks, reducedMode, vacation } = useTrainingPlan(uid);
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
@@ -200,7 +203,7 @@ const WorkoutDay = () => {
   const resolveTracking = useCallback((name: string): TrackingType => {
     const custom = customExercises.find((ex) => ex.name === name);
     if (custom) return getTrackingType(custom);
-    const lib = exerciseLibrary.find((e) => e.name === name);
+    const lib = findLibraryExercise(name);
     if (lib) return getTrackingType(lib);
     return getTrackingType({ isBodyweight: isBodyweightExercise(name) });
   }, [customExercises]);
@@ -2484,7 +2487,7 @@ const WorkoutDay = () => {
         dayExercises: day.exercises.filter((exercise) => !skippedExercisesRef.current.includes(exercise.id)),
         resolveIsBodyweight,
         resolveTracking,
-        bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+        bodyWeightKg: latestBodyWeightKg,
         backfillWeightOf: id => backfillByExerciseId.get(id) ?? 0,
       });
       if (effectivePRs.length > 0) {
@@ -2807,7 +2810,7 @@ const WorkoutDay = () => {
       dayExercises: summaryExercises,
       resolveIsBodyweight,
       resolveTracking,
-      bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+      bodyWeightKg: latestBodyWeightKg,
       backfillWeightOf: id => backfillByExerciseId.get(id) ?? 0,
     }) : [];
     // Spec A4: PR-y sesji jako teksty na share card (hero 'Rekord').

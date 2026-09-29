@@ -7,6 +7,7 @@ import type { TrackingType } from '@/lib/set-tracking';
  * - bodyweight_reps: masa ciała (null gdy nieznana),
  * - assisted_bodyweight: masa ciała MINUS asysta (mniejsza asysta = większe obciążenie;
  *   null gdy brak pomiaru wagi — wtedy PR tylko po powtórzeniach),
+ * - bodyweight_loaded (F6): masa ciała + dociążenie (null gdy masa nieznana),
  * - duration: null (czas nie jest obciążeniem).
  */
 export const computeEffectiveLoad = (
@@ -23,6 +24,8 @@ export const computeEffectiveLoad = (
     case 'assisted_bodyweight':
       if (bodyWeightKg === null) return null;
       return Math.max(0, bodyWeightKg - (set.assistWeight ?? 0));
+    case 'bodyweight_loaded':
+      return bodyWeightKg === null ? null : bodyWeightKg + Math.max(0, set.weight || 0);
     case 'duration':
       return null;
   }

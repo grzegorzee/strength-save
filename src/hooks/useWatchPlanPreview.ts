@@ -21,7 +21,7 @@ import { buildRecentWatchExercises } from '@/lib/watch-recent';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
-import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { findLibraryExercise } from '@/data/exerciseLibrary';
 import { getTrackingType } from '@/lib/set-tracking';
 import type { WatchCapabilitySnapshot } from '@/lib/device-management';
 import { applyLastKnownWatchLink, saveAppleWatchLinkedState } from '@/lib/device-management';
@@ -42,7 +42,7 @@ interface UseWatchPlanPreviewOptions {
 const SEND_DEBOUNCE_MS = 1200;
 
 const watchTrackingForName = (name: string) => {
-  const library = exerciseLibrary.find((exercise) => exercise.name === name);
+  const library = findLibraryExercise(name);
   return getTrackingType(library ?? { isBodyweight: isBodyweightExercise(name) });
 };
 

@@ -20,6 +20,7 @@ export const BackupSettings = () => {
   const activeHealthGrant = useActiveHealthGrant();
   const { workouts, isLoaded: workoutsLoaded, exportData, importData } = useFirebaseWorkouts(uid, {
     healthEpoch: activeHealthGrant?.healthEpoch,
+    rawWorkouts: true,
   });
   const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);

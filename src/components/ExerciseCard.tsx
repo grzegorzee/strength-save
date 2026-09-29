@@ -84,7 +84,8 @@ const incompleteSetMessageKey = (tracking: TrackingType): TranslationKey => {
   switch (tracking) {
     case 'weight_reps': return 'card.incompleteSetWeightReps';
     case 'bodyweight_reps':
-    case 'assisted_bodyweight': return 'card.incompleteSetReps';
+    case 'assisted_bodyweight':
+    case 'bodyweight_loaded': return 'card.incompleteSetReps';
     case 'duration': return 'card.incompleteSetDuration';
     case 'weight_distance_duration': return 'card.incompleteSetDistanceDuration';
   }
