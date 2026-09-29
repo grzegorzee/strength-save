@@ -310,10 +310,16 @@ export async function completeWizard(page: Page, opts: {
 
   // Krok 2 (poziom) → 3 (cel) → [opcjonalnie: sprzęt] → 4 (protokół).
   await page.getByRole('button', { name: next }).click();
-  const equipment = page.getByRole('button', { name: lang === 'pl' ? /^Siłownia/ : /^Gym/ });
+  // Krok sprzętu („Gdzie trenujesz?”) jest opcjonalny dla helpera: gdy widoczny, „Siłownia”.
+  const equipment = page.getByTestId('ob-equipment-gym');
+  const pickGym = async () => {
+    if (await equipment.isVisible().catch(() => false) && (await equipment.getAttribute('aria-pressed')) !== 'true') {
+      await equipment.click();
+    }
+  };
   for (let guard = 0; guard < 4; guard += 1) {
     if (await page.getByRole('button', { name: WEEKDAY_LABELS[lang].monday, exact: true }).isVisible().catch(() => false)) break;
-    if (await equipment.first().isVisible().catch(() => false)) await equipment.first().click();
+    await pickGym();
     await page.getByRole('button', { name: cont, exact: true }).click();
   }
   await expect(page.getByRole('button', { name: WEEKDAY_LABELS[lang].monday, exact: true })).toBeVisible();
@@ -330,6 +336,7 @@ export async function completeWizard(page: Page, opts: {
     if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
     await expect(button).toHaveAttribute('aria-pressed', 'true');
   }
+  await pickGym();
   await page.getByRole('button', { name: cont, exact: true }).click();
 
   await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
@@ -379,7 +386,7 @@ export async function cardTitles(page: Page): Promise<string[]> {
 }
 
 /** Aktywny plan usera (dokument training_plans/{uid}). */
-export async function readPlan(uid: string): Promise<{ days: Array<{ id: string; weekday: string; focus: string; dayName: string; exercises: Array<{ id: string; name: string }> }> } & Doc> {
+export async function readPlan(uid: string): Promise<{ days: Array<{ id: string; weekday: string; focus: string; dayName: string; exercises: Array<{ id: string; name: string; sets: string }> }> } & Doc> {
   const plan = await readDoc(`training_plans/${uid}`);
   if (!plan) throw new Error(`Brak training_plans/${uid}`);
   return plan as never;

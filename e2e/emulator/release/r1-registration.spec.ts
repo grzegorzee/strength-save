@@ -45,9 +45,11 @@ async function registerThroughUi(page: Page, email: string, lang: 'pl' | 'en'): 
   expect(uid).not.toBeNull();
   // Profil utworzony produkcyjnym syncUserProfile: konto czeka na weryfikację.
   await expect.poll(async () => (await readDoc(`users/${uid}`))?.status, { timeout: 10_000 }).toBe('pending_verification');
-  expect(await readDoc(`users/${uid}`)).toMatchObject({
-    access: { enabled: false }, language: lang, registration: { source: expect.stringMatching(/email/) },
-  });
+  expect(await readDoc(`users/${uid}`)).toMatchObject({ access: { enabled: false }, language: lang });
+  // redeemInvite (po syncUserProfile) oznacza źródło rejestracji zaproszeniem.
+  await expect.poll(async () => ((await readDoc(`users/${uid}`))?.registration as { source?: string } | undefined)?.source, {
+    timeout: 10_000,
+  }).toBe('invite-email');
   // Bramka sama wysyła kod; mail w języku usera leży w skrzynce emulatora.
   const mail = await waitForEmail(email, /\d{6}/, startedAt);
   if (lang === 'en') expect(mail.subject).toMatch(/code/i);
