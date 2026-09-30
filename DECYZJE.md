@@ -11,6 +11,21 @@
 
 ## DECYZJE
 
+### 2026-09-30: App Store nie pokazywał 1.0, bo aplikacja nie miała dostępności w krajach
+
+Po wydaniu 1.0 (READY_FOR_SALE) strona apps.apple.com/app/id6777446137 i iTunes
+lookup zwracały 404 / resultCount 0. Root cause: sekcja App Availability w ASC nie
+była nigdy skonfigurowana (API: brak zasobu appAvailabilities dla aplikacji), choć
+cennik obejmował 175 krajów. App Review tego nie blokuje. Fix 30.09 ~15:20 CEST
+w ASC: All Countries or Regions (175) + automatycznie przyszłe terytoria; status
+„Processing to Available”, Apple: do 24 h. Lekcja: przed wydaniem aplikacji
+sprawdzać GET /v1/apps/{id}/appAvailabilityV2 (musi istnieć, terytoria available).
+Przy okazji: webhook RevenueCat był przypięty tylko do aplikacji App Store
+(zakupy Android nie trafiały do Firestore) — przepięty na wszystkie aplikacje
+(app_id null) przez API v2 30.09. RTDN Google Play wyłączone (brak tematu) —
+do podłączenia przez RC „Connect to Google” po zalogowaniu właściciela do RC.
+
+
 ### 2026-09-30: premiera iOS 1.0 (build 150) i zgłoszenie 1.0.1 (153) do review
 
 Decyzja właściciela: wariant A. 1.0 (150, zatwierdzona 24.09) wydana ręcznie
