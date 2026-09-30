@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 const TRAINING_WAVE_3_SURFACES = [
   'src/components/ExerciseProgressionDialog.tsx',
   'src/components/AppTour.tsx',
-  'src/components/FirstWorkoutNextSteps.tsx',
+  'src/pages/PracticeWorkout.tsx',
   'src/components/HybridWeekStrip.tsx',
   'src/components/IntervalTimer.tsx',
   'src/components/PinnedNoteSection.tsx',

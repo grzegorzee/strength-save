@@ -34,7 +34,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { countCompletedWorkouts, isCompletedWorkout, selectCompletedWorkouts } from '@/lib/completed-workouts';
 import { AppTour } from '@/components/AppTour';
 import { useAppTour } from '@/hooks/useAppTour';
-import { DASHBOARD_TOUR_STEPS } from '@/lib/first-workout-tour';
+import { DASHBOARD_TOUR_STEPS, PRACTICE_PATH } from '@/lib/first-workout-tour';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds, streakDetailsFromDates } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
@@ -506,7 +506,6 @@ const Dashboard = () => {
       {/* Naprawa r2 (2026-08-21): ten sam jezyk kinetic co CTA dnia treningowego. */}
       <Button
         data-testid="dashboard-primary-action"
-        data-tour="start-workout"
         size="lg"
         className="kinetic-primary-button mt-0.5 h-12 w-full gap-1.5 text-sm hover:brightness-105"
         onClick={() => navigate(`/workout/${entry.day.id}?date=${entry.dateKey}`)}
@@ -1033,7 +1032,6 @@ const Dashboard = () => {
               i BACK TO DASHBOARD (tokens.md par. 2.8: jeden jezyk dla CTA hero). */}
           <Button
             data-testid="dashboard-primary-action"
-            data-tour="start-workout"
             size="lg"
             className="kinetic-primary-button mt-0.5 h-12 w-full gap-1.5 text-sm hover:brightness-105"
             onClick={() => navigate(continueDraft
@@ -1277,14 +1275,18 @@ const Dashboard = () => {
         onEnable={handleVacationEnable}
         onCancel={handleVacationCancel}
       />
-      {/* Przewodnik nowego konta, etap Dashboard: legenda zakładek + start
-          treningu jako AKCJA. Chowa się przy otwartych dialogach (pomiary,
-          przełożenie), nie zużywa się przez nie. Pomiń = koniec przewodnika. */}
-      {appTour.stage === 'dashboard' && planIsLoaded && !showConfetti && (
+      {/* Przewodnik nowego konta (v2): Dashboard tylko ZAPRASZA do treningu
+          próbnego (/practice). Żadnego spotlightu na hero ani prawdziwą sesję:
+          przewodnik działa na każdym stanie konta (brak planu, dzień wolny,
+          urlop, trening dziś ukończony, trening w toku). Etap practice po
+          wyjściu z próby wraca tu z tym samym zaproszeniem. */}
+      {(appTour.stage === 'dashboard' || appTour.stage === 'practice') && planIsLoaded && !showConfetti && (
         <AppTour
           steps={DASHBOARD_TOUR_STEPS}
-          onAction={(id) => { if (id === 'start') appTour.advance('workout'); }}
-          onComplete={() => appTour.advance('workout')}
+          onComplete={() => {
+            appTour.advance('practice');
+            navigate(PRACTICE_PATH);
+          }}
           onSkip={() => appTour.finish('skipped')}
         />
       )}

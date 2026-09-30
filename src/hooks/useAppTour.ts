@@ -26,6 +26,14 @@ export interface AppTourController {
 /** Odtworzenie przewodnika z Profilu: etap dashboard, bez warunku treningów. */
 export const startAppTourReplay = (uid: string): void => {
   writeLocalAppTour(uid, { stage: 'dashboard', replay: true });
+  announceAppTourChange();
+};
+
+// Kilka instancji hooka żyje naraz (Dashboard / trening próbny / host zakładek
+// w Layout): zmiana etapu w jednej musi dotrzeć do pozostałych bez przeładowania.
+const APP_TOUR_CHANGE_EVENT = 'strength-save:app-tour-change';
+const announceAppTourChange = () => {
+  window.dispatchEvent(new Event(APP_TOUR_CHANGE_EVENT));
 };
 
 /**
@@ -39,11 +47,15 @@ export const useAppTour = (completedCount: number | null): AppTourController => 
 
   useEffect(() => {
     setLocal(readLocalAppTour(uid));
+    const reread = () => setLocal(readLocalAppTour(uid));
+    window.addEventListener(APP_TOUR_CHANGE_EVENT, reread);
+    return () => window.removeEventListener(APP_TOUR_CHANGE_EVENT, reread);
   }, [uid]);
 
   const update = useCallback((next: LocalAppTourState) => {
     writeLocalAppTour(uid, next);
     setLocal(next);
+    announceAppTourChange();
   }, [uid]);
 
   const sync = useCallback((outcome: AppTourOutcome) => {
@@ -76,7 +88,7 @@ export const useAppTour = (completedCount: number | null): AppTourController => 
 
   const rememberStep = useCallback((step: AppTourStepId) => {
     if (!local && stage === null) return;
-    const current = readLocalAppTour(uid) ?? { stage: stage ?? 'workout' };
+    const current = readLocalAppTour(uid) ?? { stage: stage ?? 'dashboard' };
     if (current.step === step) return;
     update({ ...current, step });
   }, [local, stage, uid, update]);

@@ -37,6 +37,7 @@ const Dashboard = lazyWithRetry(() => import('@/pages/Dashboard'), 'lazy-retry:d
 const DayPlan = lazyWithRetry(() => import('@/pages/DayPlan'), 'lazy-retry:day-plan');
 const TrainingPlan = lazyWithRetry(() => import('@/pages/TrainingPlan'), 'lazy-retry:training-plan');
 const WorkoutDay = lazyWithRetry(() => import('@/pages/WorkoutDay'), 'lazy-retry:workout-day');
+const PracticeWorkout = lazyWithRetry(() => import('@/pages/PracticeWorkout'), 'lazy-retry:practice-workout');
 const Achievements = lazyWithRetry(() => import('@/pages/Achievements'), 'lazy-retry:achievements');
 const PlanEditor = lazyWithRetry(() => import('@/pages/PlanEditor'), 'lazy-retry:plan-editor');
 // D-T4: Analityka scalona z Postępami — /analytics zostaje jako redirect
@@ -274,6 +275,8 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
                   <Route path="/day" element={<DayPlan />} />
                   <Route path="/plan" element={<TrainingPlan />} />
                   <Route path="/workout/:dayId" element={<WorkoutDay />} />
+                  {/* Trening próbny przewodnika: ten sam UI, zero zapisów. */}
+                  <Route path="/practice" element={<PracticeWorkout />} />
                   <Route path="/achievements" element={<Achievements />} />
                   <Route path="/progress" element={<ProgressRedirect />} />
                   <Route path="/plan/edit" element={<PlanEditor />} />

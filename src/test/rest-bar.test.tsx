@@ -24,6 +24,9 @@ vi.mock('@/lib/haptics', () => ({ hapticRestEnd: vi.fn() }));
 vi.mock('@/lib/rest-notification', () => ({
   armRestEndNotification: vi.fn(),
   cancelRestEndNotification: vi.fn().mockResolvedValue(undefined),
+  // Adapter WorkoutEffects (przewodnik v2) importuje cały moduł powiadomień.
+  armSetCountdownNotification: vi.fn(),
+  cancelSetCountdownNotification: vi.fn().mockResolvedValue(undefined),
 }));
 // Z189: raport wyjątku sygnału — moduł ciągnie Firestore, więc mock.
 vi.mock('@/lib/global-error-telemetry', () => ({

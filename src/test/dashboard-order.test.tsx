@@ -140,6 +140,8 @@ const renderDashboard = () =>
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
+  // Przewodnik nowego konta ma własne testy; tu kolejność sekcji bez warstw (jak seed playwright.config).
+  localStorage.setItem('fittracker_first_workout_tour_v1', '1');
   navigateSpy.mockClear();
   workoutsFixture.workouts = [];
   workoutsFixture.error = null;

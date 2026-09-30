@@ -187,6 +187,7 @@ import ExerciseLibrary from '@/pages/ExerciseLibrary';
 import Measurements from '@/pages/Measurements';
 import Cycles from '@/pages/Cycles';
 import Profile from '@/pages/Profile';
+import PracticeWorkout from '@/pages/PracticeWorkout';
 import DayPlan from '@/pages/DayPlan';
 import PlanEditor from '@/pages/PlanEditor';
 import ExerciseDetail from '@/pages/ExerciseDetail';
@@ -227,6 +228,8 @@ const ROUTES: SmokeRoute[] = [
   { name: '/new-plan', entry: '/new-plan', pattern: '/new-plan', Component: NewPlan as () => JSX.Element },
   { name: '/cycles', entry: '/cycles', pattern: '/cycles', Component: Cycles as () => JSX.Element },
   { name: '/profile', entry: '/profile', pattern: '/profile', Component: Profile as () => JSX.Element },
+  // Przewodnik v2: trening próbny (dane przykładowe, zero zapisów).
+  { name: '/practice', entry: '/practice', pattern: '/practice', Component: PracticeWorkout as () => JSX.Element },
 ];
 
 // Kontrakt pokrycia kanonicznych tras AuthenticatedApp. Utrzymujemy go osobno
@@ -245,6 +248,7 @@ const REQUIRED_CANONICAL_ROUTE_PATTERNS = [
   '/new-plan',
   '/cycles',
   '/profile',
+  '/practice',
 ] as const;
 
 it('pokrywa wszystkie kanoniczne trasy użytkownika w route sweepie', () => {
@@ -314,5 +318,26 @@ describe.each(ROUTES)('route sweep: $name', (route) => {
       (entry) => !IGNORED_CONSOLE_ERRORS.some((pattern) => pattern.test(entry)),
     );
     expect(unexpected, unexpected.join('\n')).toEqual([]);
+  });
+});
+
+// Przewodnik nowego konta v2 (zgłoszenie iOS 152): przewodnik działa na KAŻDYM
+// stanie danych. Dashboard zawsze pokazuje zaproszenie do próby (bez celu na
+// hero), trening próbny zawsze ma cel pierwszego kroku (dane przykładowe).
+describe('przewodnik na każdym kanonicznym stanie', () => {
+  it.each(CANONICAL_STATE_IDS)('Dashboard: zaproszenie do treningu próbnego (%s)', async (stateId: CanonicalStateId) => {
+    smoke.state = buildCanonicalState(stateId, TODAY_ISO);
+    window.localStorage.setItem('fittracker_app_tour_v2:canonical-user-1', JSON.stringify({ stage: 'dashboard', replay: true }));
+    renderRoute(ROUTES[0]);
+    expect(await screen.findByTestId('tour-step-welcome', {}, { timeout: 5000 })).toBeTruthy();
+    expect(screen.queryByTestId('route-crash')).toBeNull();
+  });
+
+  it.each(CANONICAL_STATE_IDS)('/practice: pierwszy krok ma cel (%s)', async (stateId: CanonicalStateId) => {
+    smoke.state = buildCanonicalState(stateId, TODAY_ISO);
+    window.localStorage.setItem('fittracker_app_tour_v2:canonical-user-1', JSON.stringify({ stage: 'practice', replay: true }));
+    renderRoute(ROUTES.find((r) => r.pattern === '/practice')!);
+    expect(await screen.findByTestId('tour-step-set-inputs', {}, { timeout: 5000 })).toBeTruthy();
+    expect(screen.queryByTestId('route-crash')).toBeNull();
   });
 });
