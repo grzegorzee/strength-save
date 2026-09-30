@@ -1,0 +1,311 @@
+{
+  "startedAt": "2026-09-13T15:41:12.993698+00:00",
+  "committed": true,
+  "reviewMode": "Google requires automatic review for this app; only listing/icon/contact are changed",
+  "steps": [
+    {
+      "method": "GET",
+      "resource": "tracks",
+      "http": 200,
+      "data": {
+        "kind": "androidpublisher#tracksListResponse",
+        "tracks": [
+          {
+            "track": "production"
+          },
+          {
+            "track": "beta"
+          },
+          {
+            "track": "alpha"
+          },
+          {
+            "track": "internal",
+            "releases": [
+              {
+                "name": "1.0.0 (54)",
+                "versionCodes": [
+                  "54"
+                ],
+                "releaseNotes": [
+                  {
+                    "language": "pl-PL",
+                    "text": "Poprawiono układ treningu przy większym tekście, w tym zakresy powtórzeń i pola czasu. Stabilniejsze zapisy przy słabym zasięgu. Rozgrzewka zachowuje stan po powrocie do aplikacji. Synchronizacja pokazuje rzeczywisty dzień treningu i usuwa baner po potwierdzonym zapisie.\n"
+                  },
+                  {
+                    "language": "en-US",
+                    "text": "Fixed workout layout with larger system text, including repetition ranges and time fields. Improved recovery from network errors. Warmup remains open with its progress after returning to the app. Synchronization shows the actual training day and clears the pending banner after confirmation.\n"
+                  }
+                ],
+                "status": "completed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "listings",
+      "http": 200,
+      "data": {
+        "kind": "androidpublisher#listingsListResponse",
+        "listings": [
+          {
+            "language": "en-US",
+            "title": "Strength Save"
+          }
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "resource": "listings/en-US",
+      "http": 200,
+      "data": {
+        "language": "en-US",
+        "title": "Strength Save: Gym Tracker",
+        "fullDescription": "Remember what you lifted last time. Strength Save is a workout log for recording weights, reps and rest periods, planning your sessions and following your progress.\n\nDuring your workout\n• Your previous result beside each set to help you choose a weight.\n• Working sets, warm-up sets, supersets and notes.\n• Rest timer notifications when your screen is locked, with the required permissions enabled.\n• Quick workouts when you want to train without a program.\n• Offline workout logging that syncs when your connection returns.\n\nPlan the weeks ahead\nChoose a ready-made program or build your own. Browse exercises with written instructions. Reschedule sessions, swap exercises and keep the history of your previous training cycles.\n\nSee your progress\nCompare weeks and months, check your exercise history and track personal records. Review completed workouts, sets and training volume. Add body measurements and progress photos if you also want to follow changes in your physique.\n\nHealth Connect\nWith your permission, save completed workout sessions to Health Connect. You can also read your latest body weight and confirm it before adding it to your measurements. These features are optional and require Health Connect to be available on your device.\n\nBring your training history\nImport workout CSV files from Strong or Hevy. Export your data and create PDF reports. Use kilograms or pounds and switch between English and Polish.\n\nPRO subscription\nThe app is free to download. Starting workouts requires active PRO access, such as a subscription or trial. Monthly and annual plans are available. The price and any eligible trial appear before you confirm the purchase. Subscriptions renew automatically unless cancelled before renewal. Manage Google Play purchases in Google Play subscription settings. Sign in to the same Strength Save account to use your existing PRO access across supported devices.\n\nStrength Save is a fitness log, not a medical device. It does not diagnose or treat medical conditions. Consult a qualified healthcare professional for medical advice.\n\nSupport: https://strengthsave.app/support\nPrivacy: https://strengthsave.app/privacy\nTerms: https://strengthsave.app/terms",
+        "shortDescription": "Log weights and reps, plan your workouts and see what you lifted last time."
+      }
+    },
+    {
+      "method": "POST",
+      "resource": "listings/en-US/icon",
+      "http": 200,
+      "data": {
+        "image": {
+          "id": "3971252567647114994",
+          "url": "https://lh3.googleusercontent.com/UqAQnlU_tFqE7VfXUAjxHLv-6ywX57-DgvbDCAWqD0hKDo9Zkcy3rqLd4W_RG6D959ip",
+          "sha1": "3cc2a68b7606cd1db3a420ae8bafe0d9e2056edd",
+          "sha256": "96941846669d7b3b8619925b547467ded25244e36ba5a398310f7b1bbccc3ac1",
+          "aiGeneratedState": "aiGeneratedStateUnspecified"
+        }
+      }
+    },
+    {
+      "method": "PUT",
+      "resource": "listings/pl-PL",
+      "http": 200,
+      "data": {
+        "language": "pl-PL",
+        "title": "Strength Save: Trening siłowy",
+        "fullDescription": "Pamiętaj, ile było ostatnio. Strength Save to dziennik treningowy, w którym zapiszesz ciężary, powtórzenia i przerwy, ułożysz plan i sprawdzisz swoje postępy.\n\nW trakcie treningu\n• Poprzedni wynik przy każdej serii, żeby łatwiej wybrać ciężar.\n• Serie robocze i rozgrzewkowe, superserie oraz notatki.\n• Timer przerw z powiadomieniem przy zablokowanym ekranie, po nadaniu wymaganych uprawnień.\n• Szybki trening, gdy chcesz ćwiczyć bez gotowego planu.\n• Zapis treningu offline i synchronizacja po odzyskaniu połączenia.\n\nPlan na kolejne tygodnie\nWybierz gotowy plan lub ułóż własny. Korzystaj z biblioteki ćwiczeń z instrukcjami po polsku. Przekładaj dni treningowe, podmieniaj ćwiczenia i zachowuj historię wcześniejszych cykli.\n\nSprawdź swoje postępy\nPorównuj tygodnie i miesiące, przeglądaj historię ćwiczeń oraz rekordy. Zobacz liczbę treningów, wykonane serie i podniesiony tonaż. Dodawaj pomiary ciała i zdjęcia, jeśli chcesz śledzić także zmianę sylwetki.\n\nHealth Connect\nPo wyrażeniu zgody możesz zapisywać ukończone treningi w Health Connect. Możesz też odczytać ostatnią masę ciała i zatwierdzić ją przed dodaniem do pomiarów. Te funkcje są opcjonalne i wymagają dostępności Health Connect na urządzeniu.\n\nTwoja historia treningowa\nZaimportuj treningi z pliku CSV ze Strong lub Hevy. Eksportuj dane i przygotuj raport PDF. Wybierz kilogramy lub funty oraz język polski albo angielski.\n\nSubskrypcja PRO\nPobranie aplikacji jest bezpłatne. Rozpoczynanie treningów wymaga aktywnego dostępu PRO, np. subskrypcji lub okresu próbnego. Dostępne są plany miesięczny i roczny. Cenę i ewentualny okres próbny zobaczysz przed potwierdzeniem zakupu. Subskrypcja odnawia się automatycznie, jeśli nie anulujesz jej przed odnowieniem. Zakupami z Google Play zarządzasz w ustawieniach subskrypcji Google Play. Zaloguj się na to samo konto Strength Save, aby korzystać z posiadanego PRO na obsługiwanych urządzeniach.\n\nStrength Save jest dziennikiem treningowym, a nie wyrobem medycznym. Nie diagnozuje ani nie leczy chorób. W sprawach zdrowotnych skonsultuj się z odpowiednim specjalistą.\n\nPomoc: https://strengthsave.app/support\nPrywatność: https://strengthsave.app/privacy\nWarunki korzystania: https://strengthsave.app/terms",
+        "shortDescription": "Zapisuj ciężary i serie, układaj plan i sprawdzaj wyniki poprzedniego treningu."
+      }
+    },
+    {
+      "method": "POST",
+      "resource": "listings/pl-PL/icon",
+      "http": 200,
+      "data": {
+        "image": {
+          "id": "14889840383485198432",
+          "url": "https://lh3.googleusercontent.com/sQFCa1LOZRajcy_1XqLS1k9BKY6lckemU3b9af-yHojf-19avrpo_Hep97Z-BVNuTKji",
+          "sha1": "3cc2a68b7606cd1db3a420ae8bafe0d9e2056edd",
+          "sha256": "96941846669d7b3b8619925b547467ded25244e36ba5a398310f7b1bbccc3ac1",
+          "aiGeneratedState": "aiGeneratedStateUnspecified"
+        }
+      }
+    },
+    {
+      "method": "PATCH",
+      "resource": "details",
+      "http": 200,
+      "data": {
+        "defaultLanguage": "en-US",
+        "contactWebsite": "https://strengthsave.app/support",
+        "contactEmail": "contact@strengthsave.app"
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "tracks",
+      "http": 200,
+      "data": {
+        "kind": "androidpublisher#tracksListResponse",
+        "tracks": [
+          {
+            "track": "production"
+          },
+          {
+            "track": "beta"
+          },
+          {
+            "track": "alpha"
+          },
+          {
+            "track": "internal",
+            "releases": [
+              {
+                "name": "1.0.0 (54)",
+                "versionCodes": [
+                  "54"
+                ],
+                "releaseNotes": [
+                  {
+                    "language": "pl-PL",
+                    "text": "Poprawiono układ treningu przy większym tekście, w tym zakresy powtórzeń i pola czasu. Stabilniejsze zapisy przy słabym zasięgu. Rozgrzewka zachowuje stan po powrocie do aplikacji. Synchronizacja pokazuje rzeczywisty dzień treningu i usuwa baner po potwierdzonym zapisie.\n"
+                  },
+                  {
+                    "language": "en-US",
+                    "text": "Fixed workout layout with larger system text, including repetition ranges and time fields. Improved recovery from network errors. Warmup remains open with its progress after returning to the app. Synchronization shows the actual training day and clears the pending banner after confirmation.\n"
+                  }
+                ],
+                "status": "completed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "listings",
+      "http": 200,
+      "data": {
+        "kind": "androidpublisher#listingsListResponse",
+        "listings": [
+          {
+            "language": "en-US",
+            "title": "Strength Save: Gym Tracker",
+            "fullDescription": "Remember what you lifted last time. Strength Save is a workout log for recording weights, reps and rest periods, planning your sessions and following your progress.\n\nDuring your workout\n• Your previous result beside each set to help you choose a weight.\n• Working sets, warm-up sets, supersets and notes.\n• Rest timer notifications when your screen is locked, with the required permissions enabled.\n• Quick workouts when you want to train without a program.\n• Offline workout logging that syncs when your connection returns.\n\nPlan the weeks ahead\nChoose a ready-made program or build your own. Browse exercises with written instructions. Reschedule sessions, swap exercises and keep the history of your previous training cycles.\n\nSee your progress\nCompare weeks and months, check your exercise history and track personal records. Review completed workouts, sets and training volume. Add body measurements and progress photos if you also want to follow changes in your physique.\n\nHealth Connect\nWith your permission, save completed workout sessions to Health Connect. You can also read your latest body weight and confirm it before adding it to your measurements. These features are optional and require Health Connect to be available on your device.\n\nBring your training history\nImport workout CSV files from Strong or Hevy. Export your data and create PDF reports. Use kilograms or pounds and switch between English and Polish.\n\nPRO subscription\nThe app is free to download. Starting workouts requires active PRO access, such as a subscription or trial. Monthly and annual plans are available. The price and any eligible trial appear before you confirm the purchase. Subscriptions renew automatically unless cancelled before renewal. Manage Google Play purchases in Google Play subscription settings. Sign in to the same Strength Save account to use your existing PRO access across supported devices.\n\nStrength Save is a fitness log, not a medical device. It does not diagnose or treat medical conditions. Consult a qualified healthcare professional for medical advice.\n\nSupport: https://strengthsave.app/support\nPrivacy: https://strengthsave.app/privacy\nTerms: https://strengthsave.app/terms",
+            "shortDescription": "Log weights and reps, plan your workouts and see what you lifted last time."
+          },
+          {
+            "language": "pl-PL",
+            "title": "Strength Save: Trening siłowy",
+            "fullDescription": "Pamiętaj, ile było ostatnio. Strength Save to dziennik treningowy, w którym zapiszesz ciężary, powtórzenia i przerwy, ułożysz plan i sprawdzisz swoje postępy.\n\nW trakcie treningu\n• Poprzedni wynik przy każdej serii, żeby łatwiej wybrać ciężar.\n• Serie robocze i rozgrzewkowe, superserie oraz notatki.\n• Timer przerw z powiadomieniem przy zablokowanym ekranie, po nadaniu wymaganych uprawnień.\n• Szybki trening, gdy chcesz ćwiczyć bez gotowego planu.\n• Zapis treningu offline i synchronizacja po odzyskaniu połączenia.\n\nPlan na kolejne tygodnie\nWybierz gotowy plan lub ułóż własny. Korzystaj z biblioteki ćwiczeń z instrukcjami po polsku. Przekładaj dni treningowe, podmieniaj ćwiczenia i zachowuj historię wcześniejszych cykli.\n\nSprawdź swoje postępy\nPorównuj tygodnie i miesiące, przeglądaj historię ćwiczeń oraz rekordy. Zobacz liczbę treningów, wykonane serie i podniesiony tonaż. Dodawaj pomiary ciała i zdjęcia, jeśli chcesz śledzić także zmianę sylwetki.\n\nHealth Connect\nPo wyrażeniu zgody możesz zapisywać ukończone treningi w Health Connect. Możesz też odczytać ostatnią masę ciała i zatwierdzić ją przed dodaniem do pomiarów. Te funkcje są opcjonalne i wymagają dostępności Health Connect na urządzeniu.\n\nTwoja historia treningowa\nZaimportuj treningi z pliku CSV ze Strong lub Hevy. Eksportuj dane i przygotuj raport PDF. Wybierz kilogramy lub funty oraz język polski albo angielski.\n\nSubskrypcja PRO\nPobranie aplikacji jest bezpłatne. Rozpoczynanie treningów wymaga aktywnego dostępu PRO, np. subskrypcji lub okresu próbnego. Dostępne są plany miesięczny i roczny. Cenę i ewentualny okres próbny zobaczysz przed potwierdzeniem zakupu. Subskrypcja odnawia się automatycznie, jeśli nie anulujesz jej przed odnowieniem. Zakupami z Google Play zarządzasz w ustawieniach subskrypcji Google Play. Zaloguj się na to samo konto Strength Save, aby korzystać z posiadanego PRO na obsługiwanych urządzeniach.\n\nStrength Save jest dziennikiem treningowym, a nie wyrobem medycznym. Nie diagnozuje ani nie leczy chorób. W sprawach zdrowotnych skonsultuj się z odpowiednim specjalistą.\n\nPomoc: https://strengthsave.app/support\nPrywatność: https://strengthsave.app/privacy\nWarunki korzystania: https://strengthsave.app/terms",
+            "shortDescription": "Zapisuj ciężary i serie, układaj plan i sprawdzaj wyniki poprzedniego treningu."
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "resource": "11892776674907221063:validate",
+      "http": 200,
+      "data": {
+        "id": "11892776674907221063",
+        "expiryTimeSeconds": "1789321273"
+      }
+    },
+    {
+      "method": "POST",
+      "resource": "11892776674907221063:commit",
+      "http": 200,
+      "data": {
+        "id": "11892776674907221063",
+        "expiryTimeSeconds": "1789321273"
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "listings",
+      "http": 200,
+      "data": {
+        "kind": "androidpublisher#listingsListResponse",
+        "listings": [
+          {
+            "language": "en-US",
+            "title": "Strength Save: Gym Tracker",
+            "fullDescription": "Remember what you lifted last time. Strength Save is a workout log for recording weights, reps and rest periods, planning your sessions and following your progress.\n\nDuring your workout\n• Your previous result beside each set to help you choose a weight.\n• Working sets, warm-up sets, supersets and notes.\n• Rest timer notifications when your screen is locked, with the required permissions enabled.\n• Quick workouts when you want to train without a program.\n• Offline workout logging that syncs when your connection returns.\n\nPlan the weeks ahead\nChoose a ready-made program or build your own. Browse exercises with written instructions. Reschedule sessions, swap exercises and keep the history of your previous training cycles.\n\nSee your progress\nCompare weeks and months, check your exercise history and track personal records. Review completed workouts, sets and training volume. Add body measurements and progress photos if you also want to follow changes in your physique.\n\nHealth Connect\nWith your permission, save completed workout sessions to Health Connect. You can also read your latest body weight and confirm it before adding it to your measurements. These features are optional and require Health Connect to be available on your device.\n\nBring your training history\nImport workout CSV files from Strong or Hevy. Export your data and create PDF reports. Use kilograms or pounds and switch between English and Polish.\n\nPRO subscription\nThe app is free to download. Starting workouts requires active PRO access, such as a subscription or trial. Monthly and annual plans are available. The price and any eligible trial appear before you confirm the purchase. Subscriptions renew automatically unless cancelled before renewal. Manage Google Play purchases in Google Play subscription settings. Sign in to the same Strength Save account to use your existing PRO access across supported devices.\n\nStrength Save is a fitness log, not a medical device. It does not diagnose or treat medical conditions. Consult a qualified healthcare professional for medical advice.\n\nSupport: https://strengthsave.app/support\nPrivacy: https://strengthsave.app/privacy\nTerms: https://strengthsave.app/terms",
+            "shortDescription": "Log weights and reps, plan your workouts and see what you lifted last time."
+          },
+          {
+            "language": "pl-PL",
+            "title": "Strength Save: Trening siłowy",
+            "fullDescription": "Pamiętaj, ile było ostatnio. Strength Save to dziennik treningowy, w którym zapiszesz ciężary, powtórzenia i przerwy, ułożysz plan i sprawdzisz swoje postępy.\n\nW trakcie treningu\n• Poprzedni wynik przy każdej serii, żeby łatwiej wybrać ciężar.\n• Serie robocze i rozgrzewkowe, superserie oraz notatki.\n• Timer przerw z powiadomieniem przy zablokowanym ekranie, po nadaniu wymaganych uprawnień.\n• Szybki trening, gdy chcesz ćwiczyć bez gotowego planu.\n• Zapis treningu offline i synchronizacja po odzyskaniu połączenia.\n\nPlan na kolejne tygodnie\nWybierz gotowy plan lub ułóż własny. Korzystaj z biblioteki ćwiczeń z instrukcjami po polsku. Przekładaj dni treningowe, podmieniaj ćwiczenia i zachowuj historię wcześniejszych cykli.\n\nSprawdź swoje postępy\nPorównuj tygodnie i miesiące, przeglądaj historię ćwiczeń oraz rekordy. Zobacz liczbę treningów, wykonane serie i podniesiony tonaż. Dodawaj pomiary ciała i zdjęcia, jeśli chcesz śledzić także zmianę sylwetki.\n\nHealth Connect\nPo wyrażeniu zgody możesz zapisywać ukończone treningi w Health Connect. Możesz też odczytać ostatnią masę ciała i zatwierdzić ją przed dodaniem do pomiarów. Te funkcje są opcjonalne i wymagają dostępności Health Connect na urządzeniu.\n\nTwoja historia treningowa\nZaimportuj treningi z pliku CSV ze Strong lub Hevy. Eksportuj dane i przygotuj raport PDF. Wybierz kilogramy lub funty oraz język polski albo angielski.\n\nSubskrypcja PRO\nPobranie aplikacji jest bezpłatne. Rozpoczynanie treningów wymaga aktywnego dostępu PRO, np. subskrypcji lub okresu próbnego. Dostępne są plany miesięczny i roczny. Cenę i ewentualny okres próbny zobaczysz przed potwierdzeniem zakupu. Subskrypcja odnawia się automatycznie, jeśli nie anulujesz jej przed odnowieniem. Zakupami z Google Play zarządzasz w ustawieniach subskrypcji Google Play. Zaloguj się na to samo konto Strength Save, aby korzystać z posiadanego PRO na obsługiwanych urządzeniach.\n\nStrength Save jest dziennikiem treningowym, a nie wyrobem medycznym. Nie diagnozuje ani nie leczy chorób. W sprawach zdrowotnych skonsultuj się z odpowiednim specjalistą.\n\nPomoc: https://strengthsave.app/support\nPrywatność: https://strengthsave.app/privacy\nWarunki korzystania: https://strengthsave.app/terms",
+            "shortDescription": "Zapisuj ciężary i serie, układaj plan i sprawdzaj wyniki poprzedniego treningu."
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "tracks",
+      "http": 200,
+      "data": {
+        "kind": "androidpublisher#tracksListResponse",
+        "tracks": [
+          {
+            "track": "production"
+          },
+          {
+            "track": "beta"
+          },
+          {
+            "track": "alpha"
+          },
+          {
+            "track": "internal",
+            "releases": [
+              {
+                "name": "1.0.0 (54)",
+                "versionCodes": [
+                  "54"
+                ],
+                "releaseNotes": [
+                  {
+                    "language": "pl-PL",
+                    "text": "Poprawiono układ treningu przy większym tekście, w tym zakresy powtórzeń i pola czasu. Stabilniejsze zapisy przy słabym zasięgu. Rozgrzewka zachowuje stan po powrocie do aplikacji. Synchronizacja pokazuje rzeczywisty dzień treningu i usuwa baner po potwierdzonym zapisie.\n"
+                  },
+                  {
+                    "language": "en-US",
+                    "text": "Fixed workout layout with larger system text, including repetition ranges and time fields. Improved recovery from network errors. Warmup remains open with its progress after returning to the app. Synchronization shows the actual training day and clears the pending banner after confirmation.\n"
+                  }
+                ],
+                "status": "completed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "listings/en-US/icon",
+      "http": 200,
+      "data": {
+        "images": [
+          {
+            "id": "3971252567647114994",
+            "url": "https://lh3.googleusercontent.com/UqAQnlU_tFqE7VfXUAjxHLv-6ywX57-DgvbDCAWqD0hKDo9Zkcy3rqLd4W_RG6D959ip",
+            "sha1": "3cc2a68b7606cd1db3a420ae8bafe0d9e2056edd",
+            "sha256": "96941846669d7b3b8619925b547467ded25244e36ba5a398310f7b1bbccc3ac1",
+            "aiGeneratedState": "aiGeneratedStateUnspecified"
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "listings/pl-PL/icon",
+      "http": 200,
+      "data": {
+        "images": [
+          {
+            "id": "14889840383485198432",
+            "url": "https://lh3.googleusercontent.com/sQFCa1LOZRajcy_1XqLS1k9BKY6lckemU3b9af-yHojf-19avrpo_Hep97Z-BVNuTKji",
+            "sha1": "3cc2a68b7606cd1db3a420ae8bafe0d9e2056edd",
+            "sha256": "96941846669d7b3b8619925b547467ded25244e36ba5a398310f7b1bbccc3ac1",
+            "aiGeneratedState": "aiGeneratedStateUnspecified"
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "resource": "details",
+      "http": 200,
+      "data": {
+        "defaultLanguage": "en-US",
+        "contactWebsite": "https://strengthsave.app/support",
+        "contactEmail": "contact@strengthsave.app"
+      }
+    }
+  ],
+  "independentReadbackVerified": true,
+  "verificationEditDeletedHttp": 204,
+  "finishedAt": "2026-09-13T15:41:27.940136+00:00"
+}

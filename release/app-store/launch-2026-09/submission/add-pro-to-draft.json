@@ -1,0 +1,65 @@
+[
+  {
+    "name": "group",
+    "resource": "subscriptionGroupVersions",
+    "version_id": "85d1b9be-5d09-439b-a219-d72832d96547",
+    "http": 201,
+    "response": {
+      "data": {
+        "type": "reviewSubmissionItems",
+        "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE5fDg1ZDFiOWJlLTVkMDktNDM5Yi1hMjE5LWQ3MjgzMmQ5NjU0Nw",
+        "attributes": {
+          "state": "READY_FOR_REVIEW"
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems/ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE5fDg1ZDFiOWJlLTVkMDktNDM5Yi1hMjE5LWQ3MjgzMmQ5NjU0Nw"
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems"
+      }
+    }
+  },
+  {
+    "name": "monthly",
+    "resource": "subscriptionVersions",
+    "version_id": "3221d479-0730-48e0-b43a-52e044df77e1",
+    "http": 201,
+    "response": {
+      "data": {
+        "type": "reviewSubmissionItems",
+        "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE4fDMyMjFkNDc5LTA3MzAtNDhlMC1iNDNhLTUyZTA0NGRmNzdlMQ",
+        "attributes": {
+          "state": "READY_FOR_REVIEW"
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems/ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE4fDMyMjFkNDc5LTA3MzAtNDhlMC1iNDNhLTUyZTA0NGRmNzdlMQ"
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems"
+      }
+    }
+  },
+  {
+    "name": "yearly",
+    "resource": "subscriptionVersions",
+    "version_id": "4e10a46b-eb4f-423c-acb7-3c9045270527",
+    "http": 201,
+    "response": {
+      "data": {
+        "type": "reviewSubmissionItems",
+        "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE4fDRlMTBhNDZiLWViNGYtNDIzYy1hY2I3LTNjOTA0NTI3MDUyNw",
+        "attributes": {
+          "state": "READY_FOR_REVIEW"
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems/ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE4fDRlMTBhNDZiLWViNGYtNDIzYy1hY2I3LTNjOTA0NTI3MDUyNw"
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems"
+      }
+    }
+  }
+]

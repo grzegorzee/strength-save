@@ -1,0 +1,441 @@
+{
+  "screens-PL-APP_IPAD_PRO_3GEN_129": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "8bf5c120-9f27-48fe-813c-e30abea8a132",
+          "file": "01-log.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "f9dd34cc-373a-40af-98cf-110bf6e31829",
+          "file": "02-plan.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "2c3ede58-5d85-4f4e-bfbf-c20bef0c8541",
+          "file": "03-progress.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "3b0ab9ea-ca30-4160-b186-55908c90b2ac",
+          "file": "04-records.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "a3b843b2-c43c-4bf9-b893-1be118478995",
+          "file": "05-history.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "a2464ed4-53db-4d81-b37c-2cd36bc92f47",
+          "file": "06-exercises.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        }
+      ]
+    }
+  },
+  "screens-PL-APP_WATCH_SERIES_10": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "296f6be2-0962-4de5-9231-4245067cfb87",
+          "file": "01-plan.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "c01b2552-17d3-43f0-bc57-0fdc346f8bfb",
+          "file": "02-active.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "748dc7cb-c5d0-4a68-9480-ea0782719cc1",
+          "file": "03-finished.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        }
+      ]
+    }
+  },
+  "screens-PL-APP_IPHONE_67": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "9a8d087a-8efb-4b93-80ce-b030009a89f9",
+          "file": "01-log.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "d6ecd1c2-f3c4-4bd2-8773-7fa878ae37e9",
+          "file": "02-plan.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "3c9ed663-dd7b-4e02-aa06-474225b78797",
+          "file": "03-progress.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "c06fb036-84a2-4852-b35c-fcd4d40aecdc",
+          "file": "04-records.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "209d85f6-d5e7-47df-be76-2b64c1aa7588",
+          "file": "05-history.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "f201d8a3-d54f-4d23-b1e6-86d934686781",
+          "file": "06-exercises.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "8badd79c-057a-4228-9921-1ae55bd3ce04",
+          "file": "07-watch.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "b6c7a183-da8e-4862-9811-4eaf5dea66e7",
+          "file": "08-today.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        }
+      ]
+    }
+  },
+  "screens-EN-APP_WATCH_SERIES_10": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "fafa513c-e05e-4e89-aef2-e1d004b6999b",
+          "file": "01-plan.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "f2fdf936-b940-4f4e-b15b-6446c4bca2d1",
+          "file": "02-active.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "e2f8a786-1bd8-475f-954d-ad4a9bee3283",
+          "file": "03-finished.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        }
+      ]
+    }
+  },
+  "screens-EN-APP_IPHONE_67": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "4b96f693-9128-4487-84ce-01a529262573",
+          "file": "01-log.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "a3b9fc33-6855-4aa2-bc22-3906c5bef083",
+          "file": "02-plan.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "a66d3a85-bab5-4fa2-872a-7cb0b43c7e70",
+          "file": "03-progress.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "b145e3ab-3563-4d44-9e99-225513620c4c",
+          "file": "04-records.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "eb12f833-a9f7-4fd7-a0dd-2064319f7ea5",
+          "file": "05-history.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "b167216b-9223-49ca-ba9c-ffa807c640dc",
+          "file": "06-exercises.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "25d352c6-ee01-4b49-bac4-179c6106480a",
+          "file": "07-watch.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "3a378e5a-708d-4635-bc7b-a85f90c7c3dc",
+          "file": "08-today.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        }
+      ]
+    }
+  },
+  "screens-EN-APP_IPAD_PRO_3GEN_129": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "889bbda2-4d76-4c59-84ae-4dfee6315b21",
+          "file": "01-log.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "df71f8e8-2592-4ce2-9d5f-587f7ebf5114",
+          "file": "02-plan.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "8ba3ec54-37ad-4763-be78-6d0032a0e983",
+          "file": "03-progress.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "cfcc113c-a35c-4903-838f-e2ba3ec99e05",
+          "file": "04-records.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "db453ac6-7aa6-415d-bfc2-bb69e08b45a1",
+          "file": "05-history.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        },
+        {
+          "id": "11b52698-9eac-4076-ba35-9adaccda84a7",
+          "file": "06-exercises.png",
+          "state": {
+            "errors": [],
+            "warnings": null,
+            "state": "COMPLETE"
+          }
+        }
+      ]
+    }
+  },
+  "sub2-6779203923": {
+    "status": 404,
+    "body": {
+      "errors": [
+        {
+          "id": "a267a808-731f-4d5e-9dd5-942668265202",
+          "status": "404",
+          "code": "NOT_FOUND",
+          "title": "The specified resource does not exist",
+          "detail": "The path provided does not match a defined resource type."
+        }
+      ]
+    }
+  },
+  "sub2-6779203549": {
+    "status": 404,
+    "body": {
+      "errors": [
+        {
+          "id": "56ac6250-03c3-4cc1-90ef-97893c4468c5",
+          "status": "404",
+          "code": "NOT_FOUND",
+          "title": "The specified resource does not exist",
+          "detail": "The path provided does not match a defined resource type."
+        }
+      ]
+    }
+  },
+  "group2": {
+    "status": 404,
+    "body": {
+      "errors": [
+        {
+          "id": "2eb85875-e8c3-4ce0-8ea7-8c4b1fa515dd",
+          "status": "404",
+          "code": "NOT_FOUND",
+          "title": "The specified resource does not exist",
+          "detail": "The path provided does not match a defined resource type."
+        }
+      ]
+    }
+  },
+  "availabilityId": {
+    "status": 404,
+    "body": {
+      "errors": [
+        {
+          "id": "8d5d16bb-f11d-4c81-bd46-9b0a36b87ed2",
+          "status": "404",
+          "code": "NOT_FOUND",
+          "title": "The specified resource does not exist",
+          "detail": "There is no resource of type 'appAvailabilities' with id '6777446137'"
+        }
+      ]
+    }
+  },
+  "price": {
+    "status": 200,
+    "body": {
+      "data": {
+        "type": "appPriceSchedules",
+        "id": "6777446137",
+        "relationships": {
+          "baseTerritory": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137/relationships/baseTerritory",
+              "related": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137/baseTerritory"
+            }
+          },
+          "manualPrices": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137/relationships/manualPrices",
+              "related": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137/manualPrices"
+            }
+          },
+          "automaticPrices": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137/relationships/automaticPrices",
+              "related": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137/automaticPrices"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/6777446137"
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/apps/6777446137/appPriceSchedule"
+      }
+    }
+  }
+}

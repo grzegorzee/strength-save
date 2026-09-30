@@ -1,0 +1,480 @@
+{
+  "version": {
+    "status": 200,
+    "body": {
+      "data": {
+        "type": "appStoreVersions",
+        "id": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9",
+        "attributes": {
+          "platform": "IOS",
+          "versionString": "1.0",
+          "appStoreState": "PREPARE_FOR_SUBMISSION",
+          "appVersionState": "PREPARE_FOR_SUBMISSION",
+          "copyright": null,
+          "reviewType": "APP_STORE",
+          "releaseType": "AFTER_APPROVAL",
+          "earliestReleaseDate": null,
+          "usesIdfa": null,
+          "downloadable": true,
+          "createdDate": "2026-06-06T06:47:15-07:00"
+        },
+        "relationships": {
+          "appStoreVersionLocalizations": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appStoreVersionLocalizations",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreVersionLocalizations"
+            }
+          },
+          "build": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/build",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/build"
+            }
+          },
+          "appStoreVersionPhasedRelease": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appStoreVersionPhasedRelease",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreVersionPhasedRelease"
+            }
+          },
+          "gameCenterAppVersion": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/gameCenterAppVersion",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/gameCenterAppVersion"
+            }
+          },
+          "routingAppCoverage": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/routingAppCoverage",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/routingAppCoverage"
+            }
+          },
+          "appStoreReviewDetail": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appStoreReviewDetail",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreReviewDetail"
+            }
+          },
+          "appStoreVersionSubmission": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appStoreVersionSubmission",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreVersionSubmission"
+            }
+          },
+          "appClipDefaultExperience": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appClipDefaultExperience",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appClipDefaultExperience"
+            }
+          },
+          "appStoreVersionExperiments": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appStoreVersionExperiments",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreVersionExperiments"
+            }
+          },
+          "appStoreVersionExperimentsV2": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/appStoreVersionExperimentsV2",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreVersionExperimentsV2"
+            }
+          },
+          "customerReviews": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/customerReviews",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/customerReviews"
+            }
+          },
+          "alternativeDistributionPackage": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/relationships/alternativeDistributionPackage",
+              "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/alternativeDistributionPackage"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9"
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9"
+      }
+    }
+  },
+  "build": {
+    "status": 200,
+    "body": {
+      "data": {
+        "type": "builds",
+        "id": "4bbc38b4-1a04-4b28-9f16-c2839ad0e91a",
+        "attributes": {
+          "version": "148",
+          "uploadedDate": "2026-09-12T01:43:09-07:00",
+          "expirationDate": "2026-12-11T00:43:09-08:00",
+          "expired": false,
+          "minOsVersion": "15.0",
+          "lsMinimumSystemVersion": null,
+          "computedMinMacOsVersion": "12.0",
+          "computedMinVisionOsVersion": "1.0",
+          "iconAssetToken": {
+            "templateUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1a/24/7e/1a247e04-20c6-72d7-0935-a5de8f67c5ba/AppIcon76x76@2x_U007eipad.png/{w}x{h}bb.{f}",
+            "width": 152,
+            "height": 152
+          },
+          "processingState": "VALID",
+          "buildAudienceType": "APP_STORE_ELIGIBLE",
+          "usesNonExemptEncryption": false
+        },
+        "relationships": {
+          "preReleaseVersion": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/preReleaseVersion",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/preReleaseVersion"
+            }
+          },
+          "individualTesters": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/individualTesters",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/individualTesters"
+            }
+          },
+          "betaGroups": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/betaGroups"
+            }
+          },
+          "betaBuildLocalizations": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/betaBuildLocalizations",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/betaBuildLocalizations"
+            }
+          },
+          "appEncryptionDeclaration": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/appEncryptionDeclaration",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/appEncryptionDeclaration"
+            }
+          },
+          "betaAppReviewSubmission": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/betaAppReviewSubmission",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/betaAppReviewSubmission"
+            }
+          },
+          "app": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/app",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/app"
+            }
+          },
+          "buildBetaDetail": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/buildBetaDetail",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/buildBetaDetail"
+            }
+          },
+          "appStoreVersion": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/appStoreVersion",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/appStoreVersion"
+            }
+          },
+          "icons": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/icons",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/icons"
+            }
+          },
+          "perfPowerMetrics": {
+            "links": {
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/perfPowerMetrics"
+            }
+          },
+          "diagnosticSignatures": {
+            "links": {
+              "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/relationships/diagnosticSignatures",
+              "related": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a/diagnosticSignatures"
+            }
+          }
+        },
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/builds/4bbc38b4-1a04-4b28-9f16-c2839ad0e91a"
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/build"
+      }
+    }
+  },
+  "localizations": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "type": "appStoreVersionLocalizations",
+          "id": "12ac09de-7b28-4f0a-a8d5-f899e4e4c742",
+          "attributes": {
+            "description": "Pami\u0119taj, ile by\u0142o ostatnio. Strength Save to dziennik treningowy, w kt\u00f3rym zapiszesz ci\u0119\u017cary, powt\u00f3rzenia i przerwy, u\u0142o\u017cysz plan i sprawdzisz swoje post\u0119py.\n\nW trakcie treningu\n\u2022 Poprzedni wynik przy ka\u017cdej serii, \u017ceby \u0142atwiej wybra\u0107 ci\u0119\u017car.\n\u2022 Serie robocze i rozgrzewkowe, superserie oraz notatki.\n\u2022 Timer przerw z powiadomieniem przy zablokowanym ekranie, po nadaniu zgody w ustawieniach.\n\u2022 Szybki trening, gdy chcesz \u0107wiczy\u0107 bez gotowego planu.\n\u2022 Zapis treningu offline i synchronizacja po odzyskaniu po\u0142\u0105czenia.\n\nPlan na kolejne tygodnie\nWybierz jeden z 25 gotowych plan\u00f3w lub u\u0142\u00f3\u017c w\u0142asny. Korzystaj z biblioteki 243 \u0107wicze\u0144 z instrukcjami po polsku. Przek\u0142adaj dni treningowe, podmieniaj \u0107wiczenia i zachowuj histori\u0119 wcze\u015bniejszych cykli.\n\nSprawd\u017a swoje post\u0119py\nPor\u00f3wnuj tygodnie i miesi\u0105ce, przegl\u0105daj histori\u0119 \u0107wicze\u0144 oraz rekordy. Zobacz liczb\u0119 trening\u00f3w, wykonane serie i podniesiony tona\u017c. Zapisuj pomiary cia\u0142a, je\u015bli chcesz \u015bledzi\u0107 tak\u017ce zmian\u0119 sylwetki.\n\niPhone, iPad i Apple Watch\nAplikacja Apple Watch wsp\u00f3\u0142pracuje z iPhonem. Zapisuj serie i korzystaj z przerw na zegarku. Na iPadzie przegl\u0105daj plan i wyniki. Opcjonalne po\u0142\u0105czenie z Apple Health pozwala zapisywa\u0107 uko\u0144czone treningi oraz odczyta\u0107 mas\u0119 cia\u0142a. Samodzielnie decydujesz o zgodach.\n\nTwoja historia treningowa\nZaimportuj treningi z pliku CSV ze Strong lub Hevy. Eksportuj dane i przygotuj raport PDF. Aplikacja dzia\u0142a po polsku i angielsku.\n\nSubskrypcja PRO\nPobranie aplikacji jest bezp\u0142atne. Rozpoczynanie trening\u00f3w wymaga aktywnego dost\u0119pu PRO, np. subskrypcji lub okresu pr\u00f3bnego. Dost\u0119pne s\u0105 plany miesi\u0119czny i roczny. Cen\u0119 i ewentualny okres pr\u00f3bny zobaczysz przed potwierdzeniem zakupu. Subskrypcja odnawia si\u0119 automatycznie, je\u015bli nie anulujesz jej przed odnowieniem. Mo\u017cesz ni\u0105 zarz\u0105dza\u0107 w ustawieniach konta Apple.\n\nPomoc: https://strengthsave.app/support\nPrywatno\u015b\u0107: https://strengthsave.app/privacy\nWarunki korzystania: https://strengthsave.app/terms\nWarunki Apple: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+            "locale": "pl",
+            "keywords": "plan,powt\u00f3rzenia,serie,ci\u0119\u017cary,masa,mi\u0119\u015bnie,progres,fbw,ppl,kulturystyka,timer",
+            "marketingUrl": "https://strengthsave.app/?lang=pl",
+            "promotionalText": "Zapisuj serie, sprawdzaj poprzednie ci\u0119\u017cary i \u015bled\u017a post\u0119py. Wybierz gotowy plan lub u\u0142\u00f3\u017c w\u0142asny. Trenuj z iPhonem lub Apple Watch.",
+            "supportUrl": "https://strengthsave.app/support",
+            "whatsNew": null
+          },
+          "relationships": {
+            "appScreenshotSets": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742/relationships/appScreenshotSets",
+                "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742/appScreenshotSets"
+              }
+            },
+            "appPreviewSets": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742/relationships/appPreviewSets",
+                "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742/appPreviewSets"
+              }
+            },
+            "searchKeywords": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742/relationships/searchKeywords",
+                "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742/searchKeywords"
+              }
+            }
+          },
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/12ac09de-7b28-4f0a-a8d5-f899e4e4c742"
+          }
+        },
+        {
+          "type": "appStoreVersionLocalizations",
+          "id": "113e952d-fe3e-497d-bd52-bd4e3acb46bc",
+          "attributes": {
+            "description": "Remember what you lifted last time. Strength Save is a workout log for recording weights, reps and rest periods, planning your sessions and following your progress.\n\nDuring your workout\n\u2022 Your previous result beside each set to help you choose a weight.\n\u2022 Working sets, warm-up sets, supersets and notes.\n\u2022 Rest timer notifications when your screen is locked, with notification permission enabled.\n\u2022 Quick workouts when you want to train without a program.\n\u2022 Offline workout logging that syncs when your connection returns.\n\nPlan the weeks ahead\nChoose from 25 programs or build your own. Browse 243 exercises with written instructions. Reschedule sessions, swap exercises and keep the history of your previous training cycles.\n\nSee your progress\nCompare weeks and months, check your exercise history and track personal records. Review completed workouts, sets and training volume. Add body measurements if you also want to follow changes in your physique.\n\niPhone, iPad and Apple Watch\nThe Apple Watch app works with your iPhone. Log sets and follow rest periods on your watch. Review plans and results on iPad. Optional Apple Health integration lets you save completed workouts and read body weight. You choose which permissions to grant.\n\nBring your training history\nImport workout CSV files from Strong or Hevy. Export your data and create PDF reports. Use the app in English or Polish.\n\nPRO subscription\nThe app is free to download. Starting workouts requires active PRO access, such as a subscription or trial. Monthly and annual plans are available. The price and any eligible trial appear before you confirm the purchase. Subscriptions renew automatically unless cancelled before renewal. Manage your subscription in your Apple account settings.\n\nSupport: https://strengthsave.app/support\nPrivacy: https://strengthsave.app/privacy\nTerms: https://strengthsave.app/terms\nApple Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+            "locale": "en-US",
+            "keywords": "weightlifting,routine,sets,reps,rest,timer,progress,bodybuilding,powerlifting,offline,hypertrophy",
+            "marketingUrl": "https://strengthsave.app/?lang=en",
+            "promotionalText": "Log your sets, check last time's weights and follow your progress. Choose a program or build your own. Train with your iPhone or Apple Watch.",
+            "supportUrl": "https://strengthsave.app/support",
+            "whatsNew": null
+          },
+          "relationships": {
+            "appScreenshotSets": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc/relationships/appScreenshotSets",
+                "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc/appScreenshotSets"
+              }
+            },
+            "appPreviewSets": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc/relationships/appPreviewSets",
+                "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc/appPreviewSets"
+              }
+            },
+            "searchKeywords": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc/relationships/searchKeywords",
+                "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc/searchKeywords"
+              }
+            }
+          },
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/113e952d-fe3e-497d-bd52-bd4e3acb46bc"
+          }
+        }
+      ],
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersions/8a088f55-9eb7-4abf-ad56-ba8fcef8cec9/appStoreVersionLocalizations"
+      },
+      "meta": {
+        "paging": {
+          "total": 2,
+          "limit": 50
+        }
+      }
+    }
+  },
+  "infos": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "type": "appInfos",
+          "id": "60af6a85-b697-4e6d-a6dc-ed13cc86ed5e",
+          "attributes": {
+            "appStoreState": "PREPARE_FOR_SUBMISSION",
+            "state": "PREPARE_FOR_SUBMISSION",
+            "appStoreAgeRating": "FOUR_PLUS",
+            "australiaAgeRating": null,
+            "brazilAgeRating": "L",
+            "brazilAgeRatingV2": "SELF_RATED_L",
+            "franceAgeRating": null,
+            "koreaAgeRating": null
+          },
+          "relationships": {
+            "ageRatingDeclaration": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/ageRatingDeclaration",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/ageRatingDeclaration"
+              }
+            },
+            "appInfoLocalizations": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/appInfoLocalizations",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/appInfoLocalizations"
+              }
+            },
+            "primaryCategory": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/primaryCategory",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/primaryCategory"
+              }
+            },
+            "primarySubcategoryOne": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/primarySubcategoryOne",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/primarySubcategoryOne"
+              }
+            },
+            "primarySubcategoryTwo": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/primarySubcategoryTwo",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/primarySubcategoryTwo"
+              }
+            },
+            "secondaryCategory": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/secondaryCategory",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/secondaryCategory"
+              }
+            },
+            "secondarySubcategoryOne": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/secondarySubcategoryOne",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/secondarySubcategoryOne"
+              }
+            },
+            "secondarySubcategoryTwo": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/secondarySubcategoryTwo",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/secondarySubcategoryTwo"
+              }
+            },
+            "territoryAgeRatings": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/relationships/territoryAgeRatings",
+                "related": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e/territoryAgeRatings"
+              }
+            }
+          },
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e"
+          }
+        }
+      ],
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/apps/6777446137/appInfos"
+      },
+      "meta": {
+        "paging": {
+          "total": 1,
+          "limit": 50
+        }
+      }
+    }
+  },
+  "submissions": {
+    "status": 200,
+    "body": {
+      "data": [],
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?filter%5Bapp%5D=6777446137"
+      },
+      "meta": {
+        "paging": {
+          "total": 0,
+          "limit": 50
+        }
+      }
+    }
+  },
+  "groups": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "type": "subscriptionGroups",
+          "id": "22150355",
+          "attributes": {
+            "referenceName": "Strength Save PRO"
+          },
+          "relationships": {
+            "subscriptions": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355/relationships/subscriptions",
+                "related": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355/subscriptions"
+              }
+            },
+            "subscriptionGroupLocalizations": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355/relationships/subscriptionGroupLocalizations",
+                "related": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355/subscriptionGroupLocalizations"
+              }
+            },
+            "versions": {
+              "links": {
+                "self": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355/relationships/versions",
+                "related": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355/versions"
+              }
+            }
+          },
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/22150355"
+          }
+        }
+      ],
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/apps/6777446137/subscriptionGroups"
+      },
+      "meta": {
+        "paging": {
+          "total": 1,
+          "limit": 50
+        }
+      }
+    }
+  },
+  "availability": {
+    "status": 404,
+    "body": {
+      "errors": [
+        {
+          "id": "5807d4d4-6b67-4a13-b0a4-caf6e95e7951",
+          "status": "404",
+          "code": "NOT_FOUND",
+          "title": "The specified resource does not exist",
+          "detail": "The path provided does not match a defined resource type."
+        }
+      ]
+    }
+  },
+  "review": {
+    "status": 200,
+    "body": {
+      "data": {
+        "id": "241dab9a-969d-4c6c-8f97-e590ccf620ca",
+        "attributes": {
+          "contactFirstName": true,
+          "contactLastName": true,
+          "contactPhone": true,
+          "contactEmail": true,
+          "demoAccountName": true,
+          "demoAccountPassword": true,
+          "demoAccountRequired": true,
+          "notes": true
+        },
+        "notes": "Strength Save is a workout log and planner for iPhone and iPad, with a companion Apple Watch app. The interface is available in English and Polish.\n\nUse the email and password in the private sign-in fields. No SMS code or two-factor authentication is required. This dedicated account has complimentary PRO access so you can review all training features without a purchase. It contains no real person's workout or health data.\n\nSuggested review path:\n1. Sign in using email. If the consent screen appears, review the terms and privacy policy and continue. Health access is optional.\n2. From Today, choose Quick workout. Add an exercise, enter weight and repetitions, and check a set. You can also choose a ready-made program from Plan.\n3. Enable notifications when prompted to test the rest alert. Start a rest, lock the iPhone, and wait for the notification. Sound follows the device's notification and silent-mode settings.\n4. Finish the workout. Open History to see the saved session and Progress to inspect the results.\n5. PRO: normal accounts need an active subscription or trial to start workouts. Monthly and yearly subscriptions use Apple's in-app purchase system. The purchase screen includes Restore purchases. The review account's complimentary access is intentional.\n6. Apple Health: open Profile and the health/integration settings, enable the optional Health features, and choose permissions. Completed strength/cardio workouts can be written to Health. Reading body mass is optional; the app asks before applying it to measurements.\n7. Apple Watch: install the companion app on a paired Watch, keep the iPhone signed in, start a workout on the phone, and open Strength Save on the Watch. Check a set, confirm it reaches the iPhone, then finish the workout. Health permissions enable workout/heart-rate recording. The Watch has no separate subscription or sign-in.\n8. iPad: use the same login. Planning, workout logging, history and progress use the larger screen layout. Apple Watch pairing is performed through iPhone.\n\nSupport: https://strengthsave.app/support\nPrivacy: https://strengthsave.app/privacy\nTerms: https://strengthsave.app/terms\n"
+      }
+    }
+  }
+}

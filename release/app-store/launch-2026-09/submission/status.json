@@ -1,0 +1,29 @@
+{
+  "verified_at": "2026-09-13T14:41:09.723207+00:00",
+  "app_id": "6777446137",
+  "build": 148,
+  "version": "1.0",
+  "app_store_state": "WAITING_FOR_REVIEW",
+  "release_type": "MANUAL",
+  "review_submission_id": "d1171049-43f8-490c-8927-d879dfc8d21e",
+  "submission_state": "WAITING_FOR_REVIEW",
+  "submission_items": 4,
+  "submitted_for_review": true,
+  "blockers": [],
+  "next_steps_file": "DO-UZUPELNIENIA.md",
+  "dac7_blocker_cleared": true,
+  "owner_reports_updated_agreement_accepted": true,
+  "checked_at": "2026-09-13T15:23:53.819498+00:00",
+  "previous_submission_validation_errors_cleared": true,
+  "first_subscriptions_association_verified": true,
+  "review_items": [
+    "iOS 1.0, build 148",
+    "StrengthSave PRO group version 1",
+    "PRO Monthly version 1",
+    "PRO Yearly version 1"
+  ],
+  "next_action": "Wait for Apple App Review; check messages; manual release after approval",
+  "submitted_date": "2026-09-13T15:21:11.085Z",
+  "submitted_at_utc": "2026-09-13T15:21:11.085000+00:00",
+  "submitted_at_warsaw": "2026-09-13T17:21:11.085000+02:00"
+}

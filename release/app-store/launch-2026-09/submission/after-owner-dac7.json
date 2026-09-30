@@ -1,0 +1,40 @@
+{
+  "checked_at": "2026-09-13T14:41:09.723207+00:00",
+  "status": 409,
+  "body": {
+    "errors": [
+      {
+        "id": "c387d707-8b44-49a8-b7d3-1f3214aae9ea",
+        "status": "409",
+        "code": "STATE_ERROR.ENTITY_STATE_INVALID",
+        "title": "appStoreVersions with id '8a088f55-9eb7-4abf-ad56-ba8fcef8cec9' is not in valid state.",
+        "detail": "This resource cannot be reviewed, please check associated errors to see why.",
+        "meta": {
+          "associatedErrors": {
+            "/v1/apps/6777446137": [
+              {
+                "id": "475891ce-addf-478e-9885-518a7d3e598b",
+                "status": "409",
+                "code": "ENTITY_ERROR.ATTRIBUTE.REQUIRED",
+                "title": "The provided entity is missing a required attribute",
+                "detail": "You must provide a value for the attribute 'contentRightsDeclaration' with this request",
+                "source": {
+                  "pointer": "/data/attributes/contentRightsDeclaration"
+                }
+              }
+            ],
+            "/v1/appDataUsages/": [
+              {
+                "id": "22c89652-6efb-487f-adff-22479fe518a5",
+                "status": "409",
+                "code": "STATE_ERROR.APP_DATA_USAGES_REQUIRED",
+                "title": "Answers to what data your app collects and how it's used are needed.",
+                "detail": "You must have published answers to your app's data usages."
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

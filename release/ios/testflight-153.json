@@ -1,0 +1,21 @@
+{
+  "verified_at": "2026-09-30T09:15:28.382094+00:00",
+  "source_commit": "b0f7850d",
+  "artifact": {
+    "path": "build/ios/export/App.ipa",
+    "bytes": 25787757,
+    "sha256": "689079a6a08fdae7d91149a7cc226ffe1e87cdebaa8f4d9984fe3b9d404d7d4a",
+    "version": "1.0.1",
+    "build": 153
+  },
+  "store_verification": {
+    "processingState": "VALID",
+    "groups": "internal HTTP 204, external HTTP 204",
+    "whatsNew": "en-US set",
+    "betaReview": "submitted"
+  },
+  "upload": {
+    "delivery_uuid": "c83bb875-2eb6-405c-a6cc-8ccc7654a217",
+    "result": "UPLOAD SUCCEEDED"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-09-13T15:19:14.890953+00:00",
+  "draft_id": "d1171049-43f8-490c-8927-d879dfc8d21e",
+  "draft_state": "READY_FOR_REVIEW",
+  "submitted_date": null,
+  "item_count": 4,
+  "items": [
+    {
+      "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDZ8ODg2NjEzNTY0",
+      "state": "READY_FOR_REVIEW",
+      "relationships": {
+        "subscriptionVersion": null,
+        "appStoreVersion": {
+          "type": "appStoreVersions",
+          "id": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9"
+        },
+        "subscriptionGroupVersion": null
+      }
+    },
+    {
+      "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE5fDg1ZDFiOWJlLTVkMDktNDM5Yi1hMjE5LWQ3MjgzMmQ5NjU0Nw",
+      "state": "READY_FOR_REVIEW",
+      "relationships": {
+        "subscriptionVersion": null,
+        "appStoreVersion": null,
+        "subscriptionGroupVersion": {
+          "type": "subscriptionGroupVersions",
+          "id": "85d1b9be-5d09-439b-a219-d72832d96547"
+        }
+      }
+    },
+    {
+      "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE4fDMyMjFkNDc5LTA3MzAtNDhlMC1iNDNhLTUyZTA0NGRmNzdlMQ",
+      "state": "READY_FOR_REVIEW",
+      "relationships": {
+        "subscriptionVersion": {
+          "type": "subscriptionVersions",
+          "id": "3221d479-0730-48e0-b43a-52e044df77e1"
+        },
+        "appStoreVersion": null,
+        "subscriptionGroupVersion": null
+      }
+    },
+    {
+      "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDE4fDRlMTBhNDZiLWViNGYtNDIzYy1hY2I3LTNjOTA0NTI3MDUyNw",
+      "state": "READY_FOR_REVIEW",
+      "relationships": {
+        "subscriptionVersion": {
+          "type": "subscriptionVersions",
+          "id": "4e10a46b-eb4f-423c-acb7-3c9045270527"
+        },
+        "appStoreVersion": null,
+        "subscriptionGroupVersion": null
+      }
+    }
+  ]
+}

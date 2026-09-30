@@ -1,0 +1,36 @@
+{
+  "checked_at_utc": "2026-09-13T15:23:53.819498+00:00",
+  "submission_id": "d1171049-43f8-490c-8927-d879dfc8d21e",
+  "app_id": "6777446137",
+  "submission_state": "WAITING_FOR_REVIEW",
+  "submitted_at_utc": "2026-09-13T15:21:11.085000+00:00",
+  "submitted_at_warsaw": "2026-09-13T17:21:11.085000+02:00",
+  "submitted_by": "Grzegorz Jasionowicz (confirmed by user screenshot)",
+  "item_count": 4,
+  "items": [
+    {
+      "type": "appStoreVersions",
+      "id": "8a088f55-9eb7-4abf-ad56-ba8fcef8cec9",
+      "state": "WAITING_FOR_REVIEW"
+    },
+    {
+      "type": "subscriptionVersions",
+      "id": "3221d479-0730-48e0-b43a-52e044df77e1",
+      "state": "WAITING_FOR_REVIEW"
+    },
+    {
+      "type": "subscriptionVersions",
+      "id": "4e10a46b-eb4f-423c-acb7-3c9045270527",
+      "state": "WAITING_FOR_REVIEW"
+    },
+    {
+      "type": "subscriptionGroupVersions",
+      "id": "85d1b9be-5d09-439b-a219-d72832d96547",
+      "state": "WAITING_FOR_REVIEW"
+    }
+  ],
+  "check_after_24h_warsaw": "2026-09-14T17:21:11.085000+02:00",
+  "check_after_48h_warsaw": "2026-09-15T17:21:11.085000+02:00",
+  "screenshot": "2026-09-13-waiting-for-review.png",
+  "screenshot_sha256": "e7db7571f231e0139d75871e12add73270216c9539bedf12bf11f9619b43a7c1"
+}

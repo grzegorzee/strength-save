@@ -1,0 +1,161 @@
+{
+  "basis": "Android build 54 code and SDK dependency metadata, reviewed 2026-09-13",
+  "status": "prepared",
+  "encryptedInTransit": true,
+  "deletionRequestUrl": "https://strengthsave.app/delete-account",
+  "shared": false,
+  "ephemeral": false,
+  "dataTypes": [
+    {
+      "id": "PSL_NAME",
+      "required": false,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_ACCOUNT_MANAGEMENT",
+        "PSL_PERSONALIZATION",
+        "PSL_ADVERTISING"
+      ],
+      "basis": "Optional onboarding/profile display name and personalized email greeting."
+    },
+    {
+      "id": "PSL_EMAIL",
+      "required": true,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_ACCOUNT_MANAGEMENT",
+        "PSL_DEVELOPER_COMMUNICATIONS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Firebase email/password or federated login, account messages, opted-in marketing."
+    },
+    {
+      "id": "PSL_USER_ACCOUNT",
+      "required": true,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_ACCOUNT_MANAGEMENT",
+        "PSL_ANALYTICS",
+        "PSL_FRAUD_PREVENTION_SECURITY",
+        "PSL_ADVERTISING"
+      ],
+      "basis": "Firebase UID, RevenueCat appUserID, linked telemetry and consent preferences."
+    },
+    {
+      "id": "PSL_PURCHASE_HISTORY",
+      "required": true,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_ANALYTICS"
+      ],
+      "basis": "RevenueCat and Play subscriptions, entitlement and purchase lifecycle."
+    },
+    {
+      "id": "PSL_HEALTH",
+      "required": false,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_PERSONALIZATION"
+      ],
+      "basis": "Optional body weight, body measurements, goals and Health Connect weight import."
+    },
+    {
+      "id": "PSL_FITNESS",
+      "required": true,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_PERSONALIZATION"
+      ],
+      "basis": "Primary workout history, sets, weight, reps, training profile and suggestions."
+    },
+    {
+      "id": "PSL_PHOTOS",
+      "required": false,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_ACCOUNT_MANAGEMENT"
+      ],
+      "basis": "Optional avatar, progress photos and support screenshots."
+    },
+    {
+      "id": "PSL_PRECISE_LOCATION",
+      "required": false,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY"
+      ],
+      "basis": "Conservative disclosure: avatar upload preserves original file bytes and may retain EXIF GPS from a user-supplied file. No GPS permission or active location tracking. This is a source-code inference, not a finding in real user photos."
+    },
+    {
+      "id": "PSL_EMAILS",
+      "required": false,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_DEVELOPER_COMMUNICATIONS"
+      ],
+      "basis": "User-initiated workout/history email, recipient, subject and HTML retained in email_log."
+    },
+    {
+      "id": "PSL_USER_GENERATED_CONTENT",
+      "required": false,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY"
+      ],
+      "basis": "Optional workout notes, custom plan labels and support requests."
+    },
+    {
+      "id": "PSL_USER_INTERACTION",
+      "required": true,
+      "purposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING"
+      ],
+      "basis": "Screen/event counters and email open/click telemetry, including opted-in marketing messages."
+    },
+    {
+      "id": "PSL_CRASH_LOGS",
+      "required": true,
+      "purposes": [
+        "PSL_ANALYTICS"
+      ],
+      "basis": "Global JS errors, rejected promises and stack context in client_errors."
+    },
+    {
+      "id": "PSL_PERFORMANCE_DIAGNOSTICS",
+      "required": true,
+      "purposes": [
+        "PSL_ANALYTICS",
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Technical error codes, sync context and platform/version diagnostics; SDK integrity metadata. No Firebase Performance SDK."
+    },
+    {
+      "id": "PSL_DEVICE_ID",
+      "required": true,
+      "purposes": [
+        "PSL_APP_FUNCTIONALITY",
+        "PSL_DEVELOPER_COMMUNICATIONS",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Firebase installations, push tokens, per-installation push ID, attestation and IP security logs. No advertising ID collection configured."
+    }
+  ],
+  "excluded": [
+    "Phone number: no phone authentication or SMS MFA",
+    "Approximate location: IP logs are used as security identifiers, no app geolocation inference; RevenueCat documents locale/currency only",
+    "Financial payment details: handled by Google Play, never provided to app",
+    "No contacts, calendar read, microphone, user video collection, search history, installed-app inventory or browsing history found"
+  ],
+  "sources": [
+    "https://support.google.com/googleplay/android-developer/answer/10787469?hl=en",
+    "https://firebase.google.com/docs/android/play-data-disclosure",
+    "https://www.revenuecat.com/docs/platform-resources/google-platform-resources/google-plays-data-safety",
+    "https://developer.android.com/google/play/integrity/terms"
+  ],
+  "csvSha256": "4a549969855ef293ec25c9816f11da3e05861707f250f2b2da12f979bb5f9627",
+  "accountCreationMethods": [
+    "email/password",
+    "OAuth"
+  ],
+  "templateExtension": "Current account/deletion fields absent from Google public sample; identifiers checked against primary Fastlane plugin source and Google API validation."
+}

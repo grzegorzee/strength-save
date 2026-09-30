@@ -1,0 +1,115 @@
+{
+  "checkedAt": "2026-09-13T15:32:22.452884+00:00",
+  "packageName": "com.grzegorzjasionowicz.strengthsave",
+  "editCommitted": false,
+  "tracks": {
+    "http": 200,
+    "data": {
+      "kind": "androidpublisher#tracksListResponse",
+      "tracks": [
+        {
+          "track": "production"
+        },
+        {
+          "track": "beta"
+        },
+        {
+          "track": "alpha"
+        },
+        {
+          "track": "internal",
+          "releases": [
+            {
+              "name": "1.0.0 (54)",
+              "versionCodes": [
+                "54"
+              ],
+              "releaseNotes": [
+                {
+                  "language": "pl-PL",
+                  "text": "Poprawiono układ treningu przy większym tekście, w tym zakresy powtórzeń i pola czasu. Stabilniejsze zapisy przy słabym zasięgu. Rozgrzewka zachowuje stan po powrocie do aplikacji. Synchronizacja pokazuje rzeczywisty dzień treningu i usuwa baner po potwierdzonym zapisie.\n"
+                },
+                {
+                  "language": "en-US",
+                  "text": "Fixed workout layout with larger system text, including repetition ranges and time fields. Improved recovery from network errors. Warmup remains open with its progress after returning to the app. Synchronization shows the actual training day and clears the pending banner after confirmation.\n"
+                }
+              ],
+              "status": "completed"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bundles": {
+    "http": 200,
+    "data": {
+      "kind": "androidpublisher#bundlesListResponse",
+      "bundles": [
+        {
+          "versionCode": 54,
+          "sha1": "8e34c9d9d3efd39f734c4105ffa573bef7d37347",
+          "sha256": "b58d1f034b115f1207ef6aa411549bde14776ca02e0280924049df120125d407"
+        }
+      ]
+    }
+  },
+  "details": {
+    "http": 200,
+    "data": {
+      "defaultLanguage": "en-US"
+    }
+  },
+  "listings": {
+    "http": 200,
+    "data": {
+      "kind": "androidpublisher#listingsListResponse",
+      "listings": [
+        {
+          "language": "en-US",
+          "title": "Strength Save"
+        }
+      ]
+    }
+  },
+  "countryAvailability/production": {
+    "http": 204,
+    "data": {}
+  },
+  "images": {
+    "en-US": {
+      "icon": {
+        "http": 200,
+        "data": {}
+      },
+      "featureGraphic": {
+        "http": 200,
+        "data": {}
+      },
+      "phoneScreenshots": {
+        "http": 200,
+        "data": {}
+      },
+      "sevenInchScreenshots": {
+        "http": 200,
+        "data": {}
+      },
+      "tenInchScreenshots": {
+        "http": 200,
+        "data": {}
+      }
+    }
+  },
+  "validation": {
+    "http": 200,
+    "data": {
+      "id": "11273415400136212224",
+      "expiryTimeSeconds": "1789320743"
+    }
+  },
+  "editDeleted": true,
+  "subscriptions": {
+    "http": 204,
+    "data": {}
+  }
+}

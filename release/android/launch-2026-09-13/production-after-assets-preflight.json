@@ -1,0 +1,80 @@
+{
+  "checkedAt": "2026-09-13T16:40:16.287936+00:00",
+  "committed": false,
+  "afterStoreAssetsCommit": true,
+  "currentTrack": {
+    "track": "production",
+    "releases": [
+      {
+        "name": "1.0.0 (54)",
+        "versionCodes": [
+          "54"
+        ],
+        "releaseNotes": [
+          {
+            "language": "en-US",
+            "text": "Strength Save helps you plan workouts, log sets and follow your progress."
+          },
+          {
+            "language": "pl-PL",
+            "text": "Planuj treningi, zapisuj serie i sprawdzaj postępy w Strength Save."
+          }
+        ],
+        "status": "draft"
+      }
+    ]
+  },
+  "trackUpdate": {
+    "http": 200,
+    "body": {
+      "track": "production",
+      "releases": [
+        {
+          "name": "1.0.0 (54)",
+          "versionCodes": [
+            "54"
+          ],
+          "releaseNotes": [
+            {
+              "language": "en-US",
+              "text": "Strength Save helps you plan workouts, log sets and follow your progress."
+            },
+            {
+              "language": "pl-PL",
+              "text": "Planuj treningi, zapisuj serie i sprawdzaj postępy w Strength Save."
+            }
+          ],
+          "status": "completed"
+        }
+      ]
+    }
+  },
+  "validation": {
+    "http": 400,
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "Only releases with status draft may be created on draft app.",
+        "status": "INVALID_ARGUMENT"
+      }
+    }
+  },
+  "cleanupHttp": 204,
+  "releaseLifecycle": {
+    "http": 200,
+    "body": {
+      "releases": [
+        {
+          "releaseName": "1.0.0 (54)",
+          "activeArtifacts": [
+            {
+              "versionCode": 54
+            }
+          ],
+          "releaseLifecycleState": "RELEASE_LIFECYCLE_STATE_DRAFT",
+          "track": "production"
+        }
+      ]
+    }
+  }
+}

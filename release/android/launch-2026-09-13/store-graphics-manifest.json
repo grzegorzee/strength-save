@@ -1,0 +1,98 @@
+[
+  {
+    "file": "assets/phone-final/en-US/01-workout.png",
+    "source": "assets/phone-raw/en-US/01-workout.png",
+    "headline": "Your last weight. Right next to your set.",
+    "sha256": "60beabeb0edda0ad12776d9405b0f245db7013a6a8b502ba51267f85cfa7fd8d"
+  },
+  {
+    "file": "assets/phone-final/en-US/02-today.png",
+    "source": "assets/phone-raw/en-US/02-today.png",
+    "headline": "Know what’s next. Start your workout.",
+    "sha256": "71e3b3e60b4a2778d7ffdd1926019a60eb2f320fe767197f72273e7a90c44753"
+  },
+  {
+    "file": "assets/phone-final/en-US/03-plan.png",
+    "source": "assets/phone-raw/en-US/03-plan.png",
+    "headline": "Your week, already planned.",
+    "sha256": "a8138f73111dd839f92a6b043e6a0a2d6246ab8b791a4e635a7611e9cee700e0"
+  },
+  {
+    "file": "assets/phone-final/en-US/04-history.png",
+    "source": "assets/phone-raw/en-US/04-history.png",
+    "headline": "Every workout, saved in one place.",
+    "sha256": "758fd5d1df9edacfa5535526e8ded5ef0501b3d769e286212619105b8823a23c"
+  },
+  {
+    "file": "assets/phone-final/en-US/05-results.png",
+    "source": "assets/phone-raw/en-US/05-results.png",
+    "headline": "See your week in numbers.",
+    "sha256": "f2259adce060de0fc20cbd35ce27bb77bd1e39b232a3a94c8a39027fa0c1fa13"
+  },
+  {
+    "file": "assets/phone-final/en-US/06-charts.png",
+    "source": "assets/phone-raw/en-US/06-charts.png",
+    "headline": "See how your training adds up.",
+    "sha256": "0f800b8782f7c8c5f33e668b84fd7717ebeff6a45b9eebe5e78920b62a634eee"
+  },
+  {
+    "file": "assets/phone-final/en-US/07-records.png",
+    "source": "assets/phone-raw/en-US/07-records.png",
+    "headline": "Keep track of your personal bests.",
+    "sha256": "0f84d0581f5ff8db48d5b9fd8fb3ec132276123dada761e3454644ae32f9b2eb"
+  },
+  {
+    "file": "assets/phone-final/en-US/08-exercises.png",
+    "source": "assets/phone-raw/en-US/08-exercises.png",
+    "headline": "Find the exercise. Check the technique.",
+    "sha256": "46d3850309efa21d05c5f51d604041a588ed6905519b0e2c46e0e36e5f17b8c1"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/01-workout.png",
+    "source": "assets/phone-raw/pl-PL/01-workout.png",
+    "headline": "Poprzedni ciężar. Tuż obok serii.",
+    "sha256": "0ca927de2d805a4386edfb6559d023a0c7fd9c0f7b37b5068fd8c0d51faf3bf1"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/02-today.png",
+    "source": "assets/phone-raw/pl-PL/02-today.png",
+    "headline": "Wiesz, co dalej. Możesz zaczynać.",
+    "sha256": "f09bfb7207f4085dca1128ac48f11de441acdd7cd154f162a8471f47d61d1c6a"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/03-plan.png",
+    "source": "assets/phone-raw/pl-PL/03-plan.png",
+    "headline": "Cały tydzień w jednym planie.",
+    "sha256": "25f55d23ea58681a55cf85f09d989ab13d789582b1e4469ec2dc6cb63759b3c0"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/04-history.png",
+    "source": "assets/phone-raw/pl-PL/04-history.png",
+    "headline": "Twoje treningi. Wszystkie zapisane.",
+    "sha256": "8a0a68c0036f77228402402bc369a63effd7d9adc7c3b9220a4bbe0103163827"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/05-results.png",
+    "source": "assets/phone-raw/pl-PL/05-results.png",
+    "headline": "Tydzień treningów w liczbach.",
+    "sha256": "fc90a95647c543cf7f76eeb98a6f726df818bba9d1b26d2e26fb2c7a03f19865"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/06-charts.png",
+    "source": "assets/phone-raw/pl-PL/06-charts.png",
+    "headline": "Śledź obciążenie z tygodnia na tydzień.",
+    "sha256": "dfd8fc3eb9f6073e7a31b06e0dcc7d08cc32e1da8509c7747299981f1e7d6104"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/07-records.png",
+    "source": "assets/phone-raw/pl-PL/07-records.png",
+    "headline": "Twoje rekordy zawsze pod ręką.",
+    "sha256": "8aac98755520158eec8c386afdd28a537eeb4eb3002e33b7c91a6310674ffd31"
+  },
+  {
+    "file": "assets/phone-final/pl-PL/08-exercises.png",
+    "source": "assets/phone-raw/pl-PL/08-exercises.png",
+    "headline": "Znajdź ćwiczenie. Sprawdź technikę.",
+    "sha256": "52bbf98d22d6988d461d009d1effe4a07c5a8c108c8b758108ea406d76b5b211"
+  }
+]

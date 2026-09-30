@@ -1,0 +1,187 @@
+{
+  "checkedAt": "2026-09-13T16:36:26.342566+00:00",
+  "nativeScreens": 16,
+  "visualInspection": "Both raw contact sheets, both final contact sheets, first final screen in each language at full resolution, both feature graphics inspected. Labels and weights readable; no hardware renderer artifacts.",
+  "files": [
+    {
+      "file": "assets/phone-final/pl-PL/03-plan.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 194561,
+      "sha256": "25f55d23ea58681a55cf85f09d989ab13d789582b1e4469ec2dc6cb63759b3c0"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/04-history.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 197848,
+      "sha256": "8a0a68c0036f77228402402bc369a63effd7d9adc7c3b9220a4bbe0103163827"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/05-results.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 215635,
+      "sha256": "fc90a95647c543cf7f76eeb98a6f726df818bba9d1b26d2e26fb2c7a03f19865"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/01-workout.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 188433,
+      "sha256": "0ca927de2d805a4386edfb6559d023a0c7fd9c0f7b37b5068fd8c0d51faf3bf1"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/02-today.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 204996,
+      "sha256": "f09bfb7207f4085dca1128ac48f11de441acdd7cd154f162a8471f47d61d1c6a"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/06-charts.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 207269,
+      "sha256": "dfd8fc3eb9f6073e7a31b06e0dcc7d08cc32e1da8509c7747299981f1e7d6104"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/07-records.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 179613,
+      "sha256": "8aac98755520158eec8c386afdd28a537eeb4eb3002e33b7c91a6310674ffd31"
+    },
+    {
+      "file": "assets/phone-final/pl-PL/08-exercises.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 526894,
+      "sha256": "52bbf98d22d6988d461d009d1effe4a07c5a8c108c8b758108ea406d76b5b211"
+    },
+    {
+      "file": "assets/phone-final/en-US/03-plan.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 195467,
+      "sha256": "a8138f73111dd839f92a6b043e6a0a2d6246ab8b791a4e635a7611e9cee700e0"
+    },
+    {
+      "file": "assets/phone-final/en-US/04-history.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 211283,
+      "sha256": "758fd5d1df9edacfa5535526e8ded5ef0501b3d769e286212619105b8823a23c"
+    },
+    {
+      "file": "assets/phone-final/en-US/05-results.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 202371,
+      "sha256": "f2259adce060de0fc20cbd35ce27bb77bd1e39b232a3a94c8a39027fa0c1fa13"
+    },
+    {
+      "file": "assets/phone-final/en-US/01-workout.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 188416,
+      "sha256": "60beabeb0edda0ad12776d9405b0f245db7013a6a8b502ba51267f85cfa7fd8d"
+    },
+    {
+      "file": "assets/phone-final/en-US/02-today.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 202941,
+      "sha256": "71e3b3e60b4a2778d7ffdd1926019a60eb2f320fe767197f72273e7a90c44753"
+    },
+    {
+      "file": "assets/phone-final/en-US/06-charts.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 194026,
+      "sha256": "0f800b8782f7c8c5f33e668b84fd7717ebeff6a45b9eebe5e78920b62a634eee"
+    },
+    {
+      "file": "assets/phone-final/en-US/07-records.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 167522,
+      "sha256": "0f84d0581f5ff8db48d5b9fd8fb3ec132276123dada761e3454644ae32f9b2eb"
+    },
+    {
+      "file": "assets/phone-final/en-US/08-exercises.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 519151,
+      "sha256": "46d3850309efa21d05c5f51d604041a588ed6905519b0e2c46e0e36e5f17b8c1"
+    },
+    {
+      "file": "assets/feature-en-US.png",
+      "dimensions": [
+        1024,
+        500
+      ],
+      "mode": "RGB",
+      "bytes": 34946,
+      "sha256": "d6ca39358ebfb4a0b6aeb3f9ddca5ca264df0ce82904fee992064bf610644a37"
+    },
+    {
+      "file": "assets/feature-pl-PL.png",
+      "dimensions": [
+        1024,
+        500
+      ],
+      "mode": "RGB",
+      "bytes": 37498,
+      "sha256": "a7f37246c7256e7aa98e68c87e0a1aec0b5141094906a279c2055f78c64db708"
+    }
+  ]
+}

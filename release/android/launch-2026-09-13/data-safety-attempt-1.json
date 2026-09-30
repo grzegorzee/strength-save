@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-09-13T16:14:13.131101+00:00",
+  "http": 400,
+  "apiAccepted": false,
+  "body": {
+    "error": {
+      "code": 400,
+      "message": "Invalid safety labels declaration:\nResponse missing for PSL_SUPPORTED_ACCOUNT_CREATION_METHODS",
+      "status": "INVALID_ARGUMENT"
+    }
+  },
+  "audit": "data-safety-audit.json",
+  "independentReadbackAvailable": false
+}

@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-13T15:36:53.890460+00:00",
+  "build": 148,
+  "version": "1.0.0",
+  "ipaSha256": "f7e1aefdd55c009f33f109e420af140cc578a7c6375e8ce10360b590bf43422b",
+  "matchesUploadedArtifact": true,
+  "watchApp": "Payload/App.app/Watch/StrengthWatch.app",
+  "watchWidgets": "Payload/App.app/Watch/StrengthWatch.app/PlugIns/StrengthWatchWidgets.appex",
+  "companionBundleId": "com.grzegorzjasionowicz.strengthsave",
+  "submissionId": "d1171049-43f8-490c-8927-d879dfc8d21e",
+  "submissionScope": "Watch app and widgets are embedded in submitted iOS build 148."
+}

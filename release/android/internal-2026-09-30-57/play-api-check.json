@@ -1,0 +1,98 @@
+{
+  "checked_at": "2026-09-30T09:15:06.220557+00:00",
+  "service_account": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "package_name": "com.grzegorzjasionowicz.strengthsave",
+  "authentication": "ADC with short-lived service-account impersonation",
+  "edit_committed": false,
+  "cleanup": true,
+  "tracks": {
+    "kind": "androidpublisher#tracksListResponse",
+    "tracks": [
+      {
+        "track": "production",
+        "releases": [
+          {
+            "name": "1.0.0 (54)",
+            "versionCodes": [
+              "54"
+            ],
+            "releaseNotes": [
+              {
+                "language": "en-US",
+                "text": "Strength Save helps you plan workouts, log sets and follow your progress."
+              },
+              {
+                "language": "pl-PL",
+                "text": "Planuj treningi, zapisuj serie i sprawdzaj postępy w Strength Save."
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "track": "beta"
+      },
+      {
+        "track": "alpha"
+      },
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "name": "1.0.1 (57)",
+            "versionCodes": [
+              "57"
+            ],
+            "releaseNotes": [
+              {
+                "language": "pl-PL",
+                "text": "Nowy przewodnik z treningiem próbnym, który niczego nie zapisuje (Profil: Pokaż przewodnik ponownie). Aktualizacje zdalne: w Profilu, O aplikacji, widać wersję i numer aktualizacji. Zawiera wszystko z wersji 56: urlop, zamianę ćwiczeń, ćwiczenia z masą ciała, nowe ćwiczenia i plany.\n"
+              },
+              {
+                "language": "en-US",
+                "text": "New guide with a practice workout that saves nothing (Profile: Show guide again). Remote updates: Profile, About shows the version and update number. Includes everything from 56: vacation, exercise swap, bodyweight exercises, new exercises and plans.\n"
+              }
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  },
+  "bundles": {
+    "kind": "androidpublisher#bundlesListResponse",
+    "bundles": [
+      {
+        "versionCode": 53,
+        "sha1": "9b49bd7e5742030c9add5f9266c44ba0f78276f3",
+        "sha256": "7899341fc6cbc6a352aa7b4c8b4a3f08ba6ece7ebad2fb7b18f259ddfe8f1634"
+      },
+      {
+        "versionCode": 54,
+        "sha1": "8e34c9d9d3efd39f734c4105ffa573bef7d37347",
+        "sha256": "b58d1f034b115f1207ef6aa411549bde14776ca02e0280924049df120125d407"
+      },
+      {
+        "versionCode": 55,
+        "sha1": "91a8e237c44f121cd5f7f33211e84917d1535773",
+        "sha256": "e1d36b3b2b854268bd8093f36d53dd14fd1c59bbe4cfe98f4868f96e3e1108f3"
+      },
+      {
+        "versionCode": 56,
+        "sha1": "a21ec37e4041452a93b05ec7e46b28aa241ac991",
+        "sha256": "b718ff97c642a7913c19975df90fb1c57fa5ce00f3f9a411a978fd7807ce1996"
+      },
+      {
+        "versionCode": 57,
+        "sha1": "b9dfdbac0dde1553a107d6824dfbd7d03b7b0ec6",
+        "sha256": "04709d46783cdaaf2eef056092813f88ebc8a8d0e28193743119e70615cb7647"
+      }
+    ]
+  },
+  "details": {
+    "defaultLanguage": "en-US"
+  },
+  "validate_http": 200,
+  "cleanup_http": 204
+}

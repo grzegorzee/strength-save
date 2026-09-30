@@ -1,0 +1,141 @@
+{
+  "aabSha256": "b58d1f034b115f1207ef6aa411549bde14776ca02e0280924049df120125d407",
+  "libraries": [
+    {
+      "file": "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/arm64-v8a/libimage_processing_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/arm64-v8a/libsurface_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/armeabi-v7a/libdatastore_shared_counter.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/armeabi-v7a/libimage_processing_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/armeabi-v7a/libsurface_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/x86/libdatastore_shared_counter.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/x86/libimage_processing_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/x86/libsurface_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/x86_64/libdatastore_shared_counter.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/x86_64/libimage_processing_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    },
+    {
+      "file": "base/lib/x86_64/libsurface_util_jni.so",
+      "symbolTable": false,
+      "debugSections": [],
+      "dynamicSymbols": true
+    }
+  ],
+  "mappingOrSymbolFiles": [],
+  "mergedLibrariesBeforeAppStrip": [
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libsurface_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libimage_processing_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libdatastore_shared_counter.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86/libsurface_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86/libimage_processing_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86/libdatastore_shared_counter.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libsurface_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libimage_processing_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libsurface_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libimage_processing_util_jni.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    },
+    {
+      "file": "android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libdatastore_shared_counter.so",
+      "hasFullSymbols": false,
+      "hasDebugInfo": false
+    }
+  ],
+  "releaseMinifyEnabled": false
+}

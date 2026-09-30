@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-09-13T15:15:58.360251+00:00",
+  "http_status": 201,
+  "response": {
+    "data": {
+      "type": "reviewSubmissionItems",
+      "id": "ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDZ8ODg2NjEzNTY0",
+      "attributes": {
+        "state": "READY_FOR_REVIEW"
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems/ZDExNzEwNDktNDNmOC00OTBjLTg5MjctZDg3OWRmYzhkMjFlfDZ8ODg2NjEzNTY0"
+      }
+    },
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems"
+    }
+  },
+  "submitted_for_review": false
+}

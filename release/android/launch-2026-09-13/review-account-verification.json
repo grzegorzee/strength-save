@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-09-13T18:39:27.952744+00:00",
+  "credentialSource": "Private Apple App Review Information",
+  "loginWorks": true,
+  "emailVerified": true,
+  "mfaEnrolled": false,
+  "proActive": true,
+  "proTier": "comp",
+  "expiresAt": null,
+  "nativeAndroidLoginTestedThisStep": false,
+  "trainingWrites": false,
+  "keychainService": "Strength Save / Store Review",
+  "keychainSaved": true,
+  "keychainReadbackVerified": true,
+  "passwordCopied": true
+}

@@ -1,0 +1,48 @@
+{
+  "status": 409,
+  "response": {
+    "errors": [
+      {
+        "id": "14172e13-146a-4435-9438-d7bbc184c394",
+        "status": "409",
+        "code": "STATE_ERROR.ENTITY_STATE_INVALID",
+        "title": "appStoreVersions with id '8a088f55-9eb7-4abf-ad56-ba8fcef8cec9' is not in valid state.",
+        "detail": "This resource cannot be reviewed, please check associated errors to see why.",
+        "meta": {
+          "associatedErrors": {
+            "/v1/appInfos/60af6a85-b697-4e6d-a6dc-ed13cc86ed5e": [
+              {
+                "id": "4567b4fb-8706-474a-bbdf-c00b11943e64",
+                "status": "409",
+                "code": "STATE_ERROR.DAC7_CANNOT_SUBMIT_MISSING_REGULATED_PERSONAL_SERVICE_APP_DECLARATION",
+                "title": "Missing app declaration",
+                "detail": "You must declare whether your app is a personal service."
+              }
+            ],
+            "/v1/appDataUsages/": [
+              {
+                "id": "ec57a987-1beb-4020-a06e-36818e93415e",
+                "status": "409",
+                "code": "STATE_ERROR.APP_DATA_USAGES_REQUIRED",
+                "title": "Answers to what data your app collects and how it's used are needed.",
+                "detail": "You must have published answers to your app's data usages."
+              }
+            ],
+            "/v1/apps/6777446137": [
+              {
+                "id": "f65c1e75-0f68-408c-b8c1-b1b2cb296c47",
+                "status": "409",
+                "code": "ENTITY_ERROR.ATTRIBUTE.REQUIRED",
+                "title": "The provided entity is missing a required attribute",
+                "detail": "You must provide a value for the attribute 'contentRightsDeclaration' with this request",
+                "source": {
+                  "pointer": "/data/attributes/contentRightsDeclaration"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

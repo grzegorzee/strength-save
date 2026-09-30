@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-09-13T16:07:50.550489+00:00",
+  "committed": false,
+  "trackUpdate": {
+    "http": 200,
+    "body": {
+      "track": "production",
+      "releases": [
+        {
+          "name": "1.0.0 (54)",
+          "versionCodes": [
+            "54"
+          ],
+          "releaseNotes": [
+            {
+              "language": "en-US",
+              "text": "Strength Save helps you plan workouts, log sets and follow your progress."
+            },
+            {
+              "language": "pl-PL",
+              "text": "Planuj treningi, zapisuj serie i sprawdzaj postępy w Strength Save."
+            }
+          ],
+          "status": "completed"
+        }
+      ]
+    }
+  },
+  "validation": {
+    "http": 400,
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "Only releases with status draft may be created on draft app.",
+        "status": "INVALID_ARGUMENT"
+      }
+    }
+  },
+  "cleanupHttp": 204
+}

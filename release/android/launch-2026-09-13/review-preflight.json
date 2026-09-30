@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-09-13T15:59:51.638976+00:00",
+  "committed": false,
+  "purpose": "Validate a draft production candidate to discover required configuration; delete edit afterwards",
+  "releaseLifecycle": {
+    "http": 204,
+    "data": {}
+  },
+  "productionDraft": {
+    "http": 200,
+    "data": {
+      "track": "production",
+      "releases": [
+        {
+          "name": "1.0.0 (54)",
+          "versionCodes": [
+            "54"
+          ],
+          "status": "draft"
+        }
+      ]
+    }
+  },
+  "validation": {
+    "http": 200,
+    "data": {
+      "id": "11379942020885965144",
+      "expiryTimeSeconds": "1789322392"
+    }
+  },
+  "cleanupHttp": 204
+}
