@@ -253,6 +253,21 @@ macierz), bo przy kompakcjach kontekstu tylko repo jest pamięcią odporną na
 utratę; wnioski typu "moduł nie istnieje" notuj raz, zamiast szukać go
 czwarty raz.
 
+### 21. Produkcję czytamy tylko przez scripts/prod-read, zapisujemy tylko skryptami wydania
+
+Wdrożone 2026-09-30 razem z zabezpieczeniami kosztów (docs/COST-GUARDS.md).
+Agent odpytuje produkcję WYŁĄCZNIE przez `node scripts/prod-read.mjs`
+(konto agent-readonly przez impersonację, bez kluczy JSON; twardy limit
+5000 dokumentów na uruchomienie, licznik odczytów, log w tmp/prod-read/).
+Podniesienie --max-docs wymaga uzasadnienia w odpowiedzi. Zakazane: własne
+skrypty z Admin SDK / kontem właściciela do "szybkiego sprawdzenia", pętle
+po całych kolekcjach, zapytania bez limitu. Zapis na produkcji (dane, reguły,
+functions, infra GCP) tylko przez skrypty wydania i tylko za zgodą
+właściciela, z odczytem kontrolnym po zmianie. Nowe onSchedule = decyzja
+withCostGuard albo wpis do COST_GUARD_EXEMPT z uzasadnieniem (kontrakt testem).
+Nowa funkcja = limit instancji (globalny w functions/src/global-options.ts
+albo własny), pilnuje test kontraktu.
+
 ## Pułapki specyficzne dla projektu (skrót)
 
 - **Radix Sheet/Dialog: NIGDY nie unmountuj w stanie open.** Regresja builda 92
