@@ -6,6 +6,7 @@ import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { Timestamp } from "firebase-admin/firestore";
 import {
+  appOpenInviteUrl,
   type Lang,
   verificationSubject,
   welcomeSubject,
@@ -852,7 +853,7 @@ export const createInvite = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (r
   const timestamp = nowIso();
   const code = randomInviteCode();
   const inviteRef = getDb().collection(INVITES_COLLECTION).doc();
-  const inviteUrl = `https://app.strengthsave.app/?invite=${encodeURIComponent(code)}`;
+  const inviteUrl = appOpenInviteUrl(code);
 
   await inviteRef.set({
     code,

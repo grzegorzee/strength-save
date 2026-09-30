@@ -50,7 +50,7 @@ const templates = (lang: Lang): Array<[string, string]> => [
   ["verification", verificationEmailHtml("482913", "jan@example.com", lang)],
   ["password-reset", passwordResetEmailHtml(RESET_LINK, "jan@example.com", lang)],
   ["welcome", welcomeEmailHtml("Jan", lang)],
-  ["invite", inviteEmailHtml("K7Q2MZ", "https://app.strengthsave.app/?invite=K7Q2MZ", "Notatka", lang)],
+  ["invite", inviteEmailHtml("K7Q2MZ", "https://strengthsave.app/open?invite=K7Q2MZ", "Notatka", lang)],
   ["access-changed", accessChangedEmailHtml(false, lang)],
   ["weekly-digest", digest(lang).html],
   ["workout", buildWorkoutEmailHtml(localizeEmailWorkout(workout, lang), lang)],
@@ -101,6 +101,13 @@ describe.each(["pl", "en"] as const)("kontrakt maili (%s)", (lang) => {
     for (const fragment of PERSONAL_DATA_FRAGMENTS) expect(htmlToPlainText(html)).not.toContain(fragment);
   });
 
+  // 2026-09-30: "Otwórz aplikację" prowadzi przez strengthsave.app/open
+  // (apka na telefonie), żaden mail nie linkuje wprost do web app.
+  it.each(templates(lang))("%s: brak linków wprost do app.strengthsave.app", (_name, html) => {
+    const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
+    hrefs.forEach((href) => expect(href).not.toMatch(/^https:\/\/app\.strengthsave\.app/));
+  });
+
   it.each(templates(lang))("%s: rozmiar poniżej limitu obcinania Gmaila", (_name, html) => {
     expect(Buffer.byteLength(html)).toBeLessThan(GMAIL_CLIP_BYTES);
   });
@@ -136,7 +143,7 @@ describe("text/plain zachowuje linki i kody", () => {
 
   it("powitanie: przycisk zamienia się na etykietę z adresem", () => {
     const text = htmlToPlainText(welcomeEmailHtml("Jan", "pl"));
-    expect(text).toContain("Otwórz aplikację: https://app.strengthsave.app/");
+    expect(text).toContain("Otwórz aplikację: https://strengthsave.app/open");
   });
 
   it("kod weryfikacyjny obecny w wersji tekstowej", () => {
@@ -153,7 +160,7 @@ describe("linki z danymi logowania nie przechodzą przez śledzenie kliknięć S
   });
 
   it("zaproszenie: link z kodem ma ses:no-track", () => {
-    const html = inviteEmailHtml("K7Q2MZ", "https://app.strengthsave.app/?invite=K7Q2MZ", null, "pl");
+    const html = inviteEmailHtml("K7Q2MZ", "https://strengthsave.app/open?invite=K7Q2MZ", null, "pl");
     [...html.matchAll(/<a\b[^>]*invite=[^>]*>/g)].forEach((m) => expect(m[0]).toContain("ses:no-track"));
   });
 });
