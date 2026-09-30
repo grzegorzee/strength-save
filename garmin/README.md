@@ -6,7 +6,21 @@ pobranie dnia (`garminDay`), odhaczanie serii ze stepperem, rest timer
 z wibracją, natywna sesja siłowa (FIT z HR) do Garmin Connect,
 kolejka offline i wysyłka treningu do `garminIngest`.
 
-## STATUS: v3 + kontrakt X25 zbudowany, czeka na bramę fizyczną (2026-08-10)
+## STATUS: paczka Store 1.0.0 gotowa lokalnie, czeka na G1-G9 i submit (2026-09-30)
+
+> 2026-09-30: `.iq` 1.0.0 (sha256 `e4722ac2…`, 27/27 binariów, 16 ID) zbudowane i
+> podpisane; dowód w `release/artifact.json`, kopia `~/Desktop/strengthsave-garmin-1.0.0.iq`.
+> Manifest: `version="1.0.0"`, uprawnienia tylko Communications + Fit (Sensor i
+> UserProfile usunięte, kod ich nie używał). Podpowiedź parowania: Profil > Urządzenia.
+> Kontrakt backendu z 29.09 (urlop = dzień wolny, cel rampy, bodyweight_loaded,
+> serie dystansowe) nie wymaga zmian w zegarku: `rest` obsłużony, cele idą w `s[]`,
+> pole `t` zegarek ignoruje, `k` dla bodyweight_loaded to `weight_reps`
+> (dociążenie 0 kg pokazuje się jako „0 kg × N”). Symulator: start bez crasha na
+> fenix7, epix2, fr255, venusq2 (`tmp/garmin-sim/`). Formularz Store:
+> `release/SUBMISSION.md`; test fizyczny: `docs/GARMIN-DEVICE-TEST-QUICK.md`.
+> Starszy opis niżej zostaje jako historia.
+
+### Historia: v3 + kontrakt X25 zbudowany (2026-08-10)
 
 > Audyt PRO A-E (2026-08-13): wydania PRO (de-emojizacja, header/inbox, completion,
 > gamifikacja, Dashboard hero-first) NIE dotykają kontraktu danych CIQ — zero zmian
@@ -58,6 +72,8 @@ chronionego dokumentu tokenu.
 
 ## KROKI USERA
 
+0. Skrót całości na 1 stronie: `docs/GARMIN-DEVICE-TEST-QUICK.md`; pola
+   formularza Store: `garmin/release/SUBMISSION.md`.
 1. Wykonaj G1-G9 z `docs/X25-REAL-DEVICE-CHECKLIST.md` na izolowanym
    koncie technicznym i zachowaj dowód FIT/ingest bez duplikatu.
 2. Na tym samym koncie zrób 1-2 screenshoty z wypełnionym planem; nie kończ
@@ -93,7 +109,7 @@ chronionego dokumentu tokenu.
 | Ikona Store | 1024x1024 PNG |
 | Screenshoty | Min. 1, zalecane 3-4 z symulatora (`monkeydo` + zrzut okna) |
 | Polityka prywatności | URL (WYMAGANY, bo apka wysyła dane na własny backend) |
-| Uprawnienia | Communications, Fit, Sensor, UserProfile - uzasadnij każde w opisie |
+| Uprawnienia | Communications, Fit (od 1.0.0) - uzasadnienia w listingu, pilnuje `src/test/garmin-release-contract.test.ts` |
 
 ### C. Submisja i recenzja
 

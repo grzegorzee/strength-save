@@ -14,10 +14,12 @@ Generated `.prg` and signed `.iq` files remain in ignored `garmin/bin/`.
 - The only accepted compiler warnings are launcher-icon scaling on products
   whose launcher slot is larger than the 40x40 on-device source. Store artwork
   is a separate 1024x1024 asset and is not affected.
-- The 2026-08-10 export builds all 16 manifest device IDs into 27 product
-  binaries. The signed package is 644900 bytes with SHA-256
-  `5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98`;
-  machine-readable evidence is in `artifact.json`.
+- The 2026-09-30 export (app version 1.0.0, permissions Communications and
+  Fit) builds all 16 manifest device IDs into 27 product binaries. The signed
+  package is 657634 bytes with SHA-256
+  `e4722ac255ed4fcfe7387f0bef1785bf4bd0d5465e926a94f4cd4622cebfe01a`;
+  machine-readable evidence, including a digest of every build input, is in
+  `artifact.json`. Portal field values are in `SUBMISSION.md`.
 - Simulator screenshots are real, unpaired application states on `fr255`
   (round/buttons) and `venusq2` (rectangle/touch). No account or production
   workout was used.

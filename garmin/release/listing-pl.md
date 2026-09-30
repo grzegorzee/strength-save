@@ -2,29 +2,35 @@
 
 ## Krótki opis
 
-Loguj trening siłowy z nadgarstka: plan dnia, szybki trening, timer przerw i zapis FIT.
+Loguj trening siłowy z nadgarstka: plan dnia, szybki trening, timer przerw i zapis aktywności w Garmin Connect.
 
 ## Opis
 
-Strength Save na Garminie jest samodzielnym klientem Twojego konta Strength Save. Po jednorazowym sparowaniu pobiera plan dnia, pozwala wykonać trening planowy albo szybki i synchronizuje jedną kanoniczną historię widoczną na webie, iOS i Androidzie.
+Strength Save na Garminie jest klientem Twojego konta Strength Save. Po jednorazowym sparowaniu pobiera plan dnia, pozwala wykonać trening z planu albo szybki trening z ostatnio wykonywanych ćwiczeń i wysyła serie do jednej historii treningów, widocznej w aplikacji na iPhone'a, Androida i w przeglądarce.
 
-- cele serii i cztery typy śledzenia ćwiczeń;
-- domyślne przerwy 90 s między seriami i 150 s między ćwiczeniami;
-- czas, liczba serii i tonaż sesji;
-- kilogramy lub funty w prezentacji, z zapisem kanonicznym w kg;
-- kolejka offline, jawny status synchronizacji, retry i bezpieczne odrzucenie sesji;
-- natywny zapis aktywności FIT z tętnem do Garmin Connect;
+Na zegarku:
+
+- cel kolejnej serii liczony na serwerze Strength Save z planu i historii treningów;
+- cztery typy serii: ciężar z powtórzeniami, czas, ciężar z dystansem i czasem, ćwiczenie wspomagane; każdą serię można oznaczyć jako rozgrzewkę;
+- przerwa między seriami od 30 s do 4 min (domyślnie 90 s) i między ćwiczeniami do 5 min albo wyłączona (domyślnie 150 s), z wibracją na koniec;
+- czas sesji, liczba serii i tonaż;
+- kilogramy albo funty na ekranie, zapis zawsze w kg;
+- dzień wolny w planie (także urlop ustawiony w aplikacji) otwiera menu z szybkim treningiem;
+- trening bez zasięgu: serie czekają na zegarku do wysyłki, a trening można odrzucić bez zapisu;
+- zapis aktywności siłowej z tętnem w Garmin Connect;
 - język polski i angielski.
 
-Jedno aktywne Strength Save PRO obejmuje web, iOS, Android, Apple Watch i Garmin. Zegarek nie ma osobnego zakupu ani paywalla. Zakup i przywracanie subskrypcji odbywają się wyłącznie w aplikacji iOS lub Android.
+Wymagania: konto Strength Save z aktywną subskrypcją Strength Save PRO, aplikacja Strength Save na iPhone'a lub Androida (kod parowania: Profil > Urządzenia i połączenia) oraz telefon połączony z zegarkiem przez aplikację Garmin Connect, bo zegarek pobiera plan i wysyła serie przez telefon.
+
+Płatność: zegarek nie ma własnego zakupu. Bez aktywnego Strength Save PRO zegarek pokazuje komunikat o wymaganym PRO i nie pobiera planu. Subskrypcję (miesięczną albo roczną, odnawianą automatycznie) kupuje się i przywraca wyłącznie w aplikacji na iOS lub Androida. Rozliczenia, anulowanie i zwroty obsługuje App Store albo Google Play na swoich zasadach (szczegóły: https://strengthsave.app/terms). Jedna subskrypcja obejmuje wszystkie aplikacje Strength Save.
 
 ## Uprawnienia
 
-- **Communications** — szyfrowane pobranie planu i wysłanie paczki zdarzeń do backendu Strength Save.
-- **Fit** — rozpoczęcie i zapis ukończonego treningu jako aktywność FIT w Garmin Connect.
-- **Sensor** — odczyt tętna podczas aktywnej sesji treningowej do pliku FIT.
-- **UserProfile** — użycie ustawień profilu i jednostek potrzebnych do poprawnej prezentacji oraz rekordu aktywności.
+- **Communications**: pobranie planu dnia i wysłanie zapisanych serii do serwera Strength Save przez HTTPS.
+- **Fit**: nagranie treningu jako aktywności siłowej i zapis w Garmin Connect (albo odrzucenie nagrania na życzenie).
 
 ## Prywatność
 
-Zegarek przechowuje lokalnie minimalny, odwoływalny token urządzenia, plan dnia i niewysłane zdarzenia. Nie przechowuje hasła ani tokenu Firebase. Dane treningowe trafiają do konta użytkownika dopiero po trwałym ACK backendu. Polityka prywatności: https://strengthsave.app/privacy
+Zegarek przechowuje lokalnie odwoływalny token urządzenia, plan dnia i niewysłane serie. Nie przechowuje hasła ani tokenu logowania do konta. Do serwera Strength Save trafiają serie (ćwiczenie, powtórzenia, ciężar, czas, dystans, odciążenie, rozgrzewka), godziny sesji, identyfikator urządzenia i stan synchronizacji. Tętno i plik FIT zostają w Garmin Connect, Strength Save ich nie otrzymuje. Polityka prywatności: https://strengthsave.app/privacy
+
+Wsparcie: https://strengthsave.app/support
