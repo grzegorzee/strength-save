@@ -22,8 +22,10 @@ w ASC: All Countries or Regions (175) + automatycznie przyszłe terytoria; statu
 sprawdzać GET /v1/apps/{id}/appAvailabilityV2 (musi istnieć, terytoria available).
 Przy okazji: webhook RevenueCat był przypięty tylko do aplikacji App Store
 (zakupy Android nie trafiały do Firestore) — przepięty na wszystkie aplikacje
-(app_id null) przez API v2 30.09. RTDN Google Play wyłączone (brak tematu) —
-do podłączenia przez RC „Connect to Google” po zalogowaniu właściciela do RC.
+(app_id null) przez API v2 30.09. RTDN Google Play podłączone 30.09: temat projects/fittracker-workouts/topics/play-rtdn-revenuecat
+(publisher: google-play-developer-notifications@system), RC „Connected to Google” (SA
+strength-save-play z pubsub.editor tworzy subskrypcję), Play Console: RTDN włączone,
+zapisane; powiadomienie testowe dotarło do RC (Last received 12:58 UTC).
 
 
 ### 2026-09-30: premiera iOS 1.0 (build 150) i zgłoszenie 1.0.1 (153) do review
