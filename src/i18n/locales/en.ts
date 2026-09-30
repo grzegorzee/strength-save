@@ -9,6 +9,7 @@ export const en: Record<keyof typeof pl, string> = {
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
   'errors.routeCrashTitle': 'Something went wrong',
+  'deepLink.workoutInProgress': 'Workout in progress. Open the link after you finish.',
   'errors.routeCrashDesc': 'This screen could not be displayed. Restart it to continue.',
   'errors.backToDashboard': 'Back to Dashboard',
   'errors.restartApp': 'Restart app',

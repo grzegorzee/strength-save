@@ -16,6 +16,13 @@ import {
 } from '../../scripts/live-update-helpers.mjs';
 import { verifyManifestEnvelope } from '@/lib/live-update-manifest';
 
+const TRAIN = JSON.parse(readFileSync('release/release-train.json', 'utf8'));
+const CURRENT = {
+  version: TRAIN.product.version as string,
+  iosBuild: TRAIN.ios.build as number,
+  androidBuild: TRAIN.android.versionCode as number,
+};
+
 const inventory = (overrides: Record<string, unknown> = {}) => ({
   platform: 'ios',
   core: { '@capacitor/core': '8.4.0', '@capacitor/ios': '8.4.0', '@capacitor/android': '8.4.0' },
@@ -111,9 +118,11 @@ describe('publikacja OTA: kontrola zgodności natywnej', () => {
     expect(localNativeHash(repo, 'android').sha256).not.toBe(clean.sha256);
   });
 
-  it('bieżące źródła mają zarejestrowany, zgodny baseline 1.0.1 dla obu platform', () => {
-    for (const [platform, build] of [['ios', 153], ['android', 57]] as const) {
-      const baseline = JSON.parse(readFileSync(`release/live-updates/native-baselines/${platform}-1.0.1-${build}.json`, 'utf8'));
+  // Wersja i buildy z release-train.json (npm run version:bump/build), nie na sztywno:
+  // każdy nowy build natywny musi mieć swój baseline (checklist wydania).
+  it('bieżące źródła mają zarejestrowany, zgodny baseline bieżącej wersji dla obu platform', () => {
+    for (const [platform, build] of [['ios', CURRENT.iosBuild], ['android', CURRENT.androidBuild]] as const) {
+      const baseline = JSON.parse(readFileSync(`release/live-updates/native-baselines/${platform}-${CURRENT.version}-${build}.json`, 'utf8'));
       expect(baseline.fingerprint).toBe(inventoryFingerprint(nativeInventory(process.cwd(), platform)));
       expect(baseline.inventory.plugins.map((p: { name: string }) => p.name)).toContain('@capawesome/capacitor-live-update');
     }
@@ -131,9 +140,10 @@ describe('publish-live-update.mjs: odmowy przed buildem', () => {
     const root = mkdtempSync(join(tmpdir(), 'ota-baseline-'));
     const dir = join(root, 'release/live-updates/native-baselines');
     mkdirSync(dir, { recursive: true });
-    const baseline = JSON.parse(readFileSync('release/live-updates/native-baselines/ios-1.0.1-153.json', 'utf8'));
+    const name = `ios-${CURRENT.version}-${CURRENT.iosBuild}.json`;
+    const baseline = JSON.parse(readFileSync(`release/live-updates/native-baselines/${name}`, 'utf8'));
     mutate(baseline);
-    writeFileSync(join(dir, 'ios-1.0.1-153.json'), JSON.stringify(baseline));
+    writeFileSync(join(dir, name), JSON.stringify(baseline));
     return root;
   };
 

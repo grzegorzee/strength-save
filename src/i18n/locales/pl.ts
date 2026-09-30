@@ -9,6 +9,7 @@ export const pl = {
   'common.cancel': 'Anuluj',
   'common.delete': 'Usuń',
   'errors.routeCrashTitle': 'Coś poszło nie tak',
+  'deepLink.workoutInProgress': 'Trening w toku. Link otworzysz po jego zakończeniu.',
   'errors.routeCrashDesc': 'Nie udało się wyświetlić tego ekranu. Uruchom go ponownie.',
   'errors.backToDashboard': 'Wróć na Dashboard',
   'errors.restartApp': 'Uruchom ponownie',

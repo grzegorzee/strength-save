@@ -18,9 +18,18 @@ import {
 
 export { esc, type Lang };
 
-// Adres webowy aplikacji. X29 WP-J: wcześniej deep link z custom URL scheme,
-// ale taki link jest martwy w webmailach (Gmail/Outlook go nie otworzą).
-const APP_WEB_URL = "https://app.strengthsave.app/";
+// X29 WP-J: deep link z custom URL scheme jest martwy w webmailach (Gmail/Outlook
+// go nie otworzą), więc CTA to zawsze https.
+// 2026-09-30 (zgłoszenie właściciela): "Otwórz aplikację" ma otwierać aplikację
+// na telefonie, nie web app. strengthsave.app/open (landing) kieruje iOS do
+// App Store, Androida do apki albo Google Play, komputer na stronę wyboru
+// z wersją w przeglądarce. Od 1.0.2 ten sam adres otwiera zainstalowaną apkę
+// (Universal Links / App Links).
+export const APP_OPEN_URL = "https://strengthsave.app/open";
+
+/** Link zaproszenia: kod jedzie do wersji w przeglądarce jako ?invite=. */
+export const appOpenInviteUrl = (code: string): string =>
+  `${APP_OPEN_URL}?invite=${encodeURIComponent(code)}`;
 
 const ACCOUNT_REASON: Record<Lang, string> = {
   pl: "Wiadomość dotyczy Twojego konta w Strength Save.",
@@ -139,7 +148,7 @@ export function welcomeEmailHtml(displayName: string, lang: Lang): string {
     replyHint: true,
     bodyHtml: `${emailHeading(t.title)}
 ${emailParagraph(t.body, "margin:0 0 24px;")}
-${emailButton(APP_WEB_URL, t.cta)}`,
+${emailButton(APP_OPEN_URL, t.cta)}`,
   });
 }
 
@@ -218,6 +227,7 @@ export function adminMessageEmailHtml(body: string, options: { broadcast?: boole
       ? "Dostajesz ten mail, bo masz włączone ogłoszenia e-mail od zespołu Strength Save. Wyłączysz w aplikacji: Profil, Powiadomienia."
       : "Wiadomość od zespołu Strength Save dotyczy Twojego konta.",
     replyHint: true,
+    serviceProviderNotice: options.broadcast === true,
     bodyHtml: emailParagraph(safe, "margin:0;"),
   });
 }
