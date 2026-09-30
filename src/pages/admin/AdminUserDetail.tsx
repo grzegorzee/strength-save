@@ -51,6 +51,7 @@ interface DetailUser {
   accentColor: string | null;
   onboardingState: string | null;
   onboardingVersion: number | null;
+  liveUpdateChannel: 'internal' | 'production';
 }
 
 interface TelemetryDailyDoc {
@@ -131,6 +132,7 @@ const AdminUserDetail = () => {
         ...(patch.accessEnabled !== undefined ? { accessEnabled: patch.accessEnabled } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.feature ? { features: { ...prev.features, [patch.feature.key]: patch.feature.enabled } } : {}),
+        ...(patch.liveUpdateChannel ? { liveUpdateChannel: patch.liveUpdateChannel } : {}),
       }));
     },
   });
@@ -193,6 +195,7 @@ const AdminUserDetail = () => {
           accentColor: typeof u.preferences?.accentColor === 'string' ? u.preferences.accentColor : null,
           onboardingState: typeof u.onboarding?.state === 'string' ? u.onboarding.state : null,
           onboardingVersion: typeof u.onboarding?.version === 'number' ? u.onboarding.version : null,
+          liveUpdateChannel: u.liveUpdateChannel === 'internal' ? 'internal' : 'production',
         } : null);
         setTelemetryDocs(telemetrySnap.docs.map((d) => d.data() as TelemetryDailyDoc));
         setPlan(planSnap.exists()
@@ -507,6 +510,19 @@ const AdminUserDetail = () => {
               />
             </div>
           ))}
+          {/* OTA (docs/LIVE-UPDATES.md): tester dostaje kanał `internal`; admin ma go zawsze. */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{t('admin.detail.liveUpdateChannel')}</p>
+              <p className="text-xs text-muted-foreground">{t('admin.detail.liveUpdateChannelHint')}</p>
+            </div>
+            <Switch
+              checked={user.role === 'admin' || user.liveUpdateChannel === 'internal'}
+              onCheckedChange={(checked) => void actions.setLiveUpdateChannel(user.uid, checked ? 'internal' : 'production')}
+              disabled={user.role === 'admin'}
+              aria-label={t('admin.detail.liveUpdateChannel')}
+            />
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{t('admin.detail.suspend')}</p>

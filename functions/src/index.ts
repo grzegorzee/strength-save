@@ -62,6 +62,7 @@ export {
   revokeInvite,
   syncUserProfile,
   updateUserAccess,
+  adminSetLiveUpdateChannel,
   verifyEmailCode,
   adminGetUserLogs,
   adminSendUserEmail,

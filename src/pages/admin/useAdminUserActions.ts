@@ -1,6 +1,6 @@
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { updateUserAccess } from '@/lib/registration-api';
+import { adminSetLiveUpdateChannel, updateUserAccess } from '@/lib/registration-api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -15,6 +15,7 @@ export interface AdminUserPatch {
   accessEnabled?: boolean;
   status?: 'active' | 'suspended';
   feature?: { key: FeatureKey; enabled: boolean };
+  liveUpdateChannel?: 'internal' | 'production';
 }
 
 export const useAdminUserActions = (opts: {
@@ -34,6 +35,22 @@ export const useAdminUserActions = (opts: {
       toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} · ${userName}` });
     } catch {
       toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
+    }
+  };
+
+  // OTA: kanał `internal` dla testera; zapis wyłącznie callable (walidacja + audyt serwera),
+  // plus wpis admin_audit_log jak inne akcje panelu.
+  const setLiveUpdateChannel = async (uid: string, channel: 'internal' | 'production') => {
+    try {
+      await adminSetLiveUpdateChannel(uid, channel);
+      opts.onPatched(uid, { liveUpdateChannel: channel });
+      void logAdminAction(adminUid, { action: `liveUpdateChannel:${channel}`, targetUid: uid });
+      toast({
+        title: channel === 'internal' ? t('admin.liveUpdateChannelInternal') : t('admin.liveUpdateChannelProduction'),
+        description: `${opts.getUserMeta(uid)?.displayName || uid}`,
+      });
+    } catch {
+      toast({ title: t('admin.error'), description: t('admin.liveUpdateChannelFailed'), variant: 'destructive' });
     }
   };
 
@@ -79,5 +96,5 @@ export const useAdminUserActions = (opts: {
     }
   };
 
-  return { toggleFeature, toggleAccess, applySuspended };
+  return { toggleFeature, toggleAccess, applySuspended, setLiveUpdateChannel };
 };

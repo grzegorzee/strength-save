@@ -131,6 +131,8 @@ export interface UserProfile {
   timeZone?: string;
   /** X35c: przełączniki powiadomień (Profil → Powiadomienia); brak klucza = włączone. */
   notificationPrefs?: NotificationPrefs;
+  /** OTA: `internal` = tester wskazany przez admina (docs/LIVE-UPDATES.md). */
+  liveUpdateChannel?: 'internal' | 'production';
   /** Rekordy sprzed instalacji (Runna p.1, spec A5) — baseline detekcji PR. */
   prBackfill?: PRBackfill;
   /** WP-O (X30): profil treningowy (onboarding + replan): poziom/cel/dni w tygodniu. */
@@ -200,6 +202,10 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   timeZone: typeof data.timeZone === 'string' && data.timeZone ? data.timeZone : undefined,
   // Release e2e 2026-09-29: bez tego pola Profil pokazywał każdy przełącznik jako włączony.
   notificationPrefs: sanitizeNotificationPrefs(data.notificationPrefs),
+  // OTA 2026-09-30: kanał aktualizacji przypisany przez admina (callable adminSetLiveUpdateChannel).
+  liveUpdateChannel: data.liveUpdateChannel === 'internal' || data.liveUpdateChannel === 'production'
+    ? data.liveUpdateChannel
+    : undefined,
   // WP-O (X30): passthrough jak consents — karta admina (p12) i kreator czytają z profilu.
   trainingProfile: data.trainingProfile || undefined,
   onboardingAnswers: data.onboardingAnswers || undefined,

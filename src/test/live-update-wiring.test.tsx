@@ -40,9 +40,18 @@ describe('OTA: sygnał gotowości powłoki', () => {
     const { rerender } = render(<LiveUpdateBridge user={undefined} />);
     expect(setLiveUpdateUser).not.toHaveBeenCalled();
     rerender(<LiveUpdateBridge user={{ uid: 'u1', isAdmin: true }} />);
-    expect(setLiveUpdateUser).toHaveBeenLastCalledWith({ uid: 'u1', isAdmin: true });
+    expect(setLiveUpdateUser).toHaveBeenLastCalledWith({ uid: 'u1', isAdmin: true, channel: 'production' });
+    rerender(<LiveUpdateBridge user={{ uid: 'u2', isAdmin: false, channel: 'internal' }} />);
+    expect(setLiveUpdateUser).toHaveBeenLastCalledWith({ uid: 'u2', isAdmin: false, channel: 'internal' });
     render(<LiveUpdateBridge user={null} />);
     expect(setLiveUpdateUser).toHaveBeenLastCalledWith(null);
+  });
+});
+
+describe('OTA: brak ukrytych funkcji (Apple 2.3.1(a))', () => {
+  it('wersja w „O aplikacji” nie jest przyciskiem ani ukrytym gestem', () => {
+    const source = readFileSync('src/components/live-update/AboutVersionLine.tsx', 'utf8');
+    expect(source).not.toMatch(/onClick|TAPS_TO_TOGGLE|setTesterChannel|<button/);
   });
 });
 

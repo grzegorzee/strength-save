@@ -105,7 +105,9 @@ export const markLiveUpdateReady = (): void => {
 };
 
 /** Znany stan logowania (null = wylogowany) — kanał, telemetria, bramka treningu. */
-export const setLiveUpdateUser = (user: { uid: string; isAdmin: boolean } | null): void => {
+export const setLiveUpdateUser = (
+  user: { uid: string; isAdmin: boolean; channel?: 'internal' | 'production' } | null,
+): void => {
   void loadController().then((instance) => instance?.setUser(user));
 };
 

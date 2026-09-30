@@ -250,3 +250,10 @@ export const resolveGrantStartedAt = (
   const exp = typeof current.expiresAt === 'string' ? Date.parse(current.expiresAt) : NaN;
   return Number.isFinite(exp) && exp > now ? startedAt : nowIso;
 };
+
+/** Kanał aktualizacji OTA przypisywany przez admina (users/{uid}.liveUpdateChannel). */
+export type LiveUpdateChannel = "internal" | "production";
+
+export const parseLiveUpdateChannel = (value: unknown): LiveUpdateChannel | null => (
+  value === "internal" || value === "production" ? value : null
+);
