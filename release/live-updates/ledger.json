@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "entries": [
+    {
+      "bundleId": "1.0.1-ota.1",
+      "nativeVersion": "1.0.1",
+      "otaNumber": 1,
+      "sha256": "6a579083a1e33c515b1e62eb67788ef4e8c1870ea17a4172527724be81d7cd22",
+      "size": 6492905,
+      "signature": "SF4Jnd0uZ4R2orX3Bvm/xl4s2j6u0TPHtxAYlgdM1x2QYKuNc3wHBuRMZaggu+Cs4C4oN6in+yua6/MaGTn6ZjAKW7Ta0Lqi4ehfFdIXf2Fv6MSen0JyVPJMSxOxHt6NNzFJR7RVM0p7PbRB8Q6Ql10YC7YWGDM20IEtJOUDRiwoGpu4naTPioRedIAhy9LXzuCTm1SeadjTcN+W/dx41N+E75gEvBsqAA77KbSGq/fYAz9sxcmXWginw64JPq6B8qYNMU0m16yvE62PvDfvu9/0a489H6/7p7BmzSqzy5HDL0D61cgUdQkhwWPeAOVk+h8N3LoKXNL8S6yJYwKmTA==",
+      "sourceCommit": "1bde65dad8f8dccc44dcd1824f42b199f3e67a3d",
+      "builtAt": "2026-09-30T09:16:20.643Z",
+      "nativeFingerprints": {
+        "ios": "e73126231aa0763e2cca36bc0cfec95bec4c9af03a7b68ecefbf0712aecad590",
+        "android": "1ac7ebaea410c9780a0ef8e5e87fd54b9eebc05ca21cf7d1c0b7ce13dd44e888"
+      },
+      "published": [
+        {
+          "channel": "internal",
+          "platform": "ios",
+          "sequence": 1,
+          "rolloutPercent": 100,
+          "at": "2026-09-30T09:16:04.017Z",
+          "kind": "publish"
+        },
+        {
+          "channel": "internal",
+          "platform": "android",
+          "sequence": 1,
+          "rolloutPercent": 100,
+          "at": "2026-09-30T09:16:04.200Z",
+          "kind": "publish"
+        }
+      ]
+    }
+  ]
+}
