@@ -1,25 +1,52 @@
 {
   "displayName": "Firebase Project fittracker-workouts",
   "budgetFilter": {
-    "projects": ["projects/283539506094"],
+    "projects": [
+      "projects/283539506094"
+    ],
     "calendarPeriod": "MONTH",
     "creditTypesTreatment": "INCLUDE_ALL_CREDITS"
   },
   "amount": {
-    "specifiedAmount": { "currencyCode": "PLN", "units": "50" }
+    "specifiedAmount": {
+      "currencyCode": "PLN",
+      "units": "50"
+    }
   },
   "thresholdRules": [
-    { "thresholdPercent": 0.25, "spendBasis": "CURRENT_SPEND" },
-    { "thresholdPercent": 0.5, "spendBasis": "CURRENT_SPEND" },
-    { "thresholdPercent": 0.75, "spendBasis": "CURRENT_SPEND" },
-    { "thresholdPercent": 0.9, "spendBasis": "CURRENT_SPEND" },
-    { "thresholdPercent": 1.0, "spendBasis": "CURRENT_SPEND" },
-    { "thresholdPercent": 1.0, "spendBasis": "FORECASTED_SPEND" }
+    {
+      "thresholdPercent": 0.25,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 0.5,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 0.75,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 0.9,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 1.0,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 1.0,
+      "spendBasis": "FORECASTED_SPEND"
+    }
   ],
   "notificationsRule": {
     "pubsubTopic": "projects/fittracker-workouts/topics/cost-guard-budget",
     "schemaVersion": "1.0",
     "disableDefaultIamRecipients": false,
-    "enableProjectLevelRecipients": true
+    "enableProjectLevelRecipients": true,
+    "monitoringNotificationChannels": [
+      "projects/fittracker-workouts/notificationChannels/14133494776147715887",
+      "projects/fittracker-workouts/notificationChannels/17110596458526275707"
+    ]
   }
 }

@@ -20,7 +20,8 @@ export const COST_GUARD_TOPIC = "cost-guard-budget";
 export const COST_GUARD_COLLECTION = "config";
 export const COST_GUARD_DOC_ID = "cost_guard";
 export const DEFAULT_PAUSE_RATIO = 0.9;
-export const COST_GUARD_ALERT_RECIPIENT = "contact@strengthsave.app";
+// 2026-09-30: alert idzie też na Gmail właściciela (skrzynka produktowa bywa sprawdzana rzadziej).
+export const COST_GUARD_ALERT_RECIPIENTS = ["contact@strengthsave.app", "g.jasionowicz@gmail.com"];
 const AUDIT_TTL_DAYS = 365;
 
 export type CostGuardReason =
@@ -385,7 +386,7 @@ export const costGuardBudgetListener = onMessagePublished(
     await handleBudgetMessage({
       store: firestoreStore(),
       sendAlertEmail: async (subject, html) => {
-        await sendSesEmail({ to: COST_GUARD_ALERT_RECIPIENT, subject, html });
+        for (const to of COST_GUARD_ALERT_RECIPIENTS) await sendSesEmail({ to, subject, html });
       },
       nowIso: () => new Date().toISOString(),
     }, event.data?.message?.data);

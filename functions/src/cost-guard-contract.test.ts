@@ -53,3 +53,10 @@ describe("kontrakt bezpiecznika kosztów", () => {
     expect((exported as Record<string, Deployed>).adminSetCostGuard?.__endpoint).toBeDefined();
   });
 });
+
+describe("cost guard alert recipients", () => {
+  it("alerts go to the product inbox and the owner's Gmail (decision 2026-09-30)", async () => {
+    const { COST_GUARD_ALERT_RECIPIENTS } = await import("./cost-guard");
+    expect(COST_GUARD_ALERT_RECIPIENTS).toEqual(["contact@strengthsave.app", "g.jasionowicz@gmail.com"]);
+  });
+});

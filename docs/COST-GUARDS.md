@@ -78,7 +78,7 @@ Przepływ: budżet → Pub/Sub `cost-guard-budget` → `costGuardBudgetListener`
   budgetPeriod, at, changedBy: "budget"}`. Komunikat „tylko prognoza” nie
   pauzuje: liczy się koszt rzeczywisty.
 - **Mail:** jeden na okres budżetu (`alertEmailPeriod`), przez SES na
-  `contact@strengthsave.app`. Rezerwacja w transakcji przed wysyłką; padnięta
+  `contact@strengthsave.app` i `g.jasionowicz@gmail.com` (od 2026-09-30). Rezerwacja w transakcji przed wysyłką; padnięta
   wysyłka zwalnia rezerwację, więc kolejny komunikat ponawia mail.
 - **Wznowienie automatyczne:** nowy okres budżetu (`costIntervalStart`) albo
   koszt spadł pod próg w tym samym okresie (korekta, kredyt). Dotyczy tylko
@@ -118,7 +118,7 @@ płatności i usuwanie kont działają zawsze.
 ## 4. Alerty anomalii (Cloud Monitoring)
 
 Kanał: istniejący `notificationChannels/14133494776147715887` (e-mail
-`contact@strengthsave.app`). Baseline z metryk 2026-08-31..2026-09-30
+`contact@strengthsave.app` + kanał `g.jasionowicz@gmail.com` 17110596458526275707 od 2026-09-30; oba kanały także na budżecie). Baseline z metryk 2026-08-31..2026-09-30
 (Monitoring API `timeSeries`, `ALIGN_SUM` w oknach 3600 s, suma po seriach;
 instancje: `ALIGN_MAX` 300 s per usługa).
 
