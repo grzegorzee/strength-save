@@ -254,15 +254,20 @@ describe('kontroler OTA (sekwencje)', () => {
     expect(second.reports).toContainEqual({ code: 'live-update-manifest-invalid', detail: 'stale-sequence' });
   });
 
-  it('kanał: admin i tester (7 dotknięć) → internal, reszta → production', async () => {
-    const { controller, deps } = setup({ manifest: await manifestFor('1.0.1-ota.2', 1) });
+  it('kanał: admin albo przypisanie admina w profilu (liveUpdateChannel) → internal, reszta → production', async () => {
+    const { controller, deps, storage } = setup({ manifest: await manifestFor('1.0.1-ota.2', 1) });
     controller.setUser({ uid: 'u1', isAdmin: false });
     expect(controller.getChannel()).toBe('production');
     controller.setUser({ uid: 'u1', isAdmin: true });
     expect(controller.getChannel()).toBe('internal');
-    controller.setUser({ uid: 'u2', isAdmin: false });
-    controller.setTesterChannel(true);
+    controller.setUser({ uid: 'u2', isAdmin: false, channel: 'internal' });
     expect(controller.getChannel()).toBe('internal');
+    // Brak ukrytego przełącznika na urządzeniu (Apple 2.3.1(a)): stary klucz lokalny nie działa.
+    storage.set('ss_live_update_v1:channel-override', 'internal');
+    controller.setUser({ uid: 'u3', isAdmin: false, channel: 'production' });
+    expect(controller.getChannel()).toBe('production');
+    expect('setTesterChannel' in controller).toBe(false);
+    controller.setUser({ uid: 'u2', isAdmin: false, channel: 'internal' });
     await controller.signalReady();
     await controller.evaluate('manual');
     expect(vi.mocked(deps.fetchJson)).toHaveBeenLastCalledWith(

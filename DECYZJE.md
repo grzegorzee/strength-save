@@ -11,6 +11,21 @@
 
 ## DECYZJE
 
+### 2026-09-30: kanał testowy OTA przypisuje admin (bez ukrytego gestu)
+
+Decyzja koordynatora przed buildem 153/57: usunięty gest 7 dotknięć wersji (Apple 2.3.1(a):
+zero ukrytych funkcji). Kanał `internal` dostaje admin automatycznie albo tester wskazany w
+panelu: karta użytkownika > Uprawnienia > „Kanał aktualizacji: testowy”. Zapis przez nowy
+callable `adminSetLiveUpdateChannel` (assertAdmin, walidacja `internal|production`, audyt
+`auth_audit_logs` `admin_live_update_channel_updated`, plus `admin_audit_log`
+`liveUpdateChannel:<kanał>` z panelu) do `users/{uid}.liveUpdateChannel`. Klient nie może
+zmienić pola: jest poza whitelistą `affectedKeys().hasOnly` w `firestore.rules` (reguły bez
+zmian; test reguł z polem dopisanym do whitelisty czerwony 2/2, z produkcyjnymi zielony).
+Mapper `mapAppUserProfile` przenosi pole (test), pętla snapshot -> kontekst -> most OTA
+przetestowana (`user-provider-bootstrap`, `live-update-wiring`), karta admina test-first
+(`admin-live-update-channel`). Stary lokalny klucz przełącznika jest ignorowany (test).
+Deploy backend-first: funkcja `adminSetLiveUpdateChannel` przed klientem 153/57.
+
 ### 2026-09-30: aktualizacje OTA (live updates) self-host + koniec zamrożenia 1.0.0
 
 **Decyzje właściciela:** (1) zdalne aktualizacje warstwy JS/HTML/CSS, hosting wyłącznie
@@ -34,7 +49,7 @@ kontroler JS (czysta polityka + kontroler z DI): zgodność wersji/buildu/plugin
 treningu (trasa `/workout/*`, świeży draft, `finalSyncPending`, błąd IDB, nieznany user =
 blokada; przy zejściu w tło „następny” przypięty do bieżącego), powrót na ostatni dobry
 pakiet po rollbacku, wyłącznik do bundla wbudowanego, rollout procentowy, kanały
-internal (admin / 7 dotknięć wersji) i production. Telemetria: nowe kody `live-update-*`
+internal (admin automatycznie / tester przypisany przez admina, patrz wpis niżej) i production. Telemetria: nowe kody `live-update-*`
 w `client_errors` bez zmiany reguł; `appVersion` = `1.0.1-ota.N (153)`. Profil: „1.0.1 (153)
 · aktualizacja N”. Web bez zmian (plugin nie jest ładowany).
 

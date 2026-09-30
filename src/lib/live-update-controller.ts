@@ -63,7 +63,6 @@ export const MANIFEST_REFRESH_MS = 30 * 60 * 1000;
 
 const KEY = {
   installId: 'ss_live_update_v1:install-id',
-  channelOverride: 'ss_live_update_v1:channel-override',
   lastChannel: 'ss_live_update_v1:last-channel',
   lastGood: (version: string, build: string) => `ss_live_update_v1:last-good:${version}:${build}`,
   sequence: (channel: string, platform: string, version: string) => `ss_live_update_v1:sequence:${channel}:${platform}:${version}`,
@@ -86,6 +85,7 @@ export const createLiveUpdateController = (deps: LiveUpdateControllerDeps) => {
   let rollbackPending = false;
   let user: LiveUpdateUserState = undefined;
   let isAdmin = false;
+  let assignedChannel: LiveUpdateChannel = 'production';
   let inFlight: Promise<EvaluateOutcome> | null = null;
   let backgroundAt: number | null = null;
   let lastManifest: { key: string; at: number; result: ManifestVerification } | null = null;
@@ -115,8 +115,9 @@ export const createLiveUpdateController = (deps: LiveUpdateControllerDeps) => {
   };
 
   const channel = (): LiveUpdateChannel => {
-    if (deps.storage.get(KEY.channelOverride) === 'internal') return 'internal';
-    if (user && typeof user === 'object') return isAdmin ? 'internal' : 'production';
+    // Kanał przypisuje wyłącznie admin (users/{uid}.liveUpdateChannel przez callable)
+    // albo rola admina; żadnego ukrytego przełącznika na urządzeniu (Apple 2.3.1(a)).
+    if (user && typeof user === 'object') return isAdmin || assignedChannel === 'internal' ? 'internal' : 'production';
     // Przed rozpoznaniem usera: ostatni znany kanał tego urządzenia.
     return deps.storage.get(KEY.lastChannel) === 'internal' ? 'internal' : 'production';
   };
@@ -283,10 +284,13 @@ export const createLiveUpdateController = (deps: LiveUpdateControllerDeps) => {
       else deps.schedule(startupEvaluate, USER_WAIT_TIMEOUT_MS);
     },
 
-    setUser(next: { uid: string; isAdmin: boolean } | null): void {
+    setUser(next: { uid: string; isAdmin: boolean; channel?: LiveUpdateChannel } | null): void {
       const known = user !== undefined;
       user = next ? { uid: next.uid } : null;
       isAdmin = !!next?.isAdmin;
+      const nextChannel: LiveUpdateChannel = next?.channel === 'internal' ? 'internal' : 'production';
+      if (nextChannel !== assignedChannel) lastManifest = null;
+      assignedChannel = nextChannel;
       if (next) deps.storage.set(KEY.lastChannel, channel());
       flushReports();
       if (!known && readyState) deps.schedule(startupEvaluate, STARTUP_CHECK_DELAY_MS);
@@ -306,15 +310,6 @@ export const createLiveUpdateController = (deps: LiveUpdateControllerDeps) => {
     evaluate,
 
     getChannel: channel,
-
-    setTesterChannel(enabled: boolean): void {
-      deps.storage.set(KEY.channelOverride, enabled ? 'internal' : 'production');
-      lastManifest = null;
-    },
-
-    isTesterChannel(): boolean {
-      return deps.storage.get(KEY.channelOverride) === 'internal';
-    },
   };
 };
 

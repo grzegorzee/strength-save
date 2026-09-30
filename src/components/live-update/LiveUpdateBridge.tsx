@@ -16,16 +16,18 @@ export const LiveUpdateReadySignal = () => {
 
 interface LiveUpdateBridgeProps {
   /** undefined = profil jeszcze się ładuje (kanał nieznany), null = wylogowany. */
-  user: { uid: string; isAdmin: boolean } | null | undefined;
+  user: { uid: string; isAdmin: boolean; channel?: 'internal' | 'production' } | null | undefined;
 }
 
 export const LiveUpdateBridge = ({ user }: LiveUpdateBridgeProps) => {
   const known = user !== undefined;
   const uid = user?.uid ?? null;
   const isAdmin = !!user?.isAdmin;
+  // Kanał przypisany przez admina w panelu (users/{uid}.liveUpdateChannel).
+  const channel = user?.channel === 'internal' ? 'internal' : 'production';
   useEffect(() => {
     if (!known) return;
-    setLiveUpdateUser(uid ? { uid, isAdmin } : null);
-  }, [known, uid, isAdmin]);
+    setLiveUpdateUser(uid ? { uid, isAdmin, channel } : null);
+  }, [known, uid, isAdmin, channel]);
   return <LiveUpdateReadySignal />;
 };
