@@ -16,6 +16,7 @@ import { localDayParts, shiftDateStr } from "./local-time";
 import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail, type SesEmailHeader } from "./ses-email";
 import { defineSecret } from "firebase-functions/params";
 import { deriveUnsubscribeKey, listUnsubscribeHeaders, unsubscribeUrl } from "./email-unsubscribe";
+import { withCostGuard } from "./cost-guard";
 
 // 2026-09-29: klucz tokenów one-click unsubscribe wyprowadzany z tego sekretu.
 const unsubscribePepper = defineSecret("API_KEY_PEPPER");
@@ -286,12 +287,12 @@ export const weeklyDigest = onSchedule(
     timeoutSeconds: 300,
     secrets: [...SES_EMAIL_SECRETS, unsubscribePepper],
   },
-  async () => {
+  withCostGuard("weeklyDigest", async () => {
     const db = admin.firestore();
     logger.info("[WeeklyDigest] Starting...");
 
     await runWeeklyDigest(buildWeeklyDigestDeps(db, sendSesEmail, deriveUnsubscribeKey(unsubscribePepper.value())));
-  },
+  }),
 );
 
 // Z160: deps wyciągnięte do funkcji, żeby ręczny trigger testowy (sendTestDigest)

@@ -19,6 +19,8 @@ export const MAX_INSTANCES_OVERRIDES = {
   onWorkoutCompletedPrPush: 20,
   // Płatności: odrzucony webhook = opóźnione PRO u płacącego usera.
   revenuecatWebhook: 20,
+  // Bezpiecznik kosztów: jedna instancja serializuje komunikaty budżetu.
+  costGuardBudgetListener: 1,
 } as const;
 
 export const MAX_INSTANCES_CEILING = 30;

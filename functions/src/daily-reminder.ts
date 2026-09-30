@@ -7,6 +7,7 @@ import { forEachWithConcurrency } from "./bounded-concurrency";
 import { localDayParts } from "./local-time";
 import { resolvePlannedDayForDate, type ScheduleOverrides } from "./plan-day-resolver";
 import { blockContextFromPlanDoc, isPlannedDateBlocked, type PlannedDateBlockContext } from "./plan-date-block";
+import { withCostGuard } from "./cost-guard";
 
 // Codzienne poranne przypomnienie o treningu (push). Spersonalizowane: imię + dzisiejszy focus.
 // Wysyłamy TYLKO gdy: user ma token, nie wyłączył przypomnień, ma dostęp i dziś jest dzień treningowy.
@@ -276,7 +277,7 @@ export const dailyTrainingReminder = onSchedule(
     timeZone: "UTC",
     timeoutSeconds: 300,
   },
-  async () => {
+  withCostGuard("dailyTrainingReminder", async () => {
     const db = admin.firestore();
     const now = new Date();
     logger.info(`[dailyReminder] start, ${now.toISOString()}`);
@@ -293,5 +294,5 @@ export const dailyTrainingReminder = onSchedule(
     )));
 
     logger.info("[dailyReminder] done", result);
-  },
+  }),
 );

@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import { getInvalidFcmTokens, type ReminderUser } from "./daily-reminder";
+import { withCostGuard } from "./cost-guard";
 
 // Push przed koncem trybu "nie na 100%" (Runna pakiet 1, spec C3): wieczorem
 // w OSTATNIM dniu trybu przypominamy, ze od jutra wracamy stopniowo (rampa
@@ -128,7 +129,7 @@ export const vacationEndingPush = onSchedule(
     timeZone: "Europe/Warsaw",
     timeoutSeconds: 300,
   },
-  async () => {
+  withCostGuard("vacationEndingPush", async () => {
     const db = admin.firestore();
     const todayDate = new Date().toISOString().slice(0, 10);
     logger.info(`[vacationPush] start, data: ${todayDate}`);
@@ -171,7 +172,7 @@ export const vacationEndingPush = onSchedule(
     }, VACATION_TEXTS);
 
     logger.info("[vacationPush] done", result);
-  },
+  }),
 );
 
 export const reducedModeEndingPush = onSchedule(
@@ -180,7 +181,7 @@ export const reducedModeEndingPush = onSchedule(
     timeZone: "Europe/Warsaw",
     timeoutSeconds: 300,
   },
-  async () => {
+  withCostGuard("reducedModeEndingPush", async () => {
     const db = admin.firestore();
     // 18:00 Warsaw = 16:00/17:00 UTC, ten sam dzien kalendarzowy.
     const todayDate = new Date().toISOString().slice(0, 10);
@@ -224,5 +225,5 @@ export const reducedModeEndingPush = onSchedule(
     });
 
     logger.info("[reducedModePush] done", result);
-  },
+  }),
 );

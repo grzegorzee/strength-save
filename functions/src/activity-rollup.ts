@@ -2,6 +2,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { forEachWithConcurrency } from "./bounded-concurrency";
+import { withCostGuard } from "./cost-guard";
 
 // Z96: nocny rollup aktywności. Czyta TYLKO userów aktywnych wczoraj (query po
 // date w app_telemetry_daily), liczy okna 7/30 dni per user i zapisuje
@@ -121,7 +122,7 @@ export const activityRollup = onSchedule(
     timeZone: "Europe/Warsaw",
     timeoutSeconds: 300,
   },
-  async () => {
+  withCostGuard("activityRollup", async () => {
     const db = admin.firestore();
     const today = localDateKey(new Date());
     const yesterday = localDateKey(new Date(), -1);
@@ -152,5 +153,5 @@ export const activityRollup = onSchedule(
     });
 
     logger.info(`[activityRollup] done, przetworzeni: ${result.processed}`);
-  },
+  }),
 );

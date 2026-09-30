@@ -741,6 +741,14 @@ add('admin_cost_daily: read admina ALLOWED (Z222)', true, await ok(() => getDoc(
 add('admin_cost_daily: read usera DENIED (Z222)', false, await ok(() => getDoc(doc(db, 'admin_cost_daily', '2026-08-09'))));
 add('admin_cost_daily: write admina DENIED (pisze tylko backend) (Z222)', false, await ok(() => setDoc(doc(adminDb, 'admin_cost_daily', '2026-08-09'), { date: '2026-08-09' })));
 
+// === Bezpiecznik kosztow: config/cost_guard czyta admin (baner), pisze TYLKO backend ===
+// (listener budzetu i callable adminSetCostGuard z audytem; klient nie zdejmie pauzy sam).
+add('config/cost_guard: read admina ALLOWED (cost guard)', true, await ok(() => getDoc(doc(adminDb, 'config', 'cost_guard'))));
+add('config/cost_guard: read usera DENIED (cost guard)', false, await ok(() => getDoc(doc(db, 'config', 'cost_guard'))));
+add('config/cost_guard: write admina DENIED (tylko callable z audytem) (cost guard)', false, await ok(() => setDoc(doc(adminDb, 'config', 'cost_guard'), { paused: false })));
+add('config/cost_guard: write usera DENIED (cost guard)', false, await ok(() => setDoc(doc(db, 'config', 'cost_guard'), { paused: false })));
+add('config/cost_guard: delete admina DENIED (cost guard)', false, await ok(() => deleteDoc(doc(adminDb, 'config', 'cost_guard'))));
+
 // === Z217: agregat all-time (users/{uid}/aggregates) — pisze tylko backend ===
 add('aggregates: read wlasnego ALLOWED (Z217)', true, await ok(() => getDoc(doc(db, 'users', UID, 'aggregates', 'allTime'))));
 add('aggregates: read cudzego DENIED (Z217)', false, await ok(() => getDoc(doc(otherDb, 'users', UID, 'aggregates', 'allTime'))));
