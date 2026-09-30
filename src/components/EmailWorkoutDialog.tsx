@@ -86,12 +86,10 @@ export const EmailWorkoutDialog = ({
       } else {
         await effects.sendHistoryEmail(to, lang, range, trainerName);
       }
-      toast({
-        title: t('email.sentTitle'),
-        description: effects.practice
-          ? `${t('email.sentDesc', { email: to })} ${t('practice.emailHint')}`
-          : t('email.sentDesc', { email: to }),
-      });
+      // Próba: jedno zdanie bez sugestii realnej wysyłki; produkcja bez zmian.
+      toast(effects.practice
+        ? { description: t('practice.emailSent', { email: to }) }
+        : { title: t('email.sentTitle'), description: t('email.sentDesc', { email: to }) });
       onOpenChange(false);
       onSent?.(to);
       // WP-I: nowy adres -> pytamy o zapis DOPIERO po udanej wysyłce.

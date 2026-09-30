@@ -162,7 +162,7 @@ export const pl = {
   'tour.tabs.profile': 'Tapnij Profil: ustawienia, powiadomienia i powrót do przewodnika.',
   'tour.tabs.doneTitle': 'Wszystko jasne!',
   'tour.tabs.done': 'Przewodnik włączysz ponownie w Profilu: Konto i pomoc.',
-  'practice.emailHint': 'Tak to działa: w prawdziwym treningu podsumowanie trafi na ten adres.',
+  'practice.emailSent': 'Gotowe. W prawdziwym treningu podsumowanie trafi na {email}.',
   'tour.app.emailStep': 'Podsumowanie wyślesz trenerowi mailem. Wpisz dowolny adres i tapnij Wyślij.',
   'tour.app.hintEmail': 'Wyślij podsumowanie, by iść dalej',
   'tour.app.skipStep': 'Pomiń ten krok',

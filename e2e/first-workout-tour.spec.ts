@@ -42,7 +42,8 @@ const TXT = {
     swapTitle: 'Zamień ćwiczenie',
     swapMenu: 'Zamień ćwiczenie',
     emailStep: 'wyślesz trenerowi mailem',
-    emailHint: 'Tak to działa: w prawdziwym treningu podsumowanie trafi na ten adres.',
+    emailHint: 'Gotowe. W prawdziwym treningu podsumowanie trafi na trener@example.com.',
+    sentTitle: /^Wysłano$/,
     showTabs: 'Teraz pokażę Ci, gdzie co jest',
   },
   en: {
@@ -62,7 +63,8 @@ const TXT = {
     swapTitle: 'Swap exercise',
     swapMenu: 'Swap exercise',
     emailStep: 'Email the summary to your coach',
-    emailHint: 'That is how it works: in a real workout the summary goes to this address.',
+    emailHint: 'Done. In a real workout the summary goes to trener@example.com.',
+    sentTitle: /^Sent$/,
     showTabs: 'Now let me show you where everything is',
   },
 } as const;
@@ -231,6 +233,8 @@ const runFullSequence = async (page: Page, lang: Lang, shotsDir: string | null) 
   await page.getByTestId('email-workout-send').click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByText(T.emailHint).first()).toBeVisible();
+  // Próba nie sugeruje realnej wysyłki: bez produkcyjnego tytułu „Wysłano”.
+  await expect(page.getByText(T.sentTitle)).toHaveCount(0);
   // Dialog zamknięty czysto: bez scroll-locka i pointer-events na body.
   const body = await page.evaluate(() => ({
     pointer: getComputedStyle(document.body).pointerEvents,

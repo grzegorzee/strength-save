@@ -89,9 +89,11 @@ po Zakończ w próbie rozdział „Po treningu” (2 kroki, limit 4): spotlight 
 podsumowaniu), krok czeka na otwarcie dialogu, wpisanie adresu i „Wyślij”
 (wyjście: „Pomiń ten krok”), potem „Pokaż, gdzie co jest” jako akcja.
 Wysyłka i zapis trenera przeszły do adaptera `WorkoutEffects` (leniwe importy
-Firebase); w próbie wysyłka SYMULOWANA (600 ms „Wysyłanie…”, toast
-produkcyjny + „Tak to działa: w prawdziwym treningu podsumowanie trafi na ten
-adres.”), bez propozycji zapisu trenera. Uzasadnienie: „nic się nie zapisze”
+Firebase); w próbie wysyłka SYMULOWANA (600 ms „Wysyłanie…”, potem jedno
+zdanie bez sugestii realnej wysyłki: „Gotowe. W prawdziwym treningu
+podsumowanie trafi na {adres}.” / „Done. In a real workout the summary goes to
+{address}.”; produkcyjny komunikat prawdziwej wysyłki bez zmian), bez
+propozycji zapisu trenera. Uzasadnienie: „nic się nie zapisze”
 oraz ochrona reputacji domeny SES przed wysyłkami na przypadkowe adresy.
 Dowody: test izolacji (0 wywołań `emailWorkoutSummary/History`, 0 zapisu
 adresu), e2e oba silniki (dialog zamyka się czysto, bez scroll-locka), R9 na

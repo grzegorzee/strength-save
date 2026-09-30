@@ -160,7 +160,7 @@ export const en: Record<keyof typeof pl, string> = {
   'tour.tabs.profile': 'Tap Profile: settings, notifications and this guide again.',
   'tour.tabs.doneTitle': 'You are all set!',
   'tour.tabs.done': 'Replay the guide any time in Profile: Account & support.',
-  'practice.emailHint': 'That is how it works: in a real workout the summary goes to this address.',
+  'practice.emailSent': 'Done. In a real workout the summary goes to {email}.',
   'tour.app.emailStep': 'Email the summary to your coach. Type any address and tap Send.',
   'tour.app.hintEmail': 'Send the summary to continue',
   'tour.app.skipStep': 'Skip this step',
