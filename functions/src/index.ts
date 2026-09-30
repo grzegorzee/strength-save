@@ -111,6 +111,8 @@ export { activityRollup } from "./activity-rollup";
 export { adminUserRepair } from "./repairs/admin-user-repair";
 // Webhook RevenueCat → users/{uid}.subscription (entitlement PRO).
 export { revenuecatWebhook } from "./revenuecat";
+// 2026-09-30: podsumowanie subskrypcji (RC overview metrics, cache 1 h) + tygodniowy mail + status odbiorcy pusha o zakupach.
+export { adminSubscriptionMetrics, subscriptionAlertRecipientStatus, weeklySubscriptionDigest } from "./subscription-metrics";
 // Z217: agregat all-time treningów (kafle Dashboardu) + backfill na żądanie.
 export { onWorkoutWrittenAggregate, rebuildWorkoutAggregate } from "./workout-aggregate";
 // X35c (WP-E): push o nowym rekordzie na przejściu workouts.completed -> true.
