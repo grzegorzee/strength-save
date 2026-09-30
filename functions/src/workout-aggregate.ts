@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { FieldPath, FieldValue } from "firebase-admin/firestore";
+import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
 import {
   buildBodyWeightTimeline,
   bodyWeightForDate,
@@ -355,7 +356,7 @@ const readAggregate = (
 
 /** Trigger: każdy zapis workouts/{id} aktualizuje agregat właściciela. */
 export const onWorkoutWrittenAggregate = onDocumentWritten(
-  { document: "workouts/{workoutId}", region: "us-central1" },
+  { document: "workouts/{workoutId}", region: "us-central1", maxInstances: MAX_INSTANCES_OVERRIDES.onWorkoutWrittenAggregate },
   async (event) => {
     const workoutId = event.params.workoutId;
     const before = event.data?.before;

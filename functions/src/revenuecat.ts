@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { readRevenueCatSubscription, reconcileRevenueCatTransfer } from "./revenuecat-transfer";
+import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
 
 // Webhook RevenueCat → users/{uid}.subscription (źródło prawdy entitlementu w Firestore).
 // appUserID w RC = uid Firebase (Purchases.logIn w apce), więc event.app_user_id wskazuje
@@ -212,7 +213,7 @@ async function applySubscriptionWrite(uid: string, subscription: SubscriptionWri
 }
 
 export const revenuecatWebhook = onRequest(
-  { secrets: [webhookAuth, serverApiKey], region: "us-central1", cors: false },
+  { secrets: [webhookAuth, serverApiKey], region: "us-central1", cors: false, maxInstances: MAX_INSTANCES_OVERRIDES.revenuecatWebhook },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");

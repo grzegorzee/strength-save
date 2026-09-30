@@ -1,3 +1,5 @@
+// MUSI być pierwszym importem: opcje globalne są czytane przy definicji funkcji.
+import "./global-options";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { buildBodyWeightTimeline } from "./bodyweight-loaded";
