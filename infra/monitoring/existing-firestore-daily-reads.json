@@ -1,0 +1,47 @@
+{
+  "combiner": "OR",
+  "conditions": [
+    {
+      "conditionThreshold": {
+        "aggregations": [
+          {
+            "alignmentPeriod": "86400s",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "duration": "0s",
+        "filter": "metric.type=\"firestore.googleapis.com/document/read_count\" AND resource.type=\"firestore_instance\"",
+        "thresholdValue": 30000.0,
+        "trigger": {
+          "count": 1
+        }
+      },
+      "displayName": "Firestore reads above 30000 per day",
+      "name": "projects/fittracker-workouts/alertPolicies/11931168465255711595/conditions/11931168465255711266"
+    }
+  ],
+  "creationRecord": {
+    "mutateTime": "2026-08-31T15:52:14.203108026Z",
+    "mutatedBy": "g.jasionowicz@gmail.com"
+  },
+  "displayName": "Strength Save: Firestore daily reads",
+  "documentation": {
+    "content": "Firestore reads crossed the pre-launch warning threshold of 30000/day. Review the most active queries/listeners before the 50000/day free quota is exceeded.",
+    "mimeType": "text/markdown"
+  },
+  "enabled": true,
+  "mutationRecord": {
+    "mutateTime": "2026-08-31T15:52:14.203108026Z",
+    "mutatedBy": "g.jasionowicz@gmail.com"
+  },
+  "name": "projects/fittracker-workouts/alertPolicies/11931168465255711595",
+  "notificationChannels": [
+    "projects/fittracker-workouts/notificationChannels/14133494776147715887"
+  ],
+  "userLabels": {
+    "product": "strength-save",
+    "severity": "cost-warning"
+  }
+}

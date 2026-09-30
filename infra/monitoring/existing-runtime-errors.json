@@ -1,0 +1,46 @@
+{
+  "combiner": "OR",
+  "conditions": [
+    {
+      "conditionThreshold": {
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "duration": "0s",
+        "filter": "metric.type=\"logging.googleapis.com/user/strengthsave_runtime_error_count\" AND resource.type=\"cloud_run_revision\"",
+        "trigger": {
+          "count": 1
+        }
+      },
+      "displayName": "Cloud Run runtime error count above zero",
+      "name": "projects/fittracker-workouts/alertPolicies/9335124503441349026/conditions/9335124503441348277"
+    }
+  ],
+  "creationRecord": {
+    "mutateTime": "2026-08-31T15:51:54.701665074Z",
+    "mutatedBy": "g.jasionowicz@gmail.com"
+  },
+  "displayName": "Strength Save: production runtime errors",
+  "documentation": {
+    "content": "Runtime ERROR detected in a production Cloud Run revision. Check Cloud Logging, affected service and client_errors before continuing a release.",
+    "mimeType": "text/markdown"
+  },
+  "enabled": true,
+  "mutationRecord": {
+    "mutateTime": "2026-08-31T15:51:54.701665074Z",
+    "mutatedBy": "g.jasionowicz@gmail.com"
+  },
+  "name": "projects/fittracker-workouts/alertPolicies/9335124503441349026",
+  "notificationChannels": [
+    "projects/fittracker-workouts/notificationChannels/14133494776147715887"
+  ],
+  "userLabels": {
+    "product": "strength-save",
+    "severity": "release-blocker"
+  }
+}
