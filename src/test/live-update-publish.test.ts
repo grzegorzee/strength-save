@@ -8,6 +8,7 @@ import {
   buildManifestPayload,
   diffInventories,
   inventoryFingerprint,
+  localNativeHash,
   nativeInventory,
   nextOtaNumber,
   selectBaselines,
@@ -85,6 +86,29 @@ describe('publikacja OTA: kontrola zgodności natywnej', () => {
       channel: 'internal', platform: 'ios', nativeVersion: '1.0.1', minSequence: 0, allowInsecureLocalhost: false,
     });
     expect(result.status).toBe('ok');
+  });
+
+  // Regresja 2026-09-30: odcisk liczył gitignorowany config.xml generowany przez
+  // `cap sync`, więc świeży checkout (CI, nowy worktree) miał inny odcisk niż build.
+  it('odcisk lokalnego kodu natywnego obejmuje tylko pliki śledzone w git', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'ota-native-'));
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf8' });
+    git('init', '-q');
+    mkdirSync(join(repo, 'android/app/src/main/res/xml'), { recursive: true });
+    mkdirSync(join(repo, 'android/app/src/main/java/app'), { recursive: true });
+    writeFileSync(join(repo, 'android/.gitignore'), 'app/src/main/res/xml/config.xml\n');
+    writeFileSync(join(repo, 'android/app/src/main/java/app/Plugin.kt'), 'class Plugin\n');
+    writeFileSync(join(repo, 'android/app/src/main/res/xml/backup_rules.xml'), '<full-backup-content/>\n');
+    writeFileSync(join(repo, 'capacitor.config.ts'), 'export default {};\n');
+    git('add', '-A');
+    const clean = localNativeHash(repo, 'android');
+    // Stan „po cap sync”: pojawia się ignorowany plik generowany i nieśledzony śmieć.
+    writeFileSync(join(repo, 'android/app/src/main/res/xml/config.xml'), '<widget><feature name="X"/></widget>\n');
+    writeFileSync(join(repo, 'android/app/src/main/java/app/Scratch.kt'), 'class Scratch\n');
+    expect(localNativeHash(repo, 'android')).toEqual(clean);
+    // Zmiana śledzonego pliku natywnego nadal zmienia odcisk.
+    writeFileSync(join(repo, 'android/app/src/main/java/app/Plugin.kt'), 'class Plugin2\n');
+    expect(localNativeHash(repo, 'android').sha256).not.toBe(clean.sha256);
   });
 
   it('bieżące źródła mają zarejestrowany, zgodny baseline 1.0.1 dla obu platform', () => {

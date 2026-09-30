@@ -115,7 +115,9 @@ deweloperski Vite domyślnie blokuje `*.pem`.
 - **Zgodność:** pakiet aktywuje się tylko gdy wersja natywna jest identyczna, build >= `minNativeBuild`
   i wszystkie `requiredPlugins` są dostępne (`Capacitor.isPluginAvailable`). Przy publikacji skrypt
   porównuje warstwę natywną pakietu z baseline'em builda (`release/live-updates/native-baselines/`):
-  Capacitor core/ios/android, wersje 19 pluginów, hash lokalnego kodu natywnego i `capacitor.config.ts`.
+  Capacitor core/ios/android, wersje 19 pluginów, hash lokalnego kodu natywnego i `capacitor.config.ts`
+  (wyłącznie pliki śledzone przez repozytorium; artefakty `cap sync`, np. `res/xml/config.xml`, nie
+  wchodzą do odcisku, więc świeży checkout i drzewo po synchronizacji dają ten sam wynik).
   Różnica = odmowa. W jednej wersji natywnej warstwa natywna musi być stała (zmiana = `version:bump`).
 - **Kanały:** `internal` (admin automatycznie; tester: przypisanie admina w panelu, karta użytkownika >
   Uprawnienia > „Kanał aktualizacji: testowy”, callable `adminSetLiveUpdateChannel` z audytem,

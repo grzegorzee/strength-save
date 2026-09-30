@@ -1,8 +1,9 @@
 // Logika publikacji OTA bez side-effectów sieciowych (testowana w
 // src/test/live-update-publish.test.ts). Zasady: docs/LIVE-UPDATES.md.
+import { execFileSync } from 'node:child_process';
 import { createHash, createSign, createVerify } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 
 export const CHANNELS = ['internal', 'production'];
 export const PLATFORMS = ['ios', 'android'];
@@ -71,14 +72,20 @@ const LOCAL_NATIVE = {
   },
 };
 
+// Wyłącznie pliki ŚLEDZONE w git: artefakty `cap sync` (res/xml/config.xml,
+// capacitor.config.json, public/) są gitignorowane i różnią się między świeżym
+// checkoutem a drzewem po synchronizacji (regresja 2026-09-30: inny odcisk w CI).
+// Lista pluginów pochodzi z package.json + node_modules (collectCapacitorPlugins),
+// nie z generowanego config.xml.
+const trackedFiles = (root, paths) => {
+  const out = execFileSync('git', ['ls-files', '-z', '--', ...paths], { cwd: root, encoding: 'utf8' });
+  return out.split('\0').filter(Boolean);
+};
+
 export const localNativeHash = (root, platform) => {
   const spec = LOCAL_NATIVE[platform];
-  const files = [
-    ...spec.dirs.flatMap((dir) => listFiles(join(root, dir))),
-    ...(spec.files ?? []).map((file) => join(root, file)).filter((file) => existsSync(file)),
-    join(root, 'capacitor.config.ts'),
-  ]
-    .map((file) => relative(root, file).split('\\').join('/'))
+  const files = trackedFiles(root, [...spec.dirs, ...(spec.files ?? []), 'capacitor.config.ts'])
+    .filter((file) => existsSync(join(root, file)))
     .filter((file) => file === 'capacitor.config.ts' || (spec.include.test(file) && !spec.exclude.test(file)))
     .sort();
   const entries = files.map((file) => [file, sha256(readFileSync(join(root, file)))]);
