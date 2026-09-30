@@ -173,8 +173,11 @@ export const validateReleaseCandidateManifest = (manifest) => {
     return { ok: false, reason: 'invalid-schema' };
   }
   const versions = manifest.versions ?? {};
-  if (versions.package !== '1.0.0' || versions.iosMarketing !== '1.0.0' || versions.androidName !== '1.0.0') {
-    return { ok: false, reason: 'marketing-version-must-remain-1.0.0' };
+  // Od 2026-09-30 wersja nie jest zamrożona na 1.0.0: musi być SemVer i równa
+  // we wszystkich miejscach (package.json = MARKETING_VERSION = versionName).
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(versions.package ?? '')
+    || versions.iosMarketing !== versions.package || versions.androidName !== versions.package) {
+    return { ok: false, reason: 'marketing-version-mismatch' };
   }
   if (!COMMIT_SHA.test(manifest.baseCommit ?? '')) return { ok: false, reason: 'invalid-base-commit' };
   if (!Array.isArray(manifest.sourceFiles) || manifest.sourceFiles.length === 0) {

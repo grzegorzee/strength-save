@@ -4,6 +4,7 @@ import {
   findBuildNumberMismatch,
   validateRevenueCatAppleApiKey,
 } from './release-ios-preflight-checks.mjs';
+import { findVersionProblems, readVersionState } from './version-helpers.mjs';
 
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 const info = readFileSync('ios/App/App/Info.plist', 'utf8');
@@ -24,6 +25,18 @@ if (!buildCheck.ok) {
   throw new Error(
     `iOS CURRENT_PROJECT_VERSION must be present and consistent in project.pbxproj (${buildCheck.reason}: ${buildCheck.values.join(', ') || 'none found'}).`
   );
+}
+// Wersja SemVer i buildy muszą być równe we WSZYSTKICH miejscach (package.json,
+// lock, pbxproj ×6, gradle, release-train) — to samo co `npm run version:check`.
+const versionProblems = findVersionProblems(readVersionState({
+  packageJson: readFileSync('package.json', 'utf8'),
+  packageLock: readFileSync('package-lock.json', 'utf8'),
+  pbxproj: project,
+  buildGradle: readFileSync('android/app/build.gradle', 'utf8'),
+  releaseTrain: readFileSync('release/release-train.json', 'utf8'),
+}));
+if (versionProblems.length) {
+  throw new Error(`Version sources are inconsistent (npm run version:check):\n- ${versionProblems.join('\n- ')}`);
 }
 // Ten sam mode co `npm run build:mobile`; jawny env procesu ma pierwszeństwo.
 const mobileEnv = loadEnv('mobile', process.cwd(), 'VITE_');

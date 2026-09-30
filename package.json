@@ -1,7 +1,7 @@
 {
   "name": "strength-save",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "engines": {
     "node": ">=22"
   },
@@ -19,6 +19,9 @@
     "mobile:android": "npm run mobile:sync && cap open android",
     "mobile:ios": "npm run mobile:sync && cap open ios",
     "release:ios": "scripts/release-ios.sh",
+    "version:check": "node scripts/version.mjs check",
+    "version:bump": "node scripts/version.mjs bump",
+    "version:build": "node scripts/version.mjs build",
     "release:manifest": "node scripts/release-candidate-manifest.mjs",
     "release:manifest:verify": "node scripts/release-candidate-manifest.mjs --verify",
     "preflight:ios-release": "node scripts/release-ios-preflight.mjs",
