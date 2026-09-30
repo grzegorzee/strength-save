@@ -75,6 +75,15 @@ service firebase.storage {
       allow read: if false;
     }
 
+    // Aktualizacje OTA (docs/LIVE-UPDATES.md): manifesty kanałów i pakiety to ten
+    // sam kod JS/HTML/CSS co publiczny web, więc odczyt jest publiczny (aplikacja
+    // pobiera je przed zalogowaniem). Integralność zapewnia podpis RSA weryfikowany
+    // w aplikacji, nie tajność. Zapis wyłącznie Admin SDK / gcloud (skrypt publikacji).
+    match /live-updates/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Domyślnie: brak dostępu.
     match /{allPaths=**} {
       allow read, write: if false;

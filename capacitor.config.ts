@@ -1,7 +1,16 @@
 /// <reference types="@capacitor-firebase/authentication" />
 /// <reference types="@capacitor-firebase/app-check" />
 /// <reference types="@capacitor-firebase/messaging" />
+/// <reference types="@capawesome/capacitor-live-update" />
+import { readFileSync } from 'node:fs';
 import type { CapacitorConfig } from '@capacitor/cli';
+
+// Klucz PUBLICZNY OTA (prywatny: ~/FIRMA/_secrets/projekty/strength_save-live-update/,
+// nigdy w repo). Jedna linia bez \n: iOS usuwa nagłówki PEM i \n przed base64
+// (LiveUpdate.swift verifySignatureForFile), Android tak samo (createPublicKeyFromString).
+const liveUpdatePublicKey = readFileSync('release/live-updates/public-key.txt', 'utf8')
+  .replace(/\r?\n/g, '')
+  .trim();
 
 const config: CapacitorConfig = {
   appId: 'com.grzegorzjasionowicz.strengthsave',
@@ -60,6 +69,21 @@ const config: CapacitorConfig = {
       // kontrolowany toast (PushRegistrar), znika podwójny banner. W tle
       // systemowy banner działa normalnie (presentationOptions dotyczy foregroundu).
       presentationOptions: ['badge', 'sound'],
+    },
+    LiveUpdate: {
+      // OTA self-host (docs/LIVE-UPDATES.md): żadnej chmury Capawesome. Bez appId
+      // i ze strategią 'none' plugin nie wykonuje własnych zapytań sieciowych;
+      // pakiety pobiera kontroler (src/lib/live-update-controller.ts) z naszego bucketu.
+      autoUpdateStrategy: 'none',
+      // Pakiet, który nie zgłosi gotowości w 20 s, wraca do bundla wbudowanego
+      // i zostaje zablokowany na tym urządzeniu.
+      readyTimeout: 20000,
+      autoBlockRolledBackBundles: true,
+      // Kasowaniem steruje kontroler (zostawia ostatni dobry pakiet do powrotu).
+      autoDeleteBundles: false,
+      // Z kluczem publicznym plugin WYMAGA podpisu ZIP i odrzuca pakiet bez niego.
+      publicKey: liveUpdatePublicKey,
+      httpTimeout: 60000,
     },
     Keyboard: {
       // Z159: ŻADNEJ zmiany globalnego layoutu — resize webview wywróciłby fixed

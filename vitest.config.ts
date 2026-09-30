@@ -11,6 +11,7 @@ export default defineConfig({
   // dziure srodowiska testowego.
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __OTA_ID__: JSON.stringify(''),
   },
   test: {
     environment: "jsdom",

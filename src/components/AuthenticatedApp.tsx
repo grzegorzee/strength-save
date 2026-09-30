@@ -32,6 +32,7 @@ import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
 import { BootScreen } from '@/components/BootScreen';
 import type { ProtectedCallableRejectionReason } from '@/lib/protected-callable';
 import { addBugReportCameraRestoreListener } from '@/lib/bug-report-camera-restore';
+import { LiveUpdateBridge } from '@/components/live-update/LiveUpdateBridge';
 
 const Dashboard = lazyWithRetry(() => import('@/pages/Dashboard'), 'lazy-retry:dashboard');
 const DayPlan = lazyWithRetry(() => import('@/pages/DayPlan'), 'lazy-retry:day-plan');
@@ -302,10 +303,17 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
   );
 };
 
+// OTA: gotowość powłoki + kanał (admin = internal) dopiero po załadowaniu profilu.
+const LiveUpdateUserBridge = () => {
+  const { uid, isAdmin, profileLoaded } = useCurrentUser();
+  return <LiveUpdateBridge user={profileLoaded && uid ? { uid, isAdmin } : undefined} />;
+};
+
 export default function AuthenticatedApp({ onLogout, onAccountDeleted }: SessionExits) {
   return (
     <UnitProvider>
       <UserProvider>
+        <LiveUpdateUserBridge />
         <TelemetryHeartbeat />
         <PushRegistrar />
         <PreferenceSync />

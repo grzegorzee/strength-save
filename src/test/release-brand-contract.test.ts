@@ -58,8 +58,10 @@ describe('Z230 — one Strength Save release and brand contract', () => {
     const iosBuild = Number(read('ios/App/App.xcodeproj/project.pbxproj').match(/CURRENT_PROJECT_VERSION = (\d+);/)?.[1]);
     const androidCode = Number(read('android/app/build.gradle').match(/versionCode (\d+)/)?.[1]);
     expect(train.web.url).toBe('https://app.strengthsave.app/');
-    expect(train.ios).toMatchObject({ version: '1.0.0', build: iosBuild });
-    expect(train.android).toMatchObject({ version: '1.0.0', versionCode: androidCode });
+    const productVersion = (JSON.parse(read('package.json')) as { version: string }).version;
+    expect(train.product.version).toBe(productVersion);
+    expect(train.ios).toMatchObject({ version: productVersion, build: iosBuild });
+    expect(train.android).toMatchObject({ version: productVersion, versionCode: androidCode });
     expect(['source-version-requires-current-delivery-verification', 'testflight-delivered-verified']).toContain(train.ios.state);
     if (train.ios.state === 'testflight-delivered-verified') expect(JSON.parse(read(String(train.ios.deliveryEvidence))).artifact.build).toBe(iosBuild);
     expect(['source-version-requires-current-delivery-verification', 'internal-delivered-verified']).toContain(train.android.state);

@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { hideNativeSplashWhenReady } from '@/lib/native-splash';
 import { BootScreen } from '@/components/BootScreen';
+import { LiveUpdateBridge, LiveUpdateReadySignal } from '@/components/live-update/LiveUpdateBridge';
 
 const queryClient = new QueryClient();
 const Login = lazyWithRetry(() => import('@/pages/Login'), 'lazy-retry:login');
@@ -28,7 +29,15 @@ const AuthRedirect = () => {
 const AuthenticationGate = () => {
   const { isAuthenticated, loading, slow, logout, logoutAfterAccountDeletion } = useAuth();
 
-  if (loading) return <BootScreen slow={slow} onRetry={() => window.location.reload()} />;
+  if (loading) {
+    return (
+      <>
+        <BootScreen slow={slow} onRetry={() => window.location.reload()} />
+        {/* Wolny start (sieć/auth) to nie awaria kodu: bez tego OTA cofnęłoby dobry pakiet. */}
+        {slow && <LiveUpdateReadySignal />}
+      </>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -39,6 +48,7 @@ const AuthenticationGate = () => {
             <Route path="/register" element={<Login mode="register" />} />
             <Route path="*" element={<AuthRedirect />} />
           </Routes>
+          <LiveUpdateBridge user={null} />
         </Suspense>
       </HashRouter>
     );

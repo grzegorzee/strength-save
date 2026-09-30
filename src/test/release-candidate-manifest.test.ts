@@ -123,7 +123,7 @@ describe('release candidate manifest', () => {
     expect(validateReleaseCandidateManifest(first)).toEqual({ ok: true, reason: 'valid' });
   });
 
-  it('odrzuca zmianę którejkolwiek wersji marketingowej z 1.0.0 oraz duplikaty ścieżek', () => {
+  it('odrzuca rozjazd wersji marketingowej między platformami oraz duplikaty ścieżek', () => {
     const base = buildReleaseCandidateManifest({
       generatedAt: '2026-08-28T10:00:00.000Z',
       baseCommit: 'a'.repeat(40),
@@ -137,7 +137,22 @@ describe('release candidate manifest', () => {
     expect(validateReleaseCandidateManifest({
       ...base,
       versions: { ...base.versions, androidName: '1.0.1' },
-    })).toEqual({ ok: false, reason: 'marketing-version-must-remain-1.0.0' });
+    })).toEqual({ ok: false, reason: 'marketing-version-mismatch' });
+
+    expect(validateReleaseCandidateManifest({
+      ...base,
+      versions: { ...base.versions, package: '1.0', iosMarketing: '1.0', androidName: '1.0' },
+    })).toEqual({ ok: false, reason: 'marketing-version-mismatch' });
+
+    expect(validateReleaseCandidateManifest(buildReleaseCandidateManifest({
+      generatedAt: '2026-09-30T10:00:00.000Z',
+      baseCommit: 'a'.repeat(40),
+      versions: { package: '1.0.1', iosMarketing: '1.0.1', iosBuild: '153', androidName: '1.0.1', androidCode: '57' },
+      sourceFiles: [{ path: 'src/a.ts', size: 1, mode: 0o644, sha256: 'a'.repeat(64), status: ' M' }],
+      environmentFingerprints: [],
+      artifacts: [],
+      evidence: { auditSha256: 'e'.repeat(64) },
+    }))).toEqual({ ok: true, reason: 'valid' });
 
     expect(validateReleaseCandidateManifest({
       ...base,
