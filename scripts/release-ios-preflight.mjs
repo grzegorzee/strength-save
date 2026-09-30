@@ -5,6 +5,7 @@ import {
   validateRevenueCatAppleApiKey,
 } from './release-ios-preflight-checks.mjs';
 import { findVersionProblems, readVersionState } from './version-helpers.mjs';
+import { inventoryFingerprint, loadBaselines, nativeInventory } from './live-update-helpers.mjs';
 
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 const info = readFileSync('ios/App/App/Info.plist', 'utf8');
@@ -37,6 +38,16 @@ const versionProblems = findVersionProblems(readVersionState({
 }));
 if (versionProblems.length) {
   throw new Error(`Version sources are inconsistent (npm run version:check):\n- ${versionProblems.join('\n- ')}`);
+}
+// OTA: każdy build natywny musi mieć zarejestrowaną warstwę natywną (baseline),
+// inaczej pakiety OTA nie mogą bezpiecznie sprawdzić zgodności (docs/LIVE-UPDATES.md).
+const iosBuild = Number(buildCheck.values[0]);
+const iosBaseline = loadBaselines('.').find((b) => b.platform === 'ios' && b.nativeVersion === version && b.nativeBuild === iosBuild);
+if (!iosBaseline) {
+  throw new Error(`Missing OTA native baseline for iOS ${version} (${iosBuild}): npm run live-update:baseline -- --platform ios --write`);
+}
+if (iosBaseline.fingerprint !== inventoryFingerprint(nativeInventory('.', 'ios'))) {
+  throw new Error(`OTA native baseline iOS ${version} (${iosBuild}) does not match the current native layer. Native change within one version requires npm run version:bump.`);
 }
 // Ten sam mode co `npm run build:mobile`; jawny env procesu ma pierwszeństwo.
 const mobileEnv = loadEnv('mobile', process.cwd(), 'VITE_');

@@ -22,6 +22,8 @@
     "version:check": "node scripts/version.mjs check",
     "version:bump": "node scripts/version.mjs bump",
     "version:build": "node scripts/version.mjs build",
+    "live-update:baseline": "node scripts/live-update-baseline.mjs",
+    "live-update:publish": "node scripts/publish-live-update.mjs",
     "release:manifest": "node scripts/release-candidate-manifest.mjs",
     "release:manifest:verify": "node scripts/release-candidate-manifest.mjs --verify",
     "preflight:ios-release": "node scripts/release-ios-preflight.mjs",
