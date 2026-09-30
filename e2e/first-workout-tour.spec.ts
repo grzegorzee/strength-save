@@ -36,7 +36,7 @@ const TXT = {
     menu: 'zamienisz albo pominiesz',
     finish: 'tapnij Zakończ trening',
     doneTitle: 'Tak wygląda każdy trening',
-    counter12: '1 z 2',
+    counter12: 'Krok 1 z 2',
     tabPlan: 'Tapnij Plan',
     tabsDone: 'Wszystko jasne!',
     swapTitle: 'Zamień ćwiczenie',
@@ -53,7 +53,7 @@ const TXT = {
     menu: 'Swap or skip an exercise',
     finish: 'tap Finish workout',
     doneTitle: 'That is every workout',
-    counter12: '1 of 2',
+    counter12: 'Step 1 of 2',
     tabPlan: 'Tap Plan',
     tabsDone: 'You are all set!',
     swapTitle: 'Swap exercise',
@@ -118,6 +118,15 @@ const expectStepGeometry = async (page: Page) => {
   expect(bubble!.y + bubble!.height).toBeLessThanOrEqual(vp.height + 0.5);
   await expect(page.getByTestId('tour-skip')).toBeInViewport();
   const cutout = page.getByTestId('tour-cutout');
+  // Jednolite przyciemnienie na KAŻDYM kroku (próba i zakładki): jeden czarny
+  // cień 66% wokół wycięcia albo pełny panel 66% przy dymku na środku.
+  const dim = await page.evaluate(() => {
+    const cut = document.querySelector<HTMLElement>('[data-testid="tour-cutout"]');
+    if (cut) return cut.style.boxShadow;
+    const panel = document.querySelector<HTMLElement>('[data-app-tour] > div');
+    return panel ? getComputedStyle(panel).backgroundColor : 'brak';
+  });
+  expect(dim).toMatch(/rgba\(0, 0, 0, 0\.66\)/);
   if (await cutout.count()) {
     const cut = (await cutout.boundingBox())!;
     const overlap = !(bubble!.y >= cut.y + cut.height || bubble!.y + bubble!.height <= cut.y);

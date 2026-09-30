@@ -300,10 +300,10 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
   it('licznik „k z n” liczony w porcji (max 3 kroki), nie gołe paski', async () => {
     const { rerenderSets } = renderWorkoutTour();
     await screen.findByTestId('tour-step-set-inputs');
-    expect(screen.getByTestId('tour-progress').textContent).toBe('1 z 2');
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 2');
     rerenderSets(1);
     await screen.findByTestId('tour-step-first-set-done');
-    expect(screen.getByTestId('tour-progress').textContent).toBe('1 z 3');
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 3');
   });
 
   it('timer wyłączony (brak paska przerwy): celebracja bez wycięcia, zdanie bez obietnicy powiadomienia', async () => {
@@ -447,7 +447,7 @@ describe('AppTour: Dashboard (zaproszenie) i rozdział zakładek', () => {
       </LanguageProvider>,
     );
     await screen.findByTestId('tour-step-tab-plan');
-    expect(screen.getByTestId('tour-progress').textContent).toBe('1 z 4');
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 4');
     await nextFrame();
     for (const [id, next] of [['plan', 'history'], ['history', 'progress'], ['progress', 'profile'], ['profile', 'tabs-done']] as const) {
       fireEvent.click(screen.getByText(id));

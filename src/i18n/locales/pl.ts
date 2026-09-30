@@ -155,7 +155,7 @@ export const pl = {
   'tour.app.exerciseMenu': 'Tu zamienisz albo pominiesz ćwiczenie.',
   'tour.app.hintTap': 'Tapnij podświetlone miejsce',
   'tour.app.hintCheck': 'Odhacz serię, by iść dalej',
-  'tour.app.counter': '{n} z {total}',
+  'tour.app.counter': 'Krok {n} z {total}',
   'tour.tabs.plan': 'Tapnij Plan: tu jest Twój tydzień, a dzień przełożysz albo pominiesz.',
   'tour.tabs.history': 'Tapnij Historię: tu trafia każdy zapisany trening.',
   'tour.tabs.progress': 'Tapnij Postępy: wykresy i rekordy rosną z każdą sesją.',

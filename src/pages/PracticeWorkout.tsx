@@ -155,11 +155,11 @@ const PracticeWorkoutScreen = () => {
           z-[75]: NAD overlayem przewodnika (z-70), więc „Zakończ próbę” działa
           także w trakcie kroku (każdy stan ma wyjście, zasada 6). */}
       <div
-        className="sticky top-[max(0.5rem,env(safe-area-inset-top))] z-[75] flex items-center gap-3 rounded-2xl bg-fitness-cyan/10 py-2 pl-4 pr-2 backdrop-blur-xl"
+        className="sticky top-[max(0.5rem,env(safe-area-inset-top))] z-[75] flex items-center gap-3 rounded-2xl bg-surface-low py-2 pl-4 pr-2 shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
         data-testid="practice-banner"
       >
-        <FlaskConical className="h-4 w-4 shrink-0 text-fitness-cyan" aria-hidden />
-        <p className="min-w-0 flex-1 text-[13px] font-semibold leading-tight text-fitness-cyan">{t('practice.banner')}</p>
+        <FlaskConical className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        <p className="min-w-0 flex-1 text-[13px] font-semibold leading-tight text-primary">{t('practice.banner')}</p>
         <button
           type="button"
           data-testid="practice-exit"

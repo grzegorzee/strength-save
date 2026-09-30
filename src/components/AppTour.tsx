@@ -427,7 +427,7 @@ export const AppTour = ({
         )}
         <div className="max-h-[inherit] overflow-y-auto overscroll-contain px-5 pb-4 pt-5" data-testid="tour-scroll">
           {chunkSteps.length > 1 && chunkIndex >= 0 && (
-            <p className="mb-2 font-mono text-[11px] tracking-[0.12em] text-muted-foreground" data-testid="tour-progress">
+            <p className="mb-1.5 text-xs text-muted-foreground" data-testid="tour-progress">
               {t('tour.app.counter', { n: chunkIndex + 1, total: chunkSteps.length })}
             </p>
           )}

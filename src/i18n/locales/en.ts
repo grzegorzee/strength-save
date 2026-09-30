@@ -153,7 +153,7 @@ export const en: Record<keyof typeof pl, string> = {
   'tour.app.exerciseMenu': 'Swap or skip an exercise here.',
   'tour.app.hintTap': 'Tap the highlighted spot',
   'tour.app.hintCheck': 'Check off the set to continue',
-  'tour.app.counter': '{n} of {total}',
+  'tour.app.counter': 'Step {n} of {total}',
   'tour.tabs.plan': 'Tap Plan: your week lives here, and you can move or skip a day.',
   'tour.tabs.history': 'Tap History: every saved workout ends up here.',
   'tour.tabs.progress': 'Tap Progress: charts and records grow with every session.',
