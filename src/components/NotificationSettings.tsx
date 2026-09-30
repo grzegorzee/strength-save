@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
 import { getPushPermission, registerPushForUser, requestPushPermission, type PushPermission } from '@/lib/push-notifications';
+import { subscriptionAlertRecipientStatus } from '@/lib/registration-api';
 import {
   NOTIFICATION_PREF_CHANNELS,
   NOTIFICATION_PREF_KEYS,
@@ -18,6 +19,7 @@ import {
   type NotificationChannel,
   type NotificationPrefKey,
   type NotificationPrefs,
+  type OwnerNotificationPrefKey,
 } from '@/lib/notification-prefs';
 
 const CHANNEL_LABEL_KEYS: Record<NotificationChannel, TranslationKey> = {
@@ -47,7 +49,7 @@ const initialPrefs = (prefs: NotificationPrefs | undefined): Record<Notification
 // user ustawia z laptopa to, co dostanie na telefon.
 // X36: `hideTitle` — karta żyje w zwijanej sekcji Profilu, której wiersz jest tytułem.
 export const NotificationSettings = ({ hideTitle = false }: { hideTitle?: boolean } = {}) => {
-  const { uid, profile } = useCurrentUser();
+  const { uid, profile, isAdmin } = useCurrentUser();
   const { toast } = useToast();
   const { t } = useTranslation();
   const isNative = Capacitor.isNativePlatform();
@@ -56,6 +58,19 @@ export const NotificationSettings = ({ hideTitle = false }: { hideTitle?: boolea
   const [registrationFailed, setRegistrationFailed] = useState(false);
   const storedPrefs = (profile as { notificationPrefs?: NotificationPrefs } | null)?.notificationPrefs;
   const [prefs, setPrefs] = useState(() => initialPrefs(storedPrefs));
+  // 2026-09-30: push o zakupach idzie tylko na konto właściciela (parametr
+  // serwera), więc przełącznik pokazujemy dopiero po potwierdzeniu z backendu.
+  const [alertRecipient, setAlertRecipient] = useState(false);
+  const [subscriptionAlerts, setSubscriptionAlerts] = useState(() => isNotificationPrefEnabled(storedPrefs, 'subscriptionAlerts'));
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    subscriptionAlertRecipientStatus()
+      .then((status) => { if (!cancelled) setAlertRecipient(status.recipient === true); })
+      .catch(() => { /* brak statusu = brak przełącznika; push i tak decyduje serwer */ });
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,6 +104,16 @@ export const NotificationSettings = ({ hideTitle = false }: { hideTitle?: boolea
       await updateDoc(doc(db, 'users', uid), { [`notificationPrefs.${key}`]: value });
     } catch {
       setPrefs((prev) => ({ ...prev, [key]: !value }));
+      toast({ title: t('admin.error'), variant: 'destructive' });
+    }
+  };
+
+  const toggleOwnerPref = async (key: OwnerNotificationPrefKey, value: boolean) => {
+    setSubscriptionAlerts(value);
+    try {
+      await updateDoc(doc(db, 'users', uid), { [`notificationPrefs.${key}`]: value });
+    } catch {
+      setSubscriptionAlerts(!value);
       toast({ title: t('admin.error'), variant: 'destructive' });
     }
   };
@@ -169,6 +194,27 @@ export const NotificationSettings = ({ hideTitle = false }: { hideTitle?: boolea
               </div>
             );
           })}
+          {alertRecipient && (
+            <div
+              data-testid="notif-pref-subscriptionAlerts"
+              className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{t('settings.notif.subscriptionAlerts')}</p>
+                <p className="text-xs text-muted-foreground">{t('settings.notif.subscriptionAlertsDesc')}</p>
+                <p className="mt-1 flex flex-wrap gap-1">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    {t(CHANNEL_LABEL_KEYS.push)}
+                  </span>
+                </p>
+              </div>
+              <Switch
+                checked={subscriptionAlerts}
+                onCheckedChange={(value) => void toggleOwnerPref('subscriptionAlerts', value)}
+                aria-label={t('settings.notif.subscriptionAlerts')}
+              />
+            </div>
+          )}
         </section>
       </CardContent>
     </Card>

@@ -362,6 +362,45 @@ export async function adminSetCostGuard(paused: boolean) {
   return result.data;
 }
 
+// 2026-09-30: karta „Subskrypcje” w panelu admina. Liczby z RevenueCat API v2
+// liczy backend (klucz serwerowy nigdy w kliencie), cache max 1 h w Firestore.
+export interface SubscriptionMetricsView {
+  activeTrials: number | null;
+  activeSubscriptions: number | null;
+  mrr: number | null;
+  revenue28d: number | null;
+  newCustomers28d: number | null;
+  activeUsers28d: number | null;
+  currency: string;
+  rcUpdatedAt: number | null;
+}
+
+export interface SubscriptionMetricsResponse {
+  metrics: SubscriptionMetricsView | null;
+  fetchedAt: number | null;
+  stale: boolean;
+  error: string | null;
+}
+
+export async function adminSubscriptionMetrics(): Promise<SubscriptionMetricsResponse> {
+  if (isE2EMode) {
+    return { metrics: null, fetchedAt: null, stale: false, error: null };
+  }
+  const fn = httpsCallable<void, SubscriptionMetricsResponse>(functions, "adminSubscriptionMetrics");
+  const result = await fn();
+  return result.data;
+}
+
+/** Czy zalogowane konto jest odbiorcą pusha o zakupach (parametr serwera). */
+export async function subscriptionAlertRecipientStatus(): Promise<{ recipient: boolean }> {
+  if (isE2EMode) {
+    return { recipient: false };
+  }
+  const fn = httpsCallable<void, { recipient: boolean }>(functions, "subscriptionAlertRecipientStatus");
+  const result = await fn();
+  return result.data;
+}
+
 export async function listAuthAuditLogs() {
   if (isE2EMode) {
     return [{

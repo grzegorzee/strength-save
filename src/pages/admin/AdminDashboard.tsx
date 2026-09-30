@@ -33,6 +33,7 @@ import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
 import { AdminCommsCard } from '@/components/admin/AdminCommsCard';
 import { AdminFeatureFlagsCard } from '@/components/admin/AdminFeatureFlagsCard';
 import { AdminCostGuardCard } from '@/components/admin/AdminCostGuardCard';
+import { AdminSubscriptionMetricsCard } from '@/components/admin/AdminSubscriptionMetricsCard';
 import { AdminRepairToolsCard } from '@/components/admin/AdminRepairToolsCard';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -617,6 +618,9 @@ const AdminDashboard = () => {
 
       {/* Bezpiecznik kosztów: baner, gdy zadania niekrytyczne są wstrzymane (docs/COST-GUARDS.md). */}
       <AdminCostGuardCard />
+
+      {/* Subskrypcje: liczby z RevenueCat przez callable admina (cache 1 h). */}
+      <AdminSubscriptionMetricsCard />
 
       {/* Puls aplikacji */}
       <Card>
