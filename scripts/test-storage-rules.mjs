@@ -160,6 +160,22 @@ await env.withSecurityRulesDisabled(async ctx => {
 add('closing account cannot upload avatar with existing ID token', false, await ok(() => uploadBytes(ref(ownStorage, avatarPath), jpeg, { contentType: 'image/jpeg' })));
 add('closing account cannot upload health photo with existing ID token', false, await ok(() => uploadBytes(ref(ownStorage, `body-photos/${UID}/${activeGrantId}/closed.jpg`), image, { contentType: 'image/jpeg' })));
 
+// OTA (docs/LIVE-UPDATES.md): pakiety i manifesty kanałów są publiczne do odczytu
+// (ten sam kod co publiczny web), zapis WYŁĄCZNIE Admin SDK / gcloud (skrypt publikacji).
+const OTA_MANIFEST = 'live-updates/production/ios/1.0.1/manifest.json';
+const OTA_BUNDLE = 'live-updates/bundles/1.0.1-ota.1.zip';
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await uploadBytes(ref(ctx.storage(), OTA_MANIFEST), new TextEncoder().encode('{}'), { contentType: 'application/json' });
+  await uploadBytes(ref(ctx.storage(), OTA_BUNDLE), jpeg, { contentType: 'application/zip' });
+});
+add('OTA: anonymous can read channel manifest', true, await ok(() => getBytes(ref(anonymousStorage, OTA_MANIFEST))));
+add('OTA: anonymous can read bundle', true, await ok(() => getBytes(ref(anonymousStorage, OTA_BUNDLE))));
+add('OTA: anonymous cannot overwrite manifest', false, await ok(() => uploadBytes(ref(anonymousStorage, OTA_MANIFEST), jpeg, { contentType: 'application/json' })));
+add('OTA: signed-in user cannot overwrite manifest', false, await ok(() => uploadBytes(ref(ownStorage, OTA_MANIFEST), jpeg, { contentType: 'application/json' })));
+add('OTA: signed-in user cannot upload bundle', false, await ok(() => uploadBytes(ref(ownStorage, 'live-updates/bundles/1.0.1-ota.9.zip'), jpeg, { contentType: 'application/zip' })));
+add('OTA: signed-in user cannot delete bundle', false, await ok(() => deleteObject(ref(ownStorage, OTA_BUNDLE))));
+add('OTA: public read does not leak outside live-updates/', false, await ok(() => getBytes(ref(anonymousStorage, 'live-updatesX/secret.json'))));
+
 let failed = 0;
 for (const test of cases) {
   const pass = test.pass === test.expected;

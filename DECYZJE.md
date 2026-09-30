@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-30 (przewodnik v2: trening próbny bez zapisów, przegląd zakładek)
+**Ostatnia aktualizacja:** 2026-09-30 (przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
 
 ---
 
@@ -108,6 +108,68 @@ Chromium+WebKit; emulator 34/34 (R9 po korekcie filtra email_log).
 próby), realny Dynamic Type iOS (proxy), klawiatura ekranowa przy kroku wpisu,
 VoiceOver, natywne safe-area, gest wstecz iOS i przycisk Wstecz Androida na
 realnym urządzeniu, zgaszenie ekranu w trakcie próby.
+
+### 2026-09-30: aktualizacje OTA (live updates) self-host + koniec zamrożenia 1.0.0
+
+**Decyzje właściciela:** (1) zdalne aktualizacje warstwy JS/HTML/CSS, hosting wyłącznie
+na naszej infrastrukturze, bez chmur OTA i abonamentów; (2) koniec zamrożenia 1.0.0:
+SemVer z `package.json` jako jedynego źródła, pierwszy build z OTA = **1.0.1 (iOS 153,
+Android 57)**, pakiet OTA `<wersja>-ota.<N>`.
+
+**Wybór:** `@capawesome/capacitor-live-update` 8.4.4 (MIT), przypięty dokładnie, tryb bez
+chmury (brak `appId`, `autoUpdateStrategy: 'none'`). Capgo 8.52.1 odrzucony: MPL, ~10x więcej
+kodu natywnego, domyślne endpointy i statystyki do plugin.capgo.app. Weryfikacja na źródle
+(zasada 18): podpis RSA ZIP wymuszany natywnie przy `publicKey`, rollback do bundla
+wbudowanego po `readyTimeout`, Capacitor sam czyści `serverBasePath` przy nowej binarce
+(każdy build sklepowy startuje na swoim bundlu). Pełne porównanie z file:line:
+`docs/LIVE-UPDATES.md` §2. Tam też twarda reguła „kiedy OTA, kiedy review”
+(Apple 2.5.2, 2.3.1(a), DPLA 3.3.1(B), Google Play Device and Network Abuse).
+
+**Architektura:** bucket Firebase Storage projektu, `live-updates/**` publiczny odczyt, zapis
+tylko gcloud/Admin (`storage.rules`, `test:rules` 7 nowych przypadków, czerwone przed).
+Podpisane manifesty per kanał/platforma/wersja natywna z `sequence` (anty-replay),
+kontroler JS (czysta polityka + kontroler z DI): zgodność wersji/buildu/pluginów, bramka
+treningu (trasa `/workout/*`, świeży draft, `finalSyncPending`, błąd IDB, nieznany user =
+blokada; przy zejściu w tło „następny” przypięty do bieżącego), powrót na ostatni dobry
+pakiet po rollbacku, wyłącznik do bundla wbudowanego, rollout procentowy, kanały
+internal (admin / 7 dotknięć wersji) i production. Telemetria: nowe kody `live-update-*`
+w `client_errors` bez zmiany reguł; `appVersion` = `1.0.1-ota.N (153)`. Profil: „1.0.1 (153)
+· aktualizacja N”. Web bez zmian (plugin nie jest ładowany).
+
+**Narzędzia:** `npm run live-update:publish` (dry-run domyślnie; `--publish`, `--channel`,
+`--promote`, `--rollback [--to id|builtin]`, `--rollout`), baseline'y warstwy natywnej
+(`npm run live-update:baseline`, preflight iOS wymaga baseline'u), `npm run version:check|bump|build`.
+Klucz prywatny: `~/FIRMA/_secrets/projekty/strength_save-live-update/private.pem` (wygenerowany
+2026-09-30, RSA-2048; w repo tylko klucz publiczny).
+
+**Root cause znalezione po drodze:** OkHttp 5.3.2 (domyślny w pluginie) podbija kotlin-stdlib do
+2.2.21, a Kotlin 2.0.21 projektu pada na `HealthPermissionsRationaleActivity.kt`
+(FirIncompatibleClassExpressionChecker, 2/2 powtórzenia). Fix: `okhttp3Version = '4.12.0'`
+w `android/variables.gradle`. Bramka publikacji od razu odmówiła pakietu po tej zmianie
+natywnej (dowód, że działa); baseline Android 57 zarejestrowany ponownie.
+
+**Weryfikacja:** baseline przed zmianami vitest 4651 PASS / 16 SKIP; po: 4714 PASS / 16 SKIP,
+typecheck, lint 0 błędów (15 istniejących ostrzeżeń), build, build:mobile + check:dist-smoke,
+`cap sync` iOS+Android bez błędów, preflight iOS 1.0.1 PASS, `test:rules` (storage 51/51 +
+firestore PASS), e2e mock Chromium 422/422, critical + nowy `live-update-web` WebKit 10/10,
+Android `compileRelease*` PASS. E2E wykryło biały ekran serwera dev (Vite blokuje `*.pem`):
+klucz publiczny przeniesiony do `public-key.txt`. Nowe testy: manifest (podpis,
+replay, uszkodzenia), polityka (20, mutacje bramki treningu i blokad czerwienią testy),
+kontroler (11 sekwencji: A→B→restart, C→rollback→B, trening, przypięcie, uszkodzony manifest,
+odrzucony podpis, replay, kanały), publikacja (odmowy przed buildem, podpis Node→WebCrypto),
+wersjonowanie. Natywnie (build testowy E2E + lokalny serwer): **iOS symulator** i **Android
+emulator API 35**: A → B aktywny po restarcie (Profil „1.0.1 (153) · update 1”,
+„1.0.1 (57) · aktualizacja 3”), zepsuty C → natywny rollback po 20 s → zablokowany →
+automatyczny powrót do B; iOS: na trasie treningu decyzja `training=true`, „następny”
+przypięty przy zejściu w tło, zimny start został na B, po wyjściu z treningu aktywacja D;
+Android: wyłącznik kanału (`--rollback --to builtin`) → bundle wbudowany. Dowody:
+`tmp/live-update/{ios,android}/` (niecommitowane).
+**Nie zweryfikowano natywnie:** blokady opartej o draft w IndexedDB i przetrwania draftu przez
+przeładowanie (w buildzie E2E na natywnej platformie start sesji pada na Firestore
+`permission-denied`, więc draft nie powstaje; pokrywają to testy sekwencji, a przetrwanie
+localStorage między bundlami widać natywnie po odczycie „ostatniego dobrego” po rollbacku),
+zgaszonego ekranu, pobierania przy słabym zasięgu, fizycznych urządzeń, publikacji do
+prawdziwego bucketu (reguły storage niewdrożone: odczyt zwraca dziś 403).
 
 ### 2026-09-29: reguły odrzucały własne ćwiczenie typu „masa ciała + kg”
 

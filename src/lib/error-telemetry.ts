@@ -2,6 +2,7 @@ import { Timestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Capacitor } from '@capacitor/core';
 import type { WorkoutSyncErrorCode } from '@/lib/workout-sync-conflict';
+import { currentOtaBundleId, getNativeAppInfo, telemetryAppVersion } from '@/lib/live-update-version';
 
 // Rejestr błędów produkcyjnych klienta (kolekcja client_errors) — kończy erę
 // debugowania screenshotami. Best-effort: nigdy nie rzuca, nie blokuje UI.
@@ -33,13 +34,19 @@ export const reportClientError = async (uid: string, entry: ClientErrorEntry): P
     reportsThisSession += 1;
 
     const sessionHash = entry.sessionId ? await hashSessionId(entry.sessionId) : undefined;
+    // OTA: natywnie „1.0.1-ota.3 (153)” / „1.0.1 (153)”, web „1.0.1” (≤ 32 znaki, reguła bez zmian).
+    // Awaria odczytu wersji nie może zgubić samego raportu.
+    const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
+    const appVersion = await getNativeAppInfo()
+      .then((native) => telemetryAppVersion({ version, native, otaBundleId: currentOtaBundleId() }))
+      .catch(() => version);
     await addDoc(collection(db, CLIENT_ERRORS_COLLECTION), {
       userId: uid,
       code: String(entry.code).slice(0, 100),
       phase: entry.phase,
       detail: String(entry.detail ?? '').slice(0, MAX_DETAIL_LENGTH),
       ...(sessionHash && { sessionHash }),
-      appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown',
+      appVersion,
       platform: Capacitor.getPlatform(),
       createdAt: Date.now(),
       // TTL Firestore (R2-12): wpisy telemetrii znikają po 30 dniach.

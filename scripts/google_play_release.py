@@ -24,6 +24,17 @@ EDITS_URL = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applic
 UPLOAD_URL = f'https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/{PACKAGE_NAME}/edits'
 
 
+PACKAGE_JSON = Path(__file__).resolve().parents[1] / 'package.json'
+
+
+def product_version():
+    """Jedno źródło prawdy wersji (package.json), wspólne z iOS i scripts/version.mjs."""
+    version = json.loads(PACKAGE_JSON.read_text()).get('version')
+    if not isinstance(version, str) or not re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version):
+        raise RuntimeError('package.json version is not SemVer MAJOR.MINOR.PATCH')
+    return version
+
+
 class ReleaseError(RuntimeError):
     def __init__(self, message, http_status=None):
         super().__init__(message)
@@ -49,7 +60,7 @@ def inspect_artifact(path, receipt_path, version, sha256):
     receipt = json.loads(Path(receipt_path).read_text())
     meta = receipt.get('artifact', {})
     if (str(meta.get('versionCode')) != str(version) or meta.get('sha256') != sha256
-            or meta.get('packageName') != PACKAGE_NAME or meta.get('versionName') != '1.0.0'
+            or meta.get('packageName') != PACKAGE_NAME or meta.get('versionName') != product_version()
             or meta.get('bytes') != path.stat().st_size):
         raise ReleaseError('Native verification receipt does not match the requested artifact')
     signing = receipt.get('signing', {})
@@ -167,7 +178,7 @@ def release_internal(session, artifact, notes, publish=False):
             if not _matches(uploaded, artifact):
                 raise ReleaseError('The uploaded bundle version/hash differs from the verified AAB')
             result['uploaded'] = True
-        body = {'track': 'internal', 'releases': [{'name': f"1.0.0 ({artifact['versionCode']})", 'status': 'completed',
+        body = {'track': 'internal', 'releases': [{'name': f"{product_version()} ({artifact['versionCode']})", 'status': 'completed',
             'versionCodes': [str(artifact['versionCode'])],
             'releaseNotes': [{'language': language, 'text': text} for language, text in notes.items()]}]}
         updated = _json(session.put(edit + '/tracks/internal', json=body, timeout=30), 'update internal track')

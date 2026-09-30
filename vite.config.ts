@@ -32,6 +32,9 @@ export default defineConfig(({ mode }) => {
     base: isMobileBuild ? './' : '/',
     define: {
       __APP_VERSION__: JSON.stringify(version),
+      // Pakiet OTA (scripts/publish-live-update.mjs) wbudowuje własny identyfikator;
+      // build sklepowy i web zostają z pustym (= bundle wbudowany w binarkę).
+      __OTA_ID__: JSON.stringify(process.env.STRENGTH_SAVE_OTA_ID ?? ''),
     },
     server: {
       host: "::",

@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock
 import zipfile
 
-from google_play_release import release_internal, inspect_artifact, ReleaseError, EDITS_URL, UPLOAD_URL, PACKAGE_NAME
+from google_play_release import release_internal, inspect_artifact, product_version, ReleaseError, EDITS_URL, UPLOAD_URL, PACKAGE_NAME
 
 
 def response(data=None, status=200):
@@ -53,6 +53,8 @@ class InternalReleaseTests(unittest.TestCase):
         self.assertEqual(calls, [EDITS_URL, UPLOAD_URL + '/our-edit/bundles', EDITS_URL + '/our-edit:validate', EDITS_URL + '/our-edit:commit', EDITS_URL])
         self.assertEqual(self.session.put.call_args.args[0], EDITS_URL + '/our-edit/tracks/internal')
         self.assertEqual(self.session.put.call_args.kwargs['json']['releases'][0]['versionCodes'], ['51'])
+        # Nazwa wydania z package.json (koniec zamrożenia 1.0.0), nie z literału.
+        self.assertEqual(self.session.put.call_args.kwargs['json']['releases'][0]['name'], f'{product_version()} (51)')
         self.session.delete.assert_called_once_with(EDITS_URL + '/readback-edit', timeout=30)
 
     def test_wrong_upload_hash_or_version_never_changes_track(self):
@@ -151,13 +153,14 @@ class ArtifactPreflightTests(unittest.TestCase):
         self.aab = Path(self.temp.name) / 'fixture.aab'
         self.receipt = Path(self.temp.name) / 'receipt.json'
         self.google_key = 'goog_1234567890abcdef'
+        self.version_name = product_version()
 
     def prepare(self, source=None):
         with zipfile.ZipFile(self.aab, 'w') as archive:
             archive.writestr('base/assets/public/assets/index.js', source if source is not None else f'const apiKey="{self.google_key}";')
         digest = hashlib.sha256(self.aab.read_bytes()).hexdigest()
         receipt = {
-            'artifact': {'versionCode': '51', 'versionName': '1.0.0', 'packageName': PACKAGE_NAME, 'sha256': digest, 'bytes': self.aab.stat().st_size},
+            'artifact': {'versionCode': '51', 'versionName': self.version_name, 'packageName': PACKAGE_NAME, 'sha256': digest, 'bytes': self.aab.stat().st_size},
             'build': {'status': 'PASS', 'bundletool_validation': 'PASS'},
             'signing': {'certificate_matches_existing_upload_keystore': True, 'full_payload_verification': {'JarFile_full_payload_signature_verification': 'PASS'}},
             'alignment_16k': {'all_64bit_elf_load_segments': 'PASS', 'generated_apks': [{'zipalign_16k': 'PASS'}]},
@@ -180,6 +183,12 @@ class ArtifactPreflightTests(unittest.TestCase):
             inspect_artifact(self.aab, self.receipt, 52, digest)
         self.aab.write_bytes(self.aab.read_bytes() + b'changed')
         with self.assertRaisesRegex(ReleaseError, 'hash'):
+            inspect_artifact(self.aab, self.receipt, 51, digest)
+
+    def test_receipt_version_name_must_equal_package_json(self):
+        self.version_name = '0.9.9'
+        digest = self.prepare()
+        with self.assertRaisesRegex(ReleaseError, 'receipt'):
             inspect_artifact(self.aab, self.receipt, 51, digest)
 
     def test_missing_google_key_reproduces_android50_release_gap(self):

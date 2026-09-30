@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "platform": "ios",
+  "nativeVersion": "1.0.1",
+  "nativeBuild": 153,
+  "sourceCommit": "28a3b0423ada202b0d915f13169e2f9ac5e5ff84",
+  "recordedAt": "2026-09-30T08:03:17.792Z",
+  "fingerprint": "e73126231aa0763e2cca36bc0cfec95bec4c9af03a7b68ecefbf0712aecad590",
+  "inventory": {
+    "platform": "ios",
+    "core": {
+      "@capacitor/core": "8.4.0",
+      "@capacitor/ios": "8.4.0",
+      "@capacitor/android": "8.4.0"
+    },
+    "plugins": [
+      {
+        "name": "@capacitor-community/in-app-review",
+        "version": "8.0.0"
+      },
+      {
+        "name": "@capacitor-community/keep-awake",
+        "version": "8.0.1"
+      },
+      {
+        "name": "@capacitor-firebase/app-check",
+        "version": "8.3.0"
+      },
+      {
+        "name": "@capacitor-firebase/authentication",
+        "version": "8.3.0"
+      },
+      {
+        "name": "@capacitor-firebase/messaging",
+        "version": "8.3.0"
+      },
+      {
+        "name": "@capacitor/app",
+        "version": "8.1.0"
+      },
+      {
+        "name": "@capacitor/camera",
+        "version": "8.2.3"
+      },
+      {
+        "name": "@capacitor/filesystem",
+        "version": "8.1.3"
+      },
+      {
+        "name": "@capacitor/haptics",
+        "version": "8.0.2"
+      },
+      {
+        "name": "@capacitor/keyboard",
+        "version": "8.0.5"
+      },
+      {
+        "name": "@capacitor/local-notifications",
+        "version": "8.2.0"
+      },
+      {
+        "name": "@capacitor/network",
+        "version": "8.0.1"
+      },
+      {
+        "name": "@capacitor/preferences",
+        "version": "8.0.1"
+      },
+      {
+        "name": "@capacitor/share",
+        "version": "8.0.1"
+      },
+      {
+        "name": "@capacitor/splash-screen",
+        "version": "8.0.2"
+      },
+      {
+        "name": "@capacitor/status-bar",
+        "version": "8.0.2"
+      },
+      {
+        "name": "@capacitor/text-zoom",
+        "version": "8.0.1"
+      },
+      {
+        "name": "@capawesome/capacitor-live-update",
+        "version": "8.4.4"
+      },
+      {
+        "name": "@revenuecat/purchases-capacitor",
+        "version": "13.1.6"
+      }
+    ],
+    "requiredPlugins": [
+      "App",
+      "Camera",
+      "Filesystem",
+      "FirebaseAppCheck",
+      "FirebaseAuthentication",
+      "FirebaseMessaging",
+      "Haptics",
+      "InAppReview",
+      "KeepAwake",
+      "Keyboard",
+      "LiveUpdate",
+      "LocalNotifications",
+      "Network",
+      "Preferences",
+      "Purchases",
+      "Share",
+      "SplashScreen",
+      "StatusBar",
+      "TextZoom"
+    ],
+    "localNative": {
+      "files": 11,
+      "sha256": "766253438627a46ebc3714720cad0d8c7e5c779452371382b0b02b0e067b2c80"
+    }
+  }
+}
