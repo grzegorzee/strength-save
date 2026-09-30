@@ -1,0 +1,6 @@
+Co nowego w 1.0.1:
+• Trening próbny w przewodniku. Sprawdzisz, jak zapisać serię, zanim zaczniesz prawdziwy trening. Nic się nie zapisuje.
+• Urlop wstrzymuje przypomnienia, a pierwszy trening po powrocie ma lżejsze ciężary.
+• Zamienione ćwiczenie zostaje na swoim miejscu, także w historii.
+• Podciąganie, dipy i pompki zapiszesz bez kilogramów albo z dociążeniem.
+• 136 nowych ćwiczeń i 17 nowych planów, także do domu i bez sprzętu.

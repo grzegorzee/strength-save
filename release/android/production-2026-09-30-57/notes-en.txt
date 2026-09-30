@@ -1,0 +1,6 @@
+What's new in 1.0.1:
+• A practice workout in the guide. Learn how to log a set before your first real workout. Nothing is saved.
+• Vacation pauses workout reminders, and your first workout back uses lighter weights.
+• A swapped exercise keeps its place, also in your history.
+• Log pull-ups, dips and push-ups with bodyweight only or with added weight.
+• 136 new exercises and 17 new plans, including home and no-equipment options.

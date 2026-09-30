@@ -1,0 +1,25 @@
+{
+  "committed_at": "2026-09-30T12:38:46.861531+00:00",
+  "track": {
+    "track": "production",
+    "releases": [
+      {
+        "name": "1.0.1 (57)",
+        "versionCodes": [
+          "57"
+        ],
+        "releaseNotes": [
+          {
+            "language": "pl-PL",
+            "text": "Co nowego w 1.0.1:\n\u2022 Trening pr\u00f3bny w przewodniku. Sprawdzisz, jak zapisa\u0107 seri\u0119, zanim zaczniesz prawdziwy trening. Nic si\u0119 nie zapisuje.\n\u2022 Urlop wstrzymuje przypomnienia, a pierwszy trening po powrocie ma l\u017cejsze ci\u0119\u017cary.\n\u2022 Zamienione \u0107wiczenie zostaje na swoim miejscu, tak\u017ce w historii.\n\u2022 Podci\u0105ganie, dipy i pompki zapiszesz bez kilogram\u00f3w albo z doci\u0105\u017ceniem.\n\u2022 136 nowych \u0107wicze\u0144 i 17 nowych plan\u00f3w, tak\u017ce do domu i bez sprz\u0119tu."
+          },
+          {
+            "language": "en-US",
+            "text": "What's new in 1.0.1:\n\u2022 A practice workout in the guide. Learn how to log a set before your first real workout. Nothing is saved.\n\u2022 Vacation pauses workout reminders, and your first workout back uses lighter weights.\n\u2022 A swapped exercise keeps its place, also in your history.\n\u2022 Log pull-ups, dips and push-ups with bodyweight only or with added weight.\n\u2022 136 new exercises and 17 new plans, including home and no-equipment options."
+          }
+        ],
+        "status": "completed"
+      }
+    ]
+  }
+}
