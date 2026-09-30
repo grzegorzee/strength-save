@@ -11,6 +11,64 @@
 
 ## DECYZJE
 
+### 2026-09-30: maile bez danych firmy w stopce, „Otwórz aplikację” otwiera apkę na telefonie (1.0.2)
+
+Zgłoszenie właściciela po mailu od Strength Save: (1) stopka z 29.09 miała
+pełną linię nadawcy (WEB3 POWER, imię i nazwisko, adres), (2) przycisk
+„Otwórz aplikację” prowadził na app.strengthsave.app zamiast do apki.
+
+Stopka (functions/src/email-layout.ts): we wszystkich mailach do użytkownika
+(kod weryfikacyjny, reset hasła, powitanie, zaproszenie, zmiana dostępu,
+podsumowanie tygodnia, trening i historia do trenera, wiadomość 1:1 admina)
+zostaje: powód wysyłki, „Strength Save · pomoc: strengthsave.app/support”,
+wypis tam, gdzie był. Mail „zgłoszenie błędu” idzie tylko do contact@ i nie
+miał stopki. Wyjątek: ogłoszenie (broadcast) z panelu admina, traktowane jako
+informacja handlowa: „Usługodawca: WEB3 POWER Grzegorz Jasionowicz,
+contact@strengthsave.app”, bez adresu pocztowego. Podstawa (tekst jednolity
+Dz.U. 2024 poz. 1513, pobrany z api.sejm.gov.pl ELI): art. 9 ust. 2 pkt 1
+„Informacja handlowa zawiera: oznaczenie podmiotu, na którego zlecenie jest
+ona rozpowszechniana, oraz jego adresy elektroniczne”. Art. 5 ust. 2 (imię,
+nazwisko, adres albo firma, siedziba i adres) wymaga podania danych „w sposób
+bezpośrednio dostępny poprzez system teleinformatyczny”, co realizują polityka
+prywatności i regulamin na strengthsave.app. DO WERYFIKACJI PRAWNEJ: czy
+ogłoszenia są informacją handlową (art. 2 pkt 2), czy „oznaczenie podmiotu”
+dla JDG wymaga pełnej firmy z imieniem i nazwiskiem, oraz obowiązek z art. 9
+ust. 1 (wyraźne oznaczenie, że to informacja handlowa) po stronie treści
+wpisywanej przez admina. Kontrakt: email-contract.test.ts (brak WEB3,
+Jasionowicz, Osiek, 38-223 we wszystkich transakcyjnych, broadcast z nazwą
+i e-mailem bez adresu).
+
+„Otwórz aplikację”, etap natychmiastowy (bez builda): CTA powitania
+i link zaproszenia prowadzą na https://strengthsave.app/open (zaproszenie:
+?invite=KOD). Landing (funkcja Vercel api/open.ts): iOS 302 do App Store,
+Android intent://open (schemat strengthsave, już w manifeście) z
+browser_fallback_url do Google Play, desktop strona wyboru ze sklepami i
+wersją w przeglądarce; iPadOS (UA Maca) rozpoznawany w JS po dotyku.
+Linki zwykłe, strona działa bez JS. ?to= tylko z białej listy tras
+(identyczna w src/lib/deep-link.ts i landing api/_lib/open-target.ts).
+
+Etap docelowy 1.0.2 (iOS 154, Android 58): Associated Domains
+applinks:strengthsave.app, intent-filter autoVerify https://strengthsave.app/open*,
+pliki /.well-known/apple-app-site-association (J4CRD2SA6D.com.grzegorzjasionowicz.strengthsave,
+/open i /open/*) i assetlinks.json (SHA-256 Play App Signing
+61:B8:64:...:36:B9 z Android Publisher API generatedApks buildów 54 i 57,
+plus upload key 8F:65:...:9C:65). DeepLinkRouter: appUrlOpen z
+@capacitor/app 8.1.0 (iOS AppPlugin.swift:55,63 retainUntilConsumed, Android
+AppPlugin.java:156 z retain, zimny start BridgeActivity.java:51
+onNewIntent(getIntent()), więc event czeka na listener). Niezmiennik: link
+nigdy nie przełącza ekranu, gdy trening trwa (ekran treningu, trening
+próbny, żywy draft dnia, błąd odczytu draftu = fail-closed); zamiast tego
+toast. W onboardingu event zużywany bez nawigacji. Kolejność wdrożenia:
+functions, landing (/open i .well-known), portal Apple (capability
+Associated Domains na App ID, nowy profil App Store), build 1.0.2.
+Symulator iOS 26.5 (build Debug 1.0.2): entitlement
+applinks:strengthsave.app obecny w podpisie, strengthsave://open?to=/history
+otwiera apkę (systemowe „Open in Strength Save?”), https://strengthsave.app/open
+otwiera Safari (AASA jeszcze niewdrożone, oczekiwane).
+Nie zweryfikowano: Universal Links i App Links na urządzeniu (wymagają
+wdrożonych plików i profilu z capability), nawigacja po zalogowaniu na
+symulatorze (brak konta QA w sesji), intent:// w Chrome na Androidzie.
+
 ### 2026-09-30: App Store nie pokazywał 1.0, bo aplikacja nie miała dostępności w krajach
 
 Po wydaniu 1.0 (READY_FOR_SALE) strona apps.apple.com/app/id6777446137 i iTunes
