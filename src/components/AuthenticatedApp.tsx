@@ -306,10 +306,14 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
   );
 };
 
-// OTA: gotowość powłoki + kanał (admin = internal) dopiero po załadowaniu profilu.
+// OTA: gotowość powłoki + kanał (admin albo przypisanie admina = internal) po załadowaniu profilu.
 const LiveUpdateUserBridge = () => {
-  const { uid, isAdmin, profileLoaded } = useCurrentUser();
-  return <LiveUpdateBridge user={profileLoaded && uid ? { uid, isAdmin } : undefined} />;
+  const { uid, isAdmin, profileLoaded, profile } = useCurrentUser();
+  return (
+    <LiveUpdateBridge
+      user={profileLoaded && uid ? { uid, isAdmin, channel: profile?.liveUpdateChannel } : undefined}
+    />
+  );
 };
 
 export default function AuthenticatedApp({ onLogout, onAccountDeleted }: SessionExits) {

@@ -53,6 +53,20 @@ describe('user profile loading', () => {
     expect(mapAppUserProfile('user-1', { uid: 'user-1' } as AppUserProfile, seed).notificationPrefs).toBeUndefined();
   });
 
+  // OTA 2026-09-30: kanał aktualizacji przypisany przez admina musi przejść przez
+  // mapper (inaczej tester nigdy nie dostanie kanału internal).
+  it('carries liveUpdateChannel assigned by an admin; unknown values are dropped', () => {
+    const map = (liveUpdateChannel: unknown) => mapAppUserProfile(
+      'user-1',
+      { uid: 'user-1', liveUpdateChannel } as unknown as AppUserProfile,
+      seed,
+    ).liveUpdateChannel;
+    expect(map('internal')).toBe('internal');
+    expect(map('production')).toBe('production');
+    expect(map('beta')).toBeUndefined();
+    expect(map(undefined)).toBeUndefined();
+  });
+
   it('does not invent a pending verification profile when no fallback exists', () => {
     expect(resolveProfileLoadFailure(null)).toBeNull();
   });

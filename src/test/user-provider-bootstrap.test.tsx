@@ -123,6 +123,7 @@ const Probe = () => {
       <span data-testid="terms-version">{current.profile?.consents?.termsVersion ?? 'none'}</span>
       <span data-testid="health-granted">{String(current.profile?.consents?.healthGranted)}</span>
       <span data-testid="health-epoch">{current.profile?.consents?.healthEpoch ?? 'none'}</span>
+      <span data-testid="ota-channel">{current.profile?.liveUpdateChannel ?? 'none'}</span>
       <button type="button" onClick={() => current.mergeConfirmedConsentMirror({
         healthGranted: true, healthVersion: '1.1', healthEpoch: 3, healthGrantId: 'grant-3',
       })}>confirm-health</button>
@@ -151,6 +152,17 @@ describe('UserProvider cache-first profile bootstrap', () => {
     mocks.pendingInviteCode = null;
     mocks.setPendingInviteCode.mockReset();
     mocks.reportClientError.mockReset();
+  });
+
+  // OTA 2026-09-30: pętla zapis admina -> snapshot -> mapper -> kontekst (kanał aktualizacji).
+  it('kanał OTA z users/{uid}.liveUpdateChannel dociera do kontekstu i śledzi zmiany admina', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', { ...profile('user-1'), liveUpdateChannel: 'internal' } as AppUserProfile, false);
+    await waitFor(() => expect(screen.getByTestId('ota-channel').textContent).toBe('internal'));
+    await emit('user-1', { ...profile('user-1'), liveUpdateChannel: 'production' } as AppUserProfile, false);
+    await waitFor(() => expect(screen.getByTestId('ota-channel').textContent).toBe('production'));
   });
 
   it('wpuszcza cached active bez czekania na wiszący sync', async () => {

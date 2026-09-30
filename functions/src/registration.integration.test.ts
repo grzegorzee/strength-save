@@ -18,6 +18,7 @@ import {
   resumeDeletionOperationsCore,
   scheduleSelfDeletion,
   pendingSubscriptionGrantId,
+  adminSetLiveUpdateChannel,
   requestEmailVerificationCode,
   registerPushTokenForUser,
   syncUserProfile,
@@ -563,6 +564,51 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
       data: { reportId, status: "new" },
     }))).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+});
+
+describeWithEmulators("adminSetLiveUpdateChannel (kanał OTA)", () => {
+  beforeAll(() => {
+    if (admin.apps.length === 0) admin.initializeApp({ projectId });
+  });
+
+  it("tylko admin przypisuje kanał, zapis w users/{uid} i wpis audytu", async () => {
+    const adminUid = "ota-admin";
+    const userUid = "ota-tester";
+    await Promise.all([
+      admin.firestore().collection("users").doc(adminUid).set({ uid: adminUid, role: "admin", status: "active" }),
+      admin.firestore().collection("users").doc(userUid).set({ uid: userUid, role: "user", status: "active", email: "ota-tester@example.com" }),
+    ]);
+    const request = (uid: string, data: Record<string, unknown>) => callableRequest({
+      uid,
+      email: `${uid}@example.com`,
+      appId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+      data,
+    });
+
+    await expect(adminSetLiveUpdateChannel.run(request(userUid, { uid: userUid, channel: "internal" })))
+      .rejects.toMatchObject({ code: "permission-denied" });
+    await expect(adminSetLiveUpdateChannel.run(request(adminUid, { uid: userUid, channel: "beta" })))
+      .rejects.toMatchObject({ code: "invalid-argument" });
+    await expect(adminSetLiveUpdateChannel.run(request(adminUid, { uid: "missing-user", channel: "internal" })))
+      .rejects.toMatchObject({ code: "not-found" });
+
+    await expect(adminSetLiveUpdateChannel.run(request(adminUid, { uid: userUid, channel: "internal" })))
+      .resolves.toEqual({ success: true, channel: "internal" });
+    expect((await admin.firestore().collection("users").doc(userUid).get()).data()).toMatchObject({
+      liveUpdateChannel: "internal",
+      role: "user",
+    });
+    const audit = await admin.firestore().collection("auth_audit_logs")
+      .where("eventType", "==", "admin_live_update_channel_updated").get();
+    expect(audit.docs.map((doc) => doc.data())).toContainEqual(expect.objectContaining({
+      uid: userUid,
+      actorUid: adminUid,
+      metadata: { channel: "internal" },
+    }));
+
+    await adminSetLiveUpdateChannel.run(request(adminUid, { uid: userUid, channel: "production" }));
+    expect((await admin.firestore().collection("users").doc(userUid).get()).data()?.liveUpdateChannel).toBe("production");
   });
 });
 

@@ -117,7 +117,10 @@ deweloperski Vite domyślnie blokuje `*.pem`.
   porównuje warstwę natywną pakietu z baseline'em builda (`release/live-updates/native-baselines/`):
   Capacitor core/ios/android, wersje 19 pluginów, hash lokalnego kodu natywnego i `capacitor.config.ts`.
   Różnica = odmowa. W jednej wersji natywnej warstwa natywna musi być stała (zmiana = `version:bump`).
-- **Kanały:** `internal` (admin automatycznie; tester: 7 dotknięć wersji w Profil > O aplikacji),
+- **Kanały:** `internal` (admin automatycznie; tester: przypisanie admina w panelu, karta użytkownika >
+  Uprawnienia > „Kanał aktualizacji: testowy”, callable `adminSetLiveUpdateChannel` z audytem,
+  pole `users/{uid}.liveUpdateChannel` poza whitelistą zapisu klienta; na urządzeniu nie ma
+  przełącznika ani ukrytego gestu, Apple 2.3.1(a)),
   `production` (wszyscy). Promocja tego samego pakietu: `--promote`. Stopniowy rollout: `--rollout N`
   (kubełek FNV z identyfikatora instalacji i pakietu).
 - **Aktywacja:** sprawdzenie 4 s po starcie (po rozpoznaniu usera) i przy powrocie z tła (manifest
@@ -185,3 +188,14 @@ jak każde żądanie HTTP, adres IP i User-Agent. Nie przetwarzamy tych danych p
 istniejącego `client_errors` (już zadeklarowane jako diagnostyka). Deklaracje sklepowe: patrz raport
 wdrożenia 2026-09-30 w DECYZJE.md; jeśli kiedykolwiek włączymy logi dostępu do bucketu, Device ID
 trzeba zadeklarować.
+
+## 8. Notatka do App Review (build z mechanizmem OTA)
+
+Propozycja tekstu do „Notes for Review” (EN, do wklejenia):
+
+> This build adds an internal update mechanism for the app's web layer (JavaScript/HTML/CSS
+> executed by WebKit), used only for bug fixes and small improvements of existing features,
+> consistent with Guideline 2.5.2 and DPLA 3.3.1(B). Updates are signed and verified on device,
+> never change the app's purpose, never add new features and never bypass OS security. New
+> features always ship as new App Store builds. There is no hidden or user-facing switch for this;
+> the version screen (Profile > About) shows the installed version and update number.

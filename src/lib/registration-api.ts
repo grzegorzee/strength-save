@@ -90,6 +90,8 @@ export interface AppUserProfile {
   stravaSyncError?: unknown;
   /** X35c: users/{uid}.notificationPrefs; czytane przez sanitizeNotificationPrefs. */
   notificationPrefs?: unknown;
+  /** OTA: kanał aktualizacji ustawiany wyłącznie przez callable admina (poza whitelistą klienta). */
+  liveUpdateChannel?: unknown;
   /** Bug 11 (X30): strefa IANA urządzenia (Intl), pisze klient; backend liczy z niej
    *  porę i dzień pusha/digestu. Brak = Europe/Warsaw. */
   timeZone?: string;
@@ -330,6 +332,19 @@ export async function updateUserAccess(input: { uid: string; accessEnabled: bool
   }
   const fn = httpsCallable<typeof input, { success: boolean }>(functions, "updateUserAccess");
   const result = await fn(input);
+  return result.data;
+}
+
+// OTA: kanał aktualizacji testera (users/{uid}.liveUpdateChannel), wyłącznie admin.
+export async function adminSetLiveUpdateChannel(uid: string, channel: 'internal' | 'production') {
+  if (isE2EMode) {
+    return { success: true, channel };
+  }
+  const fn = httpsCallable<{ uid: string; channel: string }, { success: boolean; channel: string }>(
+    functions,
+    "adminSetLiveUpdateChannel",
+  );
+  const result = await fn({ uid, channel });
   return result.data;
 }
 
