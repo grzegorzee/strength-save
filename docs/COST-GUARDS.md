@@ -104,6 +104,7 @@ każde zadanie jest owinięte `withCostGuard` albo jest na liście `COST_GUARD_E
 | `dailyCostDigest` | 06:10 | działa | pomiar kosztów, bez niego incydent jest ślepy |
 | `dailyErrorDigest` | 06:20 | działa | alarm błędów produkcji (zasada 11), max 2000 odczytów |
 | `weeklyDigest` | co godz. nd/pn | wstrzymane | mail tygodniowy |
+| `weeklySubscriptionDigest` | pn 08:00 | wstrzymane | mail do właściciela z liczbami RC (1 zapytanie RC + 1 kwerenda znaczników); alerty o zakupach idą z webhooka niezależnie |
 | `dailyTrainingReminder` | co godz. | wstrzymane | przypomnienie push |
 | `reducedModeEndingPush` | 18:00 | wstrzymane | push; dzień pauzy = ten push przepada |
 | `vacationEndingPush` | 18:10 | wstrzymane | push; dzień pauzy = ten push przepada |
