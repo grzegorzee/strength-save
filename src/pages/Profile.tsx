@@ -10,6 +10,8 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
+import { useAppVersionLabel } from '@/hooks/useAppVersionLabel';
+import { AboutVersionLine } from '@/components/live-update/AboutVersionLine';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES, type LanguageCode } from '@/i18n';
 import { DeleteAccountDialog } from '@/components/DeleteAccountDialog';
@@ -102,6 +104,7 @@ const Profile = () => {
   const { logout, logoutAfterAccountDeletion, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { toast } = useToast();
+  const appVersionLabel = useAppVersionLabel();
   const { t, lang, setLang } = useTranslation();
   const [searchParams] = useSearchParams();
   const syncEntries = useSyncCenterEntries(uid);
@@ -946,7 +949,7 @@ const Profile = () => {
         />
         <SettingRow compact icon={Bug} label={t('profile.support.reportBug')} onClick={() => setBugReportOpen(true)} />
         <SettingRow compact icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:contact@strengthsave.app'; }} />
-        <SettingRow compact icon={Info} label={t('profile.support.about')} value={__APP_VERSION__} onClick={() => setAboutOpen(true)} />
+        <SettingRow compact icon={Info} label={t('profile.support.about')} value={appVersionLabel} onClick={() => setAboutOpen(true)} />
       </ProfileAccordionSection>
 
       {/* Stopka (fala 2): neutralny Wyloguj wg mockupu (dialog potwierdzenia Z237
@@ -967,7 +970,7 @@ const Profile = () => {
           {t('profile.deleteAccount')}
         </button>
         <p className="pb-1 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
-          {t('profile.footer.version', { version: __APP_VERSION__ })}
+          {t('profile.footer.version', { version: appVersionLabel })}
         </p>
       </div>
 
@@ -1020,7 +1023,7 @@ const Profile = () => {
             <DialogTitle className="font-heading uppercase">{t('profile.about.title')}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{t('profile.about.desc')}</p>
-          <p className="text-xs text-muted-foreground">{t('profile.about.version', { version: __APP_VERSION__ })}</p>
+          <AboutVersionLine label={appVersionLabel} />
           <p className="text-xs text-muted-foreground">{t('profile.about.copyright')}</p>
           <div className="flex gap-4 text-sm">
             <a

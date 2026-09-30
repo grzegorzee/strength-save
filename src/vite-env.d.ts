@@ -2,6 +2,8 @@
 /// <reference types="vite-plugin-pwa/client" />
 
 declare const __APP_VERSION__: string;
+/** Identyfikator pakietu OTA (np. 1.0.1-ota.3) wbudowany przez publish-live-update; pusty w buildzie sklepowym/webowym. */
+declare const __OTA_ID__: string;
 
 interface ImportMetaEnv {
   readonly VITE_FIREBASE_API_KEY: string;
@@ -14,6 +16,8 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_INTERVAL_TIMERS?: string;
   readonly VITE_REVENUECAT_APPLE_API_KEY?: string;
   readonly VITE_REVENUECAT_GOOGLE_API_KEY?: string;
+  readonly VITE_LIVE_UPDATE_BASE_URL?: string;
+  readonly VITE_LIVE_UPDATE_ALLOW_INSECURE_LOCALHOST?: string;
 }
 
 interface ImportMeta {
