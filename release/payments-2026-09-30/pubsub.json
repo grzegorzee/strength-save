@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-09-30T12:22:09.437064+00:00",
+  "project": "fittracker-workouts",
+  "source": "Pub/Sub API v1 (GET only)",
+  "impersonatedServiceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "topics": {
+    "http": 200,
+    "count": 3,
+    "nonEventarc": [
+      "projects/fittracker-workouts/topics/cost-guard-budget"
+    ]
+  },
+  "subscriptions": {
+    "http": 200,
+    "nonEventarc": [
+      {
+        "name": "projects/fittracker-workouts/subscriptions/cost-guard-budget-probe",
+        "topic": "projects/fittracker-workouts/topics/cost-guard-budget",
+        "pushEndpointHost": null,
+        "pushEndpointPathPrefix": null,
+        "state": "ACTIVE"
+      }
+    ]
+  },
+  "topicIamPublishers": {
+    "projects/fittracker-workouts/topics/cost-guard-budget": {
+      "http": 403,
+      "publishers": []
+    }
+  },
+  "requests": 3
+}

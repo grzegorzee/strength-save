@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-30 (zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
+**Ostatnia aktualizacja:** 2026-09-30 (płatności: dowody konfiguracji, łańcuch webhooka na emulatorze, test sandbox; zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
 
 ---
 
@@ -26,6 +26,53 @@ Zakup PRO sandbox na iOS 153 potwierdzony 30.09 (konto testowe, trial monthly,
 webhook RC → subscription w 9 s). Android: listing publiczny 404, produkcja 54
 niepubliczna; zakup na Androidzie nieprzetestowany.
 
+
+### 2026-09-30: płatności przed publiczną premierą, dowody bez zakupu + test sandbox właściciela
+
+**Cel:** udowodnić wszystko, co da się bez fizycznego zakupu; zero zapisów w ASC,
+Play, RevenueCat i Firestore produkcyjnym. Dowody JSON: `release/payments-2026-09-30/`
+(generator tylko GET: `scripts/payments-config-audit.py`; token URL-a powiadomień
+Apple maskowany, bo repo jest publiczne).
+
+**Konfiguracja (odczyt API):** ASC: grupa „Strength Save PRO” i obie subskrypcje
+APPROVED, 14,99 zł / 3,99 USD i 119,99 zł / 31,99 USD, trial 1 tydz. / 2 tyg. (POL, USA),
+175 terytoriów, powiadomienia App Store Server v2 (prod i sandbox) na RevenueCat;
+wersja 1.0 (build 150) READY_FOR_SALE, 1.0.1 (153) WAITING_FOR_REVIEW; 0 sandbox testerów.
+Play: oba base plany i oferty trial ACTIVE, 157 regionów, te same ceny, AAB 57 w sklepie.
+RC: iOS/Android/Test Store, 6 produktów w `pro`, `default` current z $rc_monthly/$rc_annual
+dla obu sklepów, webhook na produkcyjny revenuecatWebhook. Klucze SDK w IPA 153 i AAB 57
+(SHA zgodne z zapisami uploadu) = klucze aplikacji RC (porównanie hashy).
+Produkcja (prod-read, logi): webhook przetwarza zdarzenia SANDBOX z iOS od 26.09, ostatnie 401
+z 09.09; konto testowe `grzegorzee@gmail.com` bez grantu comp, trial miesięczny z TestFlight
+z 30.09 12:20 UTC poprawnie w `users/{uid}.subscription`.
+
+**Znalezione blokery (poza kodem, decyzja właściciela, zmiany w konsolach):**
+1. Webhook RC ma `app_id` = aplikacja App Store. Dokumentacja RC API v2: webhook z app_id
+   dostaje zdarzenia tylko tej aplikacji. Zakupy Androida nie trafią do Firestore
+   (web, Garmin, lustro PRO). Fix: webhook dla wszystkich aplikacji.
+2. W GCP `fittracker-workouts` brak tematu Pub/Sub dla RTDN Google Play (jest tylko
+   `cost-guard-budget`). Do sprawdzenia w Play Console i RC (temat może być w innym projekcie).
+3. 0 sandbox testerów w ASC: bez nich wygaśnięcia w TestFlight trwają do 24 h.
+
+**Łańcuch serwerowy (test-first nie był potrzebny, brakowało pokrycia, nie kodu):**
+`functions/src/revenuecat.integration.test.ts` na emulatorze Firestore: prawdziwy handler,
+prawdziwy odczyt API v2 (tylko HTTP RC podmienione fake'iem), 14 testów: pełny cykl 7 zdarzeń
+× {APP_STORE, PLAY_STORE} × {SANDBOX, PRODUCTION}, idempotencja, kolejność, 401 bez zapisu
+i bez zapytań do RC, comp nietknięty (bug 7 X30) i powrót stanu sklepu po grancie, PRO z drugiego
+sklepu przeżywa EXPIRATION, TRANSFER, alias anonimowy, brak usera = 503, awaria RC = 503.
+Mutacja (wyłączenie ochrony comp i dedupe) daje 2 czerwone, więc test łapie regresje.
+`e2e/emulator/release/r10-payments-webhook.spec.ts`: endpoint HTTP w emulatorze Functions
+(401/405, zdarzenia bez wpływu na stan, dokument bez zmian, paywall przepuszcza PRO).
+`e2e/paywall-funnel.spec.ts`: sekwencja PRO ze sklepu → EXPIRATION → hard paywall z wyjściami,
+billing_issue w grace nie blokuje. Bez zmian w kodzie produkcyjnym.
+
+**Podgląd na żywo:** `scripts/payments-live-watch.mjs` (biała lista prod-read + GET RC tylko
+dla klienta, 30 min, budżet 5000 odczytów, najgorszy przypadek 1680), test helperów
+`src/test/payments-live-watch.test.ts`. Instrukcja: `docs/PAYMENTS-SANDBOX-TEST.md`.
+
+**Czego nie da się sprawdzić bez zakupu:** faktyczny zakup i restore na Androidzie
+(License tester), RTDN, prawdziwe obciążenie karty, wypłaty, zwroty, Paid Apps Agreement
+(brak API; pośrednio: produkty APPROVED i sprzedaż 1.0).
 
 ### 2026-09-30: zabezpieczenia kosztów GCP bez odcinania billingu (limit 50 PLN/mies.)
 

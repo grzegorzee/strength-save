@@ -1,0 +1,198 @@
+{
+  "checkedAt": "2026-09-30T12:37:27.963906+00:00",
+  "source": "RevenueCat API v2 (GET only)",
+  "projectId": "proj67cb081f",
+  "apps": {
+    "http": 200,
+    "items": [
+      {
+        "id": "app04502c737f",
+        "name": "Strength Save (App Store)",
+        "type": "app_store",
+        "storeConfig": {
+          "bundle_id": "com.grzegorzjasionowicz.strengthsave",
+          "custom_url_scheme": "rc-04502c737f"
+        },
+        "publicApiKeys": {
+          "http": 200,
+          "sha256_12": [
+            "bfd05c40add3"
+          ],
+          "environments": [
+            "production"
+          ]
+        }
+      },
+      {
+        "id": "app51bd57b5ea",
+        "name": "Test Store",
+        "type": "test_store",
+        "storeConfig": {},
+        "publicApiKeys": {
+          "http": 200,
+          "sha256_12": [
+            "d3dd542c9c9c"
+          ],
+          "environments": [
+            "production"
+          ]
+        }
+      },
+      {
+        "id": "appe7c441de60",
+        "name": "Strength Save (Google Play)",
+        "type": "play_store",
+        "storeConfig": {
+          "custom_url_scheme": "rc-e7c441de60",
+          "package_name": "com.grzegorzjasionowicz.strengthsave"
+        },
+        "publicApiKeys": {
+          "http": 200,
+          "sha256_12": [
+            "6a7f8aefb1c8"
+          ],
+          "environments": [
+            "production"
+          ]
+        }
+      }
+    ]
+  },
+  "products": {
+    "http": 200,
+    "items": [
+      {
+        "id": "prod02e67d51c4",
+        "store_identifier": "strengthsave_pro_yearly",
+        "type": "subscription",
+        "state": "active",
+        "app_id": "app04502c737f"
+      },
+      {
+        "id": "prod1322b1ba0f",
+        "store_identifier": "monthly",
+        "type": "subscription",
+        "state": "active",
+        "app_id": "app51bd57b5ea"
+      },
+      {
+        "id": "prod3125a9bc36",
+        "store_identifier": "yearly",
+        "type": "subscription",
+        "state": "active",
+        "app_id": "app51bd57b5ea"
+      },
+      {
+        "id": "proda62028ebff",
+        "store_identifier": "strengthsave_pro_monthly",
+        "type": "subscription",
+        "state": "active",
+        "app_id": "app04502c737f"
+      },
+      {
+        "id": "prodaf90222f06",
+        "store_identifier": "strengthsave_pro_yearly:yearly",
+        "type": "subscription",
+        "state": "active",
+        "app_id": "appe7c441de60"
+      },
+      {
+        "id": "prodd5eb59bb49",
+        "store_identifier": "strengthsave_pro_monthly:monthly",
+        "type": "subscription",
+        "state": "active",
+        "app_id": "appe7c441de60"
+      }
+    ]
+  },
+  "entitlements": {
+    "http": 200,
+    "items": [
+      {
+        "id": "entlc6a823aab7",
+        "lookup_key": "pro",
+        "state": "active",
+        "products": [
+          "strengthsave_pro_yearly",
+          "monthly",
+          "yearly",
+          "strengthsave_pro_monthly",
+          "strengthsave_pro_yearly:yearly",
+          "strengthsave_pro_monthly:monthly"
+        ]
+      }
+    ]
+  },
+  "offerings": {
+    "http": 200,
+    "items": [
+      {
+        "id": "ofrngf3279a7f4f",
+        "lookup_key": "default",
+        "is_current": true,
+        "state": "active",
+        "packages": [
+          {
+            "lookup_key": "$rc_monthly",
+            "position": 0,
+            "products": [
+              {
+                "store_identifier": "monthly",
+                "product_id": "prod1322b1ba0f",
+                "eligibility": "all"
+              },
+              {
+                "store_identifier": "strengthsave_pro_monthly",
+                "product_id": "proda62028ebff",
+                "eligibility": "all"
+              },
+              {
+                "store_identifier": "strengthsave_pro_monthly:monthly",
+                "product_id": "prodd5eb59bb49",
+                "eligibility": "all"
+              }
+            ]
+          },
+          {
+            "lookup_key": "$rc_annual",
+            "position": 1,
+            "products": [
+              {
+                "store_identifier": "strengthsave_pro_yearly",
+                "product_id": "prod02e67d51c4",
+                "eligibility": "all"
+              },
+              {
+                "store_identifier": "yearly",
+                "product_id": "prod3125a9bc36",
+                "eligibility": "all"
+              },
+              {
+                "store_identifier": "strengthsave_pro_yearly:yearly",
+                "product_id": "prodaf90222f06",
+                "eligibility": "all"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "webhooks": {
+    "http": 200,
+    "error": null,
+    "items": [
+      {
+        "id": "whintgrada0d8a118",
+        "name": "Strenght Save Sub",
+        "url": "https://us-central1-fittracker-workouts.cloudfunctions.net/revenuecatWebhook",
+        "environment": null,
+        "event_types": null,
+        "app_id": "app04502c737f",
+        "authorizationHeaderSet": false,
+        "authorizationMatchesEnv_sha256_12": false
+      }
+    ]
+  },
+  "requests": 12
+}
