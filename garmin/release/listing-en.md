@@ -6,7 +6,7 @@ Log strength workouts from your wrist with today's plan, quick workouts, rest ti
 
 ## Description
 
-Strength Save for Garmin is a client for your Strength Save account. After one-time pairing it downloads today's plan, lets you do the planned workout or a quick workout built from recently performed exercises, and sends your sets to one workout history that you see in the iPhone, Android, and web apps.
+Strength Save for Garmin is a client for your Strength Save account. After one-time pairing it downloads today's plan, lets you do the planned workout or a quick workout built from recently performed exercises, and sends your sets to one workout history that you see in the iPhone and Android apps.
 
 On the watch:
 
@@ -17,7 +17,7 @@ On the watch:
 - kilograms or pounds on screen, always stored in kg;
 - a rest day in your plan (including a vacation set in the app) opens a menu with a quick workout;
 - training without a connection: sets wait on the watch until they are sent, and a workout can be discarded without saving;
-- strength activity with heart rate saved to Garmin Connect;
+- the workout saved as a strength activity in Garmin Connect;
 - Polish and English.
 
 Requirements: a Strength Save account with an active Strength Save PRO subscription, the Strength Save app for iPhone or Android (pairing code: Profile > Devices & connections), and a phone connected to the watch through the Garmin Connect app, because the watch downloads the plan and sends sets through the phone.

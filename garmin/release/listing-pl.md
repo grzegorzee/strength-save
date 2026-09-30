@@ -6,7 +6,7 @@ Loguj trening siłowy z nadgarstka: plan dnia, szybki trening, timer przerw i za
 
 ## Opis
 
-Strength Save na Garminie jest klientem Twojego konta Strength Save. Po jednorazowym sparowaniu pobiera plan dnia, pozwala wykonać trening z planu albo szybki trening z ostatnio wykonywanych ćwiczeń i wysyła serie do jednej historii treningów, widocznej w aplikacji na iPhone'a, Androida i w przeglądarce.
+Strength Save na Garminie jest klientem Twojego konta Strength Save. Po jednorazowym sparowaniu pobiera plan dnia, pozwala wykonać trening z planu albo szybki trening z ostatnio wykonywanych ćwiczeń i wysyła serie do jednej historii treningów, widocznej w aplikacji na iPhone'a i Androida.
 
 Na zegarku:
 
@@ -17,7 +17,7 @@ Na zegarku:
 - kilogramy albo funty na ekranie, zapis zawsze w kg;
 - dzień wolny w planie (także urlop ustawiony w aplikacji) otwiera menu z szybkim treningiem;
 - trening bez zasięgu: serie czekają na zegarku do wysyłki, a trening można odrzucić bez zapisu;
-- zapis aktywności siłowej z tętnem w Garmin Connect;
+- zapis treningu jako aktywności siłowej w Garmin Connect;
 - język polski i angielski.
 
 Wymagania: konto Strength Save z aktywną subskrypcją Strength Save PRO, aplikacja Strength Save na iPhone'a lub Androida (kod parowania: Profil > Urządzenia i połączenia) oraz telefon połączony z zegarkiem przez aplikację Garmin Connect, bo zegarek pobiera plan i wysyła serie przez telefon.

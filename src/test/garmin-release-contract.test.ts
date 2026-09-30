@@ -61,4 +61,12 @@ describe('Garmin Connect IQ release contract', () => {
       expect(justified.sort(), listing).toEqual([...permissions].sort());
     }
   });
+
+  // Zakaz właściciela (2026-09-30): nigdzie nie promujemy wersji webowej.
+  it('Store listings never mention a web or browser version', () => {
+    for (const listing of ['garmin/release/listing-pl.md', 'garmin/release/listing-en.md']) {
+      const text = read(listing);
+      expect(text, listing).not.toMatch(/app\.strengthsave\.app|\bweb\b|przeglądar|browser/i);
+    }
+  });
 });
