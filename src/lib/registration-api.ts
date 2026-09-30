@@ -348,6 +348,20 @@ export async function adminSetLiveUpdateChannel(uid: string, channel: 'internal'
   return result.data;
 }
 
+// Bezpiecznik kosztów (docs/COST-GUARDS.md): ręczna pauza / wznowienie
+// niekrytycznych zadań cyklicznych. Zapis config/cost_guard + audyt po stronie serwera.
+export async function adminSetCostGuard(paused: boolean) {
+  if (isE2EMode) {
+    return { success: true, paused };
+  }
+  const fn = httpsCallable<{ paused: boolean }, { success: boolean; paused: boolean }>(
+    functions,
+    "adminSetCostGuard",
+  );
+  const result = await fn({ paused });
+  return result.data;
+}
+
 export async function listAuthAuditLogs() {
   if (isE2EMode) {
     return [{

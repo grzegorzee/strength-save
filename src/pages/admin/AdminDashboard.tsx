@@ -32,6 +32,7 @@ import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
 import { AdminCommsCard } from '@/components/admin/AdminCommsCard';
 import { AdminFeatureFlagsCard } from '@/components/admin/AdminFeatureFlagsCard';
+import { AdminCostGuardCard } from '@/components/admin/AdminCostGuardCard';
 import { AdminRepairToolsCard } from '@/components/admin/AdminRepairToolsCard';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -613,6 +614,9 @@ const AdminDashboard = () => {
         <h1 className="text-2xl font-heading font-bold uppercase tracking-tight">{t('admin.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('admin.subtitle')}</p>
       </div>
+
+      {/* Bezpiecznik kosztów: baner, gdy zadania niekrytyczne są wstrzymane (docs/COST-GUARDS.md). */}
+      <AdminCostGuardCard />
 
       {/* Puls aplikacji */}
       <Card>
