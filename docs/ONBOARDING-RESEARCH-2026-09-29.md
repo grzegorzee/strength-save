@@ -119,3 +119,17 @@ Odrzucone:
   haptyka + animacja wystarczą (HIG: haptyka jako uzupełnienie).
 - **Stan tylko w localStorage (jak X37)**: tour wracałby na nowym urządzeniu
   i po reinstalacji (HIG: pominięty nie wraca).
+
+## 4. Rewizja 2026-09-30 (v2) po zgłoszeniu z iOS 152
+
+Odrzucenie „treningu demo” okazało się błędem: prowadzenie przez PRAWDZIWĄ
+sesję zakłada, że dziś jest trening do wykonania. Na koncie z ukończonym
+dzisiejszym treningiem (i przy dniu wolnym, urlopie, braku planu, starcie w
+przyszłym tygodniu, innym treningu w toku) przewodnik prowadził do sesji bez
+możliwości odhaczenia i utykał. Decyzja właściciela: trening próbny (`/practice`),
+ten sam UI, dane przykładowe, ZERO zapisów (izolacja przez adapter efektów).
+To nadal „learn by doing” (HIG, Appcues): user wykonuje prawdziwą akcję na
+prawdziwym UI, tylko bez skutków w danych. Dodatkowo rozdział zakładek (jeden
+spotlight na zakładkę, tap = przejście, max 4 kroki), bo właściciel chce
+„pokazać całą apkę”; legenda zakładek z v1 (jeden dymek z listą) usunięta jako
+dublująca. Szczegóły i dowody: DECYZJE.md, wpis 2026-09-30.

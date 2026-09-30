@@ -5,11 +5,88 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-29 (przewodnik nowego konta; onboarding: wyjścia, usunięcie konta, komunikaty EN; nazwy planów)
+**Ostatnia aktualizacja:** 2026-09-30 (przewodnik v2: trening próbny bez zapisów, przegląd zakładek)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-30: przewodnik v2: trening próbny bez zapisów, przegląd zakładek, spotlight od nowa (zgłoszenie z iOS 152)
+
+**Zgłoszenie (iOS 152, konto właściciela z 95 treningami, replay z Profilu):**
+kroki 1-2 działały, ale spotlight „Otwórz sesję” prowadził do PRZYSZŁEJ sesji
+(trening dnia już ukończony, hero pokazywał piątek 2 paź), której nie da się
+odhaczyć; przewodnik utykał na „Tapnij podświetlony ptaszek” (zasada 6).
+**Root cause:** v1 zakładał, że istnieje dzisiejsza sesja do wykonania i
+prowadził przez PRAWDZIWY trening. Te same pułapki: dzień wolny, urlop, brak
+planu, trening ukończony, inny trening w toku, plan z przyszłym startem.
+Reprodukcja: `e2e/app-tour-states.spec.ts` (b) na kodzie main ad3ba2e2
+czerwony („przewodnik otworzył prawdziwą sesję” `#/workout/day-2?date=2026-07-22`).
+
+**Decyzja właściciela i projekt:**
+- Niezmiennik: przewodnik NIGDY nie otwiera ani nie dotyka prawdziwych sesji.
+  Etap treningowy w `/practice` (PracticeWorkout): te same komponenty
+  (ExerciseCard, wiersz serii, menu, RestBar, Zakończ), dane przykładowe w
+  pamięci (`src/data/practice-workout.ts`: wyciskanie hantli 3×8 20 kg / 45 lb,
+  wiosłowanie 3×10), pasek „Trening próbny · nic się nie zapisze” + „Zakończ
+  próbę” nad overlayem, zamiana/pominięcie tylko w próbie, ekran „co dalej”.
+- Izolacja architektoniczna: adapter `WorkoutEffects`
+  (`src/contexts/WorkoutEffectsContext.tsx`) to jedyna droga efektów
+  zewnętrznych wspólnych komponentów (telemetria odhaczenia, powiadomienia
+  przerwy i odliczania); próba = no-op. Strona próby nie importuje modułów
+  zapisu (draft IDB, kolejka, Firestore, Health, zegarek, PR, celebracje).
+  Timer przerwy działa wizualnie; o powiadomieniu po zgaszeniu ekranu tylko tekst.
+- Rozdziały (max 4 kroki, jedno zdanie, akcja zamiast czytania, „Pomiń
+  przewodnik” zawsze): Dashboard = jedno zaproszenie (dymek na środku, bez
+  celu na hero) → próba (wpis, REALNE odhaczenie, celebracja + przerwa, menu,
+  Zakończ jako akcja) → „co dalej” → przegląd zakładek (Plan, Historia,
+  Postępy, Profil; tap w zakładkę = przejście; host w Layout, nigdy nad
+  `/workout/*` ani `/practice`) → „Wszystko jasne”. Nowe konto i replay z
+  Profilu tą samą ścieżką, replay od początku. Legenda zakładek z v1 usunięta
+  (rozdział zakładek robi to spotlightami). „Zakończ próbę” w trakcie =
+  przewodnik przechodzi do zakładek (bez pętli zaproszenia). Wstecz z próby =
+  zaproszenie wraca; zabicie apki = stan próby znika (tylko pamięć).
+- Etapy v1 zapisane w localStorage (`workout`, `after-finish`) wracają na początek.
+- Spotlight od zera (zrzuty IMG_2882/2883): wycięcie w kształcie celu (promień
+  z `getComputedStyle` + 6 px), przyciemnienie jednym czarnym cieniem 66% (bez
+  szarego nalotu), pierścień akcentu 55% opacity z pulsem zamiast grubej
+  obwódki, dymek `surface-highest` ze strzałką do celu (auto góra/dół,
+  safe-area, visualViewport), licznik „k z n”, jeden główny przycisk na całą
+  szerokość, akcja jako nieklikalna podpowiedź z ikoną dłoni, „Pomiń
+  przewodnik” jako dyskretny link, reduced motion bez animacji.
+- Poprawki po oglądzie zrzutów: przycisk główny zawijał się pod „Pomiń”
+  (teraz pełna szerokość, link pod spodem); „1 Z 4” wielkimi literami (teraz
+  „1 z 4”); ostatni dymek bez „Pomiń”; zaproszenie dostało znak (hantle);
+  „Zakończ próbę” było martwe pod overlayem (pasek przeniesiony nad overlay);
+  kontrolka Zakończ mierzona po smooth scrollu (dymek zasłaniał cel w trakcie).
+- `ActiveWorkoutResume` nie wyrywa z `/practice`; zapis stanu przewodnika
+  leniwie importuje Firebase (host w Layout).
+
+**Weryfikacja:**
+- R9 emulator (Auth + Firestore + Functions), kryterium nr 1: nowe konto od
+  zera → kreator z pierwszym treningiem w przyszłym tygodniu → PRO comp →
+  przewodnik sam → próba w całości → zakładki → koniec; Firestore: 0 treningów
+  i szkiców, plan i cykle bez zmian, agregat 0, `preferences.appTour.status=done`,
+  po przeładowaniu bez stanu lokalnego przewodnik nie wraca. PL i EN.
+- Mock e2e (Chromium + WebKit): stany (a)-(f), w tym sekwencja (f): realny
+  trening → odhaczenie → replay → próba → powrót (szkic bajt w bajt) →
+  zakończenie; pełna sekwencja PL/EN 375/390/430, Pomiń na każdym kroku,
+  wyjścia, 320 px, Dynamic Type 135% (proxy), reduced motion, geometria kroku
+  (dymek nie zasłania celu, strzałka na celu, promień wycięcia).
+- Unit: `practice-isolation.test.tsx` (zero wywołań Firestore/IndexedDB/
+  powiadomień/telemetrii, localStorage bez zmian; mutacja adaptera = czerwony),
+  `app-tour.test.tsx`, route sweep z `/practice` i przewodnikiem na każdym
+  kanonicznym stanie.
+- Zrzuty każdego kroku: `tmp/tour-shots-v2/{pl,en}-{375,430}/` (niecommitowane).
+- Bramki: vitest 4710/4710 (517 plików), typecheck, lint 0 błędów, build;
+  e2e tour + stany + critical + onboarding-* + post-plan-guide + bottom-nav
+  116/116 Chromium+WebKit; pełny mock Chromium 428/428; emulator (JDK 21)
+  34/34 z R1 i R9.
+
+**Czego testy nie dowodzą:** haptyka (Success przy pierwszej serii i końcu
+próby), realny Dynamic Type iOS (proxy), klawiatura ekranowa przy kroku wpisu,
+VoiceOver, natywne safe-area, gest wstecz iOS i przycisk Wstecz Androida na
+realnym urządzeniu, zgaszenie ekranu w trakcie próby.
 
 ### 2026-09-29: reguły odrzucały własne ćwiczenie typu „masa ciała + kg”
 

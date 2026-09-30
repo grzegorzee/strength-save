@@ -159,7 +159,7 @@ export const en: Record<keyof typeof pl, string> = {
   'tour.tabs.progress': 'Tap Progress: charts and records grow with every session.',
   'tour.tabs.profile': 'Tap Profile: settings, notifications and this guide again.',
   'tour.tabs.doneTitle': 'You are all set!',
-  'tour.tabs.done': 'Replay the guide any time in Profile: Account and help.',
+  'tour.tabs.done': 'Replay the guide any time in Profile: Account & support.',
   'practice.banner': 'Practice workout · nothing is saved',
   'practice.exit': 'End practice',
   'practice.title': 'Practice workout',
