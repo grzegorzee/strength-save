@@ -83,6 +83,25 @@ czerwony („przewodnik otworzył prawdziwą sesję” `#/workout/day-2?date=202
   116/116 Chromium+WebKit; pełny mock Chromium 428/428; emulator (JDK 21)
   34/34 z R1 i R9.
 
+**Dopisek 2026-09-30 (krok „Wyślij trening mailem”, decyzja właściciela):**
+po Zakończ w próbie rozdział „Po treningu” (2 kroki, limit 4): spotlight na
+„Wyślij do trenera” (ten sam `EmailWorkoutDialog` co w prawdziwym
+podsumowaniu), krok czeka na otwarcie dialogu, wpisanie adresu i „Wyślij”
+(wyjście: „Pomiń ten krok”), potem „Pokaż, gdzie co jest” jako akcja.
+Wysyłka i zapis trenera przeszły do adaptera `WorkoutEffects` (leniwe importy
+Firebase); w próbie wysyłka SYMULOWANA (600 ms „Wysyłanie…”, toast
+produkcyjny + „Tak to działa: w prawdziwym treningu podsumowanie trafi na ten
+adres.”), bez propozycji zapisu trenera. Uzasadnienie: „nic się nie zapisze”
+oraz ochrona reputacji domeny SES przed wysyłkami na przypadkowe adresy.
+Dowody: test izolacji (0 wywołań `emailWorkoutSummary/History`, 0 zapisu
+adresu), e2e oba silniki (dialog zamyka się czysto, bez scroll-locka), R9 na
+emulatorze: 0 wpisów `email_log` typu workout/history (są tylko kod
+weryfikacyjny i powitanie z rejestracji) i brak `preferences.trainerEmail`.
+Zrzuty: `07-practice-done`, `13-email-dialog`, `14-email-sent-show-tabs`.
+Bramki: vitest 4711/4711, typecheck, lint 0 błędów, build; e2e przewodnik +
+stany + critical + onboarding-* + post-plan-guide + bottom-nav 118/118
+Chromium+WebKit; emulator 34/34 (R9 po korekcie filtra email_log).
+
 **Czego testy nie dowodzą:** haptyka (Success przy pierwszej serii i końcu
 próby), realny Dynamic Type iOS (proxy), klawiatura ekranowa przy kroku wpisu,
 VoiceOver, natywne safe-area, gest wstecz iOS i przycisk Wstecz Androida na

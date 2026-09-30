@@ -14,16 +14,18 @@
 // próby, bo żyje tylko w pamięci; nic nie trzeba sprzątać.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, Check, FlaskConical, X } from 'lucide-react';
+import { ArrowRightLeft, Check, FlaskConical, Mail, X } from 'lucide-react';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { RestBar } from '@/components/RestBar';
 import { AppTour } from '@/components/AppTour';
+import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PracticeWorkoutEffects } from '@/contexts/WorkoutEffectsContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useAppTour } from '@/hooks/useAppTour';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { hapticSuccess } from '@/lib/haptics';
 import { lbsToKg } from '@/lib/units';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -49,6 +51,7 @@ const PracticeWorkoutScreen = () => {
   const { t, lang } = useTranslation();
   const { unit } = useUnit();
   const appTour = useAppTour(null);
+  const { uid } = useCurrentUser();
   const tourActive = appTour.stage === 'dashboard' || appTour.stage === 'practice';
 
   const [items, setItems] = useState(() => PRACTICE_EXERCISES.map((item) => ({
@@ -60,6 +63,8 @@ const PracticeWorkoutScreen = () => {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [done, setDone] = useState(false);
   const [swapFor, setSwapFor] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   // Wejście do próby spoza Dashboardu (np. link) w trakcie przewodnika.
   useEffect(() => {
@@ -111,46 +116,56 @@ const PracticeWorkoutScreen = () => {
   const visibleItems = items.filter((i) => !i.skipped);
   const restItem = rest ? items.find((i) => i.exercise.id === rest.exerciseId) : undefined;
 
-  if (done) {
-    return (
-      <div className="space-y-4 pt-2" data-testid="practice-done">
-        <section className="rounded-3xl bg-surface-container p-6 text-center">
-          <span className="tour-check-pop mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Check className="h-8 w-8" strokeWidth={3} aria-hidden />
-          </span>
-          <p className="eyebrow-mono mt-5 text-primary">{t('practice.doneKicker')}</p>
-          <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight">{t('practice.doneTitle')}</h1>
-          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">{t('practice.doneDesc')}</p>
-        </section>
-        {tourActive ? (
-          <Button
-            data-testid="practice-show-tabs"
-            className="kinetic-primary-button h-14 w-full text-base"
-            onClick={() => {
-              appTour.advance('tabs', 'tab-plan');
-              navigate('/');
-            }}
-          >
-            {t('practice.showTabs')}
-          </Button>
-        ) : null}
+  const doneView = (
+    <div className="space-y-4" data-testid="practice-done">
+      <section className="rounded-3xl bg-surface-container p-6 text-center">
+        <span className="tour-check-pop mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Check className="h-8 w-8" strokeWidth={3} aria-hidden />
+        </span>
+        <p className="eyebrow-mono mt-5 text-primary">{t('practice.doneKicker')}</p>
+        <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight">{t('practice.doneTitle')}</h1>
+        <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">{t('practice.doneDesc')}</p>
+      </section>
+      {/* Ten sam przycisk co w prawdziwym podsumowaniu (Wyślij do trenera). */}
+      <Button
+        variant="secondary"
+        className="h-12 w-full rounded-2xl bg-surface-container"
+        onClick={() => setEmailOpen(true)}
+        data-testid="practice-email"
+        data-tour="practice-email"
+      >
+        <Mail className="h-4 w-4" />
+        {t('email.sendToCoach')}
+      </Button>
+      {tourActive ? (
         <Button
-          data-testid="practice-back-home"
-          variant={tourActive ? 'ghost' : 'default'}
-          className={tourActive ? 'h-12 w-full text-muted-foreground' : 'kinetic-primary-button h-14 w-full text-base'}
+          data-testid="practice-show-tabs"
+          data-tour="practice-show-tabs"
+          className="kinetic-primary-button h-14 w-full text-base"
           onClick={() => {
-            if (tourActive) appTour.finish('done');
+            appTour.advance('tabs', 'tab-plan');
             navigate('/');
           }}
         >
-          {t('practice.backHome')}
+          {t('practice.showTabs')}
         </Button>
-      </div>
-    );
-  }
+      ) : null}
+      <Button
+        data-testid="practice-back-home"
+        variant={tourActive ? 'ghost' : 'default'}
+        className={tourActive ? 'h-12 w-full text-muted-foreground' : 'kinetic-primary-button h-14 w-full text-base'}
+        onClick={() => {
+          if (tourActive) appTour.finish('done');
+          navigate('/');
+        }}
+      >
+        {t('practice.backHome')}
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="space-y-4 pb-[calc(var(--mobile-nav-clearance,7rem)+5rem)]" data-testid="practice-workout">
+    <div className="space-y-4 pb-[calc(var(--mobile-nav-clearance,7rem)+5rem)]" data-testid={done ? 'practice-done-screen' : 'practice-workout'}>
       {/* Stały pasek: tryb próbny widoczny zawsze, wyjście jednym tapnięciem.
           z-[75]: NAD overlayem przewodnika (z-70), więc „Zakończ próbę” działa
           także w trakcie kroku (każdy stan ma wyjście, zasada 6). */}
@@ -171,6 +186,8 @@ const PracticeWorkoutScreen = () => {
         </button>
       </div>
 
+      {done ? doneView : (
+      <>
       <h1 className="font-heading text-xl font-bold tracking-tight">{t('practice.title')}</h1>
 
       {visibleItems.map((item, index) => (
@@ -220,7 +237,10 @@ const PracticeWorkoutScreen = () => {
         </Button>
       )}
 
-      {FEATURE_FLAGS.workoutTimers && rest && (
+      </>
+      )}
+
+      {FEATURE_FLAGS.workoutTimers && rest && !done && (
         <RestBar
           deadlineAt={rest.deadlineAt}
           totalSeconds={rest.totalSeconds}
@@ -259,10 +279,23 @@ const PracticeWorkoutScreen = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Podsumowanie mailem: prawdziwy dialog, wysyłka SYMULOWANA przez adapter
+          próby (zero callable, email_log i zapisu adresu). Zawsze zamontowany
+          (pułapka Radix: nie unmountuj otwartego dialogu). */}
+      <EmailWorkoutDialog
+        open={emailOpen}
+        onOpenChange={setEmailOpen}
+        mode="workout"
+        uid={uid}
+        workoutId="practice"
+        onSent={() => setEmailSent(true)}
+      />
+
       {tourActive && (
         <AppTour
           steps={PRACTICE_TOUR_STEPS}
           checkedSets={checkedSets}
+          emailSent={emailSent}
           onFirstSet={() => { void hapticSuccess(); }}
           onComplete={() => undefined}
           onSkip={() => appTour.finish('skipped')}

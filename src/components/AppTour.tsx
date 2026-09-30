@@ -102,6 +102,8 @@ export interface AppTourProps {
   initialStepId?: AppTourStepId;
   /** Liczba odhaczonych serii (krok "complete-set" czeka na jej WZROST). */
   checkedSets?: number;
+  /** Mail wysłany (w próbie: symulacja) — krok "email-sent" przechodzi dalej. */
+  emailSent?: boolean;
   onStepChange?: (id: AppTourStepId) => void;
   /** Krok-akcja "tap": user tapnął cel (przycisk wykonuje własną akcję). */
   onAction?: (id: AppTourStepId) => void;
@@ -117,6 +119,7 @@ export const AppTour = ({
   steps,
   initialStepId,
   checkedSets,
+  emailSent,
   onStepChange,
   onAction,
   onFirstSet,
@@ -202,6 +205,11 @@ export const AppTour = ({
     if (checkIndex + 1 >= steps.length) close('complete');
     else setStepIndex(checkIndex + 1);
   }, [checkedSets, stepIndex, steps, close]);
+
+  // Krok maila: przechodzi po udanej (w próbie symulowanej) wysyłce.
+  useEffect(() => {
+    if (emailSent && step?.action === 'email-sent') next();
+  }, [emailSent, step, next]);
 
   // Pomiar celu w pętli rAF przez cały krok (scroll, klawiatura, przesunięcia
   // layoutu bez zdarzenia). setState tylko przy zmianie. Obcy overlay = pauza.
@@ -464,7 +472,9 @@ export const AppTour = ({
               data-testid="tour-action-hint"
             >
               <Pointer className={cn('h-4 w-4 shrink-0', !reduceMotion && 'tour-hint-nudge')} aria-hidden />
-              {step.action === 'complete-set' ? t('tour.app.hintCheck') : t('tour.app.hintTap')}
+              {step.action === 'complete-set'
+                ? t('tour.app.hintCheck')
+                : step.action === 'email-sent' ? t('tour.app.hintEmail') : t('tour.app.hintTap')}
             </p>
           )}
 
@@ -481,6 +491,16 @@ export const AppTour = ({
               >
                 {primaryLabel}
               </Button>
+            )}
+            {step.stepSkippable && (
+              <button
+                type="button"
+                data-testid="tour-skip-step"
+                onClick={next}
+                className="min-h-11 w-full touch-manipulation rounded-2xl bg-surface-high px-4 text-sm font-semibold text-foreground"
+              >
+                {t('tour.app.skipStep')}
+              </button>
             )}
             {step.id !== 'tabs-done' && (
               <button

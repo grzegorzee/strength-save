@@ -54,6 +54,8 @@ export type AppTourStepId =
   | 'first-set-done'
   | 'exercise-menu'
   | 'finish'
+  | 'send-email'
+  | 'show-tabs'
   | 'tab-plan'
   | 'tab-history'
   | 'tab-progress'
@@ -78,13 +80,15 @@ export interface AppTourStep {
    * Krok czeka na AKCJĘ usera na celu (tap, realne odhaczenie serii).
    * Brak przycisku "Dalej", w dymku nieklikalna podpowiedź. Pomiń zawsze jest.
    */
-  action?: 'tap' | 'complete-set';
+  action?: 'tap' | 'complete-set' | 'email-sent';
+  /** Krok-akcja z wyjściem „Pomiń ten krok” (np. mail): nie blokuje reszty. */
+  stepSkippable?: boolean;
   /** Cel opcjonalny: brak celu = dymek na środku (np. timer wyłączony). */
   optionalTarget?: boolean;
   /** Zdanie, gdy opcjonalnego celu brak. */
   fallbackTextKey?: TranslationKey;
   /** Rozdział (licznik „k z n” liczony w rozdziale). */
-  chunk?: 'first-set' | 'after-set' | 'tabs';
+  chunk?: 'first-set' | 'after-set' | 'after-workout' | 'tabs';
 }
 
 export const DASHBOARD_TOUR_STEPS: readonly AppTourStep[] = [
@@ -97,7 +101,10 @@ export const DASHBOARD_TOUR_STEPS: readonly AppTourStep[] = [
   },
 ];
 
-/** Trening próbny: dwie porcje (pierwsza seria, po serii), każda max 3 kroki. */
+/**
+ * Trening próbny: trzy porcje (pierwsza seria, po serii, po treningu), każda
+ * max 3 kroki (limit rozdziału: 4).
+ */
 export const PRACTICE_TOUR_STEPS: readonly AppTourStep[] = [
   {
     id: 'set-inputs',
@@ -135,6 +142,22 @@ export const PRACTICE_TOUR_STEPS: readonly AppTourStep[] = [
     scrollIntoView: true,
     action: 'tap',
     chunk: 'after-set',
+  },
+  {
+    // Podsumowanie mailem do trenera: w próbie wysyłka SYMULOWANA przez adapter.
+    id: 'send-email',
+    target: '[data-tour="practice-email"]',
+    textKey: 'tour.app.emailStep',
+    action: 'email-sent',
+    stepSkippable: true,
+    chunk: 'after-workout',
+  },
+  {
+    id: 'show-tabs',
+    target: '[data-tour="practice-show-tabs"]',
+    textKey: 'tour.app.showTabs',
+    action: 'tap',
+    chunk: 'after-workout',
   },
 ];
 

@@ -108,6 +108,16 @@ for (const lang of ['pl', 'en'] as const) {
     await page.getByTestId('practice-finish').click();
     await page.getByTestId('practice-confirm-finish').click();
     await expect(page.getByTestId('practice-done')).toBeVisible();
+    // Mail z podsumowaniem: prawdziwy dialog, wysyłka SYMULOWANA (zero callable).
+    await expect(page.getByTestId('tour-step-send-email')).toBeVisible();
+    let emailCallables = 0;
+    page.on('request', (r) => { if (/emailWorkout(Summary|History)/.test(r.url())) emailCallables += 1; });
+    await page.getByTestId('practice-email').click();
+    await page.getByTestId('email-workout-dialog').locator('input').fill(`coach-${lang}@example.com`);
+    await page.getByTestId('email-workout-send').click();
+    await expect(page.getByTestId('email-workout-dialog')).toHaveCount(0);
+    await expect(page.getByTestId('tour-step-show-tabs')).toBeVisible();
+    expect(emailCallables).toBe(0);
     await page.getByTestId('practice-show-tabs').click();
 
     // Przegląd zakładek.
@@ -128,6 +138,14 @@ for (const lang of ['pl', 'en'] as const) {
     expect(await workoutsOf(uid)).toHaveLength(0);
     expect(await readDoc(`training_plans/${uid}`)).toEqual(planBefore);
     expect(await queryDocs('plan_cycles', 'userId', uid)).toEqual(cyclesBefore);
+    // Zero wysyłek z próby: żadnego wpisu email_log typu podsumowanie treningu
+    // (workout/history). Maile rejestracji (kod, powitanie) są tu legalnie.
+    const emailLog = await queryDocs('email_log', 'uid', uid);
+    expect(emailLog.filter((e) => e.data.type === 'workout' || e.data.type === 'history')).toHaveLength(0);
+    expect(emailLog.every((e) => e.data.type === 'verification_code' || e.data.type === 'welcome_email')).toBe(true);
+    expect(emailLog.some((e) => String(e.data.to).startsWith('coach-'))).toBe(false);
+    const prefs = (await readDoc(`users/${uid}`))?.preferences as { trainerEmail?: string } | undefined;
+    expect(prefs?.trainerEmail).toBeUndefined();
     const aggregate = await readDoc(`users/${uid}/aggregates/allTime`);
     expect((aggregate as { totals?: { workoutCount?: number } } | null)?.totals?.workoutCount ?? 0).toBe(0);
 

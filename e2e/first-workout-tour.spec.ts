@@ -41,6 +41,9 @@ const TXT = {
     tabsDone: 'Wszystko jasne!',
     swapTitle: 'Zamień ćwiczenie',
     swapMenu: 'Zamień ćwiczenie',
+    emailStep: 'wyślesz trenerowi mailem',
+    emailHint: 'Tak to działa: w prawdziwym treningu podsumowanie trafi na ten adres.',
+    showTabs: 'Teraz pokażę Ci, gdzie co jest',
   },
   en: {
     welcome: 'Let me show you how it works',
@@ -58,6 +61,9 @@ const TXT = {
     tabsDone: 'You are all set!',
     swapTitle: 'Swap exercise',
     swapMenu: 'Swap exercise',
+    emailStep: 'Email the summary to your coach',
+    emailHint: 'That is how it works: in a real workout the summary goes to this address.',
+    showTabs: 'Now let me show you where everything is',
   },
 } as const;
 
@@ -210,7 +216,32 @@ const runFullSequence = async (page: Page, lang: Lang, shotsDir: string | null) 
   await expectNoStuckOverlay(page);
   await page.getByTestId('practice-confirm-finish').click();
   await expect(page.getByTestId('practice-done')).toContainText(T.doneTitle);
+
+  // Po treningu: podsumowanie mailem (prawdziwy dialog, wysyłka symulowana).
+  await expect(page.getByTestId('tour-step-send-email')).toContainText(T.emailStep);
+  await expect(page.getByTestId('tour-next')).toHaveCount(0);
+  await expectStepGeometry(page);
   await snap('07-practice-done');
+  await page.getByTestId('practice-email').click();
+  const dialog = page.getByTestId('email-workout-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
+  await dialog.locator('input').fill('trener@example.com');
+  await snap('13-email-dialog');
+  await page.getByTestId('email-workout-send').click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText(T.emailHint).first()).toBeVisible();
+  // Dialog zamknięty czysto: bez scroll-locka i pointer-events na body.
+  const body = await page.evaluate(() => ({
+    pointer: getComputedStyle(document.body).pointerEvents,
+    overflow: document.body.style.overflow,
+  }));
+  expect(body.pointer).not.toBe('none');
+  expect(body.overflow).not.toBe('hidden');
+  await expect(page.getByTestId('save-trainer-name')).toHaveCount(0);
+  await expect(page.getByTestId('tour-step-show-tabs')).toContainText(T.showTabs);
+  await expectStepGeometry(page);
+  await snap('14-email-sent-show-tabs');
   await page.getByTestId('practice-show-tabs').click();
 
   // Rozdział zakładek: tap w podświetloną zakładkę przenosi dalej.
@@ -282,6 +313,27 @@ test.describe('Przewodnik v2: Pomiń, wyjścia, przerwania', () => {
     await expectPageRendered(page);
     await page.waitForTimeout(600);
     await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
+  });
+
+  test('krok maila: „Pomiń ten krok” przechodzi dalej bez wysyłki, „Pomiń przewodnik” kończy', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await page.locator('[data-tour="set-check"]').first().click();
+    await expect(page.getByTestId('tour-step-first-set-done')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-exercise-menu')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-finish')).toBeVisible();
+    await page.getByTestId('practice-finish').click();
+    await page.getByTestId('practice-confirm-finish').click();
+    await expect(page.getByTestId('tour-step-send-email')).toBeVisible();
+    await page.getByTestId('tour-skip-step').click();
+    await expect(page.getByTestId('tour-step-show-tabs')).toBeVisible();
+    await page.getByTestId('tour-skip').click();
+    await expectNoStuckOverlay(page);
+    expect((await localTour(page))?.outcome).toBe('skipped');
   });
 
   for (const step of ['set-inputs', 'set-check', 'first-set-done', 'exercise-menu', 'finish'] as const) {

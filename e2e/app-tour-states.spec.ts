@@ -83,10 +83,6 @@ const driveTourToEnd = async (page: Page): Promise<string[]> => {
         await page.getByTestId('practice-confirm-finish').click();
         continue;
       }
-      if (await page.getByTestId('practice-show-tabs').isVisible().catch(() => false)) {
-        await page.getByTestId('practice-show-tabs').click();
-        continue;
-      }
       await page.waitForTimeout(250);
       continue;
     }
@@ -97,6 +93,13 @@ const driveTourToEnd = async (page: Page): Promise<string[]> => {
       await page.locator('[data-tour="set-check"]').first().click();
     } else if (step === 'finish') {
       await page.locator('[data-tour="finish"]').first().click();
+    } else if (step === 'send-email') {
+      await page.getByTestId('practice-email').click();
+      await page.getByTestId('email-workout-dialog').locator('input').fill('trener@example.com');
+      await page.getByTestId('email-workout-send').click();
+      await expect(page.getByTestId('email-workout-dialog')).toHaveCount(0);
+    } else if (step === 'show-tabs') {
+      await page.getByTestId('practice-show-tabs').click();
     } else if (step?.startsWith('tab-') && step !== 'tabs-done') {
       await page.locator(`[data-tour="nav-${step.slice(4)}"]`).first().click();
     } else if (await next.isVisible().catch(() => false)) {
@@ -107,7 +110,12 @@ const driveTourToEnd = async (page: Page): Promise<string[]> => {
     } else {
       await page.waitForTimeout(250);
     }
-    await page.waitForTimeout(150);
+    // Deterministycznie: czekamy, aż krok się zmieni (albo przewodnik zniknie),
+    // zamiast polegać na stałej pauzie (sterownik gubił krok pod obciążeniem).
+    await expect.poll(async () => {
+      if (await tour.count() === 0) return 'none';
+      return (await tour.getAttribute('data-step').catch(() => 'none')) ?? 'none';
+    }, { timeout: 10_000 }).not.toBe(step);
   }
   throw new Error(`przewodnik nie doszedł do końca, kroki: ${seen.join(' > ')}`);
 };
@@ -120,7 +128,7 @@ const prepare = async (page: Page, iso: string) => {
 };
 
 const EXPECTED_STEPS = [
-  'welcome', 'set-inputs', 'set-check', 'first-set-done', 'exercise-menu', 'finish',
+  'welcome', 'set-inputs', 'set-check', 'first-set-done', 'exercise-menu', 'finish', 'send-email', 'show-tabs',
   'tab-plan', 'tab-history', 'tab-progress', 'tab-profile', 'tabs-done',
 ];
 

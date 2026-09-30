@@ -228,6 +228,8 @@ const Targets = ({ rest = true }: { rest?: boolean }) => (
     {rest && <div data-tour="rest-bar">przerwa</div>}
     <button type="button" data-tour="exercise-menu">menu</button>
     <button type="button" data-tour="finish">Zakończ</button>
+    <button type="button" data-tour="practice-email">Wyślij do trenera</button>
+    <button type="button" data-tour="practice-show-tabs">Pokaż</button>
   </div>
 );
 
@@ -239,10 +241,10 @@ const renderWorkoutTour = (props: Partial<Parameters<typeof AppTour>[0]> = {}, t
       <AppTour steps={PRACTICE_TOUR_STEPS} checkedSets={0} {...handlers} {...props} />
     </LanguageProvider>,
   );
-  const rerenderSets = (checkedSets: number) => view.rerender(
+  const rerenderSets = (checkedSets: number, emailSent = false) => view.rerender(
     <LanguageProvider>
       <Targets {...targets} />
-      <AppTour steps={PRACTICE_TOUR_STEPS} {...handlers} {...props} checkedSets={checkedSets} />
+      <AppTour steps={PRACTICE_TOUR_STEPS} {...handlers} {...props} checkedSets={checkedSets} emailSent={emailSent} />
     </LanguageProvider>,
   );
   return { ...view, ...handlers, rerenderSets };
@@ -285,8 +287,30 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
     expect(screen.queryByTestId('tour-next')).toBeNull();
     await nextFrame();
     fireEvent.click(screen.getByText('Zakończ'));
+
+    // Po treningu (nowa porcja): mail czeka na realną (w próbie symulowaną) wysyłkę.
+    await screen.findByTestId('tour-step-send-email');
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 2');
+    expect(screen.queryByTestId('tour-next')).toBeNull();
+    expect(screen.getByTestId('tour-action-hint').textContent).toBe('Wyślij podsumowanie, by iść dalej');
+    // Sam tap w przycisk maila (otwarcie dialogu) nie zalicza kroku.
+    await nextFrame();
+    fireEvent.click(screen.getByText('Wyślij do trenera'));
+    expect(screen.getByTestId('tour-step-send-email')).toBeTruthy();
+    rerenderSets(1, true);
+    await screen.findByTestId('tour-step-show-tabs');
+    await nextFrame();
+    fireEvent.click(screen.getByText('Pokaż'));
     expect(onComplete).toHaveBeenCalledOnce();
     expect(screen.queryByTestId('first-workout-tour')).toBeNull();
+  });
+
+  it('krok maila ma wyjście „Pomiń ten krok” (nie blokuje reszty przewodnika)', async () => {
+    const { onSkip } = renderWorkoutTour({ initialStepId: 'send-email' });
+    await screen.findByTestId('tour-step-send-email');
+    fireEvent.click(screen.getByTestId('tour-skip-step'));
+    await screen.findByTestId('tour-step-show-tabs');
+    expect(onSkip).not.toHaveBeenCalled();
   });
 
   it('odhaczenie już w kroku wpisu (user działa, nie czyta) też daje celebrację', async () => {

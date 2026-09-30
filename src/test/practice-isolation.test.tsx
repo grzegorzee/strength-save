@@ -37,6 +37,11 @@ vi.mock('@/lib/rest-notification', () => restNotification);
 const telemetry = vi.hoisted(() => ({ trackTelemetryEvent: vi.fn() }));
 vi.mock('@/lib/app-telemetry', () => telemetry);
 vi.mock('@/lib/error-telemetry', () => ({ reportClientError: vi.fn() }));
+const emailModule = vi.hoisted(() => ({ sendWorkoutEmail: vi.fn(), sendHistoryEmail: vi.fn() }));
+vi.mock('@/lib/email-workout', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  ...emailModule,
+}));
 
 let tourLocal: string | null = null;
 vi.mock('@/contexts/UserContext', () => ({
@@ -101,6 +106,12 @@ const runFullPractice = async () => {
   fireEvent.click(screen.getByTestId('practice-finish'));
   fireEvent.click(screen.getByTestId('practice-confirm-finish'));
   await screen.findByTestId('practice-done');
+  // Podsumowanie mailem: prawdziwy dialog, wysyłka symulowana.
+  fireEvent.click(screen.getByTestId('practice-email'));
+  const dialog = await screen.findByTestId('email-workout-dialog');
+  fireEvent.change(dialog.querySelector('input')!, { target: { value: 'trener@example.com' } });
+  fireEvent.click(screen.getByTestId('email-workout-send'));
+  await waitFor(() => expect(screen.queryByTestId('email-workout-dialog')).toBeNull(), { timeout: 3000 });
 };
 
 describe('trening próbny: zero zapisów (tryb bez przewodnika)', () => {
@@ -113,6 +124,10 @@ describe('trening próbny: zero zapisów (tryb bez przewodnika)', () => {
     expect(restNotification.armRestEndNotification).not.toHaveBeenCalled();
     expect(restNotification.armSetCountdownNotification).not.toHaveBeenCalled();
     expect(telemetry.trackTelemetryEvent).not.toHaveBeenCalled();
+    // Mail: zero callable emailWorkoutSummary/History, zero zapisu adresu trenera.
+    expect(emailModule.sendWorkoutEmail).not.toHaveBeenCalled();
+    expect(emailModule.sendHistoryEmail).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('save-trainer-name')).toBeNull();
     expect(snapshotStorage()).toEqual(before);
     fireEvent.click(screen.getByTestId('practice-back-home'));
     await screen.findByTestId('home');

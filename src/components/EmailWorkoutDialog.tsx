@@ -3,7 +3,6 @@
 // udanej wysyłce na NOWY adres popup "Zapisać jako trenera?" z opcjonalnym
 // imieniem; znany adres leci bez popupu, ale z imieniem w payload (powitanie).
 import { useEffect, useState } from 'react';
-import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import { Loader2, Mail } from 'lucide-react';
 import {
   Dialog,
@@ -17,8 +16,8 @@ import { Button } from '@/components/ui/button';
 import { toggleButtonClasses } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { db } from '@/lib/firebase';
-import { emailErrorKey, sendHistoryEmail, sendWorkoutEmail, type HistoryEmailRange } from '@/lib/email-workout';
+import { emailErrorKey, type HistoryEmailRange } from '@/lib/email-workout';
+import { useWorkoutEffects } from '@/contexts/WorkoutEffectsContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -34,6 +33,8 @@ interface EmailWorkoutDialogProps {
   savedTrainerEmail?: string;
   /** WP-I: zapisane imię trenera — idzie w payload jako powitanie w mailu. */
   savedTrainerName?: string;
+  /** Po udanej (w próbie: symulowanej) wysyłce, np. krok przewodnika. */
+  onSent?: (to: string) => void;
 }
 
 // Bug 49 (X30): adresy email porównujemy i zapisujemy bez rozróżniania
@@ -42,9 +43,12 @@ interface EmailWorkoutDialogProps {
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
 export const EmailWorkoutDialog = ({
-  open, onOpenChange, mode, uid, workoutId, initialEmail, savedTrainerEmail, savedTrainerName,
+  open, onOpenChange, mode, uid, workoutId, initialEmail, savedTrainerEmail, savedTrainerName, onSent,
 }: EmailWorkoutDialogProps) => {
   const { t, lang } = useTranslation();
+  // Wysyłka i zapis trenera przez adapter: w treningu próbnym symulacja, zero
+  // callable, zero email_log, zero zapisu adresu (przewodnik nowego konta).
+  const effects = useWorkoutEffects();
   const [email, setEmail] = useState(initialEmail ?? '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,14 +82,21 @@ export const EmailWorkoutDialog = ({
       const trainerName = isKnownTrainer ? knownName : undefined;
       if (mode === 'workout') {
         if (!workoutId) throw new Error('missing-workout');
-        await sendWorkoutEmail(workoutId, to, lang, trainerName);
+        await effects.sendWorkoutEmail(workoutId, to, lang, trainerName);
       } else {
-        await sendHistoryEmail(to, lang, range, trainerName);
+        await effects.sendHistoryEmail(to, lang, range, trainerName);
       }
-      toast({ title: t('email.sentTitle'), description: t('email.sentDesc', { email: to }) });
+      toast({
+        title: t('email.sentTitle'),
+        description: effects.practice
+          ? `${t('email.sentDesc', { email: to })} ${t('practice.emailHint')}`
+          : t('email.sentDesc', { email: to }),
+      });
       onOpenChange(false);
+      onSent?.(to);
       // WP-I: nowy adres -> pytamy o zapis DOPIERO po udanej wysyłce.
-      if (!isKnownTrainer) {
+      // Próba: bez propozycji zapisu (nic się nie zapisze).
+      if (!isKnownTrainer && !effects.practice) {
         setNameInput('');
         setSavePromptFor(to);
       }
@@ -103,10 +114,7 @@ export const EmailWorkoutDialog = ({
     // literowy tego adresu są rozpoznawane bez popupu.
     const savedEmail = normalizeEmail(savePromptFor);
     // Offline: lokalnie i tak zadziała (localSaved), mirror dojdzie po powrocie sieci.
-    updateDoc(doc(db, 'users', uid), {
-      'preferences.trainerEmail': savedEmail,
-      'preferences.trainerName': name || deleteField(),
-    }).catch(() => {});
+    effects.saveTrainer(uid, savedEmail, name).catch(() => {});
     setLocalSaved({ email: savedEmail, ...(name ? { name } : {}) });
   };
 
