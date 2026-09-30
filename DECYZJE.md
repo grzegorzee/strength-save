@@ -11,6 +11,22 @@
 
 ## DECYZJE
 
+### 2026-09-30: premiera iOS 1.0 (build 150) i zgłoszenie 1.0.1 (153) do review
+
+Decyzja właściciela: wariant A. 1.0 (150, zatwierdzona 24.09) wydana ręcznie
+przez API 30.09 ~14:30 CEST: appStoreState READY_FOR_SALE. 1.0.1 (build 153:
+poprawki F1-F7, przewodnik v2 z treningiem próbnym, 136 ćwiczeń, 17 planów,
+OTA self-host, SemVer) utworzona w ASC (id 8c8f0902), „Co nowego” PL/EN,
+notatki dla recenzenta z opisem OTA (2.5.2, DPLA 3.3.1(B)) i przewodnika,
+konto demo przeniesione z 1.0, releaseType AFTER_APPROVAL (właściciel: nie
+czekamy z wydaniem). Zgłoszenie 9706aa4b WAITING_FOR_REVIEW 12:31:42 UTC.
+Użytkownicy 1.0 (150) nie mają OTA: poprawki dotrą do nich przez aktualizację
+sklepową 1.0.1; od 1.0.1 poprawki JS przez kanał OTA.
+Zakup PRO sandbox na iOS 153 potwierdzony 30.09 (konto testowe, trial monthly,
+webhook RC → subscription w 9 s). Android: listing publiczny 404, produkcja 54
+niepubliczna; zakup na Androidzie nieprzetestowany.
+
+
 ### 2026-09-30: zabezpieczenia kosztów GCP bez odcinania billingu (limit 50 PLN/mies.)
 
 **Decyzja właściciela:** limit 50 PLN/miesiąc, ale BEZ automatycznego odpięcia
