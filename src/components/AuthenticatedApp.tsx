@@ -10,6 +10,7 @@ import { UserProvider, useCurrentUser } from '@/contexts/UserContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { WatchEventRouter } from '@/components/WatchEventRouter';
+import { DeepLinkRouter } from '@/components/DeepLinkRouter';
 // X35b (WP-B): /settings zniknęło — sekcje żyją w Profilu, stare ?section= mapowane na kotwice.
 import { SettingsRedirect } from '@/components/SettingsRedirect';
 // A5 (X70): zakładka "Postępy" żyje pod /achievements — /progress to redirect.
@@ -256,6 +257,7 @@ const AppRoutes = ({ onLogout, onAccountDeleted }: SessionExits) => {
       {!isNewUser && <IosSwipeBack />}
       {!isNewUser && <WatchEventRouter />}
       {!isNewUser && <ActiveWorkoutResume />}
+      <DeepLinkRouter enabled={!isNewUser} />
       <ErrorBoundary uid={uid} fallback={(reset, error, code) => <RouteCrashFallback onReset={reset} error={error} code={code} />}>
         <Suspense fallback={<BootScreen />}>
           <Routes>

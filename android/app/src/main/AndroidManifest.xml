@@ -31,6 +31,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="strengthsave" />
             </intent-filter>
+
+            <!-- App Links (2026-09-30): https://strengthsave.app/open z maili otwiera apkę.
+                 Weryfikacja: https://strengthsave.app/.well-known/assetlinks.json -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="strengthsave.app" />
+                <data android:pathPrefix="/open" />
+            </intent-filter>
         </activity>
 
         <activity android:name=".HealthPermissionsRationaleActivity" android:exported="true">
