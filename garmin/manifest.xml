@@ -9,7 +9,8 @@
       name="@Strings.AppName"
       entry="StrengthSaveApp"
       launcherIcon="@Drawables.LauncherIcon"
-      minSdkVersion="4.0.0">
+      minSdkVersion="4.0.0"
+      version="1.0.0">
     <iq:products>
       <iq:product id="fenix7"/>
       <iq:product id="fenix7s"/>
@@ -31,8 +32,6 @@
     <iq:permissions>
       <iq:uses-permission id="Communications"/>
       <iq:uses-permission id="Fit"/>
-      <iq:uses-permission id="Sensor"/>
-      <iq:uses-permission id="UserProfile"/>
     </iq:permissions>
     <iq:languages>
       <iq:language>eng</iq:language>

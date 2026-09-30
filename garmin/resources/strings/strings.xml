@@ -1,7 +1,7 @@
 <strings>
   <string id="AppName">Strength Save</string>
   <string id="PairTitle">Pair with app</string>
-  <string id="PairHint">Settings &gt; Garmin watch</string>
+  <string id="PairHint">Profile &gt; Devices</string>
   <string id="PairSend">Pair</string>
   <string id="PairFailed">Wrong or expired code</string>
   <string id="Loading">Loading...</string>

@@ -1,7 +1,7 @@
 <strings>
   <string id="AppName">Strength Save</string>
   <string id="PairTitle">Sparuj z aplikacją</string>
-  <string id="PairHint">Ustawienia &gt; Zegarek Garmin</string>
+  <string id="PairHint">Profil &gt; Urządzenia</string>
   <string id="PairSend">Sparuj</string>
   <string id="PairFailed">Zły albo wygasły kod</string>
   <string id="Loading">Wczytywanie...</string>
