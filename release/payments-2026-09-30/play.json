@@ -1,0 +1,90 @@
+{
+  "checkedAt": "2026-09-30T12:21:14.966100+00:00",
+  "source": "Android Publisher API v3 (GET only, bez edits)",
+  "packageName": "com.grzegorzjasionowicz.strengthsave",
+  "impersonatedServiceAccount": "strength-save-play@fittracker-workouts.iam.gserviceaccount.com",
+  "subscriptions": {
+    "http": 200,
+    "items": [
+      {
+        "productId": "strengthsave_pro_monthly",
+        "basePlans": [
+          {
+            "basePlanId": "monthly",
+            "state": "ACTIVE",
+            "billingPeriodDuration": "P1M",
+            "gracePeriodDuration": "P0D",
+            "accountHoldDuration": null,
+            "resubscribeState": "RESUBSCRIBE_STATE_ACTIVE",
+            "regionCount": 157,
+            "pricePL": "14.99 PLN",
+            "priceUS": "3.99 USD",
+            "offers": [
+              {
+                "offerId": "trial-7d",
+                "state": "ACTIVE",
+                "eligibility": {
+                  "acquisitionRule": {
+                    "scope": {
+                      "anySubscriptionInApp": {}
+                    }
+                  }
+                },
+                "phases": [
+                  {
+                    "duration": "P7D",
+                    "recurrenceCount": 1,
+                    "free": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "productId": "strengthsave_pro_yearly",
+        "basePlans": [
+          {
+            "basePlanId": "yearly",
+            "state": "ACTIVE",
+            "billingPeriodDuration": "P1Y",
+            "gracePeriodDuration": "P0D",
+            "accountHoldDuration": null,
+            "resubscribeState": "RESUBSCRIBE_STATE_ACTIVE",
+            "regionCount": 157,
+            "pricePL": "119.99 PLN",
+            "priceUS": "31.99 USD",
+            "offers": [
+              {
+                "offerId": "trial-14d",
+                "state": "ACTIVE",
+                "eligibility": {
+                  "acquisitionRule": {
+                    "scope": {
+                      "anySubscriptionInApp": {}
+                    }
+                  }
+                },
+                "phases": [
+                  {
+                    "duration": "P14D",
+                    "recurrenceCount": 1,
+                    "free": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "generatedApks_57": {
+    "http": 200,
+    "present": true
+  },
+  "licenseTesters": "Android Publisher API nie udostępnia listy License testers. Sprawdź: Play Console → Ustawienia (Settings) → Testowanie licencji (License testing).",
+  "rtdnTopic": "Temat RTDN nie jest dostępny w publicznym API. Sprawdź: Play Console → Strength Save → Zarabianie (Monetize with Play) → Konfiguracja zarabiania (Monetization setup) → Powiadomienia w czasie rzeczywistym dla deweloperów. Temat po stronie RevenueCat: patrz rc.json (google integration) i pubsub.json.",
+  "requests": 4
+}

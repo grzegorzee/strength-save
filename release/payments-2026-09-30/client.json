@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-09-30T12:35:00Z",
+  "source": "Lokalne artefakty wydań + kod źródłowy (bez wartości kluczy, tylko sha256[:12])",
+  "rcPublicKeysInProject": {
+    "app_store app04502c737f": "bfd05c40add3",
+    "play_store appe7c441de60": "6a7f8aefb1c8",
+    "test_store app51bd57b5ea (NIE może być w buildzie)": "d3dd542c9c9c"
+  },
+  "ios153": {
+    "artifact": "build/ios/export/App.ipa",
+    "sha256": "689079a6a08fdae7d91149a7cc226ffe1e87cdebaa8f4d9984fe3b9d404d7d4a",
+    "sha256MatchesUploadRecord": "release/ios/testflight-153.json (artifact.sha256, delivery c83bb875-2eb6-405c-a6cc-8ccc7654a217)",
+    "keysInBundleJs": { "appl_": "bfd05c40add3", "goog_": "6a7f8aefb1c8" },
+    "testStoreKeyPresent": false,
+    "ascBuild": { "version": "153", "processingState": "VALID", "buildAudienceType": "APP_STORE_ELIGIBLE" },
+    "verdict": "OK: klucz iOS w IPA = klucz aplikacji App Store w RC"
+  },
+  "android57": {
+    "artifact": "android/app/build/outputs/bundle/release/app-release.aab (versionCode 57, versionName 1.0.1)",
+    "sha256": "04709d46783cdaaf2eef056092813f88ebc8a8d0e28193743119e70615cb7647",
+    "sha256MatchesUploadRecord": "release/android/internal-2026-09-30-57/play-delivery.json",
+    "keysInBundleJs": { "appl_": "bfd05c40add3", "goog_": "6a7f8aefb1c8" },
+    "testStoreKeyPresent": false,
+    "playGeneratedApks57": "HTTP 200 (play.json)",
+    "verdict": "OK: klucz Android w AAB = klucz aplikacji Google Play w RC"
+  },
+  "code": {
+    "configure": "src/lib/purchases.ts:103 Purchases.configure({ apiKey }) bez appUserID (anonimowo), klucz per platforma bez fallbacku (revenueCatApiKeyForPlatform)",
+    "identity": "src/lib/purchases.ts:132 Purchases.logIn({ appUserID: uid }) po zalogowaniu Firebase (src/hooks/useAuth.ts:72, :96); plugin 13.1.6 PurchasesPlugin.swift:368-371 przekazuje appUserID do CommonFunctionality.logIn. Zakup/restore tylko po potwierdzonym logIn (runPurchasesForUser, PURCHASES_IDENTITY_NOT_READY).",
+    "identityProofProduction": "Log produkcyjny revenuecatWebhook 2026-09-30T12:20:20Z: INITIAL_PURCHASE → users/<uid Firebase grzegorzee@gmail.com>, czyli app_user_id = uid Firebase.",
+    "offering": "src/pages/Paywall.tsx:83 Purchases.getOfferings().current (current = offering 'default', is_current=true w rc.json); pakiety wybierane po ANNUAL/MONTHLY lub identyfikatorze",
+    "restore": "src/pages/Paywall.tsx:162 runPurchasesForUser(uid, Purchases.restorePurchases) → przy aktywnym 'pro' refresh() (useSubscription.getCustomerInfo) i nawigacja; bez entitlementu toast restoreNone z podpowiedzią",
+    "entitlementSources": "src/hooks/useSubscription.ts: admin || Firestore subscription (webhook/comp) || RC CustomerInfo 'pro' (natychmiast po zakupie, zanim dotrze webhook)"
+  }
+}
