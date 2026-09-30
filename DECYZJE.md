@@ -11,6 +11,22 @@
 
 ## DECYZJE
 
+### 2026-09-30: Garmin Connect IQ 1.0.0 wysłana do recenzji Garmina
+
+Paczka `strengthsave-garmin-1.0.0.iq` (sha256 e4722ac2…fe01a) wgrana w portalu Connect IQ
+(konto developera „StrengthSave”, bez spacji: portal zabrania spacji w Display Name;
+umowa developera zaakceptowana za zgodą właściciela). Portal: Status Verified +
+„Signature check failed” (pierwsza wersja; znana wartość 0xE1C0DE12 nieobecna w kodzie);
+zgłoszenie przyjęte, status „App pending”, do 3 dni. Strona sklepu (podgląd):
+https://apps.garmin.com/apps/7d3828f9-26ab-40d7-a694-49beee314174. Kategoria Strength
+Training, EN+PL, prywatność tak (strengthsave.app/privacy), monetyzacja: Third-Party
+Payments (PRO w aplikacji na telefonie), companion iOS/Android, zrzuty: ekran parowania.
+Listing poprawiony przed wysyłką: bez wersji webowej (zakaz właściciela; nowy test
+kontraktu) i bez obietnicy tętna (G9 niesprawdzone po usunięciu uprawnienia Sensor);
+portal odrzuca znaki < > w opisie. Właściciel robi G1-G9 na epix Gen 2 (konto QA)
+równolegle z recenzją; zrzuty z planem dojdą w aktualizacji listingu.
+
+
 ### 2026-09-30: maile bez danych firmy w stopce, „Otwórz aplikację” otwiera apkę na telefonie (1.0.2)
 
 Zgłoszenie właściciela po mailu od Strength Save: (1) stopka z 29.09 miała

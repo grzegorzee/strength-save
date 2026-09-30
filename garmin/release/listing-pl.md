@@ -20,7 +20,7 @@ Na zegarku:
 - zapis treningu jako aktywności siłowej w Garmin Connect;
 - język polski i angielski.
 
-Wymagania: konto Strength Save z aktywną subskrypcją Strength Save PRO, aplikacja Strength Save na iPhone'a lub Androida (kod parowania: Profil > Urządzenia i połączenia) oraz telefon połączony z zegarkiem przez aplikację Garmin Connect, bo zegarek pobiera plan i wysyła serie przez telefon.
+Wymagania: konto Strength Save z aktywną subskrypcją Strength Save PRO, aplikacja Strength Save na iPhone'a lub Androida (kod parowania w aplikacji: Profil, Urządzenia i połączenia) oraz telefon połączony z zegarkiem przez aplikację Garmin Connect, bo zegarek pobiera plan i wysyła serie przez telefon.
 
 Płatność: zegarek nie ma własnego zakupu. Bez aktywnego Strength Save PRO zegarek pokazuje komunikat o wymaganym PRO i nie pobiera planu. Subskrypcję (miesięczną albo roczną, odnawianą automatycznie) kupuje się i przywraca wyłącznie w aplikacji na iOS lub Androida. Rozliczenia, anulowanie i zwroty obsługuje App Store albo Google Play na swoich zasadach (szczegóły: https://strengthsave.app/terms). Jedna subskrypcja obejmuje wszystkie aplikacje Strength Save.
 

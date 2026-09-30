@@ -20,7 +20,7 @@ On the watch:
 - the workout saved as a strength activity in Garmin Connect;
 - Polish and English.
 
-Requirements: a Strength Save account with an active Strength Save PRO subscription, the Strength Save app for iPhone or Android (pairing code: Profile > Devices & connections), and a phone connected to the watch through the Garmin Connect app, because the watch downloads the plan and sends sets through the phone.
+Requirements: a Strength Save account with an active Strength Save PRO subscription, the Strength Save app for iPhone or Android (pairing code in the app: Profile, Devices and connections), and a phone connected to the watch through the Garmin Connect app, because the watch downloads the plan and sends sets through the phone.
 
 Payment: the watch has no purchase of its own. Without an active Strength Save PRO the watch shows a PRO required message and does not download the plan. The subscription (monthly or yearly, auto-renewing) is bought and restored only in the iOS or Android app. Billing, cancellation, and refunds are handled by the App Store or Google Play under their own terms (details: https://strengthsave.app/terms). One subscription covers every Strength Save app.
 
