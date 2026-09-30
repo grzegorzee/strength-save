@@ -1,5 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import publicKeyPem from '../../release/live-updates/public-key.pem?raw';
+// Klucz publiczny w .txt (nie .pem): serwer deweloperski Vite domyślnie blokuje *.pem
+// (server.fs.deny), co dawało biały ekran w dev/e2e.
+import publicKeyPem from '../../release/live-updates/public-key.txt?raw';
 import { addAppStateListener } from '@/lib/app-lifecycle';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { currentHashPath } from '@/lib/live-update-activity';

@@ -70,7 +70,7 @@ if (!localDir && (process.env.VITE_LIVE_UPDATE_BASE_URL || process.env.VITE_LIVE
 }
 
 const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
-const publicKeyPem = readFileSync(join(ROOT, 'release/live-updates/public-key.pem'), 'utf8');
+const publicKeyPem = readFileSync(join(ROOT, 'release/live-updates/public-key.txt'), 'utf8');
 const baselineRoot = process.env.STRENGTH_SAVE_OTA_BASELINE_ROOT ? resolve(process.env.STRENGTH_SAVE_OTA_BASELINE_ROOT) : ROOT;
 
 const readBucket = () => {
@@ -137,7 +137,7 @@ const privateKey = () => {
   if (!existsSync(path)) fail(`brak klucza prywatnego OTA (${path})`);
   const pem = readFileSync(path, 'utf8');
   if (!verifyText(publicKeyPem, 'probe', signText(pem, 'probe'))) {
-    fail('klucz prywatny nie pasuje do release/live-updates/public-key.pem (aplikacja odrzuciłaby pakiet)');
+    fail('klucz prywatny nie pasuje do release/live-updates/public-key.txt (aplikacja odrzuciłaby pakiet)');
   }
   return pem;
 };

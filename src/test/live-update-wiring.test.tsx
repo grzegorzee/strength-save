@@ -60,7 +60,7 @@ describe('OTA: kontrakt konfiguracji natywnej', () => {
   });
 
   it('w repo jest wyłącznie klucz PUBLICZNY', () => {
-    const pem = readFileSync('release/live-updates/public-key.pem', 'utf8');
+    const pem = readFileSync('release/live-updates/public-key.txt', 'utf8');
     expect(pem).toMatch(/^-----BEGIN PUBLIC KEY-----/);
     expect(pem).not.toMatch(/PRIVATE KEY/);
   });

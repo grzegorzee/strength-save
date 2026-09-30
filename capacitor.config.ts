@@ -8,7 +8,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // Klucz PUBLICZNY OTA (prywatny: ~/FIRMA/_secrets/projekty/strength_save-live-update/,
 // nigdy w repo). Jedna linia bez \n: iOS usuwa nagłówki PEM i \n przed base64
 // (LiveUpdate.swift verifySignatureForFile), Android tak samo (createPublicKeyFromString).
-const liveUpdatePublicKey = readFileSync('release/live-updates/public-key.pem', 'utf8')
+const liveUpdatePublicKey = readFileSync('release/live-updates/public-key.txt', 'utf8')
   .replace(/\r?\n/g, '')
   .trim();
 

@@ -3,9 +3,9 @@
   "platform": "android",
   "nativeVersion": "1.0.1",
   "nativeBuild": 57,
-  "sourceCommit": "617ec7d861d6320c1e10c87d1d31b63c857e8ea0",
-  "recordedAt": "2026-09-30T07:52:04.157Z",
-  "fingerprint": "8e1398ae0031e88d89c35029440da5a9fce242a113abbf62624f2a925db8de40",
+  "sourceCommit": "28a3b0423ada202b0d915f13169e2f9ac5e5ff84",
+  "recordedAt": "2026-09-30T08:03:17.864Z",
+  "fingerprint": "ffa4382de306cfe7c9236f089ea66192ffb50103982debebc1192698aa9fd029",
   "inventory": {
     "platform": "android",
     "core": {
@@ -114,7 +114,7 @@
     ],
     "localNative": {
       "files": 10,
-      "sha256": "dedaf0bb6174c4c26a2056622f1cf8926dc8ac0b958dcd9f3d195f8849c3e31d"
+      "sha256": "893b083cdc437460cf9357353bcbf4be0c4a6c27774ab8ae9e6a3b70ba6244f1"
     }
   }
 }
