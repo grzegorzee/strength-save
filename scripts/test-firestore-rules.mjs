@@ -492,6 +492,9 @@ await seedUser({ enabled: true });
 add('users: notificationPrefs mapa ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: { weeklyDigest: false } })));
 // Z96: activitySummary pisze wyłącznie Admin SDK (rollup) — klient DENIED.
 add('users: klient nie zapisze activitySummary DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { activitySummary: { lastActiveAt: '2026-07-17' } })));
+// OTA: kanał aktualizacji przypisuje wyłącznie admin (callable adminSetLiveUpdateChannel).
+add('users: klient nie ustawi sobie liveUpdateChannel internal DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { liveUpdateChannel: 'internal' })));
+add('users: klient nie ustawi liveUpdateChannel razem z dozwolonym polem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { language: 'en', liveUpdateChannel: 'internal' })));
 add('users: notificationPrefs nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: 'wylacz' })));
 add('users: displayName > 200 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'x'.repeat(201) })));
 add('users: preferences nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { preferences: 42 })));

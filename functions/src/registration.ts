@@ -32,6 +32,7 @@ import {
   restoreRevokedSubscription,
   canCreateUserProfile,
   resolveUpdatedAccessStatus,
+  parseLiveUpdateChannel,
 } from "./security";
 import { writeEmailLog } from "./email-log";
 import { buildAnnouncementEvents } from "./announcement-events";
@@ -1074,6 +1075,37 @@ export const updateUserAccess = onCall({ secrets: [...SES_EMAIL_SECRETS] }, asyn
   });
 
   return { success: true };
+});
+
+// Kanał aktualizacji OTA (docs/LIVE-UPDATES.md): `internal` dostają testerzy
+// wskazani przez admina. Pole users/{uid}.liveUpdateChannel jest poza whitelistą
+// zapisu klienta w firestore.rules, więc user nie zmieni go sam; admin przez
+// ten callable (walidacja + audyt), rola admina daje `internal` automatycznie.
+export const adminSetLiveUpdateChannel = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid is required");
+  const channel = parseLiveUpdateChannel(request.data?.channel);
+  if (!channel) throw new HttpsError("invalid-argument", "channel must be internal or production");
+  const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
+  const userData = userSnap.data() as UserProfileDoc;
+
+  const timestamp = nowIso();
+  await userRef.set({ liveUpdateChannel: channel }, { merge: true });
+  await writeAuthAuditLog({
+    eventType: "admin_live_update_channel_updated",
+    uid,
+    email: userData.email || null,
+    actorUid: request.auth.uid,
+    createdAt: timestamp,
+    metadata: { channel },
+  });
+
+  return { success: true, channel };
 });
 
 export const listAuthAuditLogs = onCall(async (request) => {
