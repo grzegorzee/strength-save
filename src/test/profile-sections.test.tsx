@@ -82,7 +82,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   }),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
-vi.mock('@/lib/registration-api', () => ({ deleteOwnAccount: vi.fn() }));
+vi.mock('@/lib/registration-api', () => ({ deleteOwnAccount: vi.fn(), subscriptionAlertRecipientStatus: vi.fn(async () => ({ recipient: false })) }));
 vi.mock('@/hooks/useSubscription', () => ({
   useSubscription: () => ({
     isPro: false, tier: 'none', startedAt: null, expiresAt: null, subscription: null,

@@ -6,6 +6,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { readRevenueCatSubscription, reconcileRevenueCatTransfer } from "./revenuecat-transfer";
 import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
+import { SES_EMAIL_SECRETS } from "./ses-email";
+import { notifySubscriptionEvent } from "./subscription-alerts";
 
 // Webhook RevenueCat → users/{uid}.subscription (źródło prawdy entitlementu w Firestore).
 // appUserID w RC = uid Firebase (Purchases.logIn w apce), więc event.app_user_id wskazuje
@@ -13,11 +15,11 @@ import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
 // skonfigurowanemu w RC dashboard (Integrations → Webhooks) i w Firebase Secrets.
 
 const webhookAuth = defineSecret("REVENUECAT_WEBHOOK_AUTH");
-const serverApiKey = defineSecret("REVENUECAT_SERVER_API_KEY");
+export const serverApiKey = defineSecret("REVENUECAT_SERVER_API_KEY");
 
 const USERS_COLLECTION = "users";
 
-interface RcEvent {
+export interface RcEvent {
   transferred_from?: string[];
   transferred_to?: string[];
   id?: string;
@@ -35,7 +37,28 @@ interface RcEvent {
   cancel_reason?: string;
   /** Bug 22 (X30): koniec grace period przy BILLING_ISSUE (retry płatności w sklepie). */
   grace_period_expiration_at_ms?: number;
+  /** Pola tylko do powiadomień właściciela (subscription-alerts.ts). */
+  new_product_id?: string;
+  country_code?: string;
+  currency?: string;
+  price?: number;
+  price_in_purchased_currency?: number;
+  expiration_reason?: string;
+  is_trial_conversion?: boolean;
 }
+
+/**
+ * Powiadomienie właściciela (2026-09-30) po terminalnym 200. Własny dedup per
+ * event id w subscription-alerts; tu tylko gwarancja, że nic nie zmieni
+ * odpowiedzi dla RC (notifySubscriptionEvent nie rzuca, ale obrona w głąb).
+ */
+const notifyOwnerSafely = async (event: RcEvent, uid: string): Promise<void> => {
+  try {
+    await notifySubscriptionEvent(event, uid);
+  } catch (error) {
+    logger.error("[revenuecat] Powiadomienie właściciela nieudane", error);
+  }
+};
 
 // Timing-safe porównanie sekretu (wzorzec safeHashEquals z admin-api.ts);
 // porównujemy hashe SHA-256, co załatwia różne długości wejść.
@@ -213,7 +236,7 @@ async function applySubscriptionWrite(uid: string, subscription: SubscriptionWri
 }
 
 export const revenuecatWebhook = onRequest(
-  { secrets: [webhookAuth, serverApiKey], region: "us-central1", cors: false, maxInstances: MAX_INSTANCES_OVERRIDES.revenuecatWebhook },
+  { secrets: [webhookAuth, serverApiKey, ...SES_EMAIL_SECRETS], region: "us-central1", cors: false, maxInstances: MAX_INSTANCES_OVERRIDES.revenuecatWebhook },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -283,11 +306,15 @@ export const revenuecatWebhook = onRequest(
           return;
         }
         logger.info(`[revenuecat] Event ${event.type} pominięty: ${result}`);
+        // Duplikat/spóźniony event nadal idzie do powiadomień: ich dedup jest per
+        // event id (retry RC = cisza), a spóźnione anulowanie to realne zdarzenie.
+        await notifyOwnerSafely(event, uid);
         res.status(200).json({ ok: true, skipped: result });
         return;
       }
       const field = result === "applied-store" ? "storeSubscription (aktywny grant comp)" : "subscription";
       logger.info(`[revenuecat] ${event.type} → users/${uid} ${field}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt ?? "(bez zmiany)"}`);
+      await notifyOwnerSafely(event, uid);
       res.status(200).json({ ok: true });
     } catch (error) {
       logger.error("[revenuecat] Zapis nieudany", error);

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ user: {} as Record<string, unknown>, read: vi.fn(), writes: vi.fn() }));
 vi.mock('firebase-functions/v2/https', () => ({ onRequest: (_options: unknown, callback: unknown) => callback }));
-vi.mock('firebase-functions/params', () => ({ defineSecret: (name: string) => ({ value: () => name === 'REVENUECAT_WEBHOOK_AUTH' ? 'test-auth' : 'sk_mock' }) }));
+vi.mock('firebase-functions/params', () => ({ defineSecret: (name: string) => ({ value: () => name === 'REVENUECAT_WEBHOOK_AUTH' ? 'test-auth' : 'sk_mock' }), defineString: () => ({ value: () => '' }) }));
 vi.mock('./revenuecat-transfer', async importOriginal => ({ ...await importOriginal<typeof import('./revenuecat-transfer')>(), readRevenueCatSubscription: fixture.read }));
 vi.mock('firebase-admin', () => ({ firestore: () => ({
   collection: () => ({ doc: () => ({ id: 'synthetic-user' }) }),

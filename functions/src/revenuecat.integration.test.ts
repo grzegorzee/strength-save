@@ -9,8 +9,16 @@ import * as admin from "firebase-admin";
 // Uruchomienie: npm run test:functions:emulator (firebase emulators:exec).
 
 vi.mock("firebase-functions/v2/https", () => ({ onRequest: (_options: unknown, handler: unknown) => handler }));
+// SES w trybie outboxu emulatora (ses-email.ts: FUNCTIONS_EMULATOR + klucz-fixture E2E):
+// powiadomienia właściciela lądują w emulator_email_outbox zamiast w SES.
+const params = vi.hoisted(() => ({ sesAccessKeyId: "e2e-emulator-only" }));
+const SES_FIXTURE: Record<string, string> = { SES_REGION: "eu-central-1", SES_SECRET_ACCESS_KEY: "e2e-emulator-only", SES_FROM: "noreply@strengthsave.app" };
 vi.mock("firebase-functions/params", () => ({
-  defineSecret: (name: string) => ({ value: () => (name === "REVENUECAT_WEBHOOK_AUTH" ? "emulator-webhook-auth" : "sk_emulator_fake") }),
+  defineSecret: (name: string) => ({ value: () => (name === "REVENUECAT_WEBHOOK_AUTH" ? "emulator-webhook-auth"
+    : name === "SES_ACCESS_KEY_ID" ? params.sesAccessKeyId
+    : SES_FIXTURE[name] ?? "sk_emulator_fake") }),
+  // Brak konta właściciela do pusha: webhook ma działać bez tej konfiguracji.
+  defineString: () => ({ value: () => "" }),
 }));
 
 import { revenuecatWebhook } from "./revenuecat";
@@ -96,12 +104,18 @@ const readUser = async (uid: string) => (await userDoc(uid).get()).data() ?? nul
 const HOUR = 3_600_000;
 
 describeWithEmulator("RevenueCat webhook → users/{uid}.subscription (emulator Firestore)", () => {
+  const previousEmulatorFlag = process.env.FUNCTIONS_EMULATOR;
   beforeAll(() => {
     if (admin.apps.length === 0) admin.initializeApp({ projectId });
     vi.stubGlobal("fetch", fakeFetch);
+    process.env.FUNCTIONS_EMULATOR = "true";
   });
-  afterAll(() => { vi.unstubAllGlobals(); });
-  beforeEach(() => { rc.customers.clear(); rc.failNext = 0; });
+  afterAll(() => {
+    vi.unstubAllGlobals();
+    if (previousEmulatorFlag === undefined) delete process.env.FUNCTIONS_EMULATOR;
+    else process.env.FUNCTIONS_EMULATOR = previousEmulatorFlag;
+  });
+  beforeEach(() => { rc.customers.clear(); rc.failNext = 0; params.sesAccessKeyId = "e2e-emulator-only"; });
 
   const matrix = [
     { store: "APP_STORE", rcStore: "app_store", env: "SANDBOX", monthly: "prod_ios_monthly", yearly: "prod_ios_yearly" },
@@ -253,5 +267,73 @@ describeWithEmulator("RevenueCat webhook → users/{uid}.subscription (emulator 
     const res = await deliver({ type: "EXPIRATION", app_user_id: uid });
     expect(res.statusCode).toBe(503);
     expect((await readUser(uid))?.subscription).toEqual(current);
+  });
+  // ------------------------------------------------ powiadomienia właściciela (2026-09-30)
+
+  const outboxFor = async (uid: string) => (await admin.firestore().collection("emulator_email_outbox").get()).docs
+    .map((doc) => doc.data())
+    .filter((mail) => typeof mail.html === "string" && mail.html.includes(`/admin/users/${uid}`));
+  const alertsConfig = () => admin.firestore().collection("config").doc("subscription_alerts");
+  const paidSub = (environment: Env): FakeSub => ({ product_id: "prod_ios_yearly", status: "active", auto_renewal_status: "will_renew", store: "app_store", environment, starts: Date.now(), ends: Date.now() + HOUR });
+
+  it("PRODUCTION INITIAL_PURCHASE NORMAL: zapis subskrypcji, 1 mail do właściciela, flaga pierwszej płatnej; retry = cisza", async () => {
+    await alertsConfig().delete();
+    const uid = `rc-alert-${Date.now()}`;
+    await userDoc(uid).set({ uid, status: "active", email: "kupujacy@example.com" });
+    rc.customers.set(uid, [paidSub("production")]);
+    const event = { id: `alert-evt-${Date.now()}`, type: "INITIAL_PURCHASE", period_type: "NORMAL", environment: "PRODUCTION", app_user_id: uid, store: "APP_STORE", product_id: "strengthsave_pro_yearly", country_code: "PL", currency: "PLN", price_in_purchased_currency: 119.99, price: 31.99, event_timestamp_ms: Date.now() };
+    expect((await deliver(event)).statusCode).toBe(200);
+    expect((await readUser(uid))?.subscription).toMatchObject({ tier: "yearly", status: "active", environment: "PRODUCTION" });
+    const mails = await outboxFor(uid);
+    expect(mails).toHaveLength(1);
+    expect(mails[0].to).toBe("kontakt@gjasionowicz.pl");
+    expect(mails[0].subject).toBe("[Strength Save] PIERWSZA płatna subskrypcja: PRO roczny, 119,99 zł");
+    expect(mails[0].html).toContain("kupujacy@example.com");
+    expect((await alertsConfig().get()).data()).toMatchObject({ paidSubscriptionCount: 1, firstPaidEventId: event.id });
+    expect((await admin.firestore().collection("admin_subscription_alerts").doc(event.id).get()).exists).toBe(true);
+
+    // Retry RC tego samego eventu: odpowiedź 200, bez drugiego maila i bez podbicia licznika.
+    expect((await deliver(event)).statusCode).toBe(200);
+    expect(await outboxFor(uid)).toHaveLength(1);
+    expect((await alertsConfig().get()).data()?.paidSubscriptionCount).toBe(1);
+  });
+
+  it("równoległe webhooki dwóch pierwszych płatności: flaga 'pierwsza płatna' dokładnie raz (transakcja)", async () => {
+    await alertsConfig().delete();
+    const stamp = Date.now();
+    const uids = [`rc-race-a-${stamp}`, `rc-race-b-${stamp}`, `rc-race-c-${stamp}`];
+    for (const uid of uids) {
+      await userDoc(uid).set({ uid, status: "active" });
+      rc.customers.set(uid, [paidSub("production")]);
+    }
+    const results = await Promise.all(uids.map((uid, i) => deliver({ id: `race-${stamp}-${i}`, type: "INITIAL_PURCHASE", period_type: "NORMAL", environment: "PRODUCTION", app_user_id: uid, store: "APP_STORE", product_id: "strengthsave_pro_yearly", currency: "PLN", price_in_purchased_currency: 119.99 })));
+    expect(results.map((r) => r.statusCode)).toEqual([200, 200, 200]);
+    const subjects = (await Promise.all(uids.map(outboxFor))).flat().map((mail) => mail.subject as string);
+    expect(subjects).toHaveLength(3);
+    expect(subjects.filter((subject) => subject.includes("PIERWSZA"))).toHaveLength(1);
+    expect((await alertsConfig().get()).data()?.paidSubscriptionCount).toBe(3);
+  });
+
+  it("SANDBOX: zapis subskrypcji bez maila i bez znacznika", async () => {
+    const uid = `rc-alert-sandbox-${Date.now()}`;
+    await userDoc(uid).set({ uid, status: "active" });
+    rc.customers.set(uid, [paidSub("sandbox")]);
+    const id = `sandbox-evt-${Date.now()}`;
+    expect((await deliver({ id, type: "INITIAL_PURCHASE", period_type: "NORMAL", environment: "SANDBOX", app_user_id: uid, product_id: "strengthsave_pro_yearly" })).statusCode).toBe(200);
+    expect((await readUser(uid))?.subscription).toMatchObject({ tier: "yearly", status: "active" });
+    expect(await outboxFor(uid)).toHaveLength(0);
+    expect((await admin.firestore().collection("admin_subscription_alerts").doc(id).get()).exists).toBe(false);
+  });
+
+  it("awaria SES: webhook 200, subskrypcja zapisana, brak maila", async () => {
+    params.sesAccessKeyId = "unset";
+    const uid = `rc-alert-ses-${Date.now()}`;
+    await userDoc(uid).set({ uid, status: "active" });
+    rc.customers.set(uid, [paidSub("production")]);
+    const res = await deliver({ type: "RENEWAL", environment: "PRODUCTION", app_user_id: uid, product_id: "strengthsave_pro_yearly", currency: "PLN", price_in_purchased_currency: 119.99 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect((await readUser(uid))?.subscription).toMatchObject({ tier: "yearly", status: "active" });
+    expect(await outboxFor(uid)).toHaveLength(0);
   });
 });

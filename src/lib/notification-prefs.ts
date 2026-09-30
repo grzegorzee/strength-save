@@ -18,7 +18,16 @@ export const NOTIFICATION_PREF_KEYS = [
 
 export type NotificationPrefKey = (typeof NOTIFICATION_PREF_KEYS)[number];
 
-export type NotificationPrefs = Partial<Record<NotificationPrefKey, boolean>>;
+/**
+ * 2026-09-30: typy tylko dla konta właściciela (push o zakupach). Poza listą
+ * ogólną, żeby zwykły user nadal widział dokładnie NOTIFICATION_PREF_KEYS.
+ * Backend (functions/src/subscription-alerts.ts) czyta subscriptionAlerts.
+ */
+export const OWNER_NOTIFICATION_PREF_KEYS = ['subscriptionAlerts'] as const;
+
+export type OwnerNotificationPrefKey = (typeof OWNER_NOTIFICATION_PREF_KEYS)[number];
+
+export type NotificationPrefs = Partial<Record<NotificationPrefKey | OwnerNotificationPrefKey, boolean>>;
 
 export type NotificationChannel = 'push' | 'email' | 'inApp';
 
@@ -38,7 +47,7 @@ export const sanitizeNotificationPrefs = (raw: unknown): NotificationPrefs | und
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const source = raw as Record<string, unknown>;
   const prefs: NotificationPrefs = {};
-  for (const key of NOTIFICATION_PREF_KEYS) {
+  for (const key of [...NOTIFICATION_PREF_KEYS, ...OWNER_NOTIFICATION_PREF_KEYS]) {
     if (typeof source[key] === 'boolean') prefs[key] = source[key] as boolean;
   }
   return Object.keys(prefs).length > 0 ? prefs : undefined;
@@ -46,5 +55,5 @@ export const sanitizeNotificationPrefs = (raw: unknown): NotificationPrefs | und
 
 export const isNotificationPrefEnabled = (
   prefs: NotificationPrefs | null | undefined,
-  key: NotificationPrefKey,
+  key: NotificationPrefKey | OwnerNotificationPrefKey,
 ): boolean => prefs?.[key] !== false;

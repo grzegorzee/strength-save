@@ -80,6 +80,8 @@ export interface EmailLayoutOptions {
   replyHint?: boolean;
   /** Informacja handlowa (broadcast): oznaczenie usługodawcy w stopce. */
   serviceProviderNotice?: boolean;
+  /** Mail wewnętrzny do właściciela (alert subskrypcji): stopka bez linii pomocy. */
+  internal?: boolean;
 }
 
 // Wypełniacz po preheaderze: część klientów dokleja do zapowiedzi początek
@@ -149,7 +151,7 @@ ${bodyHtml}
         ${options.replyHint ? footerLine(REPLY_HINT[lang]) : ""}
         ${footerLine(reason)}
         ${links ? footerLine(links) : ""}
-        ${footerLine(esc(HELP_LINE[lang]))}
+        ${options.internal ? "" : footerLine(esc(HELP_LINE[lang]))}
         ${options.serviceProviderNotice ? footerLine(esc(SERVICE_PROVIDER_LINE[lang])) : ""}
       </td></tr>
     </table>

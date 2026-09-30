@@ -749,6 +749,15 @@ add('config/cost_guard: write admina DENIED (tylko callable z audytem) (cost gua
 add('config/cost_guard: write usera DENIED (cost guard)', false, await ok(() => setDoc(doc(db, 'config', 'cost_guard'), { paused: false })));
 add('config/cost_guard: delete admina DENIED (cost guard)', false, await ok(() => deleteDoc(doc(adminDb, 'config', 'cost_guard'))));
 
+// === Subskrypcje (2026-09-30): licznik pierwszej płatnej, cache metryk RC i znaczniki
+// powiadomień pisze i czyta WYŁĄCZNIE backend (panel dostaje liczby przez callable admina).
+for (const [col, id] of [['config', 'subscription_alerts'], ['config', 'revenuecat_metrics'], ['admin_subscription_alerts', 'evt-1']]) {
+  add(`${col}/${id}: read admina DENIED (tylko backend)`, false, await ok(() => getDoc(doc(adminDb, col, id))));
+  add(`${col}/${id}: read usera DENIED (tylko backend)`, false, await ok(() => getDoc(doc(db, col, id))));
+  add(`${col}/${id}: write admina DENIED (tylko backend)`, false, await ok(() => setDoc(doc(adminDb, col, id), { paidSubscriptionCount: 0 })));
+  add(`${col}/${id}: write usera DENIED (tylko backend)`, false, await ok(() => setDoc(doc(db, col, id), { paidSubscriptionCount: 0 })));
+}
+
 // === Z217: agregat all-time (users/{uid}/aggregates) — pisze tylko backend ===
 add('aggregates: read wlasnego ALLOWED (Z217)', true, await ok(() => getDoc(doc(db, 'users', UID, 'aggregates', 'allTime'))));
 add('aggregates: read cudzego DENIED (Z217)', false, await ok(() => getDoc(doc(otherDb, 'users', UID, 'aggregates', 'allTime'))));

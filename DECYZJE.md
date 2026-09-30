@@ -11,6 +11,47 @@
 
 ## DECYZJE
 
+### 2026-09-30: powiadomienia właściciela o zakupach + karta Subskrypcje (RevenueCat)
+
+Cel właściciela: od publicznego startu w sklepach wiedzieć od razu, gdy ktoś kupi.
+Źródło zdarzeń: istniejący webhook `revenuecatWebhook`, WYŁĄCZNIE `environment=PRODUCTION`
+(SANDBOX i brak pola = cisza). Klasyfikacja wg dokumentacji RC „Event Types and Fields”:
+INITIAL_PURCHASE TRIAL = start triala; INITIAL_PURCHASE NORMAL/INTRO/PREPAID albo RENEWAL
+z `is_trial_conversion` (pole tylko na RENEWAL) = pierwsza płatność; RENEWAL, CANCELLATION
+(`cancel_reason CUSTOMER_SUPPORT` = zwrot), BILLING_ISSUE, EXPIRATION, PRODUCT_CHANGE.
+- **Idempotencja per event id**, nie dedup subskrypcji: dedup w `users/{uid}` pomija też
+  zdarzenia STARSZE od zapisanego stanu (spóźnione anulowanie to realne zdarzenie), więc
+  znacznik `admin_subscription_alerts/{eventId}` zajmowany w transakcji razem z licznikiem
+  `config/subscription_alerts` (flaga „pierwsza płatna w historii” dokładnie raz, także
+  przy równoległych webhookach; test na emulatorze). Stan produkcji przed wdrożeniem
+  (prod-read 2026-09-30): 0 kont z subskrypcją PRODUCTION, licznik startuje od zera.
+- **Kolejność:** powiadomienie po udanym zapisie subskrypcji, przed odpowiedzią 200 (po
+  odpowiedzi Cloud Run dławi CPU), sufit 20 s; błąd SES/FCM tylko w logu, RC dostaje 200.
+  Ścieżki 503 (RC ponowi) nie powiadamiają; powiadomi udany retry.
+- **Decyzje właściciela:** mail wyłącznie na kontakt@gjasionowicz.pl (lista zamknięta,
+  test), z kwotą w walucie zakupu i USD oraz adresem klienta z `users/{uid}.email`
+  (ukryty adres Apple oznaczony); push wyłącznie na urządzenia konta właściciela
+  (parametr `SUBSCRIPTION_ALERT_OWNER_EMAIL` w `functions/.env.fittracker-workouts`,
+  serwer rozwiązuje do uid, wymaga roli admin), format „Nowa subskrypcja: PRO roczny,
+  119,99 zł”, bez adresu e-mail (widać go na zablokowanym ekranie). Przełącznik
+  „Powiadomienia o subskrypcjach” w Profilu tylko dla tego konta (callable
+  `subscriptionAlertRecipientStatus`), domyślnie włączony. Mail bez stopki pomocy i
+  danych firmy, link do karty usera w panelu admina (wewnętrzny).
+- **Podsumowanie:** `adminSubscriptionMetrics` (callable admina) czyta RC API v2
+  `GET /v2/projects/{id}/metrics/overview?currency=PLN` (uprawnienie klucza
+  `charts_metrics:overview:read`, potwierdzone odczytem 200 na kluczu projektu), cache
+  `config/revenuecat_metrics` max 1 h; błąd RC zwraca stare liczby z flagą i kodem.
+  Digest: żaden istniejący nie jest mailem, który właściciel czyta regularnie
+  (`dailyCostDigest` bez maila, `dailyErrorDigest` tylko przy alarmie, `weeklyDigest`
+  jest dla userów), więc nowy `weeklySubscriptionDigest` (poniedziałek 08:00
+  Europe/Warsaw) pod `withCostGuard`: liczby RC + zdarzenia z 7 dni.
+- Reguły: trzy nowe dokumenty/kolekcje bez dostępu klienta (domyślny deny, testy).
+- Deploy backend-first: `revenuecatWebhook` (nowe sekrety SES), `adminSubscriptionMetrics`,
+  `subscriptionAlertRecipientStatus`, `weeklySubscriptionDigest`; potem web/OTA.
+- Niezweryfikowane: realny push na telefon właściciela, realny payload produkcyjny RC
+  (pola kwot i kraju z dokumentacji, nie z ruchu), dostarczenie maila przez SES na
+  kontakt@gjasionowicz.pl.
+
 ### 2026-09-30: Garmin Connect IQ 1.0.0 wysłana do recenzji Garmina
 
 Paczka `strengthsave-garmin-1.0.0.iq` (sha256 e4722ac2…fe01a) wgrana w portalu Connect IQ

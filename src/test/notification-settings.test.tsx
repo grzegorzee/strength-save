@@ -9,7 +9,10 @@ const updateDocMock = vi.fn(async () => undefined);
 const state = vi.hoisted(() => ({
   native: false,
   profile: {} as Record<string, unknown>,
+  isAdmin: false,
+  recipient: false,
 }));
+const recipientStatus = vi.hoisted(() => vi.fn());
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),
@@ -20,8 +23,9 @@ vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => state.native },
 }));
 vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({ uid: 'u1', profile: state.profile }),
+  useCurrentUser: () => ({ uid: 'u1', profile: state.profile, isAdmin: state.isAdmin }),
 }));
+vi.mock('@/lib/registration-api', () => ({ subscriptionAlertRecipientStatus: recipientStatus }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/push-notifications', () => ({
   getPushPermission: vi.fn(async () => 'granted'),
@@ -45,6 +49,9 @@ beforeEach(() => {
   updateDocMock.mockClear();
   state.native = false;
   state.profile = {};
+  state.isAdmin = false;
+  state.recipient = false;
+  recipientStatus.mockReset().mockImplementation(async () => ({ recipient: state.recipient }));
 });
 
 describe('NotificationSettings (X35c: wszystkie typy powiadomień)', () => {
@@ -126,5 +133,49 @@ describe('NotificationSettings (X35c: wszystkie typy powiadomień)', () => {
     renderSettings();
     expect(await screen.findByText('Powiadomienia włączone.')).toBeTruthy();
     expect(screen.getByText('Uprawnienia systemowe')).toBeTruthy();
+  });
+
+  // 2026-09-30: push o zakupach tylko na konto właściciela (parametr serwera);
+  // przełącznik widzi wyłącznie to konto, reszta userów ma dokładnie 7 typów.
+  it('zwykły user: brak przełącznika subskrypcji i zero zapytań o status odbiorcy', () => {
+    renderSettings();
+    expect(screen.queryByTestId('notif-pref-subscriptionAlerts')).toBeNull();
+    expect(recipientStatus).not.toHaveBeenCalled();
+  });
+
+  it('admin, który nie jest odbiorcą: nadal 7 przełączników', async () => {
+    state.isAdmin = true;
+    renderSettings();
+    await waitFor(() => expect(recipientStatus).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('notif-pref-subscriptionAlerts')).toBeNull();
+    expect(screen.getAllByRole('switch')).toHaveLength(7);
+  });
+
+  it('konto właściciela: przełącznik domyślnie włączony, zapis notificationPrefs.subscriptionAlerts', async () => {
+    state.isAdmin = true;
+    state.recipient = true;
+    renderSettings();
+    const toggle = await screen.findByLabelText('Powiadomienia o subskrypcjach');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('notif-pref-subscriptionAlerts').textContent).toContain('Push');
+    fireEvent.click(toggle);
+    await waitFor(() => expect(updateDocMock).toHaveBeenCalledWith(
+      { path: 'users/u1' },
+      { 'notificationPrefs.subscriptionAlerts': false },
+    ));
+    expect(screen.getByLabelText('Powiadomienia o subskrypcjach').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('konto właściciela z wyłączonym polem: przełącznik wyłączony; błąd statusu = brak przełącznika', async () => {
+    state.isAdmin = true;
+    state.recipient = true;
+    state.profile = { notificationPrefs: { subscriptionAlerts: false } };
+    const first = renderSettings();
+    expect((await screen.findByLabelText('Powiadomienia o subskrypcjach')).getAttribute('aria-checked')).toBe('false');
+    first.unmount();
+    recipientStatus.mockRejectedValueOnce(new Error('offline'));
+    renderSettings();
+    await waitFor(() => expect(recipientStatus).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId('notif-pref-subscriptionAlerts')).toBeNull();
   });
 });
