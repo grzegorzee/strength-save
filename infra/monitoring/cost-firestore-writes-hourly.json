@@ -1,0 +1,40 @@
+{
+  "displayName": "Strength Save: cost anomaly - Firestore writes and deletes per hour",
+  "documentation": {
+    "content": "Firestore writes or deletes in the last hour exceeded 500. Baseline 2026-08-31..09-30: writes median 3/h, p95 26/h, p99 40/h, max 78/h; deletes max 37/h. Typical cause: a sync/retry loop on a client, a trigger writing the document it listens to, or a runaway repair/cleanup job. Check Firestore Usage + Cloud Logging, then docs/COST-GUARDS.md.",
+    "mimeType": "text/markdown"
+  },
+  "userLabels": { "product": "strength-save", "severity": "cost-anomaly" },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Firestore writes above 500 per rolling hour",
+      "conditionThreshold": {
+        "filter": "metric.type=\"firestore.googleapis.com/document/write_count\" AND resource.type=\"firestore_instance\"",
+        "aggregations": [
+          { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 500,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    },
+    {
+      "displayName": "Firestore deletes above 500 per rolling hour",
+      "conditionThreshold": {
+        "filter": "metric.type=\"firestore.googleapis.com/document/delete_count\" AND resource.type=\"firestore_instance\"",
+        "aggregations": [
+          { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 500,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "alertStrategy": { "autoClose": "86400s" },
+  "notificationChannels": ["projects/fittracker-workouts/notificationChannels/14133494776147715887"],
+  "enabled": true
+}

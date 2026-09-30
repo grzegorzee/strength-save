@@ -1,0 +1,27 @@
+{
+  "displayName": "Strength Save: cost anomaly - Storage egress per hour (OTA live updates)",
+  "documentation": {
+    "content": "Default Firebase Storage bucket sent more than 1 GiB in the last hour. Baseline 2026-08-31..09-30 (before the first OTA publication): median 1.0 MB/h, p99 2.8 MB/h, max 3.4 MB/h. The threshold is sized for an OTA release (docs/LIVE-UPDATES.md: bundle of a few MB per device), so 1 GiB/h means roughly 200+ bundle downloads in one hour or a download loop (e.g. a client retrying a failed update). About 0.12 USD per GiB. Check client_errors codes live-update-*, then docs/COST-GUARDS.md; rollback of the OTA channel stops the traffic.",
+    "mimeType": "text/markdown"
+  },
+  "userLabels": { "product": "strength-save", "severity": "cost-anomaly" },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Storage egress above 1 GiB per rolling hour (default bucket)",
+      "conditionThreshold": {
+        "filter": "metric.type=\"storage.googleapis.com/network/sent_bytes_count\" AND resource.type=\"gcs_bucket\" AND resource.label.bucket_name=\"fittracker-workouts.firebasestorage.app\"",
+        "aggregations": [
+          { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 1073741824,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "alertStrategy": { "autoClose": "86400s" },
+  "notificationChannels": ["projects/fittracker-workouts/notificationChannels/14133494776147715887"],
+  "enabled": true
+}

@@ -41,6 +41,7 @@ import { forEachWithConcurrency } from "./bounded-concurrency";
 import { SES_EMAIL_SECRETS, safeSesErrorCode, sendSesEmail, type SesEmailHeader } from "./ses-email";
 import { deriveUnsubscribeKey, listUnsubscribeHeaders, unsubscribeUrl } from "./email-unsubscribe";
 import { selectAnnouncementEmailRecipients } from "./announcement-recipients";
+import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
 
 const authPepper = defineSecret("API_KEY_PEPPER");
 
@@ -385,7 +386,7 @@ async function isInviteUsable(code: string, email: string): Promise<boolean> {
   return true;
 }
 
-export const syncUserProfile = onCall({ secrets: [...SES_EMAIL_SECRETS] }, async (request) => {
+export const syncUserProfile = onCall({ secrets: [...SES_EMAIL_SECRETS], maxInstances: MAX_INSTANCES_OVERRIDES.syncUserProfile }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
   }
@@ -777,7 +778,7 @@ export const createWaitlistEntry = onCall(async (request) => {
   return createWaitlistEntryCore({ email, displayName, note, source });
 });
 
-export const registerPushToken = onCall(async (request) => {
+export const registerPushToken = onCall({ maxInstances: MAX_INSTANCES_OVERRIDES.registerPushToken }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   const token = normalizeOptionalString(request.data?.token, 4096);
   if (!token) throw new HttpsError("invalid-argument", "Push token is required");

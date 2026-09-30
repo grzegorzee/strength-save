@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 import { applyWorkoutHealthConsentBoundary } from "./workout-health-boundary";
 import { LEGAL_VERSIONS } from "./legal-versions";
 import { hasCallableAppAccess } from "./security";
+import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
 
 export const WORKOUT_SYNC_V2_PROTOCOL = 2 as const;
 const HEALTH_FIELDS = ["rpe", "pain", "quality"] as const;
@@ -431,7 +432,7 @@ const mapHttpsError = (error: unknown): never => {
 };
 
 export const syncWorkoutV2 = onCall(
-  { region: "us-central1", enforceAppCheck: true },
+  { region: "us-central1", enforceAppCheck: true, maxInstances: MAX_INSTANCES_OVERRIDES.syncWorkoutV2 },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "AUTH_REQUIRED");

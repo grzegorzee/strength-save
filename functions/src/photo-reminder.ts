@@ -4,6 +4,7 @@ import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
 import { getInvalidFcmTokens, type ReminderUser } from "./daily-reminder";
 import { hasActiveHealthConsent } from "./security";
+import { withCostGuard } from "./cost-guard";
 
 // WP-D D4: po miesiącu od PIERWSZEGO ukończonego treningu jednorazowe
 // przypomnienie "dodaj fotkę sylwetki i zrób before/after". Kanały:
@@ -189,7 +190,7 @@ export const photoReminder = onSchedule(
     timeZone: "Europe/Warsaw",
     timeoutSeconds: 300,
   },
-  async () => {
+  withCostGuard("photoReminder", async () => {
     const db = admin.firestore();
     const todayDate = new Date().toISOString().slice(0, 10);
     logger.info(`[photoReminder] start, data: ${todayDate}`);
@@ -281,5 +282,5 @@ export const photoReminder = onSchedule(
     });
 
     logger.info("[photoReminder] done", result);
-  },
+  }),
 );

@@ -1,3 +1,5 @@
+// MUSI być pierwszym importem: opcje globalne są czytane przy definicji funkcji.
+import "./global-options";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { buildBodyWeightTimeline } from "./bodyweight-loaded";
@@ -51,6 +53,7 @@ import {
   withStravaFailureRecording,
 } from "./strava-sync-failure";
 import { stravaHealthGrantStillCurrent } from "./strava-health-commit";
+import { withCostGuard } from "./cost-guard";
 export {
   createInvite,
   createWaitlistEntry,
@@ -124,6 +127,8 @@ export { syncWorkoutV2 } from "./workout-sync-v2";
 export { restoreWorkoutBackupV3 } from "./workout-restore-v3";
 // Szczegółowe zdarzenia SES (open/click/IP/user-agent/link) są usuwane po 180 dniach.
 export { cleanupExpiredSesEvents } from "./ses-event-retention";
+// Bezpiecznik kosztów: budżet -> Pub/Sub -> config/cost_guard + przełącznik admina.
+export { costGuardBudgetListener, adminSetCostGuard } from "./cost-guard";
 // Prywatny, atestowany przepływ zgłoszeń: create -> opcjonalny upload -> finalize.
 export {
   createBugReport,
@@ -1164,7 +1169,7 @@ export const stravaScheduledSync = onSchedule(
     timeoutSeconds: 300,
     secrets: [stravaClientId, stravaClientSecret],
   },
-  async () => {
+  withCostGuard("stravaScheduledSync", async () => {
     logger.info("[Strava] Scheduled sync starting...");
 
     const usersSnapshot = await db
@@ -1208,7 +1213,7 @@ export const stravaScheduledSync = onSchedule(
     }
 
     logger.info("[Strava] Scheduled sync completed");
-  },
+  }),
 );
 
 export const stravaDisconnect = onCall(async (request) => {
@@ -1526,7 +1531,7 @@ export const sesEventsWebhook = onRequest({ secrets: [sesSnsTopicArn] }, async (
 // otrzymaniu MessageId. Rekonsyliacja zamyka ten wyścig bez podwójnych liczników.
 export const reconcilePendingSesEvents = onSchedule(
   { schedule: "every 15 minutes", timeZone: "UTC", region: "us-central1" },
-  async () => {
+  withCostGuard("reconcilePendingSesEvents", async () => {
     const snapshot = await db.collection("email_events")
       .where("pendingLogApplication", "==", true)
       .limit(200)
@@ -1538,5 +1543,5 @@ export const reconcilePendingSesEvents = onSchedule(
       applied += await applySesEventToEmailLogs(document.ref, record.messageId, update);
     }
     logger.info("ses_event_log_reconciliation", { checked: snapshot.size, applied });
-  },
+  }),
 );

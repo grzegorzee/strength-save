@@ -1,0 +1,27 @@
+{
+  "displayName": "Strength Save: cost anomaly - Firestore reads per hour",
+  "documentation": {
+    "content": "Firestore document reads in the last hour exceeded 5000. Baseline 2026-08-31..09-30: median 40/h, p95 454/h, p99 900/h, max 2028/h. Typical cause: a client listener/query loop, a scheduled job scanning a growing collection, or an agent script reading production. Check Firestore Usage + Cloud Logging for the hour, then docs/COST-GUARDS.md.",
+    "mimeType": "text/markdown"
+  },
+  "userLabels": { "product": "strength-save", "severity": "cost-anomaly" },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Firestore reads above 5000 per rolling hour",
+      "conditionThreshold": {
+        "filter": "metric.type=\"firestore.googleapis.com/document/read_count\" AND resource.type=\"firestore_instance\"",
+        "aggregations": [
+          { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5000,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "alertStrategy": { "autoClose": "86400s" },
+  "notificationChannels": ["projects/fittracker-workouts/notificationChannels/14133494776147715887"],
+  "enabled": true
+}

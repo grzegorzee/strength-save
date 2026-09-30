@@ -7,6 +7,7 @@ import type { Lang } from "./email-templates";
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { getInvalidFcmTokens, type ReminderUser } from "./daily-reminder";
 import { buildBodyWeightTimeline, hasBodyweightLoadedWeight, type BodyWeightPoint } from "./bodyweight-loaded";
+import { MAX_INSTANCES_OVERRIDES } from "./function-limits";
 
 // X35c (WP-E, pkt 2): push o nowym rekordzie po zapisie UKOŃCZONEGO treningu.
 //
@@ -160,7 +161,7 @@ export async function runPrPush(deps: PrPushDeps, workout: EmailWorkout): Promis
 }
 
 export const onWorkoutCompletedPrPush = onDocumentWritten(
-  { document: "workouts/{workoutId}", region: "us-central1" },
+  { document: "workouts/{workoutId}", region: "us-central1", maxInstances: MAX_INSTANCES_OVERRIDES.onWorkoutCompletedPrPush },
   async (event) => {
     const before = event.data?.before?.exists ? (event.data.before.data() as { completed?: boolean }) : null;
     const afterSnap = event.data?.after;

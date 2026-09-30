@@ -5,11 +5,49 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-30 (przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
+**Ostatnia aktualizacja:** 2026-09-30 (zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
 
 ---
 
 ## DECYZJE
+
+### 2026-09-30: zabezpieczenia kosztów GCP bez odcinania billingu (limit 50 PLN/mies.)
+
+**Decyzja właściciela:** limit 50 PLN/miesiąc, ale BEZ automatycznego odpięcia
+billingu (Google wyłącza wtedy wszystkie usługi i może usunąć zasoby; apka ma
+płacących userów). Pięć warstw, pełny opis: `docs/COST-GUARDS.md`.
+
+**Stan zastany (zweryfikowany, zasada 12):** budżet 50 PLN z progami 0,5/0,9/1,0
+bez Pub/Sub; żadna funkcja nie miała `maxInstances` w kodzie (wdrożone maxScale
+20 na 70 usługach, brak limitu na 2 najnowszych); alerty z
+RELEASE-READINESS-2026-08-27 realnie istnieją (30 tys. odczytów/dobę, błędy
+runtime przez log-based metric) i zostały bez zmian.
+
+**Co i dlaczego:**
+1. `maxInstances` dla wszystkich 74 funkcji: globalnie 10 (`global-options.ts`,
+   pierwszy import `index.ts`, bo firebase-functions 7.2.2 czyta opcje globalne
+   przy definicji funkcji), wyjątki 30/20 dla zapisu treningu, profilu, tokenu
+   push, triggerów `workouts`, webhooka RevenueCat; 1 dla listenera budżetu.
+   Kontrakt testem na `__endpoint` z importu `index.ts`.
+2. Budżet: progi 25/50/75/90/100% + prognoza 100%, Pub/Sub `cost-guard-budget`
+   (PATCH przez REST, bo `gcloud billing budgets update` 559 pada na updateMask).
+3. Bezpiecznik: przy 90% budżetu `config/cost_guard.paused=true`, jeden mail na
+   okres (rezerwacja w transakcji, zwalniana przy błędzie SES), 8 niekrytycznych
+   `onSchedule` wychodzi wcześnie; RODO, retencja i pomiar (5 zadań) są
+   wyjątkami. Wyjścia (zasada 6): nowy okres budżetu, spadek kosztu pod próg,
+   przełącznik w panelu admina (callable + audyt w tej samej transakcji),
+   przy błędzie odczytu w panelu jawny przycisk wznowienia.
+4. Cztery godzinowe polityki anomalii z progami z realnego baseline'u 30 dni.
+5. SA `agent-readonly` (datastore/logging/monitoring/firebaseauth viewer, zero
+   kluczy, impersonacja) + `scripts/prod-read.mjs` (biała lista odczytów,
+   sufit 5000 dokumentów, log zapytań).
+
+**Weryfikacja:** functions test (w tym kontrakty limitów i guardu, 33 testy
+bezpiecznika z mutacyjnym sprawdzeniem idempotencji i guardu), test:rules
+(config/cost_guard: odczyt admina czerwony→zielony, zapisy klienta DENIED),
+test karty panelu, testy helpera prod-read; odczyty kontrolne GCP po każdej
+zmianie; SA: odczyt 200, zapis 403. Kod Functions i reguł NIE wdrożony
+(deploy backend-first przez koordynatora).
 
 ### 2026-09-30: przewodnik v2: trening próbny bez zapisów, przegląd zakładek, spotlight od nowa (zgłoszenie z iOS 152)
 
