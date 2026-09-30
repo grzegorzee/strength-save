@@ -52,6 +52,8 @@ export interface LiveUpdateControllerDeps {
   now: () => number;
   randomId: () => string;
   schedule: (fn: () => void, ms: number) => void;
+  /** Diagnostyka (konsola natywna: Xcode/logcat); bez danych osobowych. */
+  log?: (message: string) => void;
 }
 
 export const STARTUP_CHECK_DELAY_MS = 4_000;
@@ -238,6 +240,7 @@ export const createLiveUpdateController = (deps: LiveUpdateControllerDeps) => {
         await deps.plugin.deleteBundle({ bundleId }).catch(() => undefined);
       }
     }
+    deps.log?.(`${trigger} current=${current ?? 'builtin'} next=${next ?? 'builtin'} -> setNext=${decision.setNext ?? 'builtin'} download=${decision.download?.bundleId ?? '-'} reload=${decision.reloadNow} training=${trainingActive} reason=${decision.reason}`);
     if (decision.reloadNow) {
       await deps.plugin.reload();
     }
@@ -265,6 +268,7 @@ export const createLiveUpdateController = (deps: LiveUpdateControllerDeps) => {
       try {
         const result = await deps.plugin.ready();
         readyState = result;
+        deps.log?.(`ready current=${result.currentBundleId ?? 'builtin'} previous=${result.previousBundleId ?? '-'} rollback=${result.rollback}`);
         const nativeRaw = await deps.nativeInfo();
         if (result.rollback) {
           rollbackPending = true;

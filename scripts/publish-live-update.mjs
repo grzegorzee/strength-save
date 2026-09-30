@@ -112,6 +112,8 @@ const store = localDir
     async put(local, path, { contentType, cacheControl }) {
       execFileSync('gcloud', [
         'storage', 'cp', `--content-type=${contentType}`, `--cache-control=${cacheControl}`,
+        // Konto z prawem zapisu do bucketu (właściciel projektu); adres tylko w env, nie w repo.
+        ...(process.env.STRENGTH_SAVE_OTA_GCLOUD_ACCOUNT ? [`--account=${process.env.STRENGTH_SAVE_OTA_GCLOUD_ACCOUNT}`] : []),
         local, `gs://${bucket}/${path}`,
       ], { stdio: 'inherit' });
     },

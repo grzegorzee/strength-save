@@ -1,5 +1,5 @@
 {
-  "originHash" : "9884941cb60944ddc5a61269d63226f0bc37d33fbe8304ee997e10ee6e177054",
+  "originHash" : "687a9a52ac47fea4e06742d5d1695ee9d978b18bbf86d3066d9ad0ad60fed6bc",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "bbe8b69694d7873315fd3a4ad41efe043e1c07c5",
         "version" : "1.2024072200.0"
+      }
+    },
+    {
+      "identity" : "alamofire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Alamofire/Alamofire.git",
+      "state" : {
+        "revision" : "bda9ed57d72988a3a2ada33d824583541f86eac6",
+        "version" : "5.12.2"
       }
     },
     {
@@ -197,6 +206,15 @@
       "state" : {
         "revision" : "92e2804a6b84b3b7ce60bfe7e9ff63dc9524ef5b",
         "version" : "5.76.0"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
       }
     }
   ],

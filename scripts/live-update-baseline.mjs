@@ -73,7 +73,10 @@ if (!PLATFORMS.includes(platform)) {
 }
 const build = Number(value('build') ?? currentBuild[platform]);
 const record = describe(platform, build);
-const conflict = loadBaselines().find((b) => b.platform === platform && b.nativeVersion === record.nativeVersion && b.fingerprint !== record.fingerprint);
+// Ponowna rejestracja TEGO SAMEGO builda (przed jego wydaniem) nadpisuje plik;
+// inny build tej samej wersji z inną warstwą natywną = odmowa.
+const conflict = loadBaselines().find((b) => b.platform === platform && b.nativeVersion === record.nativeVersion
+  && b.nativeBuild !== build && b.fingerprint !== record.fingerprint);
 if (conflict) {
   console.error(
     `Odmowa: ${platform} ${record.nativeVersion} build ${conflict.nativeBuild} ma inną warstwę natywną. `

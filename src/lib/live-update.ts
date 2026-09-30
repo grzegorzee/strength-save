@@ -85,6 +85,7 @@ const loadController = (): Promise<LiveUpdateController | null> => {
         now: () => Date.now(),
         randomId: () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`),
         schedule: (fn, ms) => { globalThis.setTimeout(fn, ms); },
+        log: (message) => console.info(`[LiveUpdate] ${message}`),
       });
       addAppStateListener((isActive) => {
         if (isActive) controller?.onForeground();
