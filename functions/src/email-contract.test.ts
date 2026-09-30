@@ -15,10 +15,11 @@ import { htmlToPlainText } from "./ses-email";
 // 2026-09-29 (audyt maili): wspólny kontrakt KAŻDEGO maila do użytkownika.
 // Szablony dzielą jeden layout: dokument HTML z deklaracją jasnego motywu,
 // ukryty preheader, tabele zamiast flex/grid, inline CSS bez zewnętrznych
-// arkuszy, linki wyłącznie https/mailto, stopka z nadawcą i powodem wysyłki,
+// arkuszy, linki wyłącznie https/mailto, stopka z pomocą i powodem wysyłki,
 // sensowna wersja text/plain i rozmiar poniżej limitu obcinania Gmaila.
 
 const GMAIL_CLIP_BYTES = 102 * 1024;
+const PERSONAL_DATA_FRAGMENTS = ["WEB3", "Jasionowicz", "Grzegorz", "Osiek", "38-223", "Jasielski"];
 const RESET_LINK = "https://auth.strengthsave.app/__/auth/action?mode=resetPassword&oobCode=ABC&apiKey=K&lang=pl";
 
 const workout: EmailWorkout = {
@@ -86,11 +87,18 @@ describe.each(["pl", "en"] as const)("kontrakt maili (%s)", (lang) => {
     imgs.forEach((img) => expect(img).toMatch(/\balt="[^"]+"/));
   });
 
-  it.each(templates(lang))("%s: wordmark marki z akcentem #ccfc22 i stopka z nadawcą", (_name, html) => {
+  it.each(templates(lang))("%s: wordmark marki z akcentem #ccfc22 i stopka z pomocą", (_name, html) => {
     expect(html).toContain("STRENGTH SAVE");
     expect(html.toLowerCase()).toContain("#ccfc22");
-    expect(html).toContain("WEB3 POWER Grzegorz Jasionowicz");
-    expect(html).toContain("Osiek Jasielski 46");
+    expect(html).toContain("strengthsave.app/support");
+  });
+
+  // 2026-09-30 (zgłoszenie właściciela): maile transakcyjne i serwisowe bez
+  // danych firmy, imienia, nazwiska i adresu. Dane usługodawcy (art. 5
+  // u.ś.u.d.e.) są w polityce prywatności i regulaminie na stronie.
+  it.each(templates(lang))("%s: stopka bez danych firmy, osobowych i adresu", (_name, html) => {
+    for (const fragment of PERSONAL_DATA_FRAGMENTS) expect(html).not.toContain(fragment);
+    for (const fragment of PERSONAL_DATA_FRAGMENTS) expect(htmlToPlainText(html)).not.toContain(fragment);
   });
 
   it.each(templates(lang))("%s: rozmiar poniżej limitu obcinania Gmaila", (_name, html) => {
@@ -174,6 +182,21 @@ describe("workout: kafle nie rozpychają maila na telefonie", () => {
   it("kafle jako inline-block (zawijają się przy 375 px), nie komórki jednej tabeli", () => {
     const html = buildWorkoutEmailHtml(workout, "pl");
     expect(html).toContain("display:inline-block");
+  });
+});
+
+describe("broadcast admina: oznaczenie usługodawcy (art. 9 ust. 2 pkt 1 u.ś.u.d.e.)", () => {
+  it("ogłoszenie ma nazwę usługodawcy i adres elektroniczny, bez adresu pocztowego", () => {
+    const html = adminMessageEmailHtml("Treść", { broadcast: true });
+    expect(html).toContain("WEB3 POWER Grzegorz Jasionowicz");
+    expect(html).toContain("contact@strengthsave.app");
+    expect(html).not.toContain("Osiek");
+    expect(html).not.toContain("38-223");
+  });
+
+  it("wiadomość 1:1 od admina nie ma danych usługodawcy", () => {
+    const html = adminMessageEmailHtml("Treść");
+    for (const fragment of PERSONAL_DATA_FRAGMENTS) expect(html).not.toContain(fragment);
   });
 });
 

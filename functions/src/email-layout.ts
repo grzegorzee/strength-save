@@ -8,7 +8,12 @@
 //   atrybut `bgcolor` i obramowania w tym samym kolorze (lekcja c7e32497),
 // - ukryty preheader (tekst zapowiedzi w skrzynce) otoczony znacznikami,
 //   żeby wersja text/plain go pomijała,
-// - stopka: powód wysyłki, nadawca z adresem (z polityki prywatności).
+// - stopka: powód wysyłki i droga do pomocy. 2026-09-30 (zgłoszenie
+//   właściciela): bez danych firmy, imienia, nazwiska i adresu. Dane
+//   usługodawcy (art. 5 u.ś.u.d.e.) są w polityce prywatności i regulaminie
+//   na stronie. Wyjątek: informacja handlowa (broadcast), gdzie art. 9 ust. 2
+//   pkt 1 wymaga oznaczenia podmiotu i jego adresu elektronicznego
+//   (bez adresu pocztowego), patrz `serviceProviderNotice`.
 export type Lang = "pl" | "en";
 
 // Escape HTML dla wartości interpolowanych do maili (email, displayName, note, body
@@ -35,10 +40,20 @@ export const EMAIL_COLORS = {
 
 export const EMAIL_FONT = "font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
 
-/** Nadawca jak w polityce prywatności (strengthsave.app/legal/privacy). */
-const SENDER_LINE: Record<Lang, string> = {
-  pl: "Strength Save · WEB3 POWER Grzegorz Jasionowicz, Osiek Jasielski 46, 38-223 Osiek Jasielski",
-  en: "Strength Save · WEB3 POWER Grzegorz Jasionowicz, Osiek Jasielski 46, 38-223 Osiek Jasielski, Poland",
+/** Droga do pomocy, tekstem (maile raportowe i do trenera są bez linków). */
+const HELP_LINE: Record<Lang, string> = {
+  pl: "Strength Save · pomoc: strengthsave.app/support",
+  en: "Strength Save · help: strengthsave.app/support",
+};
+
+/**
+ * Oznaczenie usługodawcy TYLKO dla informacji handlowej (art. 9 ust. 2 pkt 1
+ * u.ś.u.d.e.: oznaczenie podmiotu i jego adresy elektroniczne). Adres
+ * pocztowy nie jest tam wymagany. Do weryfikacji prawnej (DECYZJE.md 2026-09-30).
+ */
+const SERVICE_PROVIDER_LINE: Record<Lang, string> = {
+  pl: "Usługodawca: WEB3 POWER Grzegorz Jasionowicz, contact@strengthsave.app",
+  en: "Service provider: WEB3 POWER Grzegorz Jasionowicz, contact@strengthsave.app",
 };
 
 const REPLY_HINT: Record<Lang, string> = {
@@ -63,6 +78,8 @@ export interface EmailLayoutOptions {
   footerLinks?: EmailFooterLink[];
   /** "Odpowiedz na tę wiadomość" ma sens tylko, gdy Reply-To trafia do supportu. */
   replyHint?: boolean;
+  /** Informacja handlowa (broadcast): oznaczenie usługodawcy w stopce. */
+  serviceProviderNotice?: boolean;
 }
 
 // Wypełniacz po preheaderze: część klientów dokleja do zapowiedzi początek
@@ -132,7 +149,8 @@ ${bodyHtml}
         ${options.replyHint ? footerLine(REPLY_HINT[lang]) : ""}
         ${footerLine(reason)}
         ${links ? footerLine(links) : ""}
-        ${footerLine(esc(SENDER_LINE[lang]))}
+        ${footerLine(esc(HELP_LINE[lang]))}
+        ${options.serviceProviderNotice ? footerLine(esc(SERVICE_PROVIDER_LINE[lang])) : ""}
       </td></tr>
     </table>
   </td></tr>

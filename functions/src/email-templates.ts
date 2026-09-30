@@ -218,6 +218,7 @@ export function adminMessageEmailHtml(body: string, options: { broadcast?: boole
       ? "Dostajesz ten mail, bo masz włączone ogłoszenia e-mail od zespołu Strength Save. Wyłączysz w aplikacji: Profil, Powiadomienia."
       : "Wiadomość od zespołu Strength Save dotyczy Twojego konta.",
     replyHint: true,
+    serviceProviderNotice: options.broadcast === true,
     bodyHtml: emailParagraph(safe, "margin:0;"),
   });
 }
