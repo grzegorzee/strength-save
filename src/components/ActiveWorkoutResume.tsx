@@ -36,7 +36,8 @@ export const ActiveWorkoutResume = () => {
       const draft = await workoutDraftDb.loadActiveDraft(uid);
       const decision = shouldResumeWorkoutDraft(draft, formatLocalDate(new Date()), Date.now());
       if (!decision.resume) return;
-      if (locationRef.current.pathname.startsWith('/workout/')) return;
+      // Trening próbny przewodnika też jest ekranem treningu: nie wyrywaj z niego.
+      if (locationRef.current.pathname.startsWith('/workout/') || locationRef.current.pathname === '/practice') return;
       trackTelemetryEvent(uid, 'workout_auto_resume');
       navigateRef.current(decision.target);
     };
@@ -48,7 +49,8 @@ export const ActiveWorkoutResume = () => {
     const continueFromRestNotification = async () => {
       const draft = await workoutDraftDb.loadActiveDraft(uid);
       if (!isDraftContinuableToday(draft, formatLocalDate(new Date()))) return;
-      if (locationRef.current.pathname.startsWith('/workout/')) return;
+      // Trening próbny przewodnika też jest ekranem treningu: nie wyrywaj z niego.
+      if (locationRef.current.pathname.startsWith('/workout/') || locationRef.current.pathname === '/practice') return;
       navigateRef.current(continuableDraftTarget(draft));
     };
 

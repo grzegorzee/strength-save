@@ -6,6 +6,7 @@ import { BackBar } from './BackBar';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
 import { APP_CHROME_ROOT_PATHS } from '@/lib/main-navigation';
+import { AppTourTabsHost } from '@/components/AppTourTabsHost';
 
 const pageTitleKeys: Record<string, TranslationKey> = {
   '/': 'layout.title.dashboard',
@@ -28,7 +29,9 @@ export const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
+  // Trening próbny (/practice) wygląda jak sesja: bez nagłówka appki i paska Wstecz.
+  const isPractice = location.pathname === '/practice';
+  const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/') || isPractice;
   // Replan (/new-plan) i paywall są pełnoekranowe (jak onboarding) — bez nawigacji i nagłówka appki.
   const isFullScreenFlow = location.pathname === '/new-plan' || location.pathname === '/paywall';
   const isRootPage = APP_CHROME_ROOT_PATHS.has(location.pathname);
@@ -38,7 +41,7 @@ export const Layout = () => {
   // treningowej (/workout/*) NIE: ten sam slot 6rem zajmują RestBar i CTA startu,
   // a ekran ma własny przycisk wstecz w nagłówku sesji. /exercise/* dostaje pasek,
   // bo bez AppHeader po przewinięciu nie ma tam żadnego powrotu.
-  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/') && location.pathname !== '/day';
+  const showBackBar = !isRootPage && !location.pathname.startsWith('/workout/') && !isPractice && location.pathname !== '/day';
 
   const handleBack = () => {
     // React Router v6 trzyma indeks historii w window.history.state.idx.
@@ -72,6 +75,8 @@ export const Layout = () => {
           Dashboardu/Planu/Profilu. Paski sesji (start/RestBar) pozycjonują się
           NAD navem. Header w focused flow pozostaje ukryty (własny wstecz). */}
       <AppNavigation />
+      {/* Przewodnik nowego konta, rozdział zakładek (przeżywa zmianę trasy). */}
+      <AppTourTabsHost />
 
       {/* Naprawa r2 (2026-08-21): provider slotu akcji headera — ekrany portalują
           swoje przyciski (History: lupa + filtry) do rzędu headera jak w artboardach. */}

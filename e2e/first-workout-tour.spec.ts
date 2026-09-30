@@ -1,22 +1,16 @@
-// Przewodnik nowego konta (2026-09-29, przebudowa WP-E X37). SEKWENCJE, nie
-// ekrany (zasada 5): nowe konto -> Dashboard (legenda zakładek, start jako
-// akcja) -> pierwszy trening (wpis, REALNE odhaczenie, celebracja + przerwa,
-// menu, Zakończ) -> "co dalej" -> reload bez przewodnika. Warianty: Pomiń na
-// każdym etapie, wyjście z treningu w połowie i powrót, 320 px EN, Dynamic Type
-// 112/135% (proxy), konto z historią, stary klucz urządzenia, desktop, replay
-// z Profilu, "Tak, rozgrzewka".
+// Przewodnik nowego konta v2 (2026-09-30): Dashboard zaprasza do TRENINGU
+// PRÓBNEGO (/practice, zero zapisów), tam wpis, REALNE odhaczenie, celebracja
+// + przerwa, menu ćwiczenia (zamiana), Zakończ, ekran „co dalej”, potem
+// rozdział zakładek (Plan, Historia, Postępy, Profil) i koniec.
+// Stany kont (dzień wolny, urlop, brak planu, trening dziś ukończony, trening
+// w toku, start w przyszłym tygodniu): app-tour-states.spec.ts.
 //
 // playwright.config seeduje stary klucz "widziane" (fittracker_first_workout_tour_v1),
-// więc w innych specach przewodnika nie ma (zgodność wstecz = ten sam seed). Tu
-// czyścimy go RAZ na kontekst (sessionStorage przeżywa reload).
-//
-// Mock e2e: finalny zapis do Firestore wisi, więc zakończenie treningu idzie
-// sesją offline (wzorzec workout-milestone.spec): silnik syncu kończy lokalnie.
-// Zrzuty kroków (PL/EN, 390 px, jasny motyw): tmp/tour-shots/ (niecommitowane).
+// więc w innych specach przewodnika nie ma. Tu czyścimy go RAZ na kontekst.
+// Zrzuty kroków (PL/EN, 375 i 430 px): tmp/tour-shots-v2/ (niecommitowane).
 import { test, expect, type Page } from '@playwright/test';
 import {
   blockFirebase,
-  clearWorkoutDraftDb,
   expectPageRendered,
   navigateAndWait,
   openProfileSection,
@@ -27,55 +21,61 @@ import {
 const E2E_UID = 'e2e-test-user';
 const LEGACY_KEY = 'fittracker_first_workout_tour_v1';
 const LOCAL_KEY = `fittracker_app_tour_v2:${E2E_UID}`;
-const MONDAY = '2026-07-20';
-const MONDAY_MS = new Date(`${MONDAY}T10:00:00`).getTime();
+const MONDAY_MS = new Date('2026-07-20T10:00:00').getTime();
 
 type Lang = 'pl' | 'en';
 const TXT = {
   pl: {
-    legendPlan: 'Plan: Twój tydzień treningów',
-    start: 'Tu zaczynasz trening',
+    welcome: 'Pokażę Ci, jak to działa',
+    tryPractice: 'Wypróbuj trening próbny',
+    banner: 'Trening próbny · nic się nie zapisze',
     inputs: 'Tu wpisujesz ciężar i powtórzenia.',
     check: 'Skończysz serię? Tapnij podświetlony ptaszek.',
     celebrate: 'Pierwsza seria zaliczona!',
     rest: 'możesz zgasić ekran',
-    menu: 'zamienisz ćwiczenie',
-    finish: 'zakończ trening tutaj',
-    done: 'Gotowe',
-    confirmFinish: 'Tak, zakończ',
-    whatsNext: 'Co dalej?',
-    kg: /Set 1, kg/,
-    reps: /Set 1, Powt\./,
-    checkSet: /Zaznacz serię jako zrobioną/,
-    startWorkout: /Rozpocznij trening/,
-    replay: 'Pokaż przewodnik ponownie',
+    menu: 'zamienisz albo pominiesz',
+    finish: 'tapnij Zakończ trening',
+    doneTitle: 'Tak wygląda każdy trening',
+    counter12: 'Krok 1 z 2',
+    tabPlan: 'Tapnij Plan',
+    tabsDone: 'Wszystko jasne!',
+    swapTitle: 'Zamień ćwiczenie',
+    swapMenu: 'Zamień ćwiczenie',
+    emailStep: 'wyślesz trenerowi mailem',
+    emailHint: 'Gotowe. W prawdziwym treningu podsumowanie trafi na trener@example.com.',
+    sentTitle: /^Wysłano$/,
+    showTabs: 'Teraz pokażę Ci, gdzie co jest',
   },
   en: {
-    legendPlan: 'Plan: your training week',
-    start: 'Start your workout here',
+    welcome: 'Let me show you how it works',
+    tryPractice: 'Try a practice workout',
+    banner: 'Practice workout · nothing is saved',
     inputs: 'Enter the weight and reps here.',
     check: 'Finished the set? Tap the highlighted check.',
     celebrate: 'First set done!',
     rest: 'you can lock the screen',
-    menu: 'Swap an exercise',
-    finish: 'finish your workout here',
-    done: 'Done',
-    confirmFinish: /Yes, finish/,
-    whatsNext: 'What next?',
-    kg: /Set 1, kg/,
-    reps: /Set 1, Reps/,
-    checkSet: /Mark set as done|Check set/,
-    startWorkout: /Start workout/,
-    replay: 'Show the guide again',
+    menu: 'Swap or skip an exercise',
+    finish: 'tap Finish workout',
+    doneTitle: 'That is every workout',
+    counter12: 'Step 1 of 2',
+    tabPlan: 'Tap Plan',
+    tabsDone: 'You are all set!',
+    swapTitle: 'Swap exercise',
+    swapMenu: 'Swap exercise',
+    emailStep: 'Email the summary to your coach',
+    emailHint: 'Done. In a real workout the summary goes to trener@example.com.',
+    sentTitle: /^Sent$/,
+    showTabs: 'Now let me show you where everything is',
   },
 } as const;
 
-const shot = async (page: Page, lang: Lang, name: string) => {
-  await page.waitForTimeout(250); // animacja wejścia dymka (200 ms)
-  await page.screenshot({ path: `tmp/tour-shots/${lang}-${name}.png` });
+const shot = async (page: Page, dir: string, name: string) => {
+  await page.waitForTimeout(300); // animacja wejścia dymka (200 ms)
+  await page.screenshot({ path: `tmp/tour-shots-v2/${dir}/${name}.png` });
 };
 
-const prepareNewAccount = async (page: Page, lang: Lang = 'pl') => {
+const prepareNewAccount = async (page: Page, lang: Lang = 'pl', opts: { reducedMotion?: boolean } = {}) => {
+  if (opts.reducedMotion) await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.clock.install({ time: MONDAY_MS });
   await blockFirebase(page);
   await page.addInitScript((l) => {
@@ -92,7 +92,7 @@ const prepareNewAccount = async (page: Page, lang: Lang = 'pl') => {
 const localTour = (page: Page) =>
   page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null'), LOCAL_KEY);
 
-/** Zero zawieszonych blokad po przewodniku (scroll-lock / pointer-events / overflow-x). */
+/** Zero zawieszonych blokad (scroll-lock / pointer-events / overflow-x / overlay). */
 const expectNoStuckOverlay = async (page: Page) => {
   await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
   const state = await page.evaluate(() => ({
@@ -105,118 +105,171 @@ const expectNoStuckOverlay = async (page: Page) => {
   expect(state.scrollX).toBeLessThanOrEqual(1);
 };
 
-/** Dymek w całości w viewport, bez poziomego scrolla, akcje widoczne. */
-const expectBubbleFits = async (page: Page) => {
-  const box = await page.locator('[data-testid^="tour-step-"]').boundingBox();
+/**
+ * Geometria kroku: dymek w viewport, nie zasłania celu, strzałka wskazuje cel,
+ * wycięcie ma promień celu (+6 px) i nie wystaje poza ekran bardziej niż odstęp.
+ */
+const expectStepGeometry = async (page: Page) => {
+  // Krok z przewinięciem (Zakończ) mierzymy po zakończeniu smooth scrollu.
+  await expect.poll(async () => {
+    const a = await page.locator('[data-testid^="tour-step-"]').boundingBox();
+    await page.waitForTimeout(120);
+    const b = await page.locator('[data-testid^="tour-step-"]').boundingBox();
+    return !!a && !!b && Math.abs(a.y - b.y) < 0.5;
+  }, { timeout: 5000 }).toBe(true);
   const vp = page.viewportSize()!;
-  expect(box).not.toBeNull();
-  expect(box!.x).toBeGreaterThanOrEqual(0);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width + 0.5);
-  expect(box!.y).toBeGreaterThanOrEqual(0);
-  expect(box!.y + box!.height).toBeLessThanOrEqual(vp.height + 0.5);
+  const bubble = await page.locator('[data-testid^="tour-step-"]').boundingBox();
+  expect(bubble).not.toBeNull();
+  expect(bubble!.x).toBeGreaterThanOrEqual(0);
+  expect(bubble!.x + bubble!.width).toBeLessThanOrEqual(vp.width + 0.5);
+  expect(bubble!.y).toBeGreaterThanOrEqual(0);
+  expect(bubble!.y + bubble!.height).toBeLessThanOrEqual(vp.height + 0.5);
   await expect(page.getByTestId('tour-skip')).toBeInViewport();
+  const cutout = page.getByTestId('tour-cutout');
+  // Jednolite przyciemnienie na KAŻDYM kroku (próba i zakładki): jeden czarny
+  // cień 66% wokół wycięcia albo pełny panel 66% przy dymku na środku.
+  const dim = await page.evaluate(() => {
+    const cut = document.querySelector<HTMLElement>('[data-testid="tour-cutout"]');
+    if (cut) return cut.style.boxShadow;
+    const panel = document.querySelector<HTMLElement>('[data-app-tour] > div');
+    return panel ? getComputedStyle(panel).backgroundColor : 'brak';
+  });
+  expect(dim).toMatch(/rgba\(0, 0, 0, 0\.66\)/);
+  if (await cutout.count()) {
+    const cut = (await cutout.boundingBox())!;
+    const overlap = !(bubble!.y >= cut.y + cut.height || bubble!.y + bubble!.height <= cut.y);
+    expect(overlap, 'dymek zasłania podświetlony cel').toBe(false);
+    const arrow = (await page.getByTestId('tour-arrow').boundingBox())!;
+    const arrowCenter = arrow.x + arrow.width / 2;
+    const clampedCenter = Math.min(Math.max(cut.x + cut.width / 2, bubble!.x + 24), bubble!.x + bubble!.width - 24);
+    expect(Math.abs(arrowCenter - clampedCenter), 'strzałka nie wskazuje celu').toBeLessThan(8);
+    const radii = await page.evaluate(() => {
+      const cutEl = document.querySelector<HTMLElement>('[data-testid="tour-cutout"]')!;
+      return Number.parseFloat(cutEl.style.borderRadius);
+    });
+    expect(radii).toBeGreaterThanOrEqual(6);
+  }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 };
 
-/** Dialog pomiarów po kreatorze nie może wisieć nad przewodnikiem (kolejność warstw). */
-const expectNoMeasurePromptOverTour = async (page: Page) => {
-  await expect(page.getByRole('alertdialog')).toHaveCount(0);
-};
-
-const firstCard = (page: Page) => page.locator('.exercise-card').first();
-
-/** Wpis ciężaru i powtórzeń w AKTYWNEJ serii, potem realne odhaczenie
- *  (pusta seria nie daje się odhaczyć: produkt pokazuje błąd, przewodnik czeka). */
-const fillAndCheckActiveSet = async (page: Page) => {
-  const row = page.locator('[data-tour="set-inputs"]').first();
-  await row.locator('input').nth(0).fill('40');
-  await row.locator('input').nth(1).fill('8');
-  await row.locator('[data-tour="set-check"]').click();
-};
-
-/** Pełna sekwencja nowego konta w danym języku, z opcjonalnymi zrzutami. */
-const runFullSequence = async (page: Page, lang: Lang, shots: boolean) => {
+/** Pełna sekwencja nowego konta, opcjonalnie ze zrzutami do tmp/tour-shots-v2/<dir>/. */
+const runFullSequence = async (page: Page, lang: Lang, shotsDir: string | null) => {
   const T = TXT[lang];
+  const snap = async (name: string) => { if (shotsDir) await shot(page, shotsDir, name); };
   await navigateAndWait(page, '/');
   await expectPageRendered(page);
 
-  // Dashboard 1/2: legenda zakładek, pasek zablokowany na czas kroku.
-  const nav = page.getByTestId('tour-step-nav');
-  await expect(nav).toBeVisible();
-  await expect(page.getByTestId('tour-legend')).toContainText(T.legendPlan);
-  await expect(page.getByTestId('tour-legend').locator('li')).toHaveCount(4);
-  await expectBubbleFits(page);
-  if (shots) await shot(page, lang, '01-dashboard-nav');
+  // Dashboard: jedno zaproszenie, bez spotlightu na hero ani prawdziwą sesję.
+  const welcome = page.getByTestId('tour-step-welcome');
+  await expect(welcome).toContainText(T.welcome);
+  await expect(page.getByTestId('tour-cutout')).toHaveCount(0);
+  await expectStepGeometry(page);
+  await snap('01-welcome');
+  await expect(page.getByTestId('tour-next')).toHaveText(T.tryPractice);
   await page.getByTestId('tour-next').click();
 
-  // Dashboard 2/2: start jako AKCJA (brak "Dalej").
-  await expect(page.getByTestId('tour-step-start')).toContainText(T.start);
-  await expect(page.getByTestId('tour-next')).toHaveCount(0);
-  if (shots) await shot(page, lang, '02-dashboard-start');
-  await page.locator('[data-tour="start-workout"]').first().click();
-  await expect(page).toHaveURL(/#\/workout\//);
-  expect((await localTour(page))?.stage).toBe('workout');
-
-  // Arkusz rozgrzewki ZAWSZE pierwszy; przewodnik czeka pod nim, nie zużywa się.
-  await expect(page.getByTestId('prestart-sheet')).toBeVisible();
-  await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
-  await page.getByTestId('prestart-skip').click();
-
-  // Trening 1/2: wpis.
+  // Trening próbny: stały pasek trybu, prawdziwe komponenty sesji.
+  await expect(page).toHaveURL(/#\/practice$/);
+  await expect(page.getByTestId('practice-banner')).toContainText(T.banner);
   const inputs = page.getByTestId('tour-step-set-inputs');
   await expect(inputs).toContainText(T.inputs);
-  await expectBubbleFits(page);
-  if (shots) await shot(page, lang, '03-workout-inputs');
-  await firstCard(page).getByRole('textbox', { name: T.kg }).first().fill('40');
-  await firstCard(page).getByRole('spinbutton', { name: T.reps }).first().fill('8');
+  await expect(page.getByTestId('tour-progress')).toHaveText(T.counter12);
+  await expectStepGeometry(page);
+  await snap('02-practice-inputs');
   await page.getByTestId('tour-next').click();
 
-  // Trening 2/2: czeka na REALNE odhaczenie (brak "Dalej").
+  // Czeka na REALNE odhaczenie: brak „Dalej”, nieklikalna podpowiedź.
   await expect(page.getByTestId('tour-step-set-check')).toContainText(T.check);
   await expect(page.getByTestId('tour-next')).toHaveCount(0);
-  if (shots) await shot(page, lang, '04-workout-check');
+  await expect(page.getByTestId('tour-action-hint')).toBeVisible();
+  expect(await page.getByTestId('tour-action-hint').evaluate((el) => el.tagName)).toBe('P');
+  await expectStepGeometry(page);
+  await snap('03-practice-check');
   await page.locator('[data-tour="set-check"]').first().click();
 
-  // Moment WOW: celebracja + przerwa, która właśnie ruszyła.
+  // Moment wow: celebracja + przerwa, która właśnie ruszyła.
   const celebrate = page.getByTestId('tour-step-first-set-done');
   await expect(celebrate).toContainText(T.celebrate);
   await expect(celebrate).toContainText(T.rest);
   await expect(page.getByTestId('rest-bar')).toBeVisible();
-  await expectBubbleFits(page);
-  if (shots) await shot(page, lang, '05-first-set-celebration');
+  await expectStepGeometry(page);
+  await snap('04-first-set-celebration');
   await page.getByTestId('tour-next').click();
 
   await expect(page.getByTestId('tour-step-exercise-menu')).toContainText(T.menu);
-  if (shots) await shot(page, lang, '06-exercise-menu');
+  await expectStepGeometry(page);
+  await snap('05-exercise-menu');
+  // Zamiana DZIAŁA w próbie (tylko lokalnie): przewodnik chowa się pod menu i dialogiem.
+  await page.locator('[data-tour="exercise-menu"]').first().click();
+  await page.getByRole('menuitem', { name: T.swapMenu }).click();
+  await expect(page.getByTestId('practice-swap')).toBeVisible();
+  await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
+  await snap('05b-practice-swap');
+  await page.getByTestId('practice-swap').getByRole('button').first().click();
+  await expect(page.getByTestId('tour-step-exercise-menu')).toBeVisible();
   await page.getByTestId('tour-next').click();
 
   await expect(page.getByTestId('tour-step-finish')).toContainText(T.finish);
-  await expect(page.getByTestId('finish-workout')).toBeInViewport();
-  if (shots) await shot(page, lang, '07-finish');
-  await expect(page.getByTestId('tour-next')).toHaveText(T.done);
+  await expect(page.getByTestId('practice-finish')).toBeInViewport();
+  await expectStepGeometry(page);
+  await snap('06-finish');
+  await page.getByTestId('practice-finish').click();
+  await expectNoStuckOverlay(page);
+  await page.getByTestId('practice-confirm-finish').click();
+  await expect(page.getByTestId('practice-done')).toContainText(T.doneTitle);
+
+  // Po treningu: podsumowanie mailem (prawdziwy dialog, wysyłka symulowana).
+  await expect(page.getByTestId('tour-step-send-email')).toContainText(T.emailStep);
+  await expect(page.getByTestId('tour-next')).toHaveCount(0);
+  await expectStepGeometry(page);
+  await snap('07-practice-done');
+  await page.getByTestId('practice-email').click();
+  const dialog = page.getByTestId('email-workout-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
+  await dialog.locator('input').fill('trener@example.com');
+  await snap('13-email-dialog');
+  await page.getByTestId('email-workout-send').click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText(T.emailHint).first()).toBeVisible();
+  // Próba nie sugeruje realnej wysyłki: bez produkcyjnego tytułu „Wysłano”.
+  await expect(page.getByText(T.sentTitle)).toHaveCount(0);
+  // Dialog zamknięty czysto: bez scroll-locka i pointer-events na body.
+  const body = await page.evaluate(() => ({
+    pointer: getComputedStyle(document.body).pointerEvents,
+    overflow: document.body.style.overflow,
+  }));
+  expect(body.pointer).not.toBe('none');
+  expect(body.overflow).not.toBe('hidden');
+  await expect(page.getByTestId('save-trainer-name')).toHaveCount(0);
+  await expect(page.getByTestId('tour-step-show-tabs')).toContainText(T.showTabs);
+  await expectStepGeometry(page);
+  await snap('14-email-sent-show-tabs');
+  await page.getByTestId('practice-show-tabs').click();
+
+  // Rozdział zakładek: tap w podświetloną zakładkę przenosi dalej.
+  await expect(page).toHaveURL(/#\/$/);
+  for (const [id, path, name] of [
+    ['plan', '/plan', '08-tab-plan'],
+    ['history', '/history', '09-tab-history'],
+    ['progress', '/achievements', '10-tab-progress'],
+    ['profile', '/profile', '11-tab-profile'],
+  ] as const) {
+    await expect(page.getByTestId(`tour-step-tab-${id}`)).toBeVisible();
+    if (id === 'plan') await expect(page.getByTestId('tour-step-tab-plan')).toContainText(T.tabPlan);
+    await expectStepGeometry(page);
+    await snap(name);
+    await page.locator(`[data-tour="nav-${id}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`#${path}$`));
+  }
+  await expect(page.getByTestId('tour-step-tabs-done')).toContainText(T.tabsDone);
+  await snap('12-tabs-done');
   await page.getByTestId('tour-next').click();
   await expectNoStuckOverlay(page);
-  expect((await localTour(page))?.stage).toBe('after-finish');
-
-  // Zakończenie (offline, patrz nagłówek) -> celebracja -> karta "co dalej".
-  await page.context().setOffline(true);
-  await page.getByTestId('finish-workout').click();
-  await page.getByRole('button', { name: T.confirmFinish }).click();
-  const whatsNext = page.getByTestId('tour-whats-next');
-  await expect(whatsNext).toBeVisible({ timeout: 15_000 });
-  await expect(whatsNext).toContainText(T.whatsNext);
   expect(await localTour(page)).toMatchObject({ stage: 'done', outcome: 'done' });
-  // Celebracja 1. treningu (baner, 2,5 s) schodzi sama; karta zostaje (nie znika sama).
-  await expect(page.getByTestId('workout-milestone-banner')).toHaveCount(0, { timeout: 10_000 });
-  await expect(whatsNext).toBeVisible();
-  if (shots) {
-    await whatsNext.scrollIntoViewIfNeeded();
-    await shot(page, lang, '08-whats-next');
-  }
-  await page.context().setOffline(false);
 
-  // Reload: przewodnik nie wraca (ani Dashboard, ani trening).
+  // Reload: przewodnik nie wraca.
   await navigateAndWait(page, '/');
   await page.reload();
   await expectPageRendered(page);
@@ -224,63 +277,78 @@ const runFullSequence = async (page: Page, lang: Lang, shots: boolean) => {
   await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
 };
 
-test.describe('Przewodnik nowego konta: pełna sekwencja', () => {
-  test.afterEach(async ({ page }) => {
-    await page.context().setOffline(false);
-    await clearWorkoutDraftDb(page, E2E_UID).catch(() => undefined);
-  });
-
+test.describe('Przewodnik nowego konta v2: pełna sekwencja', () => {
   for (const lang of ['pl', 'en'] as const) {
-    test(`${lang.toUpperCase()} 390 px: Dashboard -> start -> odhaczenie -> celebracja -> Zakończ -> co dalej -> reload bez przewodnika`, async ({ page }, info) => {
-      await prepareNewAccount(page, lang);
-      await runFullSequence(page, lang, info.project.name === 'chromium');
-    });
+    for (const width of [375, 390, 430] as const) {
+      test(`${lang.toUpperCase()} ${width} px: zaproszenie -> trening próbny -> zakładki -> koniec, reload bez przewodnika`, async ({ page }, info) => {
+        await page.setViewportSize({ width, height: width === 430 ? 932 : 812 });
+        await prepareNewAccount(page, lang);
+        const shots = info.project.name === 'chromium' && width !== 390 ? `${lang}-${width}` : null;
+        await runFullSequence(page, lang, shots);
+      });
+    }
   }
+
+  test('reduced motion: bez animacji pierścienia, pop i szturchnięcia, sekwencja przechodzi', async ({ page }) => {
+    await prepareNewAccount(page, 'pl', { reducedMotion: true });
+    await navigateAndWait(page, '/');
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    expect(await page.locator('.tour-ring-pulse').count()).toBe(0);
+    await page.getByTestId('tour-next').click();
+    expect(await page.locator('.tour-hint-nudge').count()).toBe(0);
+    await page.locator('[data-tour="set-check"]').first().click();
+    await expect(page.getByTestId('tour-celebration')).toBeVisible();
+    expect(await page.locator('.tour-check-pop').count()).toBe(0);
+  });
 });
 
-test.describe('Przewodnik nowego konta: Pomiń i przerwania', () => {
+test.describe('Przewodnik v2: Pomiń, wyjścia, przerwania', () => {
   test.beforeEach(async ({ page }) => {
     await prepareNewAccount(page);
   });
-  test.afterEach(async ({ page }) => {
-    await clearWorkoutDraftDb(page, E2E_UID).catch(() => undefined);
-  });
 
-  test('Pomiń na legendzie Dashboardu: koniec przewodnika, trening bez spotlightów, reload bez', async ({ page }) => {
+  test('Pomiń na zaproszeniu: koniec, trening próbny bez przewodnika, reload bez', async ({ page }) => {
     await navigateAndWait(page, '/');
     await page.getByTestId('tour-skip').click();
     await expectNoStuckOverlay(page);
     expect(await localTour(page)).toMatchObject({ stage: 'done', outcome: 'skipped' });
-    await page.getByTestId('dashboard-primary-action').click();
-    await page.getByTestId('prestart-skip').click();
-    await expect(page.getByTestId('session-stats')).toBeVisible();
-    await page.waitForTimeout(600);
-    await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
     await page.reload();
     await expectPageRendered(page);
+    await page.waitForTimeout(600);
     await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
   });
 
-  test('Pomiń na kroku startu Dashboardu też kończy przewodnik', async ({ page }) => {
+  test('krok maila: „Pomiń ten krok” przechodzi dalej bez wysyłki, „Pomiń przewodnik” kończy', async ({ page }) => {
     await navigateAndWait(page, '/');
     await page.getByTestId('tour-next').click();
-    await expect(page.getByTestId('tour-step-start')).toBeVisible();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await page.locator('[data-tour="set-check"]').first().click();
+    await expect(page.getByTestId('tour-step-first-set-done')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-exercise-menu')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-finish')).toBeVisible();
+    await page.getByTestId('practice-finish').click();
+    await page.getByTestId('practice-confirm-finish').click();
+    await expect(page.getByTestId('tour-step-send-email')).toBeVisible();
+    await page.getByTestId('tour-skip-step').click();
+    await expect(page.getByTestId('tour-step-show-tabs')).toBeVisible();
     await page.getByTestId('tour-skip').click();
     await expectNoStuckOverlay(page);
     expect((await localTour(page))?.outcome).toBe('skipped');
   });
 
   for (const step of ['set-inputs', 'set-check', 'first-set-done', 'exercise-menu', 'finish'] as const) {
-    test(`Pomiń w treningu na kroku ${step}: overlay znika, sesja działa dalej`, async ({ page }) => {
+    test(`Pomiń w treningu próbnym na kroku ${step}: overlay znika, próba działa dalej`, async ({ page }) => {
       await navigateAndWait(page, '/');
       await page.getByTestId('tour-next').click();
-      await page.locator('[data-tour="start-workout"]').first().click();
-      await page.getByTestId('prestart-skip').click();
       await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
       if (step !== 'set-inputs') {
         await page.getByTestId('tour-next').click();
         if (step !== 'set-check') {
-          await fillAndCheckActiveSet(page);
+          await page.locator('[data-tour="set-check"]').first().click();
           await expect(page.getByTestId('tour-step-first-set-done')).toBeVisible();
           if (step !== 'first-set-done') {
             await page.getByTestId('tour-next').click();
@@ -292,174 +360,115 @@ test.describe('Przewodnik nowego konta: Pomiń i przerwania', () => {
       await page.getByTestId('tour-skip').click();
       await expectNoStuckOverlay(page);
       expect((await localTour(page))?.outcome).toBe('skipped');
-      // Sesja nie ucierpiała: odhaczenie kolejnej serii działa, zero dymków.
       const before = await page.locator('[aria-label^="Odznacz"]').count();
-      await fillAndCheckActiveSet(page);
+      await page.locator('[data-tour="set-check"]').first().click();
       await expect(page.locator('[aria-label^="Odznacz"]')).toHaveCount(before + 1);
       await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
     });
   }
 
-  test('wyjście z treningu w połowie przewodnika i powrót: brak zawieszonego overlayu, krok wraca, ćwiczenia komplet', async ({ page }) => {
-    await navigateAndWait(page, '/');
-    await page.getByTestId('tour-next').click();
-    await page.locator('[data-tour="start-workout"]').first().click();
-    await page.getByTestId('prestart-skip').click();
-    await page.getByTestId('tour-next').click();
-    await expect(page.getByTestId('tour-step-set-check')).toBeVisible();
-    const cardsBefore = await page.locator('.exercise-card').count();
-    const workoutUrl = page.url();
-
-    // Wyjście: Dashboard bez przewodnika (etap treningu, nie Dashboardu) i bez blokad.
-    await navigateAndWait(page, '/');
-    await expectPageRendered(page);
-    await page.waitForTimeout(600);
-    await expectNoStuckOverlay(page);
-    await page.getByRole('link', { name: /Plan/ }).first().click();
-    await expect(page).toHaveURL(/#\/plan/);
-    await expectNoStuckOverlay(page);
-
-    // Powrót do treningu (resume): ten sam krok, wszystkie ćwiczenia na miejscu.
-    await page.goto(workoutUrl.replace('&autostart=true', ''));
-    await expectPageRendered(page);
-    await expect(page.getByTestId('session-stats')).toBeVisible();
-    await expect(page.getByTestId('tour-step-set-check')).toBeVisible();
-    await expect(page.locator('.exercise-card')).toHaveCount(cardsBefore);
-    await fillAndCheckActiveSet(page);
-    await expect(page.getByTestId('tour-step-first-set-done')).toBeVisible();
-  });
-
-  test('po kreatorze (?welcome=1): karta planu + przewodnik; start z karty -> krok startu na ekranie treningu -> pierwsza seria', async ({ page }) => {
-    await page.addInitScript(() => localStorage.removeItem('fittracker_post_plan_guide_v1_e2e-test-user'));
-    await navigateAndWait(page, '/?welcome=1');
-    await expect(page.getByTestId('post-plan-guide')).toBeVisible();
-    await expect(page.getByTestId('tour-step-nav')).toBeVisible();
-    await page.getByTestId('tour-next').click();
-    await expect(page.getByTestId('tour-step-start')).toBeVisible();
-    // Cel startu = CTA karty planu (pierwszy widoczny start), nie drugi przycisk pod nią.
-    const target = page.locator('[data-tour="start-workout"]').first();
-    await expect(target).toHaveAttribute('data-testid', 'post-plan-primary-action');
-    await target.click();
-    await expect(page).toHaveURL(/#\/workout\//);
-    // Wejście bez autostartu: jeden krok-akcja na pasku startu.
-    await expect(page.getByTestId('tour-step-workout-start')).toBeVisible();
-    await expectBubbleFits(page);
-    await page.locator('[data-tour="workout-start"]').click();
-    await page.getByTestId('prestart-skip').click();
-    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
-    await expectNoMeasurePromptOverTour(page);
-  });
-
-  test('Pomiń na kroku startu ekranu treningu kończy przewodnik, start działa', async ({ page }) => {
-    await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
-    await expect(page.getByTestId('tour-step-workout-start')).toBeVisible();
+  test('Pomiń w rozdziale zakładek kończy przewodnik', async ({ page }) => {
+    await page.addInitScript((key) => {
+      if (!sessionStorage.getItem('e2e-tabs-seeded')) {
+        localStorage.setItem(key, JSON.stringify({ stage: 'tabs', step: 'tab-history' }));
+        sessionStorage.setItem('e2e-tabs-seeded', '1');
+      }
+    }, LOCAL_KEY);
+    await navigateAndWait(page, '/plan');
+    // Wznowienie rozdziału od zapamiętanego kroku.
+    await expect(page.getByTestId('tour-step-tab-history')).toBeVisible();
     await page.getByTestId('tour-skip').click();
     await expectNoStuckOverlay(page);
     expect((await localTour(page))?.outcome).toBe('skipped');
-    await page.locator('[data-tour="workout-start"]').click();
-    await page.getByTestId('prestart-skip').click();
-    await expect(page.getByTestId('session-stats')).toBeVisible();
-    await page.waitForTimeout(600);
-    await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
   });
 
-  test('"Tak, rozgrzewka": przewodnik czeka na zamknięcie dialogu rozgrzewki i nie jest zużyty', async ({ page }) => {
+  test('„Zakończ próbę” w trakcie: bez overlayu, przewodnik idzie do zakładek', async ({ page }) => {
     await navigateAndWait(page, '/');
     await page.getByTestId('tour-next').click();
-    await page.locator('[data-tour="start-workout"]').first().click();
-    await page.getByTestId('prestart-yes').click();
-    await expect(page.getByTestId('warmup-item').first()).toBeVisible();
-    await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
-    await page.keyboard.press('Escape');
-    await expect(page.getByTestId('warmup-item')).toHaveCount(0);
-    expect((await localTour(page))?.stage).toBe('workout');
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await page.getByTestId('practice-exit').click();
+    await expect(page).toHaveURL(/#\/$/);
+    await expect(page.getByTestId('tour-step-tab-plan')).toBeVisible();
+  });
+
+  test('systemowe wstecz z próby i reload w próbie: brak zawieszonych blokad, zaproszenie wraca', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-check')).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/$/);
+    await expect(page.getByTestId('tour-step-welcome')).toBeVisible();
+    // „Zabicie apki” w próbie: stan próby żyje tylko w pamięci.
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await page.reload();
+    await expectPageRendered(page);
+    await expect(page.getByTestId('practice-workout')).toBeVisible();
+    await expect(page.locator('[aria-label^="Odznacz"]')).toHaveCount(0);
     await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
   });
 });
 
-test.describe('Przewodnik nowego konta: szerokości, język, Dynamic Type', () => {
-  test.afterEach(async ({ page }) => {
-    await clearWorkoutDraftDb(page, E2E_UID).catch(() => undefined);
+test.describe('Przewodnik v2: 320 px, Dynamic Type 135%', () => {
+  test('EN 320 px: każdy krok próby mieści się bez poziomego scrolla', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await prepareNewAccount(page, 'en');
+    await navigateAndWait(page, '/');
+    await expectStepGeometry(page);
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await expectStepGeometry(page);
+    await page.getByTestId('tour-next').click();
+    await expectStepGeometry(page);
+    await page.locator('[data-tour="set-check"]').first().click();
+    await expect(page.getByTestId('tour-step-first-set-done')).toBeVisible();
+    await expectStepGeometry(page);
   });
 
-  for (const width of [320, 430] as const) {
-    test(`EN ${width} px: legenda, start i pierwsza seria mieszczą się bez poziomego scrolla`, async ({ page }) => {
-      await page.setViewportSize({ width, height: width === 320 ? 568 : 932 });
-      await prepareNewAccount(page, 'en');
-      await navigateAndWait(page, '/');
-      await expect(page.getByTestId('tour-step-nav')).toBeVisible();
-      await expectBubbleFits(page);
-      await page.getByTestId('tour-next').click();
-      await expect(page.getByTestId('tour-step-start')).toBeVisible();
-      await expectBubbleFits(page);
-      await page.locator('[data-tour="start-workout"]').first().click();
-      await page.getByTestId('prestart-skip').click();
-      await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
-      await expectBubbleFits(page);
-      await page.getByTestId('tour-next').click();
-      await fillAndCheckActiveSet(page);
-      await expect(page.getByTestId('tour-step-first-set-done')).toBeVisible();
-      await expectBubbleFits(page);
+  test('Dynamic Type 135% (proxy) na 375 px PL: dymek bez obcięć, akcje dostępne', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await prepareNewAccount(page, 'pl');
+    await navigateAndWait(page, '/');
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-inputs')).toBeVisible();
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour-step-set-check')).toBeVisible();
+    await page.locator('[data-tour="set-check"]').first().click();
+    const bubble = page.getByTestId('tour-step-first-set-done');
+    await expect(bubble).toBeVisible();
+    await page.evaluate(() => {
+      const root = document.querySelector('[data-app-tour]');
+      root?.querySelectorAll<HTMLElement>('*').forEach((el) => {
+        if ([...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())) {
+          el.style.fontSize = `${Number.parseFloat(getComputedStyle(el).fontSize) * 1.35}px`;
+        }
+      });
     });
-  }
-
-  for (const scale of [112, 135] as const) {
-    test(`Dynamic Type ${scale}% (proxy) na 320 px PL: dymek bez obcięć, akcje dostępne`, async ({ page }) => {
-      await page.setViewportSize({ width: 320, height: 568 });
-      await prepareNewAccount(page, 'pl');
-      await navigateAndWait(page, '/');
-      await page.getByTestId('tour-next').click();
-      await page.locator('[data-tour="start-workout"]').first().click();
-      await page.getByTestId('prestart-skip').click();
-      await page.getByTestId('tour-next').click();
-      await fillAndCheckActiveSet(page);
-      const bubble = page.getByTestId('tour-step-first-set-done');
-      await expect(bubble).toBeVisible();
-      // Proxy jak accessibility-font-scale.spec: skalujemy font elementów z tekstem.
-      await page.evaluate((pct) => {
-        const root = document.querySelector('[data-app-tour]');
-        root?.querySelectorAll<HTMLElement>('*').forEach((el) => {
-          if ([...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())) {
-            el.style.fontSize = `${Number.parseFloat(getComputedStyle(el).fontSize) * (pct / 100)}px`;
-          }
-        });
-      }, scale);
-      await expectBubbleFits(page);
-      const clipped = await bubble.evaluate((b) => [...b.querySelectorAll<HTMLElement>('p, span, button')]
-        .filter((el) => el.scrollWidth - el.clientWidth > 1).map((el) => el.textContent));
-      expect(clipped).toEqual([]);
-      await page.getByTestId('tour-next').scrollIntoViewIfNeeded();
-      await expect(page.getByTestId('tour-next')).toBeInViewport();
-    });
-  }
+    await expectStepGeometry(page);
+    const clipped = await bubble.evaluate((b) => [...b.querySelectorAll<HTMLElement>('p, button')]
+      .filter((el) => el.scrollWidth - el.clientWidth > 1).map((el) => el.textContent));
+    expect(clipped).toEqual([]);
+    await page.getByTestId('tour-next').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('tour-next')).toBeInViewport();
+  });
 });
 
-test.describe('Przewodnik nowego konta: kto go NIE dostaje, replay', () => {
-  test('konto z ukończonym treningiem: brak przewodnika na Dashboardzie i w treningu', async ({ page }) => {
+test.describe('Przewodnik v2: kto go NIE dostaje sam, replay', () => {
+  test('konto z ukończonym treningiem: brak auto-startu', async ({ page }) => {
     await prepareNewAccount(page);
     await setE2EWorkouts(page, [{
-      id: 'w-done-1',
-      userId: E2E_UID,
-      dayId: 'day-2',
-      dayName: 'Wtorek',
-      date: '2026-07-14',
-      completed: true,
-      durationSec: 3600,
+      id: 'w-done-1', userId: E2E_UID, dayId: 'day-2', dayName: 'Wtorek', date: '2026-07-14', completed: true, durationSec: 3600,
       exercises: [{ exerciseId: 'ex-2-1', name: 'Przysiad ze sztangą', sets: [{ reps: 5, weight: 80, completed: true }] }],
     }]);
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     await page.waitForTimeout(800);
     await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
-    await page.getByTestId('dashboard-primary-action').click();
-    await page.getByTestId('prestart-skip').click();
-    await expect(page.getByTestId('session-stats')).toBeVisible();
-    await page.waitForTimeout(600);
-    await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
-    await clearWorkoutDraftDb(page, E2E_UID);
   });
 
-  test('stary klucz urządzenia X37 = widziany (seed configu działa jak dotąd)', async ({ page }) => {
+  test('stary klucz urządzenia X37 = widziany', async ({ page }) => {
     await page.clock.install({ time: MONDAY_MS });
     await blockFirebase(page);
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
@@ -481,7 +490,7 @@ test.describe('Przewodnik nowego konta: kto go NIE dostaje, replay', () => {
     await expect(page.getByTestId('first-workout-tour')).toHaveCount(0);
   });
 
-  test('replay z Profilu: "Pokaż przewodnik ponownie" uruchamia go od Dashboardu (także przy starym kluczu)', async ({ page }) => {
+  test('replay z Profilu startuje od początku (zaproszenie)', async ({ page }) => {
     await page.clock.install({ time: MONDAY_MS });
     await blockFirebase(page);
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
@@ -489,9 +498,9 @@ test.describe('Przewodnik nowego konta: kto go NIE dostaje, replay', () => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
     await openProfileSection(page, 'account');
-    await page.getByText(TXT.pl.replay).click();
+    await page.getByText('Pokaż przewodnik ponownie').click();
     await expect(page).toHaveURL(/#\/$/);
-    await expect(page.getByTestId('tour-step-nav')).toBeVisible();
+    await expect(page.getByTestId('tour-step-welcome')).toBeVisible();
     await page.getByTestId('tour-skip').click();
     await expectNoStuckOverlay(page);
   });

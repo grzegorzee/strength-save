@@ -84,8 +84,6 @@ export const PostPlanGuide = ({
 
       <Button
         data-testid="post-plan-primary-action"
-        // Przewodnik nowego konta: spotlight startu tylko, gdy CTA faktycznie startuje trening.
-        data-tour={firstWorkoutPath ? 'start-workout' : undefined}
         className="mt-5 min-h-12 w-full"
         onClick={() => navigateTo(primaryPath)}
       >

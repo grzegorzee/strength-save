@@ -46,7 +46,7 @@ import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { useWorkoutEffects } from '@/contexts/WorkoutEffectsContext';
 import { reportClientError } from '@/lib/error-telemetry';
 import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
 import type { ExerciseNote } from '@/lib/exercise-notes';
@@ -287,6 +287,7 @@ const ExerciseCardInner = ({
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { uid, profile } = useCurrentUser();
+  const workoutEffects = useWorkoutEffects();
   // Link do instrukcji tylko dla ćwiczeń z biblioteki (custom/nieznane nie mają strony szczegółów).
   const detailSlug = useMemo(() => {
     const slug = slugifyExercise(exercise.name);
@@ -475,7 +476,7 @@ const ExerciseCardInner = ({
 
     // Z82: lekki impact przy każdym odhaczeniu (natywnie; web no-op).
     if (turningOn) void hapticImpactLight();
-    if (turningOn && uid) trackTelemetryEvent(uid, 'action_set_checked');
+    if (turningOn && uid) workoutEffects.trackSetChecked(uid);
 
     // Z187: przerwa startuje po KAŻDEJ odhaczonej serii — także rozgrzewkowej
     // (45 s z warmupSeconds; gałąź w resolveRestSeconds była martwa od X17C).

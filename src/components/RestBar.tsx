@@ -8,7 +8,7 @@ import {
   restProgress,
   type RestTimerState,
 } from '@/lib/rest-timer';
-import { armRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
+import { useWorkoutEffects } from '@/contexts/WorkoutEffectsContext';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
@@ -73,6 +73,9 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   // nie może restartować przerwy ani przeplanowywać notyfikacji (dzisiejszy dep na
   // identity scheduleFor robił dokładnie to).
   const tRef = useRef(t);
+  const effects = useWorkoutEffects();
+  const effectsRef = useRef(effects);
+  effectsRef.current = effects;
   const exerciseLabelRef = useRef(exerciseLabel);
   useEffect(() => { tRef.current = t; }, [t]);
   useEffect(() => { exerciseLabelRef.current = exerciseLabel; }, [exerciseLabel]);
@@ -87,7 +90,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   useEffect(() => {
     finishedRef.current = false;
     unlockTimerSound();
-    armRestEndNotification(deadlineAt, tRef.current('rest.bar.done'), exerciseLabelRef.current);
+    effectsRef.current.armRestEndNotification(deadlineAt, tRef.current('rest.bar.done'), exerciseLabelRef.current);
   }, [runId, deadlineAt]);
 
   // Odświeżanie widoku. Nie liczy czasu — tylko wymusza przeliczenie z deadline.
@@ -97,7 +100,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   }, []);
 
   // Sprzątanie: wyjście z ekranu nie może zostawić zaplanowanego powiadomienia.
-  useEffect(() => () => { void cancelRestEndNotification(); }, []);
+  useEffect(() => () => { void effectsRef.current.cancelRestEndNotification(); }, []);
 
   const state: RestTimerState = { deadlineAt, totalSeconds };
   const now = Date.now();
@@ -115,7 +118,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
     // Z143: właścicielem stanu jest rodzic — koniec przerwy zeruje stan (karta
     // może się przygasić, Z145; pasek znika zamiast wisieć jako „Koniec przerwy").
     onFinished?.();
-    void cancelRestEndNotification();
+    void effectsRef.current.cancelRestEndNotification();
     // Bug 28 (X30): ciepły resume po deadline — sprzątanie bez sygnałów.
     if (Date.now() - deadlineAt > FINISH_SIGNAL_GRACE_MS) return;
     try {
@@ -133,7 +136,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   }, [done, onFinished, deadlineAt]);
 
   const handleSkip = () => {
-    void cancelRestEndNotification();
+    void effectsRef.current.cancelRestEndNotification();
     onSkip();
   };
 

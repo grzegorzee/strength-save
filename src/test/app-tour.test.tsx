@@ -1,4 +1,4 @@
-// Przewodnik nowego konta (2026-09-29, przebudowa WP-E X37): warunek startu,
+// Przewodnik nowego konta (v2 2026-09-30, trening próbny + zakładki): warunek startu,
 // stan per konto (chmura + localStorage), pętla zapis -> snapshot -> mapper ->
 // warunek, komponent (akcje, pauza przy obcym overlayu, Pomiń, brak pułapek),
 // cele data-tour na karcie ćwiczenia.
@@ -14,12 +14,12 @@ import {
   APP_TOUR_STORAGE_PREFIX,
   DASHBOARD_TOUR_STEPS,
   FIRST_WORKOUT_TOUR_KEY,
-  WORKOUT_TOUR_STEPS,
+  PRACTICE_TOUR_STEPS,
+  TABS_TOUR_STEPS,
   countCheckedSets,
   readCloudAppTour,
   readLocalAppTour,
   resolveAppTourStage,
-  resumeWorkoutStep,
   writeLocalAppTour,
   type AppTourStartContext,
 } from '@/lib/first-workout-tour';
@@ -80,9 +80,9 @@ describe('resolveAppTourStage: kto dostaje przewodnik', () => {
     expect(resolveAppTourStage({ ...baseCtx, isDesktop: true })).toBeNull();
   });
 
-  it('rozpoczęty przewodnik trwa po pierwszym treningu (etap "co dalej" musi się pokazać)', () => {
-    expect(resolveAppTourStage({ ...baseCtx, completedCount: 1, local: { stage: 'workout' } })).toBe('workout');
-    expect(resolveAppTourStage({ ...baseCtx, completedCount: 1, local: { stage: 'after-finish' } })).toBe('after-finish');
+  it('rozpoczęty przewodnik (próba, zakładki) trwa niezależnie od liczby treningów', () => {
+    expect(resolveAppTourStage({ ...baseCtx, completedCount: 1, local: { stage: 'practice' } })).toBe('practice');
+    expect(resolveAppTourStage({ ...baseCtx, completedCount: null, local: { stage: 'tabs', step: 'tab-history' } })).toBe('tabs');
   });
 
   it('odtworzenie z Profilu omija warunek treningów, flagę chmury i stary klucz', () => {
@@ -98,8 +98,8 @@ describe('resolveAppTourStage: kto dostaje przewodnik', () => {
 
 describe('stan lokalny i chmurowy', () => {
   it('localStorage per uid: zapis/odczyt, śmieci = null, konta rozdzielone', () => {
-    writeLocalAppTour('u1', { stage: 'workout', step: 'set-check' });
-    expect(readLocalAppTour('u1')).toEqual({ stage: 'workout', step: 'set-check' });
+    writeLocalAppTour('u1', { stage: 'tabs', step: 'tab-plan' });
+    expect(readLocalAppTour('u1')).toEqual({ stage: 'tabs', step: 'tab-plan' });
     expect(readLocalAppTour('u2')).toBeNull();
     localStorage.setItem(`${APP_TOUR_STORAGE_PREFIX}u3`, '{"stage":"hack","step":"x"}');
     expect(readLocalAppTour('u3')).toBeNull();
@@ -115,12 +115,21 @@ describe('stan lokalny i chmurowy', () => {
     expect(readCloudAppTour(undefined)).toBeNull();
   });
 
-  it('powrót do treningu: porcja "po serii" wraca od menu, nieznany krok od wpisu', () => {
-    expect(resumeWorkoutStep(undefined)).toBe('set-inputs');
-    expect(resumeWorkoutStep('set-check')).toBe('set-check');
-    expect(resumeWorkoutStep('first-set-done')).toBe('exercise-menu');
-    expect(resumeWorkoutStep('finish')).toBe('finish');
-    expect(resumeWorkoutStep('nav')).toBe('set-inputs');
+  it('etapy v1 (build 152: workout / after-finish przez PRAWDZIWĄ sesję) wracają na początek', () => {
+    localStorage.setItem(`${APP_TOUR_STORAGE_PREFIX}u5`, JSON.stringify({ stage: 'workout', step: 'set-check', replay: true }));
+    expect(readLocalAppTour('u5')).toEqual({ stage: 'dashboard', replay: true });
+    localStorage.setItem(`${APP_TOUR_STORAGE_PREFIX}u6`, JSON.stringify({ stage: 'after-finish' }));
+    expect(readLocalAppTour('u6')).toEqual({ stage: 'dashboard' });
+  });
+
+  it('kroki: próba bez celu na hero/prawdziwą sesję, rozdziały max 4 kroki, zakładki = 4 taby + koniec', () => {
+    expect(DASHBOARD_TOUR_STEPS.map((s) => s.target)).toEqual(['']);
+    const targets = [...PRACTICE_TOUR_STEPS, ...TABS_TOUR_STEPS].map((s) => s.target).join(' ');
+    expect(targets).not.toMatch(/start-workout|workout-start|dashboard-primary/);
+    for (const chunk of ['first-set', 'after-set', 'tabs'] as const) {
+      expect([...PRACTICE_TOUR_STEPS, ...TABS_TOUR_STEPS].filter((s) => s.chunk === chunk).length).toBeLessThanOrEqual(4);
+    }
+    expect(TABS_TOUR_STEPS.map((s) => s.id)).toEqual(['tab-plan', 'tab-history', 'tab-progress', 'tab-profile', 'tabs-done']);
   });
 
   it('countCheckedSets liczy każdą odhaczoną serię (także rozgrzewkową)', () => {
@@ -219,6 +228,8 @@ const Targets = ({ rest = true }: { rest?: boolean }) => (
     {rest && <div data-tour="rest-bar">przerwa</div>}
     <button type="button" data-tour="exercise-menu">menu</button>
     <button type="button" data-tour="finish">Zakończ</button>
+    <button type="button" data-tour="practice-email">Wyślij do trenera</button>
+    <button type="button" data-tour="practice-show-tabs">Pokaż</button>
   </div>
 );
 
@@ -227,20 +238,20 @@ const renderWorkoutTour = (props: Partial<Parameters<typeof AppTour>[0]> = {}, t
   const view = render(
     <LanguageProvider>
       <Targets {...targets} />
-      <AppTour steps={WORKOUT_TOUR_STEPS} checkedSets={0} {...handlers} {...props} />
+      <AppTour steps={PRACTICE_TOUR_STEPS} checkedSets={0} {...handlers} {...props} />
     </LanguageProvider>,
   );
-  const rerenderSets = (checkedSets: number) => view.rerender(
+  const rerenderSets = (checkedSets: number, emailSent = false) => view.rerender(
     <LanguageProvider>
       <Targets {...targets} />
-      <AppTour steps={WORKOUT_TOUR_STEPS} {...handlers} {...props} checkedSets={checkedSets} />
+      <AppTour steps={PRACTICE_TOUR_STEPS} {...handlers} {...props} checkedSets={checkedSets} emailSent={emailSent} />
     </LanguageProvider>,
   );
   return { ...view, ...handlers, rerenderSets };
 };
 
 describe('AppTour: pierwsza seria prowadzona akcją', () => {
-  it('wpis -> Dalej -> krok odhaczenia BEZ "Dalej" czeka na realne odhaczenie -> celebracja -> menu -> Zakończ -> Gotowe', async () => {
+  it('wpis -> Dalej -> krok odhaczenia BEZ "Dalej" czeka na realne odhaczenie -> celebracja -> menu -> tap w Zakończ', async () => {
     const { onComplete, onFirstSet, rerenderSets } = renderWorkoutTour();
     const step1 = await screen.findByTestId('tour-step-set-inputs');
     expect(step1.getAttribute('role')).toBe('dialog');
@@ -253,7 +264,9 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
     // Krok-akcja: nie ma "Dalej", jest Pomiń i podpowiedź.
     expect(screen.queryByTestId('tour-next')).toBeNull();
     expect(screen.getByTestId('tour-skip')).toBeTruthy();
-    expect(screen.getByTestId('tour-action-hint').textContent).toBe('Czekam na odhaczenie');
+    // Podpowiedź akcji to nieklikalny tekst, nie przycisk.
+    expect(screen.getByTestId('tour-action-hint').textContent).toBe('Odhacz serię, by iść dalej');
+    expect(screen.getByTestId('tour-action-hint').tagName).toBe('P');
     // Sam klik w cel bez zmiany stanu serii NIE zalicza kroku.
     fireEvent.click(screen.getByText('ok'));
     expect(screen.getByTestId('tour-step-set-check')).toBeTruthy();
@@ -267,13 +280,37 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
     fireEvent.click(screen.getByTestId('tour-next'));
 
     await screen.findByTestId('tour-step-exercise-menu');
-    expect(screen.getByText(/zamienisz ćwiczenie/)).toBeTruthy();
+    expect(screen.getByText(/zamienisz albo pominiesz/)).toBeTruthy();
     fireEvent.click(screen.getByTestId('tour-next'));
     await screen.findByTestId('tour-step-finish');
-    expect(screen.getByTestId('tour-next').textContent).toBe('Gotowe');
-    fireEvent.click(screen.getByTestId('tour-next'));
+    // Zakończ = akcja na prawdziwym przycisku próby (bez „Dalej”).
+    expect(screen.queryByTestId('tour-next')).toBeNull();
+    await nextFrame();
+    fireEvent.click(screen.getByText('Zakończ'));
+
+    // Po treningu (nowa porcja): mail czeka na realną (w próbie symulowaną) wysyłkę.
+    await screen.findByTestId('tour-step-send-email');
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 2');
+    expect(screen.queryByTestId('tour-next')).toBeNull();
+    expect(screen.getByTestId('tour-action-hint').textContent).toBe('Wyślij podsumowanie, by iść dalej');
+    // Sam tap w przycisk maila (otwarcie dialogu) nie zalicza kroku.
+    await nextFrame();
+    fireEvent.click(screen.getByText('Wyślij do trenera'));
+    expect(screen.getByTestId('tour-step-send-email')).toBeTruthy();
+    rerenderSets(1, true);
+    await screen.findByTestId('tour-step-show-tabs');
+    await nextFrame();
+    fireEvent.click(screen.getByText('Pokaż'));
     expect(onComplete).toHaveBeenCalledOnce();
     expect(screen.queryByTestId('first-workout-tour')).toBeNull();
+  });
+
+  it('krok maila ma wyjście „Pomiń ten krok” (nie blokuje reszty przewodnika)', async () => {
+    const { onSkip } = renderWorkoutTour({ initialStepId: 'send-email' });
+    await screen.findByTestId('tour-step-send-email');
+    fireEvent.click(screen.getByTestId('tour-skip-step'));
+    await screen.findByTestId('tour-step-show-tabs');
+    expect(onSkip).not.toHaveBeenCalled();
   });
 
   it('odhaczenie już w kroku wpisu (user działa, nie czyta) też daje celebrację', async () => {
@@ -284,13 +321,13 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
     expect(onFirstSet).toHaveBeenCalledOnce();
   });
 
-  it('wskaźnik postępu liczony w porcji (max 3 kroki), nie w całym przewodniku', async () => {
+  it('licznik „k z n” liczony w porcji (max 3 kroki), nie gołe paski', async () => {
     const { rerenderSets } = renderWorkoutTour();
     await screen.findByTestId('tour-step-set-inputs');
-    expect(screen.getByTestId('tour-progress').children).toHaveLength(2);
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 2');
     rerenderSets(1);
     await screen.findByTestId('tour-step-first-set-done');
-    expect(screen.getByTestId('tour-progress').children).toHaveLength(3);
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 3');
   });
 
   it('timer wyłączony (brak paska przerwy): celebracja bez wycięcia, zdanie bez obietnicy powiadomienia', async () => {
@@ -339,7 +376,7 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
   it('brak celu kroku (np. Zakończ poza DOM): nic nie renderuje zamiast pustego przyciemnienia', async () => {
     render(
       <LanguageProvider>
-        <AppTour steps={WORKOUT_TOUR_STEPS} initialStepId="finish" onComplete={vi.fn()} onSkip={vi.fn()} />
+        <AppTour steps={PRACTICE_TOUR_STEPS} initialStepId="finish" onComplete={vi.fn()} onSkip={vi.fn()} />
       </LanguageProvider>,
     );
     await new Promise((r) => setTimeout(r, 100));
@@ -355,11 +392,27 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
     expect(root.className).toContain('z-[70]');
     expect(bubble.className).toContain('left-[max(1rem,env(safe-area-inset-left))]');
     expect(bubble.className).toContain('right-[max(1rem,env(safe-area-inset-right))]');
-    expect(bubble.className).toMatch(/\boverflow-y-auto\b/);
+    expect(screen.getByTestId('tour-scroll').className).toMatch(/\boverflow-y-auto\b/);
     expect(bubble.style.maxHeight).toContain('safe-area-inset');
     expect(screen.getByTestId('tour-actions').className).toMatch(/\bsticky\b/);
-    expect(screen.getByTestId('tour-skip').className).toMatch(/\bmin-h-12\b/);
+    // Główny przycisk 48 px na całą szerokość, „Pomiń” jako dyskretny link 44 px.
     expect(screen.getByTestId('tour-next').className).toMatch(/\bmin-h-12\b/);
+    expect(screen.getByTestId('tour-next').className).toMatch(/\bw-full\b/);
+    expect(screen.getByTestId('tour-skip').className).toMatch(/\bmin-h-11\b/);
+    expect(screen.getByTestId('tour-skip').className).toMatch(/underline/);
+  });
+
+  it('wycięcie w kształcie celu: promień celu + 6 px, bez grubej obwódki (pierścień akcentu z niską opacity)', async () => {
+    renderWorkoutTour({ initialStepId: 'exercise-menu' });
+    await screen.findByTestId('tour-step-exercise-menu');
+    const cut = screen.getByTestId('tour-cutout');
+    // jsdom: brak stylu celu = promień 0 z getComputedStyle -> 0 + 6.
+    expect(Number.parseFloat(cut.style.borderRadius)).toBeGreaterThanOrEqual(6);
+    expect(cut.style.boxShadow).toContain('rgba(0, 0, 0, 0.66)');
+    const ring = cut.nextElementSibling as HTMLElement;
+    expect(ring.className).not.toMatch(/\bring-\d/);
+    expect(ring.style.boxShadow).toContain('/ 0.55');
+    expect(screen.getByTestId('tour-arrow')).toBeTruthy();
   });
 
   it('prefers-reduced-motion: przewinięcie do Zakończ bez smooth, bez animacji celebracji', async () => {
@@ -387,39 +440,46 @@ describe('AppTour: pierwsza seria prowadzona akcją', () => {
   });
 });
 
-describe('AppTour: Dashboard (legenda zakładek + start jako akcja)', () => {
-  const renderDash = () => {
-    const onAction = vi.fn();
+describe('AppTour: Dashboard (zaproszenie) i rozdział zakładek', () => {
+  it('zaproszenie: dymek na środku bez wycięcia, główny przycisk „Wypróbuj trening próbny”, Pomiń', async () => {
     const onComplete = vi.fn();
     const onSkip = vi.fn();
-    const navClick = vi.fn();
     render(
       <LanguageProvider>
-        <nav data-tour="main-nav"><button type="button" onClick={navClick}>Plan</button></nav>
-        <button type="button" data-tour="start-workout">Rozpocznij</button>
-        <AppTour steps={DASHBOARD_TOUR_STEPS} onAction={onAction} onComplete={onComplete} onSkip={onSkip} />
+        <button type="button" data-tour="start-workout">Otwórz sesję</button>
+        <AppTour steps={DASHBOARD_TOUR_STEPS} onComplete={onComplete} onSkip={onSkip} />
       </LanguageProvider>,
     );
-    return { onAction, onComplete, onSkip, navClick };
-  };
-
-  it('legenda czterech zakładek, pasek zablokowany na czas kroku; potem tap w prawdziwy start = akcja', async () => {
-    const { onAction, onComplete } = renderDash();
-    await screen.findByTestId('tour-step-nav');
-    const legend = screen.getByTestId('tour-legend');
-    expect(legend.querySelectorAll('li')).toHaveLength(4);
-    expect(legend.textContent).toContain('Plan: Twój tydzień treningów');
-    expect(legend.textContent).toContain('Historia');
-    expect(legend.textContent).toContain('Postępy');
-    expect(legend.textContent).toContain('Profil');
-    expect(screen.getByTestId('tour-target-block')).toBeTruthy();
+    await screen.findByTestId('tour-step-welcome');
+    expect(screen.queryByTestId('tour-cutout')).toBeNull();
+    expect(screen.getByText('Pokażę Ci, jak to działa')).toBeTruthy();
+    expect(screen.getByTestId('tour-next').textContent).toBe('Wypróbuj trening próbny');
+    expect(screen.getByTestId('tour-skip')).toBeTruthy();
     fireEvent.click(screen.getByTestId('tour-next'));
+    expect(onComplete).toHaveBeenCalledOnce();
+  });
 
-    await screen.findByTestId('tour-step-start');
-    expect(screen.queryByTestId('tour-next')).toBeNull();
+  it('zakładki: tap w podświetloną zakładkę przenosi dalej; ostatni dymek bez „Pomiń”, Gotowe kończy', async () => {
+    const onComplete = vi.fn();
+    const onAction = vi.fn();
+    render(
+      <LanguageProvider>
+        {['plan', 'history', 'progress', 'profile'].map((id) => (
+          <a key={id} data-tour={`nav-${id}`} href={`#${id}`}>{id}</a>
+        ))}
+        <AppTour steps={TABS_TOUR_STEPS} onAction={onAction} onComplete={onComplete} onSkip={vi.fn()} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('tour-step-tab-plan');
+    expect(screen.getByTestId('tour-progress').textContent).toBe('Krok 1 z 4');
     await nextFrame();
-    fireEvent.click(screen.getByText('Rozpocznij'));
-    expect(onAction).toHaveBeenCalledWith('start');
+    for (const [id, next] of [['plan', 'history'], ['history', 'progress'], ['progress', 'profile'], ['profile', 'tabs-done']] as const) {
+      fireEvent.click(screen.getByText(id));
+      await screen.findByTestId(next === 'tabs-done' ? 'tour-step-tabs-done' : `tour-step-tab-${next}`);
+    }
+    expect(onAction).toHaveBeenCalledTimes(4);
+    expect(screen.queryByTestId('tour-skip')).toBeNull();
+    fireEvent.click(screen.getByTestId('tour-next'));
     expect(onComplete).toHaveBeenCalledOnce();
   });
 });
@@ -483,18 +543,24 @@ describe('ExerciseCard: cele data-tour', () => {
   });
 });
 
-describe('Kontrakt źródeł: cele i montaż', () => {
-  it('WorkoutDay: Zakończ i start mają cele, przewodnik czeka na arkusz i dialog rozgrzewki, karta "co dalej"', () => {
+describe('Kontrakt źródeł: przewodnik nie dotyka prawdziwych sesji', () => {
+  it('WorkoutDay nie montuje przewodnika ani karty „co dalej”', () => {
     const source = readFileSync('src/pages/WorkoutDay.tsx', 'utf8');
-    expect(source).toContain('data-tour="finish"');
-    expect(source).toContain('data-tour="workout-start"');
-    expect(source).toMatch(/workoutTourEligible && isWorkoutStarted && !preStartOpen && !showWarmup && !warmupQueued/);
-    expect(source).toContain('<FirstWorkoutNextSteps');
+    expect(source).not.toMatch(/AppTour|useAppTour|FirstWorkoutNextSteps|appTour/);
   });
 
-  it('pasek zakładek, pasek przerwy i CTA startu mają cele', () => {
-    expect(readFileSync('src/components/AppNavigation.tsx', 'utf8')).toContain('data-tour="main-nav"');
+  it('Dashboard: brak celu na hero/start sesji; zaproszenie prowadzi do /practice', () => {
+    const dash = readFileSync('src/pages/Dashboard.tsx', 'utf8');
+    expect(dash).not.toContain('data-tour="start-workout"');
+    expect(dash).toContain('navigate(PRACTICE_PATH)');
+    expect(readFileSync('src/components/PostPlanGuide.tsx', 'utf8')).not.toContain('data-tour');
+  });
+
+  it('zakładki paska i pasek przerwy mają cele; host zakładek nigdy nad sesją ani próbą', () => {
+    expect(readFileSync('src/components/AppNavigation.tsx', 'utf8')).toContain('data-tour={`nav-${item.id}`}');
     expect(readFileSync('src/components/RestBar.tsx', 'utf8')).toContain('data-tour="rest-bar"');
-    expect(readFileSync('src/pages/Dashboard.tsx', 'utf8')).toContain('data-tour="start-workout"');
+    const host = readFileSync('src/components/AppTourTabsHost.tsx', 'utf8');
+    expect(host).toContain("pathname.startsWith('/workout/')");
+    expect(host).toContain('PRACTICE_PATH');
   });
 });

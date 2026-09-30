@@ -35,6 +35,7 @@ const MAIN_DESTINATION_ICONS = {
 } satisfies Record<MainDestinationId, typeof Home>;
 
 const mainNavItems = MAIN_DESTINATIONS.map((item) => ({
+  id: item.id,
   to: item.path,
   icon: MAIN_DESTINATION_ICONS[item.id],
   labelKey: item.labelKey,
@@ -296,15 +297,17 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
       {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background to-background/0 desktop-shell:hidden" />}
 
       {!hideMobileNav && (
-        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} data-tour="main-nav" className="kinetic-glass-sheet fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
+        <nav ref={mobileNavRef} aria-label={t('nav.ariaMobile')} className="kinetic-glass-sheet fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] desktop-shell:hidden">
           {/* 2026-09-29: zakładki flex-auto zamiast flex-1 + min-w-0. Równy podział
               dawał 56 px przy 320 px, a „PROGRESS" potrzebuje ~62 px, więc słowo
               łamało się w środku. Szerokość z treści, nadwyżka po równo. */}
+          {/* Przewodnik nowego konta: rozdział zakładek podświetla każdą (data-tour). */}
           {mainNavItems.map((item) => (
             <NavLink
               key={`mobile-${item.to}`}
               to={item.to}
               className="flex min-h-11 flex-auto flex-col items-center justify-center gap-1 rounded-2xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              data-tour={`nav-${item.id}`}
             >
               {({ isActive }) => (
                 <>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { armSetCountdownNotification, cancelSetCountdownNotification } from '@/lib/rest-notification';
+import { useWorkoutEffects } from '@/contexts/WorkoutEffectsContext';
 import {
   countdownElapsed,
   countdownRemaining,
@@ -64,6 +64,9 @@ export const SetCountdown = ({
   // restartowac efektow ani przeplanowywac notyfikacji.
   const onFinishedRef = useRef(onFinished);
   const tRef = useRef(t);
+  const workoutEffects = useWorkoutEffects();
+  const effectsRef = useRef(workoutEffects);
+  effectsRef.current = workoutEffects;
   const exerciseLabelRef = useRef(exerciseLabel);
   useEffect(() => { onFinishedRef.current = onFinished; }, [onFinished]);
   useEffect(() => { tRef.current = t; }, [t]);
@@ -75,8 +78,9 @@ export const SetCountdown = ({
   useEffect(() => {
     if (deadlineAt === null) return;
     finishedRef.current = false;
-    armSetCountdownNotification(deadlineAt, tRef.current('setCountdown.notificationTitle'), exerciseLabelRef.current);
-    return () => { void cancelSetCountdownNotification(); };
+    const effects = effectsRef.current;
+    effects.armSetCountdownNotification(deadlineAt, tRef.current('setCountdown.notificationTitle'), exerciseLabelRef.current);
+    return () => { void effects.cancelSetCountdownNotification(); };
   }, [deadlineAt]);
 
   // Odswiezanie widoku. Nie liczy czasu, tylko wymusza przeliczenie z deadline.
