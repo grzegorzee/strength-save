@@ -71,12 +71,20 @@
   },
   "garmin": {
     "appId": "3b03f3dec24548779f335a38e08b013d",
+    "appVersion": "1.0.0",
     "manifestSchemaVersion": 3,
+    "manifestDeviceIds": 16,
     "targetBinaries": 27,
+    "permissions": [
+      "Communications",
+      "Fit"
+    ],
     "artifact": "garmin/bin/strengthsave.iq",
-    "bytes": 644900,
-    "sha256": "5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98",
-    "state": "historical-signed-local-artifact-requires-current-verification"
+    "artifactEvidence": "garmin/release/artifact.json",
+    "bytes": 657634,
+    "sha256": "e4722ac255ed4fcfe7387f0bef1785bf4bd0d5465e926a94f4cd4622cebfe01a",
+    "state": "signed-local-artifact-simulator-verified-physical-and-store-pending",
+    "verifiedDelivery": "export 27/27 + simulator start fenix7/epix2/fr255/venusq2 (2026-09-30); physical G1-G9 and Connect IQ submit pending"
   },
   "smoke": {
     "physicalIos": "pending-owner-testflight-test",

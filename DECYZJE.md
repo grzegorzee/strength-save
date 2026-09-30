@@ -11,6 +11,40 @@
 
 ## DECYZJE
 
+### 2026-09-30: Garmin 1.0.0 do Connect IQ Store: minimalne uprawnienia, własna linia wersji
+
+Artefakt z 19.08 (e488c208) był nieaktualny wobec listingu, nie wobec kodu: kod
+`garmin/` bez zmian od 5babcac4. Kontrakt backendu zmieniony 29.09 (F2 urlop =
+dzień wolny, F3xF6 cel rampy, F6 bodyweight_loaded, T6 serie „N x M m”) nie wymaga
+zmian w zegarku (źródło: `garmin/source/*.mc`): `rest:true` już obsłużony, cele idą
+w `s[]`, pole `t` zegarek ignoruje (etykietę liczy z `s[0]`), bodyweight_loaded
+przychodzi jako `k: weight_reps` z dociążeniem (0 kg pokazuje się jako „0 kg × N”),
+seria dystansowa bez historii dostaje `[0,0]` zamiast fałszywych 20 powtórzeń.
+Backend z tymi zmianami jest w produkcji (8d4a77bc zawiera 3b031990).
+
+Decyzje: (1) wersja aplikacji Garmin 1.0.0 w `manifest.xml` (pierwsza publikacja,
+osobna linia od SemVer telefonu, bo zegarek wydaje się rzadziej i niezależnie);
+(2) usunięte uprawnienia Sensor i UserProfile: kod nie importuje Toybox.Sensor ani
+Toybox.UserProfile, więc uzasadnienia w listingu były nieprawdziwe (App Review
+Guidelines 3c, 4a). Ryzyko: tętno w FIT ma przyjść z natywnego ActivityRecording
+(uprawnienie Fit), do potwierdzenia w G9 na epix2; brak tętna = przywrócić Sensor;
+(3) podpowiedź parowania „Ustawienia > Zegarek Garmin” wskazywała nieistniejące
+miejsce, teraz „Profil > Urządzenia”; (4) polityka prywatności (repo landingu,
+commit f91a95c, bez deployu) opisywała, że dostajemy tętno i pliki FIT z Garmina
+i przekazujemy dane Garmin Ltd.; oba zdania były fałszywe. Poprawione PL/EN,
+dodana retencja tokenu (180 dni, odłączenie, wylogowanie). Wersja dokumentu
+zostaje 2.1: zmiana zawęża opis i nie dodaje celu, więc nie wymaga nowego
+potwierdzenia; jeśli właściciel zdecyduje o 2.2, kolejność: functions
+`LEGAL_VERSIONS.privacy` przed webem, potem landing z archiwum 2.1.
+
+Dowód: `.iq` 657634 B, sha256 e4722ac2…, 27/27 binariów, 16 ID
+(`garmin/release/artifact.json` z digestem wejść), symulator: start bez crasha na
+fenix7, epix2, fr255, venusq2 (ekran parowania, magazyn symulatora bez tokenu, zero
+ruchu na produkcję). Test kontraktu `src/test/garmin-release-contract.test.ts`
+(wersja, uprawnienia vs moduły, listing vs manifest, podpowiedź vs i18n telefonu).
+Nie zweryfikowano: fizyczne G1-G9, tętno w FIT po zmianie uprawnień, ekrany z
+planem i offline (wymagają parowania z produkcją), walidacja w portalu.
+
 ### 2026-09-30: App Store nie pokazywał 1.0, bo aplikacja nie miała dostępności w krajach
 
 Po wydaniu 1.0 (READY_FOR_SALE) strona apps.apple.com/app/id6777446137 i iTunes

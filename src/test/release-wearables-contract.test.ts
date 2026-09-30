@@ -57,8 +57,10 @@ describe('Z229 — release contract Apple Watch and Garmin', () => {
       expect(listing).toContain('Strength Save');
       expect(listing).toContain('Communications');
       expect(listing).toContain('Fit');
-      expect(listing).toContain('Sensor');
-      expect(listing).toContain('UserProfile');
+      // 1.0.0: Sensor i UserProfile usunięte z manifestu (kod ich nie używał); dokładną
+      // zgodność listing == manifest pilnuje garmin-release-contract.test.ts.
+      expect(listing).not.toContain('Sensor');
+      expect(listing).not.toContain('UserProfile');
       expect(listing).toContain('https://strengthsave.app/privacy');
     }
     expect(pngSize('garmin/release/store-icon-1024.png')).toEqual({ width: 1024, height: 1024 });
