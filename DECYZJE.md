@@ -5,11 +5,27 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-09-30 (płatności: dowody konfiguracji, łańcuch webhooka na emulatorze, test sandbox; zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
+**Ostatnia aktualizacja:** 2026-10-01 (Garmin zatwierdzony, czeka na DSA; sekcja Apple Watch na stronie; płatności: dowody konfiguracji, łańcuch webhooka na emulatorze, test sandbox; zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
 
 ---
 
 ## DECYZJE
+
+### 2026-10-01: Garmin 1.0.0 zatwierdzony, ukryty do akceptacji konta (DSA); strona z sekcją Apple Watch
+
+- **Garmin:** Connect IQ zatwierdził aplikację 1.0.0, ale publiczne API sklepu
+  zwraca „removed from the store due to DSA”: Garmin wymaga Account Checkup
+  (unijny DSA) przed pokazaniem aplikacji. Wysłany 1.10 (konto sprzedawcy
+  Garmin: Not Now, bo płatności idą przez App Store / Google Play; dane developera
+  z adresem firmy z regulaminu, profil publiczny contact@strengthsave.app,
+  weryfikacja tożsamości przez właściciela). Czekamy 1-3 dni robocze. Do potwierdzenia
+  publiczności nie promujemy Garmina na stronie. Lista kroków po akceptacji: PLAN.md
+  („GARMIN: CZEKAMY NA AKCEPTACJĘ KONTA”).
+- **Strona:** nowa sekcja „Trening z nadgarstka” (Apple Watch) z mockupami z natywnej
+  aplikacji zegarka (symulator Series 11 46 mm, przykładowy trening wstrzyknięty do
+  UserDefaults `watch.workoutPayload`, bez zmian w kodzie apki). Wdrożona na produkcję
+  1.10 (commit landingu „feat: sekcja Apple Watch”). Na stronie tylko funkcje
+  sprawdzone; komplikacja, tętno i Digital Crown pominięte do testu na realnym zegarku.
 
 ### 2026-09-30: powiadomienia właściciela o zakupach + karta Subskrypcje (RevenueCat)
 
