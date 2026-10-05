@@ -11,6 +11,19 @@
 
 ## DECYZJE
 
+### 2026-10-05: Garmin publiczny w Connect IQ, strona zaktualizowana
+
+- Garmin zatwierdził konto developera (mail 5.10). API sklepu zwraca wpis aplikacji
+  (APPROVED, 27 binariów), więc aplikacja jest publiczna:
+  https://apps.garmin.com/apps/7d3828f9-26ab-40d7-a694-49beee314174
+- Strona (landing 8c399db, `vercel --prod`, bundle na produkcji zgodny z buildem):
+  Garmin w hero, karta na /download z linkiem do Connect IQ, pytanie w FAQ, funkcja
+  `garmin` (71 funkcji), wpis „Garmin 1.0.0” w changelogu z datą 2026-10-05, SEO.
+  Tekst tylko z faktów z listingu Connect IQ (wymaga PRO i telefonu z Garmin Connect).
+- `release-train.json`: garmin.state = store-live, publicAt 2026-10-05.
+- Otwarte: mockupy Garmina na stronie i zrzuty planu w listingu. Wymagają prawdziwych
+  zrzutów z zegarka albo symulatora z danymi (aplikacja nie ma trybu demo).
+
 ### 2026-10-01: Garmin 1.0.0 zatwierdzony, ukryty do akceptacji konta (DSA); strona z sekcją Apple Watch
 
 - **Garmin:** Connect IQ zatwierdził aplikację 1.0.0, ale publiczne API sklepu
