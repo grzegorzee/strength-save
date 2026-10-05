@@ -5,11 +5,33 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-10-01 (Garmin zatwierdzony, czeka na DSA; sekcja Apple Watch na stronie; płatności: dowody konfiguracji, łańcuch webhooka na emulatorze, test sandbox; zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
+**Ostatnia aktualizacja:** 2026-10-05 (czerwone CI: naprawa e2e, pre-push, alarm CI; Garmin zatwierdzony, czeka na DSA; sekcja Apple Watch na stronie; płatności: dowody konfiguracji, łańcuch webhooka na emulatorze, test sandbox; zabezpieczenia kosztów GCP; przewodnik v2: trening próbny bez zapisów, przegląd zakładek; aktualizacje OTA self-host, wersjonowanie SemVer od 1.0.1)
 
 ---
 
 ## DECYZJE
+
+### 2026-10-05: czerwone CI na main, naprawa testów + trzy bezpieczniki
+
+- Run z 1.10 (1 fail) i z 5.10 (15 faili) czerwone, oba w `e2e:emulator`. Produkt bez
+  zmian, 1.0.3 w sklepach bez wpływu. Web nie był blokowany: `build-and-deploy` w CI
+  jest wyłączony, deploy web to lokalne `npm run deploy`.
+- Root cause 1: krok zgody marketingowej (wpis niżej) widzą tylko emulatory (mocki mają
+  bypass zgód), a helper kreatora go nie znał. Fix: `declineOnboardingMarketing`
+  (`e2e/emulator/app-check.ts`), odmowa realnym `recordConsent`.
+- Root cause 2: R7 zakładał puste `skippedDates`, a kreator wpisuje tam dni treningowe
+  tygodnia startu sprzed pierwszego treningu (`first-workout-schedule.ts`). W czwartek
+  1.10 wpadł poniedziałek 28.09. Fix: asercja = baza z kreatora + odpuszczony dzień.
+- Root cause procesu: `e2e:emulator` nie ruszało lokalnie (domyślny JDK 20), więc
+  bramka żyła tylko w CI, a czerwony run z 1.10 wisiał 4 dni bez reakcji.
+- Bezpieczniki: (1) `scripts/with-jdk21.mjs` sam podstawia JDK 21 z Homebrew dla
+  `e2e:emulator`, `test:rules`, `test:functions:emulator`; (2) hook `.githooks/pre-push`
+  (podpinany przez `npm prepare`) uruchamia `e2e:emulator` przy pushu ze zmianami w
+  kodzie, pomija same docs/obrazy, awaryjnie `SKIP_E2E_PREPUSH=1`; (3) job `ci-alert`
+  zakłada issue „CI czerwony na main” przy failu i zamyka je przy pierwszym zielonym.
+- Weryfikacja: lokalnie `e2e:emulator` 35/35 (dwa biegi, w tym przez hook); hook
+  sprawdzony na trzech gałęziach (kod, docs-only, SKIP). Niesprawdzone: R7 z niepustą
+  bazą (dziś poniedziałek), `ci-alert` sprawdzi dopiero realny run.
 
 ### 2026-10-05: osobny krok zgody marketingowej w onboardingu wraca (lokalnie, czeka na build)
 

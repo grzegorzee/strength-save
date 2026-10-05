@@ -1,0 +1,29 @@
+#!/bin/sh
+# Pre-push: e2e na emulatorach (bramka quality z CI) przed wypchnięciem kodu.
+# Pomija push, w którym zmieniły się wyłącznie pliki niekodowe (docs, *.md,
+# animacje, obrazy). Awaryjnie: SKIP_E2E_PREPUSH=1 git push.
+# Wdrożone 2026-10-05: dwa czerwone runy CI (krok zgód w kreatorze, R7 zależny
+# od dnia tygodnia) wyszły dopiero po pushu, bo e2e:emulator nie biegło lokalnie.
+[ "${SKIP_E2E_PREPUSH:-}" = "1" ] && { echo "pre-push: SKIP_E2E_PREPUSH=1, pomijam e2e:emulator"; exit 0; }
+
+zero=0000000000000000000000000000000000000000
+changed=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    range="origin/main..$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  changed="$changed
+$(git diff --name-only "$range" 2>/dev/null)"
+done
+
+code=$(printf '%s\n' "$changed" | grep -v '^$' | grep -vE '\.(md|png|jpe?g|gif|webp|mp4|mov|svg|txt)$|^docs/|^animacje-cwiczen/' || true)
+if [ -z "$code" ]; then
+  echo "pre-push: brak zmian w kodzie, pomijam e2e:emulator"
+  exit 0
+fi
+
+echo "pre-push: zmiany w kodzie, uruchamiam npm run e2e:emulator (pominięcie: SKIP_E2E_PREPUSH=1)"
+npm run e2e:emulator

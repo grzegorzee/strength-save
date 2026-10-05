@@ -239,3 +239,34 @@ jobs:
       - run: npx firebase-tools deploy --only functions,firestore:rules,firestore:indexes,storage --project "${{ vars.FIREBASE_PROJECT_ID }}"
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+  # Alarm czerwonego main (wdrożone 2026-10-05: run z 1.10 był czerwony 4 dni bez
+  # reakcji). Issue "CI czerwony na main" = powiadomienie GitHuba (mail/aplikacja);
+  # kolejne faile dopisują komentarz, pierwszy zielony run zamyka issue.
+  ci-alert:
+    needs: [quality, ios-simulator-smoke, android-debug-build]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          title="CI czerwony na main"
+          failed=$(jq -r 'to_entries[] | select(.value.result == "failure") | .key' <<<"$NEEDS" | paste -sd, -)
+          all_ok=$(jq -r 'all(.[]; .result == "success")' <<<"$NEEDS")
+          open=$(gh issue list --state open --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$failed" ]; then
+            body="Czerwone joby: $failed
+          Commit: $SHA
+          Run: $RUN_URL"
+            if [ -n "$open" ]; then gh issue comment "$open" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
+          elif [ "$all_ok" = "true" ] && [ -n "$open" ]; then
+            gh issue close "$open" --comment "Zielono od $SHA ($RUN_URL)"
+          fi
