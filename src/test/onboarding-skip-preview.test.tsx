@@ -144,15 +144,14 @@ describe('Onboarding: "Zaczynam ten plan" bez podgladu (X33 WP-4)', () => {
     expect(direct.update).toEqual(viaPreview.update);
   });
 
-  it('brak odpowiedzi marketingowej nie dodaje przerywnika i nie blokuje zapisu bez podgladu', async () => {
+  it('brak odpowiedzi marketingowej: "Zaczynam" pokazuje krok marketingowy, po odpowiedzi zapis bez podgladu', async () => {
     profileFixture.current = { displayName: 'Grzegorz', photoURL: '' };
     render(withProviders(<Onboarding />));
     await walkToStep6();
     fireEvent.click(startCta());
 
+    fireEvent.click(await screen.findByTestId('marketing-decline'));
     await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
-    expect(screen.queryByTestId('marketing-accept')).toBeNull();
-    expect(screen.queryByTestId('marketing-decline')).toBeNull();
     expect(previewRenders.count).toBe(0);
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/?welcome=1', { replace: true }));
   });

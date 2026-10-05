@@ -9,12 +9,14 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
+import { OnboardingMarketingStep } from '@/components/OnboardingMarketingStep';
 import { BootScreen } from '@/components/BootScreen';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteAccountDialog } from '@/components/DeleteAccountDialog';
 import {
   buildConsentSubmissions,
+  buildMarketingStepSubmission,
   getConsentMirror,
   shouldShowMarketingStep,
   type ConsentSelection,
@@ -58,8 +60,17 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
   const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const requiresPaywall = useRequiresPaywall();
-  // X34: krok, na który wraca kreator po remoncie: 6 = ekran 6/6 (wstecz z podglądu),
-  // 5 = 5A po "Wybierz inny plan" (stan kreatora z `choice`).
+  // Dedykowany krok marketingowy (spec 2026-08-11, przywrócony 2026-10-05): po
+  // wyborze planu na 6/6, przed podglądem albo zapisem. Pokazywany raz: odpowiedź
+  // (też odmowa) ląduje w mirrorze zgód. E2E omija go jak resztę zgód.
+  const [marketingPrompt, setMarketingPrompt] = useState(false);
+  const [marketingSaving, setMarketingSaving] = useState(false);
+  const [marketingError, setMarketingError] = useState(false);
+  const [marketingAnswered, setMarketingAnswered] = useState(false);
+  // "Zaczynam ten plan" = zapis bez podglądu, także po kroku marketingowym.
+  const [skipPreview, setSkipPreview] = useState(false);
+  // X34: krok, na który wraca kreator po remoncie: 6 = ekran 6/6 (wstecz z podglądu
+  // / kroku marketingowego), 5 = 5A po "Wybierz inny plan" (stan kreatora z `choice`).
   const [wizardResumeStep, setWizardResumeStep] = useState<5 | 6>(6);
   const nativePlatform = Capacitor.isNativePlatform();
   const [draft, setDraft] = useState<OnboardingDraftV1 | null>(() => (
@@ -123,6 +134,12 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
     setReviewDays(c.days);
     setError(null);
     persistDraft({ ...latestDraftRef.current, phase: 'wizard', wizardStep: 6, reviewDays: c.days });
+    setSkipPreview(skip);
+    if (!marketingAnswered && shouldShowMarketingStep(profile)) {
+      setMarketingError(false);
+      setMarketingPrompt(true);
+      return;
+    }
     if (skip) {
       void finishOnboarding(c);
       return;
@@ -135,6 +152,42 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
     setReviewDays(days);
     setChoice(previous => previous ? { ...previous, days } : previous);
     persistDraft({ ...latestDraftRef.current, phase: 'preview', wizardStep: 6, reviewDays: days });
+  };
+
+  const continueAfterMarketing = () => {
+    setMarketingAnswered(true);
+    setMarketingPrompt(false);
+    if (skipPreview && choice) {
+      void finishOnboarding({ ...choice, days: reviewDays });
+      return;
+    }
+    setShowPreview(true);
+  };
+
+  // Zapis przez ISTNIEJĄCY recordConsent (odmowa też do logu, kanał
+  // onboarding-marketing-step). Zasada 6: awaria zapisu zgody = komunikat i retry,
+  // a odmowa mimo awarii prowadzi dalej (brak wpisu = brak zgody, plan nie czeka).
+  const handleMarketingAnswer = async (granted: boolean) => {
+    if (marketingSaving) return;
+    setMarketingSaving(true);
+    setMarketingError(false);
+    try {
+      const confirmedMirror = await recordConsents(
+        [buildMarketingStepSubmission(t, granted)],
+        lang,
+        'onboarding-marketing-step',
+      );
+      mergeConfirmedConsentMirror(confirmedMirror);
+      continueAfterMarketing();
+    } catch {
+      if (granted) {
+        setMarketingError(true);
+      } else {
+        continueAfterMarketing();
+      }
+    } finally {
+      setMarketingSaving(false);
+    }
   };
 
   // Zapis zgód z kroku Welcome do logu (Cloud Function recordConsent: IP,
@@ -208,6 +261,23 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
 
   if (!draftLoaded) return <BootScreen />;
 
+  if (choice && marketingPrompt) {
+    return (
+      <OnboardingMarketingStep
+        onAccept={() => { void handleMarketingAnswer(true); }}
+        onDecline={() => { void handleMarketingAnswer(false); }}
+        onBack={() => {
+          if (marketingSaving) return;
+          setWizardResumeStep(6);
+          setMarketingPrompt(false);
+          setMarketingError(false);
+        }}
+        isSaving={marketingSaving}
+        error={marketingError}
+      />
+    );
+  }
+
   if (choice && showPreview) {
     return (
       <PlanPreview
@@ -230,7 +300,6 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
       trialNotice={requiresPaywall}
       legalConsent
       onLegalConsent={handleLegalConsent}
-      showMarketingConsent={shouldShowMarketingStep(profile)}
       askName
       initialName={(profile?.displayName ?? '').split(' ')[0] || ''}
       avatarPhotoURL={avatarSrc || undefined}
@@ -239,7 +308,7 @@ const Onboarding = ({ onExitBack, onAccountDeleted }: {
       legalConsentAlreadyRecorded={legalConsentRecorded}
       onDraftChange={persistDraft}
       resume={choice ?? undefined}
-      // X34: powrót z podglądu = ekran 6/6; "Wybierz inny plan" = 5A.
+      // X34: powrót z podglądu / kroku marketingowego = ekran 6/6; "Wybierz inny plan" = 5A.
       resumeStep={choice ? wizardResumeStep : undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="newplan.toReview"

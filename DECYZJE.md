@@ -11,6 +11,25 @@
 
 ## DECYZJE
 
+### 2026-10-05: osobny krok zgody marketingowej w onboardingu wraca (lokalnie, czeka na build)
+
+- Na prośbę właściciela przywrócony dedykowany ekran marketingu (`OnboardingMarketingStep`,
+  spec 2026-08-11) po wyborze planu na 6/6, przed podglądem albo zapisem przy „Zaczynam”.
+  Ekran prawny ma znowu 3 checkboxy: regulamin 16+, prywatność, zdrowie (opcjonalnie).
+- Uzasadnienie z 11.08: marketing jako 4. checkbox na ekranie prawnym miał zerową
+  konwersję i mieszał marketing z RODO. Usunięcie kroku w `3009e42f` (28.08, fala X48-X69)
+  nie miało decyzji ani wymogu prawnego; był to efekt uboczny upraszczania (X55).
+  Osobny ekran spełnia RODO (odrębna, dobrowolna zgoda) i art. 398 PKE (opt-in, nic
+  zaznaczonego z góry, obie opcje widoczne).
+- Zapis: `recordConsent` kanałem `onboarding-marketing-step`, granted albo withdrawn;
+  potwierdzony mirror trafia do profilu, więc krok się nie powtarza. Backend bez zmian.
+- Zasada 6: awaria zapisu przy „Jasne, wchodzę!” = komunikat i ponowienie; „Nie, dzięki”
+  mimo awarii prowadzi dalej (brak wpisu = brak zgody), więc plan nigdy nie czeka.
+  Wstecz z kroku = ekran 6/6 bez zapisu, wybór zachowany.
+- Weryfikacja: vitest 4857 PASS / 16 SKIP (533 pliki), typecheck, lint 0 błędów,
+  e2e onboarding chromium 18/18 (tryb E2E pomija zgody, więc krok tam nie wchodzi).
+- Wydanie: zmiana zgód = nowy build + App Review i Google Play (nie OTA). Wersji nie podbito.
+
 ### 2026-10-05: Garmin publiczny w Connect IQ, strona zaktualizowana
 
 - Garmin zatwierdził konto developera (mail 5.10). API sklepu zwraca wpis aplikacji

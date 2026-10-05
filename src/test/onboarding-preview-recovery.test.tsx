@@ -26,7 +26,8 @@ vi.mock('@/lib/rest-preferences', () => ({ restDefaultsDeps: () => undefined }))
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 vi.mock('@/contexts/UserContext', () => ({ useCurrentUser: () => ({
   uid: 'preview-owner',
-  profile: { displayName: 'Test', consents: { termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy } },
+  // Marketing już odpowiedziany: krok marketingowy (osobny ekran po 6/6) nie wchodzi w drogę podglądowi.
+  profile: { displayName: 'Test', consents: { termsVersion: LEGAL_VERSIONS.terms, privacyVersion: LEGAL_VERSIONS.privacy, marketingGranted: false, marketingVersion: '1.0' } },
   mergeConfirmedConsentMirror: vi.fn(),
 }) }));
 vi.mock('react-router-dom', async (importOriginal) => ({

@@ -1,7 +1,7 @@
-// Opcjonalna zgoda marketingowa żyje w istniejącym widoku zgód. Brak zaznaczenia
-// nigdy nie blokuje planu, a zaznaczenie korzysta z tego samego zapisu co zgody
-// wymagane. Stary komponent pełnoekranowy zostaje pokryty historycznie, ale nie
-// może już pojawić się w runtime onboardingu.
+// Zgoda marketingowa ma osobny krok PO wyborze planu (spec 2026-08-11, przywrócone
+// 2026-10-05 na prośbę właściciela). Ekran prawny ma tylko 3 checkboxy (regulamin,
+// prywatność, zdrowie). Krok marketingowy zapisuje granted albo withdrawn kanałem
+// onboarding-marketing-step i nigdy nie blokuje startu planu.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -47,21 +47,6 @@ const withProviders = (node: React.ReactNode) => (
     </LanguageProvider>
   </MemoryRouter>
 );
-
-const finishWizardToPreview = async () => {
-  await screen.findByRole('button', { name: /Następny krok/ });
-  fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  fireEvent.click(await screen.findByTestId('ob-match-next'));
-  fireEvent.click(await screen.findByTestId('ob-start-preview'));
-  await screen.findByTestId('plan-preview');
-};
-
-const openInlineConsents = () => {
-  fireEvent.click(screen.getByTestId('ob-personalization-next'));
-  expect(screen.getByTestId('consent-marketing')).not.toBeChecked();
-};
 
 const acceptRequiredConsents = async () => {
   fireEvent.click(screen.getByTestId('consent-terms'));
@@ -123,52 +108,108 @@ describe('OnboardingMarketingStep (komponent)', () => {
   });
 });
 
-describe('Onboarding: opcjonalna zgoda marketingowa bez dodatkowego ekranu', () => {
-  it('brak zaznaczenia nie blokuje zgód ani planu i nie zapisuje odmowy', async () => {
+const reachLegalScreen = () => {
+  fireEvent.click(screen.getByTestId('ob-personalization-next'));
+};
+
+const finishWizardToStep6 = async () => {
+  await screen.findByRole('button', { name: /Następny krok/ });
+  fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(await screen.findByTestId('ob-match-next'));
+  await screen.findByTestId('ob-start-preview');
+};
+
+const marketingCalls = () => recordConsents.mock.calls.filter(([, , channel]) => channel === 'onboarding-marketing-step');
+
+describe('Onboarding: osobny krok zgody marketingowej po wyborze planu', () => {
+  it('ekran prawny ma tylko 3 checkboxy i nie zapisuje marketingu', async () => {
     render(withProviders(<Onboarding />));
-    openInlineConsents();
+    reachLegalScreen();
+    expect(screen.queryByTestId('consent-marketing')).toBeNull();
     await acceptRequiredConsents();
 
     const [entries, , channel] = recordConsents.mock.calls[0];
     expect(entries).not.toEqual(expect.arrayContaining([expect.objectContaining({ type: 'marketing' })]));
     expect(channel).toBeUndefined();
+  });
 
-    await finishWizardToPreview();
-    expect(screen.queryByTestId('marketing-accept')).toBeNull();
-    expect(screen.queryByTestId('marketing-decline')).toBeNull();
+  it('SEKWENCJA: Podgląd planu -> krok marketingowy -> zgoda (granted) -> podgląd -> zapis planu', async () => {
+    render(withProviders(<Onboarding />));
+    reachLegalScreen();
+    await acceptRequiredConsents();
+    await finishWizardToStep6();
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
+
+    fireEvent.click(await screen.findByTestId('marketing-accept'));
+    await screen.findByTestId('plan-preview');
+    expect(marketingCalls()).toHaveLength(1);
+    expect(marketingCalls()[0][0]).toEqual([expect.objectContaining({ type: 'marketing', action: 'granted' })]);
+
     fireEvent.click(screen.getByText('PREVIEW-CONFIRM'));
     await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
   });
 
-  it('zaznaczenie zapisuje granted razem z wymaganymi zgodami i bez osobnego kanału', async () => {
+  it('odmowa zapisuje withdrawn tym samym kanałem i prowadzi dalej', async () => {
     render(withProviders(<Onboarding />));
-    openInlineConsents();
-    fireEvent.click(screen.getByTestId('consent-marketing'));
-    expect(screen.getByTestId('consent-marketing')).toBeChecked();
+    reachLegalScreen();
     await acceptRequiredConsents();
+    await finishWizardToStep6();
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
 
-    const [entries, , channel] = recordConsents.mock.calls[0];
-    expect(entries).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'marketing', action: 'granted' }),
-    ]));
-    expect(channel).toBeUndefined();
+    fireEvent.click(await screen.findByTestId('marketing-decline'));
+    await screen.findByTestId('plan-preview');
+    expect(marketingCalls()[0][0]).toEqual([expect.objectContaining({ type: 'marketing', action: 'withdrawn' })]);
+  });
 
-    await finishWizardToPreview();
-    expect(screen.queryByTestId('marketing-accept')).toBeNull();
+  it('zasada 6: awaria zapisu zgody = komunikat i retry; odmowa mimo awarii nie blokuje planu', async () => {
+    render(withProviders(<Onboarding />));
+    reachLegalScreen();
+    await acceptRequiredConsents();
+    await finishWizardToStep6();
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
+
+    recordConsents.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(await screen.findByTestId('marketing-accept'));
+    await screen.findByTestId('marketing-consent-error');
+    expect(screen.queryByTestId('plan-preview')).toBeNull();
+
+    recordConsents.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(screen.getByTestId('marketing-decline'));
+    await screen.findByTestId('plan-preview');
     fireEvent.click(screen.getByText('PREVIEW-CONFIRM'));
     await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
+  });
+
+  it('wstecz z kroku marketingowego wraca na 6/6 bez zapisu; po odpowiedzi krok nie wraca', async () => {
+    render(withProviders(<Onboarding />));
+    reachLegalScreen();
+    await acceptRequiredConsents();
+    await finishWizardToStep6();
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
+
+    await screen.findByTestId('marketing-screen');
+    fireEvent.click(screen.getByLabelText('Wstecz'));
+    await screen.findByTestId('ob-start-preview');
+    expect(marketingCalls()).toHaveLength(0);
+
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
+    fireEvent.click(await screen.findByTestId('marketing-decline'));
+    await screen.findByTestId('plan-preview');
+    expect(marketingCalls()).toHaveLength(1);
   });
 
   it('po zapisaniu wymaganych zgód powrót w tej sesji nie pokazuje ich ponownie', async () => {
     render(withProviders(<Onboarding />));
-    openInlineConsents();
+    reachLegalScreen();
     await acceptRequiredConsents();
 
     fireEvent.click(screen.getByLabelText('Wstecz'));
     await screen.findByTestId('ob-personalization-next');
     fireEvent.click(screen.getByTestId('ob-personalization-next'));
     await screen.findByRole('button', { name: /Następny krok/ });
-    expect(screen.queryByTestId('consent-marketing')).toBeNull();
+    expect(screen.queryByTestId('consent-terms')).toBeNull();
     expect(recordConsents).toHaveBeenCalledTimes(1);
   });
 });
