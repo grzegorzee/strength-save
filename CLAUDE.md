@@ -260,6 +260,8 @@ Wdrożone 2026-09-30 razem z zabezpieczeniami kosztów (docs/COST-GUARDS.md).
 Agent odpytuje produkcję WYŁĄCZNIE przez `node scripts/prod-read.mjs`
 (konto agent-readonly przez impersonację, bez kluczy JSON; twardy limit
 5000 dokumentów na uruchomienie, licznik odczytów, log w tmp/prod-read/).
+Przed uruchomieniem: `export STRENGTH_SAVE_GCLOUD_ACCOUNT=g.jasionowicz@gmail.com`
+(domyślne konto gcloud grzegorzee@gmail.com dostaje PERMISSION_DENIED przy impersonacji).
 Podniesienie --max-docs wymaga uzasadnienia w odpowiedzi. Zakazane: własne
 skrypty z Admin SDK / kontem właściciela do "szybkiego sprawdzenia", pętle
 po całych kolekcjach, zapytania bez limitu. Zapis na produkcji (dane, reguły,

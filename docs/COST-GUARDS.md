@@ -157,7 +157,7 @@ Helper `scripts/prod-read.mjs` (helpery i testy: `scripts/prod-read-helpers.mjs`
 `src/test/prod-read.test.ts`):
 
 ```bash
-export STRENGTH_SAVE_GCLOUD_ACCOUNT=<konto właściciela>   # aktywne konto gcloud na tym Macu nie ma praw
+export STRENGTH_SAVE_GCLOUD_ACCOUNT=g.jasionowicz@gmail.com   # aktywne konto gcloud (grzegorzee@gmail.com) nie ma roli TokenCreator na agent-readonly
 node scripts/prod-read.mjs get users/<uid>
 node scripts/prod-read.mjs query client_errors --where 'createdAt >= 1727000000000' --order-by createdAt:desc --limit 50
 node scripts/prod-read.mjs count workouts --where 'userId == "<uid>"'
