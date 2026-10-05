@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LEGAL_VERSIONS } from '../../src/lib/legal-versions';
-import { dashboardGreeting, installEmulatorAppCheck } from './app-check';
+import { dashboardGreeting, declineOnboardingMarketing, installEmulatorAppCheck } from './app-check';
 
 test.beforeEach(async ({ page }) => installEmulatorAppCheck(page));
 
@@ -183,6 +183,7 @@ test.describe('Emulator: cykl życia planu', () => {
       await page.getByRole('button', { name: 'Dalej do podglądu' }).click();
       await expect(page.getByTestId('ob-start-step')).toBeVisible();
       await page.getByTestId('ob-start-preview').click();
+      await declineOnboardingMarketing(page);
       await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
       await page.getByTestId('plan-preview-confirm').click();
 

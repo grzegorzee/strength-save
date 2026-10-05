@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 // The Functions emulator deliberately decodes emulator App Check tokens without
 // validating signatures, but enforceAppCheck still requires a token. Keep this
@@ -21,3 +21,12 @@ export const dashboardGreeting = (page: Page) => page.getByRole('main').getByRol
   level: 1,
   name: /^(?:Dzień dobry|Cześć|Dobry wieczór),/,
 });
+
+// Krok zgody marketingowej (po 6/6, przed podglądem/zapisem) pokazuje się nowemu
+// kontu na emulatorach (bez bypassu zgód). Odmowa idzie realnym recordConsent.
+export async function declineOnboardingMarketing(page: Page): Promise<void> {
+  await expect(page.getByTestId('marketing-screen')).toBeVisible({ timeout: 10_000 });
+  const consent = page.waitForResponse((r) => r.url().endsWith('/recordConsent') && r.request().method() === 'POST');
+  await page.getByTestId('marketing-decline').click();
+  expect((await consent).status()).toBe(200);
+}

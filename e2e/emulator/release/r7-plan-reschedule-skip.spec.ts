@@ -79,7 +79,11 @@ test('R7: przełożenie na dzień wolny i odpuszczenie dnia → Dashboard dzień
   await skipCard.getByRole('button', { name: 'Więcej akcji' }).click();
   await page.getByRole('menuitem', { name: 'Odpuść trening' }).click();
   await expect(page.getByText('Trening odpuszczony. Silnik progresji to uwzględni.').first()).toBeVisible();
-  await expect.poll(async () => (await readPlan(user.uid)).skippedDates, { timeout: 10_000 }).toEqual([skipDate]);
+  // Kreator wpisuje do skippedDates dni treningowe tygodnia startu sprzed pierwszego
+  // treningu (first-workout-schedule), więc baza zależy od dnia tygodnia uruchomienia.
+  const skippedBefore = (planBefore.skippedDates as string[] | undefined) ?? [];
+  await expect.poll(async () => (await readPlan(user.uid)).skippedDates, { timeout: 10_000 })
+    .toEqual([...skippedBefore, skipDate].sort());
   await expect(skipCard).toContainText('Odpuszczone');
 
   // Dashboard w dniu odpuszczonym: dzień wolny, bez CTA dzisiejszego treningu; push nie wychodzi.

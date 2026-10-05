@@ -3,7 +3,7 @@ import { initializeApp, deleteApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
 import { CustomProvider, initializeAppCheck } from 'firebase/app-check';
-import { EMULATOR_APP_CHECK_TOKEN } from '../app-check';
+import { EMULATOR_APP_CHECK_TOKEN, declineOnboardingMarketing } from '../app-check';
 
 // Release e2e (2026-09-29): wspólne narzędzia suite'u "release-e2e" na realnym
 // Auth + Firestore (prawdziwe firestore.rules) + Functions (emulatory).
@@ -354,6 +354,7 @@ export async function completeWizard(page: Page, opts: {
   await expect(page.locator(`[data-testid="ob-first-workout-chips"] button[data-date="${opts.firstWorkout}"]`))
     .toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('ob-start-cta').click();
+  await declineOnboardingMarketing(page);
   await expect(dashboardGreeting(page)).toBeVisible({ timeout: 20_000 });
 }
 
