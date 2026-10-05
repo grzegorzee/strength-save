@@ -5,7 +5,7 @@
   "historicalDeliverySnapshot": "release/history/release-train-before-launch-audit.json",
   "product": {
     "name": "Strength Save",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "accent": "#CCFC22",
     "canonicalUnit": "kg",
     "languages": [
@@ -41,14 +41,14 @@
     "priorDeliveryEvidence": "audit/release-2026-09-09/backend-phase2.receipt.json"
   },
   "ios": {
-    "version": "1.0.2",
-    "build": 154,
+    "version": "1.0.3",
+    "build": 155,
     "state": "source-version-requires-current-delivery-verification",
     "priorDeliveryEvidence": "release/ios/testflight-153.json"
   },
   "android": {
-    "version": "1.0.2",
-    "versionCode": 58,
+    "version": "1.0.3",
+    "versionCode": 59,
     "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
     "state": "source-version-requires-current-delivery-verification",
     "playDeliveryEvidence": "release/android/internal-2026-09-30-57/play-delivery.json",
