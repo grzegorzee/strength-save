@@ -1,0 +1,9 @@
+{
+  "recordedAt": "2026-10-05T09:03:00Z",
+  "appStoreVersion": {"id": "7c05f63a-358f-4b44-aeb7-187fb45713af", "versionString": "1.0.3", "appStoreState": "WAITING_FOR_REVIEW", "releaseType": "AFTER_APPROVAL"},
+  "build": {"id": "e795852a", "version": "155", "processingState": "VALID", "upload": "UPLOAD SUCCEEDED 2026-10-05 10:55 CEST"},
+  "reviewSubmission": {"id": "b14b4742-8a85-49e1-9cac-1502dea2b5fe", "submittedDate": "2026-10-05T09:02:51.962Z", "state": "WAITING_FOR_REVIEW"},
+  "whatsNew": "release/android/production-2026-10-05-59/notes-pl.txt + notes-en.txt",
+  "reviewDetail": "skopiowane z wersji 1.0.1 (kontakt, konto demo, notatki)",
+  "signing": "App ID: dodane ASSOCIATED_DOMAINS (brakowało od 1.0.2); profil 'Strength Save App Store' odtworzony 18dc256f, ten sam cert F52LLKV85G, HealthKit zachowany"
+}

@@ -30,6 +30,30 @@
   e2e onboarding chromium 18/18 (tryb E2E pomija zgody, więc krok tam nie wchodzi).
 - Wydanie: zmiana zgód = nowy build + App Review i Google Play (nie OTA). Wersji nie podbito.
 
+### 2026-10-05: wydanie 1.0.3 (iOS 155, Android 59) z osobnym ekranem zgody marketingowej
+
+Decyzja właściciela: krok zgody marketingowej po wyborze planu wychodzi jako 1.0.3
+(PATCH), bez czekania. 1.0.2 nigdy nie trafiło do sklepów (ASC: brak wersji 1.0.2
+i buildu 154; Play: production i internal = 57), więc 1.0.3 zawiera zmiany 1.0.2
+(link „Otwórz aplikację” jako Universal/App Link) + krok marketingowy (81eeb53e).
+- Wersja: version:bump patch + version:build, version:check zielone; baseline OTA
+  ios-1.0.3-155 i android-1.0.3-59. Testy 4857 PASS (po baseline), typecheck,
+  lint 0 błędów.
+- iOS: pierwszy archive padł, bo profil App Store nie miał Associated Domains
+  (capability nigdy nie dodana na App ID, entitlement od 1.0.2). Dodane
+  ASSOCIATED_DOMAINS przez API, profil odtworzony (ten sam cert, HealthKit
+  zachowany). Upload 155 OK, VALID, Beta App Review WAITING. Wersja 1.0.3
+  w ASC (7c05f63a), releaseType AFTER_APPROVAL jak 1.0.1, whatsNew PL/EN,
+  dane recenzenta skopiowane z 1.0.1, zgłoszenie b14b4742 WAITING_FOR_REVIEW
+  09:02:51 UTC. Dowody: release/ios/testflight-155.json, appstore-1.0.3-155.json.
+- Android: AAB 59 (sha 8de94ec2...), receipt: bundletool validate, jar verified,
+  cert upload = 8F:65...9C:65, parytet zasobów dist = AAB, 16 KB PASS (87 APK).
+  Internal COMPLETED z odczytem, production „1.0.3 (59)” completed (commit edycji,
+  odczyt kontrolny). Dowody: release/android/production-2026-10-05-59/.
+- AASA i assetlinks na produkcji (HTTP 200) przed wydaniem.
+Do zrobienia: po akceptacji data w changelogu landingu, client_errors po 1 h i 24 h,
+test na urządzeniu linku z maila i ekranu zgody.
+
 ### 2026-10-05: Garmin publiczny w Connect IQ, strona zaktualizowana
 
 - Garmin zatwierdził konto developera (mail 5.10). API sklepu zwraca wpis aplikacji

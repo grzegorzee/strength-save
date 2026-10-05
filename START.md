@@ -2,6 +2,12 @@
 
 > Quick reference - wszystko w jednym miejscu
 
+> **Wydanie 1.0.3, 2026-10-05:** iOS **1.0.3 (155)** WAITING_FOR_REVIEW w App Store
+> (zgłoszenie b14b4742, wydanie automatyczne po akceptacji). Android **1.0.3 (59)**
+> wysłany na produkcję Google Play (release completed). Nowość: osobny ekran zgody
+> marketingowej po wyborze planu + link z maili otwiera aplikację.
+> [Szczegóły i dowody](DECYZJE.md).
+
 > **App Store Review, 2026-09-13:** właściciel wysłał **1.0.0 (148)**
 > o **17:21 czasu polskiego** razem z grupą Strength Save PRO oraz subskrypcjami
 > PRO Monthly i PRO Yearly. Wszystkie 4 elementy: **WAITING_FOR_REVIEW**,
