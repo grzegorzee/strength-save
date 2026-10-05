@@ -29,6 +29,9 @@
   (podpinany przez `npm prepare`) uruchamia `e2e:emulator` przy pushu ze zmianami w
   kodzie, pomija same docs/obrazy, awaryjnie `SKIP_E2E_PREPUSH=1`; (3) job `ci-alert`
   zakłada issue „CI czerwony na main” przy failu i zamyka je przy pierwszym zielonym.
+- (4) SessionStart hook Claude Code (`.claude/settings.json` → `scripts/ci-status-hook.sh`):
+  na starcie sesji status ostatniego runu na main; czerwony = ostrzeżenie dla usera i
+  polecenie diagnozy przed nową pracą. Codex tego nie czyta (tylko Claude Code).
 - Weryfikacja: lokalnie `e2e:emulator` 35/35 (dwa biegi, w tym przez hook); hook
   sprawdzony na trzech gałęziach (kod, docs-only, SKIP). Niesprawdzone: R7 z niepustą
   bazą (dziś poniedziałek), `ci-alert` sprawdzi dopiero realny run.
