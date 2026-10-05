@@ -1,0 +1,557 @@
+{
+  "verified_at": "2026-10-05T08:54:23.055766+00:00",
+  "source_commit": "fc3b87ed89196e2149983b8a73baf93547e485b6",
+  "artifact": {
+    "path": "android/app/build/outputs/bundle/release/app-release.aab",
+    "bytes": 19343836,
+    "sha256": "8de94ec2927b9b6708899b01690cbf1283c2d0f62036230bacc79af77f54268a",
+    "versionCode": "59",
+    "versionName": "1.0.3",
+    "packageName": "com.grzegorzjasionowicz.strengthsave"
+  },
+  "build": {
+    "configuration": "Release",
+    "jdk": 20,
+    "task": ":app:bundleRelease :app:assembleRelease --no-daemon",
+    "status": "PASS",
+    "bundletool_validation": "PASS"
+  },
+  "signing": {
+    "jar_verification": "PASS",
+    "full_payload_verification": {
+      "JarFile_full_payload_signature_verification": "PASS",
+      "signed_payload_entries": 1351
+    },
+    "certificate_matches_existing_upload_keystore": true,
+    "certificate_sha256": "8F:65:CB:13:AD:7B:7D:FE:08:71:DD:AA:CE:C3:B3:A4:52:4B:90:A4:8E:E0:95:3C:6C:37:BA:9B:E3:7A:9C:65",
+    "certificate_reference": "upload certificate of AAB 57 accepted by Google Play (release/android/internal-2026-09-30-57/artifact.json)"
+  },
+  "asset_parity": {
+    "mobile-dist": {
+      "files": 243,
+      "bytes": 10317650,
+      "sha256": "208605cfbef5273692caf458e6d2292f13ed00b83430f6b6f11f02e47dca6b92"
+    },
+    "android-project": {
+      "files": 243,
+      "bytes": 10317650,
+      "sha256": "208605cfbef5273692caf458e6d2292f13ed00b83430f6b6f11f02e47dca6b92"
+    },
+    "signed-aab": {
+      "files": 243,
+      "bytes": 10317650,
+      "sha256": "208605cfbef5273692caf458e6d2292f13ed00b83430f6b6f11f02e47dca6b92"
+    }
+  },
+  "asset_hash_algorithm": "SHA256 of compact UTF-8 JSON sorted rows [relativePath, byteLength, fileSHA256]. All mobile dist runtime files; .DS_Store excluded; Capacitor-generated cordova stubs and capacitor.*.json excluded.",
+  "revenuecat_google_sdk_key_sha256": "6a7f8aefb1c8b24dab724a30190ea59f533fb289a381086b627bb433d1d81dd9",
+  "alignment_16k": {
+    "all_64bit_elf_load_segments": "PASS",
+    "libraries": [
+      {
+        "path": "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+        "elf_bits": 64,
+        "sha256": "d3e48717c9aa147e0ab21063ba0e8e0211cabf8bf40b222640829519edbf58e1",
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 4544,
+            "virtual_address": 20928,
+            "alignment": 16384
+          },
+          {
+            "offset": 5160,
+            "virtual_address": 37928,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/arm64-v8a/libimage_processing_util_jni.so",
+        "elf_bits": 64,
+        "sha256": "3e0071afcdc7e321f839e196d266014182f18d0988e4455acc9857a085b2184e",
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 26048,
+            "virtual_address": 42432,
+            "alignment": 16384
+          },
+          {
+            "offset": 26984,
+            "virtual_address": 59752,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/arm64-v8a/libsurface_util_jni.so",
+        "elf_bits": 64,
+        "sha256": "ee3f0d56f81cc0a301db32dc4fd51274c3216733b4c40172768e38bc5049a265",
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 2448,
+            "virtual_address": 18832,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/armeabi-v7a/libdatastore_shared_counter.so",
+        "elf_bits": 32
+      },
+      {
+        "path": "base/lib/armeabi-v7a/libimage_processing_util_jni.so",
+        "elf_bits": 32
+      },
+      {
+        "path": "base/lib/armeabi-v7a/libsurface_util_jni.so",
+        "elf_bits": 32
+      },
+      {
+        "path": "base/lib/x86/libdatastore_shared_counter.so",
+        "elf_bits": 32
+      },
+      {
+        "path": "base/lib/x86/libimage_processing_util_jni.so",
+        "elf_bits": 32
+      },
+      {
+        "path": "base/lib/x86/libsurface_util_jni.so",
+        "elf_bits": 32
+      },
+      {
+        "path": "base/lib/x86_64/libdatastore_shared_counter.so",
+        "elf_bits": 64,
+        "sha256": "fb6c9208988c49ae94943bc3236fa763ba584722e044fa4ea9a12d2941027105",
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 3872,
+            "virtual_address": 20256,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/x86_64/libimage_processing_util_jni.so",
+        "elf_bits": 64,
+        "sha256": "676e3e280c10dcb9b71ef5bb727552610dc73c7ec85af54c7c898f82785c33d7",
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 45392,
+            "virtual_address": 61776,
+            "alignment": 16384
+          },
+          {
+            "offset": 46080,
+            "virtual_address": 78848,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      },
+      {
+        "path": "base/lib/x86_64/libsurface_util_jni.so",
+        "elf_bits": 64,
+        "sha256": "cd425e10a365fb3695e53f1e46227d44d89f14854da4f1258ef079c80c752339",
+        "load_segments": [
+          {
+            "offset": 0,
+            "virtual_address": 0,
+            "alignment": 16384
+          },
+          {
+            "offset": 2544,
+            "virtual_address": 18928,
+            "alignment": 16384
+          }
+        ],
+        "supports_16k": true,
+        "required_64bit_check": true
+      }
+    ],
+    "generated_apks": [
+      {
+        "apk": "splits/base-af.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-am.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ar.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-arm64_v8a.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-armeabi_v7a.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-as.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-az.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-be.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-bg.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-bn.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-bs.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ca.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-cs.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-da.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-de.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-el.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-en.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-es.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-et.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-eu.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-fa.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-fi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-fr.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-gl.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-gu.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-hdpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-hi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-hr.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-hu.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-hy.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-in.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-is.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-it.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-iw.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ja.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ka.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-kk.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-km.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-kn.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ko.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ky.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ldpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-lo.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-lt.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-lv.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-master.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-master_2.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-mdpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-mk.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ml.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-mn.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-mr.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ms.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-my.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-nb.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ne.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-nl.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-or.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-pa.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-pl.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-pt.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ro.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ru.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-si.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-sk.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-sl.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-sq.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-sr.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-sv.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-sw.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ta.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-te.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-th.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-tl.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-tr.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-tvdpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-uk.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-ur.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-uz.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-vi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-x86.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-x86_64.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-xhdpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-xxhdpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-xxxhdpi.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-zh.apk",
+        "zipalign_16k": "PASS"
+      },
+      {
+        "apk": "splits/base-zu.apk",
+        "zipalign_16k": "PASS"
+      }
+    ],
+    "bundletool": "1.18.3 build-apks (default device-split set, debug-signed for inspection only)"
+  }
+}

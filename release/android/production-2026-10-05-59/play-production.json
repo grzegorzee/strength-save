@@ -1,0 +1,25 @@
+{
+  "committed_at": "2026-10-05T08:55:52.045787+00:00",
+  "track": {
+    "track": "production",
+    "releases": [
+      {
+        "name": "1.0.3 (59)",
+        "versionCodes": [
+          "59"
+        ],
+        "releaseNotes": [
+          {
+            "language": "pl-PL",
+            "text": "Co nowego w 1.0.3:\n• Link „Otwórz aplikację” z naszych maili otwiera aplikację na telefonie.\n• Zgoda na wiadomości o nowościach ma osobny ekran po wyborze planu. Na pierwszym ekranie zostały tylko zgody potrzebne do korzystania z aplikacji."
+          },
+          {
+            "language": "en-US",
+            "text": "What's new in 1.0.3:\n• The “Open the app” link in our emails opens the app on your phone.\n• Consent to news emails now has its own screen after you choose a plan. The first screen keeps only the consents needed to use the app."
+          }
+        ],
+        "status": "completed"
+      }
+    ]
+  }
+}

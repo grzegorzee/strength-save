@@ -1,0 +1,3 @@
+Co nowego w 1.0.3:
+• Link „Otwórz aplikację” z naszych maili otwiera aplikację na telefonie.
+• Zgoda na wiadomości o nowościach ma osobny ekran po wyborze planu. Na pierwszym ekranie zostały tylko zgody potrzebne do korzystania z aplikacji.

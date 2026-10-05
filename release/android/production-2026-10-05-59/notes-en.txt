@@ -1,0 +1,3 @@
+What's new in 1.0.3:
+• The “Open the app” link in our emails opens the app on your phone.
+• Consent to news emails now has its own screen after you choose a plan. The first screen keeps only the consents needed to use the app.
