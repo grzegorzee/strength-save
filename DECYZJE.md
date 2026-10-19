@@ -11,6 +11,18 @@
 
 ## DECYZJE
 
+### 2026-10-19: iOS Billing Grace Period włączony (16 dni, wszystkie odnowienia)
+
+- Powód: pierwszy trial (uid s9HkWq…, App Store, BG) skończył się 19.10 nieudaną
+  płatnością (`in_billing_retry`, `will_renew`), nie rezygnacją. Bez grace period
+  dostęp PRO znikał od razu.
+- Zmiana (decyzja właściciela): ASC API `PATCH /v1/subscriptionGracePeriods/6777446137`,
+  `optIn` + `sandboxOptIn` = true, `SIXTEEN_DAYS`, `ALL_RENEWALS` (obejmuje też
+  przejście trial → płatna). Odczyt kontrolny po zmianie zgodny.
+- Webhook zachowuje datę końca grace przy BILLING_ISSUE (bug 22, X30).
+- Otwarte: Android ma nadal `gracePeriodDuration: P0D` (parytet z dawnym stanem iOS,
+  docs/ANDROID-2026-09-09.md). Do decyzji, czy wyrównać.
+
 ### 2026-10-05: czerwone CI na main, naprawa testów + trzy bezpieczniki
 
 - Run z 1.10 (1 fail) i z 5.10 (15 faili) czerwone, oba w `e2e:emulator`. Produkt bez
