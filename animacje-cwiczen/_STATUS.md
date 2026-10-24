@@ -1,10 +1,5 @@
 # Status animacji cwiczen
 
-> **2026-08-11:** pelny przeglad 137 klipow z CDN + finalna kolejka produkcji (160 klipow)
-> w `_PRZEGLAD-2026-08-11.md`. 45 klipow zdjetych z apki (bledy merytoryczne),
-> 9 kosmetycznych zostaje do wymiany. Ta tabela = stan produkcji per klip,
-> raport przegladu = zrodlo prawdy dla kolejki.
-
 Cwiczen w kolejce: **243**
 
 Ustawienia w panelu Higgsfield: Seedance 2.0, 5 s, 4:3, 720p, Bitrate High, audio Off.
@@ -34,10 +29,10 @@ Ustawienia w panelu Higgsfield: Seedance 2.0, 5 s, 4:3, 720p, Bitrate High, audi
 | 21 | `wioslowanie-na-maszynie-hammer` | a hammer strength row | tak | PASS |
 | 22 | `wioslowanie-t-bar` | a T-bar row | tak | PASS |
 | 23 | `wioslowanie-pendleya` | a Pendlay row | tak | PASS |
-| 24 | `sciaganie-linki-prostymi-ramionami` | a straight-arm lat pulldown | tak | PASS z uwaga (proba 2 po fixie: rear view + glow najszersze; lokcie lekko zginane) |
-| 25 | `przenoszenie-hantla-za-glowe` | a dumbbell pullover | tak | FAIL |
+| 24 | `sciaganie-linki-prostymi-ramionami` | a straight-arm lat pulldown | tak | FAIL |
+| 25 | `przenoszenie-hantla-za-glowe` | a dumbbell pullover | tak | PASS (proba 1: dumbbell pullover na lawce, glow klatka+najszersze, glowa w kadrze) |
 | 26 | `szrugi-ze-sztanga` | a barbell shrug | tak | PASS (czwarta proba, po poprawce geometrii kadru) |
-| 27 | `szrugi-z-hantlami` | a dumbbell shrug | tak | FAIL (druga proba) - ODLOZONE |
+| 27 | `szrugi-z-hantlami` | a dumbbell shrug | tak | PASS (proba 2 po fixie MALY: kotwica pionowa, glowa w kadrze, glow traps) |
 | 28 | `prostowniki-grzbietu-hyperextensions` | a back extension | tak | PASS (proba 1: kadr szeroki DUZA + rear view, hyperextension bench, glow prostowniki grzbietu) |
 | 29 | `wyciskanie-hantli-nad-glowe-siedzac` | a seated dumbbell shoulder press | tak | PASS |
 | 30 | `wyciskanie-sztangi-nad-glowe-ohp` | a standing overhead barbell press | tak | PASS |
@@ -60,11 +55,11 @@ Ustawienia w panelu Higgsfield: Seedance 2.0, 5 s, 4:3, 720p, Bitrate High, audi
 | 47 | `prasa-nozna` | a leg press | tak | PASS |
 | 48 | `wyprosty-nog-na-maszynie` | a seated leg extension | tak | PASS (trzecia proba, po dodaniu do DUZA_ZMIANA_WYSOKOSCI) |
 | 49 | `wykroki-chodzone` | a walking lunge | tak | PASS (druga proba, po dodaniu do DUZA_ZMIANA_WYSOKOSCI) |
-| 50 | `wykroki-bulgarskie` | a Bulgarian split squat | tak | PASS (proba 1: kadr szeroki DUZA, bulgarian split squat, glow czworoglowe przedniej nogi) |
+| 50 | `wykroki-bulgarskie` | a Bulgarian split squat | tak | FAIL |
 | 51 | `martwy-ciag-rumunski-rdl` | a Romanian deadlift | tak | PASS (trzecia proba, kadr szeroki) |
 | 52 | `martwy-ciag-klasyczny` | a conventional deadlift | tak | PASS (czwarta proba: kadr szeroki + skora + ujecie od tylu) |
 | 53 | `uginanie-nog-na-maszynie-siedzac` | a seated leg curl | tak | PASS (druga proba, po dodaniu do DUZA_ZMIANA_WYSOKOSCI) |
-| 54 | `uginanie-nog-na-maszynie-lezac` | a lying leg curl | tak | FAIL |
+| 54 | `uginanie-nog-na-maszynie-lezac` | a lying leg curl | tak | PASS (proba 1: kadr szeroki DUZA, lying leg curl, glow dwuglowe ud, glowa w kadrze) |
 | 55 | `good-morning` | a good morning | tak | PASS-with-crop (proba 1: good morning, glow dwuglowe+posladki; glowa ucieta w wyproscie) |
 | 56 | `hack-squat-maszyna` | a hack squat machine | tak | PASS (DUZA od pierwszej proby) |
 | 57 | `wyciskanie-jednonoz-na-suwnicy` | a single-leg press | tak | FAIL-ODLOZONE |
@@ -78,9 +73,9 @@ Ustawienia w panelu Higgsfield: Seedance 2.0, 5 s, 4:3, 720p, Bitrate High, audi
 | 65 | `hip-thrust-ze-sztanga` | a barbell hip thrust | tak | PASS |
 | 66 | `odwodzenie-na-lince` | a standing cable hip abduction | nie | TODO |
 | 67 | `glute-bridge` | a floor glute bridge | tak | PASS (z akceptowanym ucieciem glowy) |
-| 68 | `odwodziciele-na-maszynie` | a hip abduction machine | tak | PASS (z akceptowanym ucieciem glowy) |
-| 69 | `glute-kickback-na-wyciagu` | a cable glute kickback | tak | FAIL-ODLOZONE |
-| 70 | `pull-through` | a cable pull-through | nie | TODO |
+| 68 | `odwodziciele-na-maszynie` | a hip abduction machine | tak | FAIL |
+| 69 | `glute-kickback-na-wyciagu` | a cable glute kickback | tak | FAIL |
+| 70 | `pull-through` | a cable pull-through | tak | FAIL |
 | 71 | `wyprosty-biodra-z-guma` | a banded hip extension | nie | TODO |
 | 72 | `uginanie-hantli-z-supinacja-lawka-skosna` | an incline dumbbell curl with supination | tak | PASS (proba 2, kadr szeroki) |
 | 73 | `uginanie-sztangi-stojac` | a standing barbell curl | tak | PASS |
@@ -194,9 +189,9 @@ Ustawienia w panelu Higgsfield: Seedance 2.0, 5 s, 4:3, 720p, Bitrate High, audi
 | 181 | `przeciaganie-linki-miedzy-nogami-cable-pull-through` | a cable pull-through | tak | PASS (proba 1: kadr szeroki DUZA, zawias biodrowy z linka miedzy nogami, glow posladki+dwuglowe) |
 | 182 | `mostek-posladkowy-na-jednej-nodze` | a single-leg glute bridge | nie | TODO |
 | 183 | `frog-pump-mostek-z-rozlozonymi-kolanami` | a frog pump | tak | FAIL-deferred (proba 2: poprawiony glow+kadr, ale nadal zwykly glute bridge) |
-| 184 | `wykrok-ukosny-curtsy-lunge` | a curtsy lunge | nie | TODO |
+| 184 | `wykrok-ukosny-curtsy-lunge` | a curtsy lunge | tak | PASS-with-crop (proba 1: curtsy lunge, glow czworoglowe+posladki, glowa ucieta front-view) |
 | 185 | `wysoki-step-up-z-hantlami` | a high box step-up | tak | PASS (proba 1: kadr szeroki DUZA, wysoki step-up z hantlami, glow czworoglowe+lydka) |
-| 186 | `wykrok-w-tyl-z-akcentem-na-posladek` | a glute-focused reverse lunge | nie | TODO |
+| 186 | `wykrok-w-tyl-z-akcentem-na-posladek` | a glute-focused reverse lunge | tak | PASS (proba 1: kadr szeroki DUZA side view, reverse lunge, glow czworoglowe+posladki) |
 | 187 | `rumunski-martwy-ciag-z-akcentem-na-posladek` | a glute-focused Romanian deadlift | tak | PASS (druga proba, kadr poprawil sie jako loteria) |
 | 188 | `wymachy-kettlebell` | a kettlebell swing | tak | PASS (proba 1: kadr szeroki DUZA, kettlebell swing, glow posterior chain) |
 | 189 | `kickback-posladka-z-guma-oporowa` | a banded glute kickback | nie | TODO |
@@ -234,7 +229,7 @@ Ustawienia w panelu Higgsfield: Seedance 2.0, 5 s, 4:3, 720p, Bitrate High, audi
 | 221 | `unoszenie-kolan-w-zwisie` | a hanging knee raise | nie | TODO |
 | 222 | `wyciskanie-kolka-do-brzucha-z-kleku-jednoracz` | a single-arm ab wheel rollout | nie | TODO |
 | 223 | `spiecia-brzucha-na-lawce-skosnej-decline-sit-up` | a decline sit-up | nie | TODO |
-| 224 | `modlitewnik-kleczacy-jednostronny-cable-crunch` | a single-sided kneeling cable crunch | nie | TODO |
+| 224 | `modlitewnik-kleczacy-jednostronny-cable-crunch` | a single-sided kneeling cable crunch | tak | PASS (proba 1: kneeling cable crunch jednostronny, glow brzuch+skosne, glowa w kadrze) |
 | 225 | `wysoki-woodchopper-na-wyciagu-z-dolu-do-gory` | a low-to-high cable woodchopper | nie | TODO |
 | 226 | `dead-bug-z-hantlami-obciazony` | a weighted dead bug | tak | PASS |
 | 227 | `pallof-press-w-przysiadzie-warianty` | a squatting Pallof press | nie | TODO |

@@ -11,6 +11,21 @@
 
 ## DECYZJE
 
+### 2026-10-24: animacje do planu „Plecy i Pośladki” (5 klipów v2, web + OTA 1.0.3-ota.3)
+
+- Brakowało 5 z 18: odwodziciele, wykroki bułgarskie, ściąganie linki (v1 zdjęte
+  w przeglądzie 2026-08-11 jako błędne), glute kickback (FAIL 07-25), pull through (brak).
+- Sam tekst w Seedance 2.0 powtarzał stare defekty (świecenie na złych mięśniach,
+  brak sprzętu, ucięta głowa). Działa: klatka startowa z GPT Image 2.5 (referencja
+  stylu = klatka zatwierdzonego RDL), a gdy pętla się rozjeżdża, ta sama klatka jako
+  start i koniec. Próby: 2-4 na klip, statusy w animacje-cwiczen/<slug>/status.txt.
+- Pliki `<slug>-v2.mp4/.jpg` na media.gjasionowicz.pl (200 video/mp4, < 160 KB),
+  v2 zamiast nadpisania, bo błędne v1 mogą siedzieć w cache. Test: każde ćwiczenie
+  planu ma animację i poster.
+- Odwodziciele: PASS z uwagą (poduszki maszyny przy udach, nie przy kolanach).
+- Dług: e2e R8/R8b (r8-announcement-unsubscribe) padł w pełnym biegu 2 razy,
+  w izolacji 6/6. Niestabilny pod obciążeniem, do osobnej naprawy.
+
 ### 2026-10-24: dni sprzed pierwszego treningu nie są „Odpuszczone” (fix, web + OTA 1.0.3-ota.2)
 
 - Objaw (konto testerki): kreator, pierwszy trening środa 28.10, plan pon/śr/sob.

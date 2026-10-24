@@ -134,6 +134,14 @@ const ANIMATION_FILES: Record<string, string> = {
   'przywodziciele-na-maszynie': 'przywodziciele-na-maszynie.mp4',
   'wspiecia-na-palce-siedzac': 'wspiecia-na-palce-siedzac.mp4',
   'przysiad-belt-squat-z-pasem-biodrowym': 'przysiad-belt-squat-z-pasem-biodrowym.mp4',
+  // 2026-10-24: wygenerowane ponownie (klatka startowa GPT Image + Seedance), -v2
+  // zamiast nadpisania, bo v1 na CDN były błędne (przegląd 2026-08-11) i mogą
+  // siedzieć w cache. Statusy w animacje-cwiczen/<slug>/status.txt.
+  'odwodziciele-na-maszynie': 'odwodziciele-na-maszynie-v2.mp4',
+  'wykroki-bulgarskie': 'wykroki-bulgarskie-v2.mp4',
+  'glute-kickback-na-wyciagu': 'glute-kickback-na-wyciagu-v2.mp4',
+  'pull-through': 'pull-through-v2.mp4',
+  'sciaganie-linki-prostymi-ramionami': 'sciaganie-linki-prostymi-ramionami-v2.mp4',
 };
 
 /** Zamienia nazwę ćwiczenia na slug (bez polskich znaków, spacje -> myślniki). */
