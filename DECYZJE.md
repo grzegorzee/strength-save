@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-10-24: nowy szablon planu „Plecy i Pośladki” (tpl-back-glutes-3), wydany web + OTA
+
+- Co: 3 dni × 6 ćwiczeń, priorytet pleców i pośladków, beginner, siłownia, 8 tygodni.
+  Bez planka i pompek (F7), więc widoczny dla początkujących.
+- Niezmiennik: dopisany na końcu katalogu, nikomu nie zmienia rekomendacji
+  (test w plan-recommendation.test.ts: każdy cel × poziom × dni × sprzęt jak przed zmianą).
+- Wydanie: web + OTA (dane statyczne w ramach istniejącej funkcji, LIVE-UPDATES §1).
+  Decyzja właściciela: bez testu urządzeniowego na internal, od razu production.
+- Bramki: typecheck, lint, 4859 testów, build zielone.
+
 ### 2026-10-19: iOS Billing Grace Period włączony (16 dni, wszystkie odnowienia)
 
 - Powód: pierwszy trial (uid s9HkWq…, App Store, BG) skończył się 19.10 nieudaną

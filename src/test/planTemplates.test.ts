@@ -94,7 +94,7 @@ describe('planTemplates', () => {
   });
 
   it('T6: katalog ma 42 szablony, w tym 16 nowych T6 i plan bez sprzętu T6b', () => {
-    expect(planTemplates).toHaveLength(42);
+    expect(planTemplates).toHaveLength(43);
     for (const id of ['tpl-fatloss-3', 'tpl-home-db-3', 'tpl-glutes-4', 'tpl-strength-2', 'tpl-beginner-ul-4', 'tpl-athletic-3', 'tpl-home-db-4', 'tpl-fatloss-2', 'tpl-fatloss-5', 'tpl-strength-ul-4', 'tpl-strength-6', 'tpl-glutes-2', 'tpl-health-50-2', 'tpl-kettlebell-3', 'tpl-express-3', 'tpl-travel-2']) {
       expect(getPlanTemplateById(id), id).toBeTruthy();
     }

@@ -211,6 +211,7 @@ const PLAN_NAME: Record<string, PlanText> = {
   'tpl-express-3': { pl: 'Ekspres 35 Minut', en: 'Express 35' },
   'tpl-travel-2': { pl: 'Trening w Podróży', en: 'Travel Workout' },
   'tpl-bodyweight-home-3': { pl: 'Start bez Sprzętu', en: 'No-Equipment Starter' },
+  'tpl-back-glutes-3': { pl: 'Plecy i Pośladki', en: 'Back & Glutes Sculpt' },
 };
 
 const PLAN_DESC: Record<string, PlanText> = {
@@ -382,6 +383,10 @@ const PLAN_DESC: Record<string, PlanText> = {
   'tpl-bodyweight-home-3': {
     pl: 'Trzy treningi całego ciała w domu, bez sprzętu i bez podporu na rękach: przysiady, mostki, wykroki, praca grzbietu w leżeniu i brzuch w leżeniu na plecach. Na koniec krótkie interwały. Progres przez dokładanie powtórzeń.',
     en: 'Three full-body home sessions with no equipment and no weight on your hands: squats, bridges, lunges, back work lying face down and core work on your back. Short intervals to finish. Progress by adding reps.',
+  },
+  'tpl-back-glutes-3': {
+    pl: 'Trzy treningi całego ciała z priorytetem pleców i pośladków: wypychanie bioder, martwy ciąg rumuński, wykroki bułgarskie, wiosłowania, ściąganie drążka i praca tyłu barku pod prostą postawę. Duże ćwiczenia w 6-10 powtórzeniach, akcesoria w 12-15.',
+    en: 'Three full-body sessions that put your back and glutes first: hip thrusts, Romanian deadlifts, Bulgarian split squats, rows, lat pulldowns and rear delt work for an upright posture. Big lifts in 6-10 reps, accessories in 12-15.',
   },
 };
 

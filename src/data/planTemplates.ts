@@ -1853,6 +1853,46 @@ export const planTemplates: PlanTemplate[] = [
       ]),
     ],
   },
+  // 2026-10-24: plecy + pośladki pod rekompozycję (zamówienie właściciela). Bez planka
+  // i pompek (F7), dlatego dozwolony dla początkujących; dopisany na końcu katalogu,
+  // więc przy remisie punktów nie zabiera rekomendacji istniejącym szablonom.
+  {
+    id: 'tpl-back-glutes-3',
+    name: 'Back & Glutes Sculpt',
+    description: 'Trzy treningi całego ciała z priorytetem pleców i pośladków: wypychanie bioder, martwy ciąg rumuński, wykroki bułgarskie, wiosłowania, ściąganie drążka i praca tyłu barku pod prostą postawę. Duże ćwiczenia w 6-10 powtórzeniach, akcesoria w 12-15.',
+    goal: 'muscle',
+    objective: 'build_muscle',
+    level: 'beginner',
+    equipment: 'gym',
+    daysPerWeek: 3,
+    durationWeeks: 8,
+    days: [
+      day('day-1', 'Poniedziałek', 'monday', 'Pośladki + Plecy A', [
+        ex('Hip Thrust ze sztangą', '3 x 8-10'),
+        ex('Ściąganie drążka (Szeroki nachwyt)', '3 x 8-12'),
+        ex('Martwy Ciąg Rumuński (RDL)', '3 x 6-10'),
+        ex('Wiosłowanie na lince siedząc', '3 x 10-12'),
+        ex('Wyciskanie hantli (Lekki skos)', '3 x 8-10'),
+        ex('Odwodziciele na maszynie', '3 x 12-15'),
+      ]),
+      day('day-2', 'Środa', 'wednesday', 'Pośladki + Plecy B', [
+        ex('Wykroki bułgarskie', '3 x 8-10/noga'),
+        ex('Wiosłowanie sztangą', '3 x 8-10'),
+        ex('Prostowniki grzbietu (Hyperextensions)', '3 x 12-15'),
+        ex('Wyciskanie hantli nad głowę (Siedząc)', '3 x 8-10'),
+        ex('Face Pull', '3 x 12-15'),
+        ex('Glute Kickback na wyciągu', '3 x 12-15/noga'),
+      ]),
+      day('day-3', 'Piątek', 'friday', 'Pośladki + Plecy C', [
+        ex('Przysiad goblet', '3 x 10-12'),
+        ex('Pull Through', '3 x 12-15'),
+        ex('Ściąganie linki prostymi ramionami', '3 x 12-15'),
+        ex('Wiosłowanie hantlami na ławce (przodem)', '3 x 10-12'),
+        ex('Odwrotne rozpiętki (Tył barku)', '3 x 12-15'),
+        ex('Dead Bug (Robak - Brzuch)', '3 x 8/strona'),
+      ]),
+    ],
+  },
 ];
 
 export const getPlanTemplateById = (id: string): PlanTemplate | undefined =>

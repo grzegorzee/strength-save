@@ -205,3 +205,25 @@ describe('selectTemplatesForDays: pula szablonów pod liczbę dni z kroku 4 (X32
     expect(pool.templates).toEqual(onlySixDay);
   });
 });
+
+// 2026-10-24: nowy szablon dokłada wybór w Browse, nie zabiera rekomendacji.
+// Niezmiennik: dla każdego profilu (cel × poziom × dni × sprzęt) rekomendacja
+// jest taka sama jak w katalogu bez tpl-back-glutes-3.
+describe('tpl-back-glutes-3: nowy szablon nie zmienia istniejących rekomendacji', () => {
+  const NEW_ID = 'tpl-back-glutes-3';
+  const withoutNew = planTemplates.filter((t) => t.id !== NEW_ID);
+  const EQUIPMENT = ['gym', 'dumbbells_home', 'bodyweight'] as const;
+
+  it('rekomendacja identyczna z katalogiem sprzed dodania, dla każdego profilu', () => {
+    for (const objective of OBJECTIVES) for (const level of LEVELS) for (const daysPerWeek of DAYS) for (const equipment of EQUIPMENT) {
+      const criteria = { objective, level, daysPerWeek, equipment };
+      const before = scoreTemplates(criteria, selectTemplatesForDays(daysPerWeek, withoutNew, { level, equipment }).templates)[0]?.template.id;
+      expect(getRecommendedPlan(objective, level, daysPerWeek, equipment).id, JSON.stringify(criteria)).toBe(before);
+    }
+  });
+
+  it('początkujący, 3 dni, siłownia: szablon jest w puli wyboru (Browse / krok 5)', () => {
+    const pool = selectTemplatesForDays(3, planTemplates, { level: 'beginner', equipment: 'gym' });
+    expect(pool.templates.map((t) => t.id)).toContain(NEW_ID);
+  });
+});
