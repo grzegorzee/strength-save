@@ -36,6 +36,7 @@ import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { DeloadBanner } from '@/components/DeloadBanner';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { weekdayOfDate } from '@/lib/plan-schedule';
+import { getPreFirstWorkoutDates } from '@/lib/first-workout-schedule';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildDayLoadMap, findNextPlannedDate } from '@/lib/plan-day-load';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
@@ -464,6 +465,13 @@ const TrainingPlan = () => {
   // WP-C (X28): NASTĘPNY liczony GLOBALNIE z pełnego harmonogramu planu (nie
   // z widocznego tygodnia) — dokładnie jedna data w całym planie ma badge;
   // wcześniej każdy przyszły tydzień pokazywał "następny" na pierwszym dniu.
+  // Dni sprzed pierwszego treningu (kreator wpisał je do skippedDates) nie są
+  // odpuszczonymi treningami: dzień pokazuje się jak odpoczynek, bez karty.
+  const preFirstWorkoutDates = useMemo(
+    () => getPreFirstWorkoutDates({ planDays: trainingPlan, planStartDate, skippedDates, scheduleOverrides }),
+    [trainingPlan, planStartDate, skippedDates, scheduleOverrides],
+  );
+
   const nextPlannedDate = useMemo(() => {
     const scheduleDates = schedule.map((s) => formatLocalDate(s.date));
     // F2: urlop / pauza — dzień w przerwie nie jest "następnym" (wspólny resolver z Dashboardem i pushem).
@@ -711,7 +719,7 @@ const TrainingPlan = () => {
 
               selectedWeekTrainingDates.forEach(scheduleItem => {
                 const dayPlan = trainingPlan.find(d => d.id === scheduleItem.dayId);
-                if (dayPlan) {
+                if (dayPlan && !preFirstWorkoutDates.has(formatLocalDate(scheduleItem.date))) {
                   items.push({ type: 'training', scheduleItem, dateStr: formatLocalDate(scheduleItem.date) });
                 }
               });

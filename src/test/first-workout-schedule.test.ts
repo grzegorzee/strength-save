@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildFirstWorkoutSchedule, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
+import { buildFirstWorkoutSchedule, getPreFirstWorkoutDates, listFirstWorkoutOptions } from '@/lib/first-workout-schedule';
+import { buildWeekCardModel } from '@/lib/week-card';
+import { parseLocalDate } from '@/lib/utils';
+import type { TrainingDay } from '@/data/trainingPlan';
 import { isValidPlanStartMonday } from '@/lib/cycle-actions';
 
 // X34b (docs/PLAN-X34-2026-08-25.md, sekcja 7): user wybiera KONKRETNY dzien
@@ -98,5 +101,45 @@ describe('listFirstWorkoutOptions', () => {
 
   it('wlasny plan: dni tygodnia z dni buildera (np. wtorek + sobota)', () => {
     expect(listFirstWorkoutOptions(['tuesday', 'saturday'], '2026-08-24', 4)).toEqual(['2026-08-25', '2026-08-29', '2026-09-01', '2026-09-05']);
+  });
+});
+
+// 2026-10-24 (konto realnej testerki): plan pon/śr/sob, pierwszy trening środa 28.10.
+// Poniedziałek 26.10 trafił do skippedDates i Plan/karta tygodnia pokazywały go
+// jako "Odpuszczone", choć to dzień PRZED startem planu, a nie odpuszczony trening.
+describe('getPreFirstWorkoutDates', () => {
+  const planDays = (['monday', 'wednesday', 'saturday'] as const).map((weekday, i) => ({
+    id: `2026-10-26-d${i + 1}`, dayName: weekday, weekday, focus: '', exercises: [],
+  })) as unknown as TrainingDay[];
+
+  it('dni treningowe tygodnia startu sprzed pierwszego treningu = przed startem planu', () => {
+    expect([...getPreFirstWorkoutDates({ planDays, planStartDate: '2026-10-26', skippedDates: ['2026-10-26'] })])
+      .toEqual(['2026-10-26']);
+  });
+
+  it('kreator -> getPreFirstWorkoutDates: sekwencja z wyboru środy daje poniedziałek przed startem', () => {
+    const schedule = buildFirstWorkoutSchedule('2026-10-28', ['monday', 'wednesday', 'saturday'], '2026-10-24');
+    expect([...getPreFirstWorkoutDates({ planDays, planStartDate: schedule.startDate, skippedDates: schedule.skippedDates })])
+      .toEqual(['2026-10-26']);
+  });
+
+  it('ręczne odpuszczenie po pierwszym treningu zostaje odpuszczeniem (nie przed startem)', () => {
+    expect([...getPreFirstWorkoutDates({ planDays, planStartDate: '2026-10-26', skippedDates: ['2026-10-28'] })]).toEqual([]);
+    expect([...getPreFirstWorkoutDates({ planDays, planStartDate: '2026-10-26', skippedDates: ['2026-11-02'] })]).toEqual([]);
+  });
+
+  it('bez startu planu albo bez pominięć: pusto', () => {
+    expect([...getPreFirstWorkoutDates({ planDays, planStartDate: null, skippedDates: ['2026-10-26'] })]).toEqual([]);
+    expect([...getPreFirstWorkoutDates({ planDays, planStartDate: '2026-10-26', skippedDates: [] })]).toEqual([]);
+  });
+
+  it('karta tygodnia: dzień przed startem = odpoczynek, nie odpuszczony i nie w licznik sesji', () => {
+    const preStart = getPreFirstWorkoutDates({ planDays, planStartDate: '2026-10-26', skippedDates: ['2026-10-26'] });
+    const model = buildWeekCardModel({
+      planDays, today: parseLocalDate('2026-10-26'), workouts: [], currentWeek: 1, planDurationWeeks: 8,
+      planStarted: true, skippedDates: ['2026-10-26'], isBreakDay: (d) => preStart.has(d),
+    });
+    expect(model.days[0]).toMatchObject({ date: '2026-10-26', status: 'rest' });
+    expect(model.sessionsPlanned).toBe(2);
   });
 });

@@ -11,6 +11,21 @@
 
 ## DECYZJE
 
+### 2026-10-24: dni sprzed pierwszego treningu nie są „Odpuszczone” (fix, web + OTA 1.0.3-ota.2)
+
+- Objaw (konto testerki): kreator, pierwszy trening środa 28.10, plan pon/śr/sob.
+  Plan pokazywał poniedziałek 26.10 jako „Odpuszczone” z „Przywróć trening”.
+- Root cause: X34b kotwiczy plan w poniedziałku i wpisuje dni treningowe tygodnia
+  startu sprzed pierwszego treningu do `skippedDates`, tego samego pola co ręczne
+  „Odpuść trening”, więc UI nie odróżniał „przed startem” od „odpuszczone”.
+- Fix (bez zmiany danych i reguł): `getPreFirstWorkoutDates` (prefiks tygodnia
+  startu: kolejne zaplanowane daty, wszystkie w skippedDates). Plan: taki dzień
+  wypada z osi czasu jak odpoczynek; karta tygodnia: 'rest', poza licznikiem sesji.
+  Ręczne odpuszczenie po pierwszym treningu bez zmian (test niezmiennika).
+- Konto testerki bez zapisu: dane są poprawne, zmienia się tylko odczyt.
+- Znane, poza zakresem: statystyki cyklu (`computeCycleStats`) nie uwzględniają
+  `skippedDates` przy liczeniu opuszczonych sesji.
+
 ### 2026-10-24: nowy szablon planu „Plecy i Pośladki” (tpl-back-glutes-3), wydany web + OTA
 
 - Co: 3 dni × 6 ćwiczeń, priorytet pleców i pośladków, beginner, siłownia, 8 tygodni.

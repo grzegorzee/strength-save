@@ -1,6 +1,6 @@
-import type { Weekday } from '@/data/trainingPlan';
+import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { getStartOfPlanWeek, weekdayOfDate } from '@/lib/plan-schedule';
+import { getScheduledTrainingForDate, getStartOfPlanWeek, weekdayOfDate, type ScheduleOverrides } from '@/lib/plan-schedule';
 
 // X34b (docs/PLAN-X34-2026-08-25.md, sekcja 7): ekran 6/6 pyta o KONKRETNY
 // dzien pierwszego treningu. Model planu zostaje zakotwiczony w poniedzialku
@@ -70,4 +70,31 @@ export const listFirstWorkoutOptions = (
     if (training.has(weekdayOfDate(date))) options.push(formatLocalDate(date));
   }
   return options;
+};
+
+/**
+ * Dni treningowe tygodnia startu, które kreator wpisał do skippedDates, bo
+ * wypadają PRZED wybranym pierwszym treningiem (prefiks tygodnia startu:
+ * kolejne zaplanowane daty od startDate, wszystkie pominięte). To nie są
+ * odpuszczone treningi, tylko dni sprzed startu planu: widoki pokazują je jak
+ * odpoczynek. Ręczne odpuszczenie po pierwszym treningu zostaje odpuszczeniem.
+ */
+export const getPreFirstWorkoutDates = (args: {
+  planDays: TrainingDay[];
+  planStartDate: string | null | undefined;
+  skippedDates: readonly string[];
+  scheduleOverrides?: ScheduleOverrides;
+}): Set<string> => {
+  const result = new Set<string>();
+  if (!args.planStartDate || args.skippedDates.length === 0) return result;
+  const skipped = new Set(args.skippedDates);
+  const start = parseLocalDate(args.planStartDate);
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = addDays(start, offset);
+    if (getScheduledTrainingForDate(args.planDays, date, args.scheduleOverrides) === null) continue;
+    const iso = formatLocalDate(date);
+    if (!skipped.has(iso)) break;
+    result.add(iso);
+  }
+  return result;
 };

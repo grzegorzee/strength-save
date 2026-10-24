@@ -35,6 +35,7 @@ import { countCompletedWorkouts, isCompletedWorkout, selectCompletedWorkouts } f
 import { AppTour } from '@/components/AppTour';
 import { useAppTour } from '@/hooks/useAppTour';
 import { DASHBOARD_TOUR_STEPS, PRACTICE_PATH } from '@/lib/first-workout-tour';
+import { getPreFirstWorkoutDates } from '@/lib/first-workout-schedule';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds, streakDetailsFromDates } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
@@ -355,6 +356,11 @@ const Dashboard = () => {
     searchDays: 14 + VACATION_MAX_DAYS,
   }), [scheduleOverrides, planStartDate, blockContext]);
 
+  const preFirstWorkoutDates = useMemo(
+    () => getPreFirstWorkoutDates({ planDays: trainingPlan, planStartDate, skippedDates, scheduleOverrides }),
+    [trainingPlan, planStartDate, skippedDates, scheduleOverrides],
+  );
+
   // Karta tygodnia (Runna p.1, spec B1): dzień/tydzień jako domykane jednostki
   // nad istniejącym odhaczaniem serii. Ad-hoc dokłada się do tonażu.
   const weekCardModel = useMemo(() => buildWeekCardModel({
@@ -367,10 +373,12 @@ const Dashboard = () => {
     planStarted,
     skippedDates,
     isBreakDay: (dateKey) => {
+      // Dzień sprzed pierwszego treningu (kreator) to odpoczynek, nie "odpuszczony".
+      if (preFirstWorkoutDates.has(dateKey)) return true;
       const reason = plannedDateBlockReason(dateKey, blockContext);
       return reason === 'vacation' || reason === 'pause';
     },
-  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted, skippedDates, blockContext]);
+  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted, skippedDates, blockContext, preFirstWorkoutDates]);
 
   const todayTraining = useMemo(() => {
     // WP-PLANS-1 (X27): plan zakończony — żadnego planowania z martwego planu
