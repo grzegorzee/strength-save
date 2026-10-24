@@ -128,6 +128,54 @@
           "kind": "promote"
         }
       ]
+    },
+    {
+      "bundleId": "1.0.3-ota.3",
+      "nativeVersion": "1.0.3",
+      "otaNumber": 3,
+      "sha256": "9d0b88b3773f80312b4097c04db94bcd957e417f215904c4648dc7e10644b0ed",
+      "size": 6498544,
+      "signature": "l6R1dyb3GUvLbPDICvKHYMpAfEjZuHhygUzHNilhJ1hkS3Xf5Dqbz7rn2o7jpQlAdXFokwlAIW7R65/YTJHzZd3DHi3ems6CPnnL1XYFsPzMv7bunOxPFrmPk7YV6Mm3hqo2lWVaWgosofUeYufVTv1elZI8MjXoqw1eJf32hHJ8WrFqIjuup6fTI9PPllNtG8+VrDHRc4PllgBZK6emfIrFzcB5dndKqM7NwnhRadZG7lsqc4+VRQAHva1g4EXsDS1ZniTzrGrVk5vzkQz3/EIoQvVanbZYbf98HSIwAmkXaiea0npv5CkYOt+qqD+x2dnsI62oJRt7x7N9JstUmg==",
+      "sourceCommit": "60b7ff2052e7e174aa92a006f2738a94e12c5478",
+      "builtAt": "2026-10-24T15:58:09.120Z",
+      "nativeFingerprints": {
+        "ios": "4b4747c2a8adece48f8a806299ece32688caa98fd5ca444a397211d4b01ca416",
+        "android": "791090f6b3a102dbb2e3fe31d1364c2d54464661d3af25fbdd5e9af738493aee"
+      },
+      "published": [
+        {
+          "channel": "internal",
+          "platform": "ios",
+          "sequence": 3,
+          "rolloutPercent": 100,
+          "at": "2026-10-24T15:57:52.330Z",
+          "kind": "publish"
+        },
+        {
+          "channel": "internal",
+          "platform": "android",
+          "sequence": 3,
+          "rolloutPercent": 100,
+          "at": "2026-10-24T15:57:52.699Z",
+          "kind": "publish"
+        },
+        {
+          "channel": "production",
+          "platform": "ios",
+          "sequence": 3,
+          "rolloutPercent": 100,
+          "at": "2026-10-24T15:58:12.505Z",
+          "kind": "promote"
+        },
+        {
+          "channel": "production",
+          "platform": "android",
+          "sequence": 3,
+          "rolloutPercent": 100,
+          "at": "2026-10-24T15:58:14.430Z",
+          "kind": "promote"
+        }
+      ]
     }
   ],
   "events": [
@@ -162,6 +210,22 @@
       "sequence": 2,
       "target": "1.0.3-ota.2",
       "at": "2026-10-24T15:28:28.142Z"
+    },
+    {
+      "kind": "promote",
+      "channel": "production",
+      "platform": "ios",
+      "sequence": 3,
+      "target": "1.0.3-ota.3",
+      "at": "2026-10-24T15:58:12.505Z"
+    },
+    {
+      "kind": "promote",
+      "channel": "production",
+      "platform": "android",
+      "sequence": 3,
+      "target": "1.0.3-ota.3",
+      "at": "2026-10-24T15:58:14.430Z"
     }
   ]
 }
